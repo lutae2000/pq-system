@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    # 운영 DB 연결 정보.
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    # 운영은 스키마를 검증만 하고 자동 생성/초기 데이터 주입은 하지 않는다.
+    hibernate:
+      ddl-auto: validate
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+logging:
+  level:
+    root: INFO
+    SQL_COMPLETED: OFF
+
+management:
+  endpoints:
+    web:
+      # 운영은 최소한의 헬스/메트릭만 노출한다.
+      exposure:
+        include: health,prometheus
+app:
+  security:
+    integrations:
+      application:
+        # 운영에서 내부 서비스 호출을 검증하는 자격 증명.
+        api-key: ${APP_APPLICATION_API_KEY:ca9f7161483a1a35e43048c1ddc1a4a6ad803c1a5f527777871aca6682179712}
+  file:
+    # 운영 파일 저장 경로.
+    storage-root: ${APP_FILE_STORAGE_ROOT:/data/cheil-be/files/prod}

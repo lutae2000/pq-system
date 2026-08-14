@@ -1,0 +1,51 @@
+﻿# 프론트엔드 작업 규칙
+
+- 인증이 필요한 API 호출은 반드시 `lib/http/apiClient.ts`의 `apiClient`를 사용한다.
+- `apiClient`는 `x-service-id`와 `x-api-key`를 자동으로 포함한다. 보안이 필요한 API에 `fetch`를 직접 쓰지 않는다.
+- 모든 API 모듈은 `@/lib/http/apiClient`의 `apiClient`와 `@/lib/http/apiRequest`의 `apiRequest`를 함께 사용한다.
+- API 모듈에서는 `const response = await apiClient...; return response.data;` 패턴을 새로 만들지 않는다. `return apiRequest(apiClient.get<T>(...), "실패 메시지")` 형태로 응답 추출과 에러 메시지 변환을 공통화한다.
+- FormData 업로드도 `apiRequest(apiClient.post<T>(url, formData), "...")`를 사용한다. `apiClient`가 FormData 요청의 `Content-Type`을 자동 처리하므로 직접 multipart 헤더를 고정하지 않는다.
+- 요청 경로는 Next.js가 노출하는 `/api` 기준으로 작성한다. 예: `apiClient.get("/auth/users")`
+- HTTP 타입은 한 곳에서 공통으로 관리하고, 각 모듈은 필요한 타입만 재사용한다.
+- 여러 화면에서 반복 조회하는 역할, 사용자, 부서, 공사종류, 공통코드 옵션은 `modules/common/reference`의 reference API와 hook을 우선 사용한다.
+- 셀렉트 UI가 필요하면 `components/common/reference-selects`의 `RoleSelect`, `UserSelect`, `DepartmentSelect`, `ConstructionTypeSelect`, `CommonCodeLevel1Select`, `CommonCodeLevel2Select`를 우선 사용한다.
+- 화면마다 `useQuery`와 옵션 변환 함수를 새로 만들지 않는다. 특수 필터가 필요하면 reference hook의 `params`로 전달하고, 공통화가 필요한 새 조회 API는 `referenceApi.ts`와 `useReferenceOptions.ts`에 추가한다.
+- reference 조회는 조회 전용 공통 데이터에만 사용한다. 저장/수정/삭제가 필요한 관리 화면 API는 각 업무 모듈의 `api.ts`에 둔다.
+- reference hook은 `{ items, options, labelByValue }`를 반환한다. 셀렉트는 `options`, 그리드/상세의 코드명 변환은 `labelByValue`, 원본 레코드가 필요하면 `items`를 사용한다.
+- reference hook의 query key는 `["references", 도메인명, params]` 형식을 유지하고, 기본 캐시 시간은 `REFERENCE_STALE_TIME`을 사용한다.
+- 새 공통 reference를 추가할 때는 `referenceApi.ts`에 `get...References()`, `useReferenceOptions.ts`에 `use...Options()`, 필요하면 `components/common/reference-selects/ReferenceSelects.tsx`에 `...Select`를 함께 추가한다.
+- reference option의 `value`는 화면 저장값과 동일한 코드 값을 사용하고, `label`은 사용자가 볼 이름으로 만든다. 중복 value는 `referenceApi.ts`의 공통 변환 로직에서 제거되므로 임의로 중복 option을 만들지 않는다.
+- 로컬에서 `x-api-key`가 바뀌면 `.env.local`과 `.env.development`, 백엔드의 `APP_APPLICATION_API_KEY` 값을 같은 값으로 맞춘다.
+- `next.config.ts`에는 API 인증 헤더를 직접 주입하지 않는다. 요청 헤더 관리는 `apiClient`에서만 처리한다.
+- 기존 기능을 수정할 때는 먼저 같은 화면과 비슷한 모듈이 있는지 확인하고, 그 구조를 우선 따른다.
+- 데이터를 업데이트하거나 삭제할 때는 반드시 다이얼로그로 한 번 더 확인한 뒤 작업을 진행한다.
+- 저장, 삭제, 조회 결과처럼 화면 전역에서 재사용 가능한 알림은 `useAppSnackbar()`를 우선 사용한다.
+- 전역 알림은 `AppProviders`에 이미 연결된 `AppSnackbarProvider`를 재사용하고, 화면별 `Snackbar` state는 신규 작성하지 않는다.
+- 모든 업무 화면은 활성 탭 기준으로 `Breadcrumbs`가 보이도록 구성한다. `AppShell`이 아니라 탭 렌더링 레이어에서 활성 탭에만 노출하는 구조를 유지한다.
+- 새 화면에서 조회, 요약, 옵션 로딩용 `useQuery`를 추가할 때는 탭 활성 상태를 함께 고려한다. 기본적으로 `useTabQueryEnabled()` 또는 `useTabActivity()`를 사용해 비활성 탭에서는 조회가 돌지 않도록 한다.
+- 탭이 많아져도 복귀 시 사용자가 보던 페이지, 필터, 선택 상태가 유지되어야 하므로 일반 업무 화면은 비활성 시에도 mount를 유지하는 것을 기본값으로 본다.
+- 일반 업무 화면은 비활성 탭에서 DOM은 유지하되 무거운 조회와 불필요한 렌더만 멈추는 방향을 기본 전략으로 사용한다.
+- `dashboard`처럼 초기 렌더와 조회 비용이 큰 화면은 다른 메뉴로 이동해 비활성 탭이 되면 unmount할 수 있다.
+- 검색용 `TextField`에서 `조회` 버튼이 함께 쓰이면, Enter 키를 눌렀을 때도 동일한 조회 동작이 실행되도록 만든다.
+- 가능하면 검색 영역은 `form`과 `onSubmit`으로 묶고, 어렵다면 검색어 입력 필드의 `onKeyDown`에서 Enter를 `onSearch`로 연결한다.
+- 이미 공통 검색 패널이 있으면 우선 재사용하고, 새로운 검색 UI를 만들 때도 같은 Enter 동작 규칙을 유지한다.
+- 조회조건 컴포넌트는 `value`만 연결하고 `onChange`를 빠뜨리지 않는다. 텍스트 입력, 선택 입력, 날짜 입력 모두 화면 상태와 양방향으로 연결되어야 한다.
+- 조회조건 초기화 시에는 필터뿐 아니라 선택 row, 체크 상태, 페이지 번호 같은 화면 상태도 함께 어떤 값으로 돌아갈지 명확히 정의한다.
+- 크기 조절이 필요한 카드는 `components/common/ResizableCard`를 우선 사용한다. 손잡이만 따로 만들지 말고, 좌측/우측/하단 조절은 공통 카드와 `ResizeHandle` 조합으로 처리한다.
+- 그리드에서 row 클릭 동작과 체크박스 선택 동작이 함께 있는 경우 두 상호작용을 분리해서 설계한다. 필요 시 공통 그리드 옵션으로 row click에 의한 checkbox toggle 여부를 제어한다.
+- 선택형 목록을 별도 필터로 보여주는 화면은 "선택된 목록만 보기" 상태에서도 상세 패널 조회가 깨지지 않도록, 체크 상태와 상세 조회 대상을 별도 상태로 관리하는 것을 우선 검토한다.
+- 공통 조회 옵션 훅, 공통 셀렉트, 첨부파일 패널처럼 여러 화면에서 재사용되는 컴포넌트는 탭 비활성 최적화 대상인지 먼저 검토하고 공통 레벨에서 막을 수 있으면 공통에서 처리한다.
+- 저장, 조회, 삭제, 신규 버튼은 반드시 메뉴 권한과 연결한다.
+- 조회 버튼은 `canRead`, 신규 버튼은 `canCreate`, 저장 버튼은 `canCreate` 또는 `canUpdate`, 삭제 버튼은 `canDelete`를 기준으로 제어한다.
+- 새 화면을 만들 때는 `useCurrentMenuPermission()`을 우선 확인하고, 공통 `SearchPanel`에는 `searchDisabled={!canRead}`를 넘기며, 직접 만든 버튼도 동일한 권한 기준으로 `disabled` 처리한다.
+- 권한이 없는 사용자는 버튼이 눌리지 않도록 해야 하며, 필요하면 버튼을 숨기기보다 비활성화 상태로 일관되게 보여준다.
+- 기술자 인사정보 같은 관리 화면은 저장 흐름을 단순하게 유지한다. 마스터 저장과 자식 섹션 저장은 분리하고, 일괄 재저장이나 전체 프로필 병합 로직은 두지 않는다.
+- 백엔드 신규 구현은 기존 스택이 이미 JDBC 중심이면 그대로 단순 SQL/JDBC로 유지한다. JPQL이나 QueryDSL은 유지보수 이점이 분명할 때만 도입하고, 복잡한 추상화보다 읽기 쉬운 코드를 우선한다.
+
+## 인코딩 및 한글 텍스트 주의사항
+
+- 한글이 들어간 파일은 셸 리다이렉션, `Set-Content`, `Out-File`, `>`, `>>`로 직접 덮어쓰지 않는다. UTF-8 저장이 끝까지 보장되는 경우에만 사용한다.
+- 한글 UI 문구, 안내 문구, SQL 주석, 마크다운 문서를 수정할 때는 가능하면 `apply_patch`를 우선 사용한다.
+- 한글이 포함된 파일을 수정한 뒤에는 다시 열어서 한글이 정상적으로 유지됐는지, 그리고 JSX나 SQL 문법이 깨지지 않았는지 확인한다.
+- 콘솔에서 글자가 깨져 보여도 바로 파일을 다시 쓰지 않는다. 먼저 표시 문제인지 확인하고, 파일 재저장으로 인코딩 손상을 키우지 않는다.
+- 한 번에 넓은 범위를 고치기보다, 한글 변경은 가능한 한 작은 단위로 나눠서 적용한다.

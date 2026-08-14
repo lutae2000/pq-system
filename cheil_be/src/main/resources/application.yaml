@@ -1,0 +1,174 @@
+spring:
+  application:
+    name: cheil-be
+  docker:
+    compose:
+      enabled: false
+  profiles:
+    # 별도 지정이 없으면 local 프로파일로 시작한다.
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  jpa:
+    # 공통 JPA 설정. 부작용을 줄이기 위해 open-in-view는 끈다.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  datasource:
+    hikari:
+      # DB 연결을 잡을 때 너무 오래 기다리지 않도록 제한
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:10000}
+      # 연결 유효성 검사를 너무 길게 끌지 않도록 제한
+      validation-timeout: ${SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT:3000}
+      # 유휴 연결을 주기적으로 확인해서 잠깐 끊겼다가 복구되는 상황을 완화
+      keepalive-time: ${SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME:300000}
+      # 연결 수명을 제한해서 오래된 연결을 교체
+      max-lifetime: ${SPRING_DATASOURCE_HIKARI_MAX_LIFETIME:1800000}
+  flyway:
+    # 스키마 변경은 Flyway 마이그레이션으로만 관리한다.
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      repositories:
+        enabled: false
+      # Redis 연결과 요청 대기를 짧게 잡아서 일시 장애 복구를 빨리 감지
+      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:3s}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:3s}
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:20MB}
+      max-request-size: ${SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE:20MB}
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: ${APP_TRACING_SAMPLING_PROBABILITY:0.1}
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+  metrics:
+    enable:
+      all: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:local}
+      instance: ${HOSTNAME:${spring.application.name}}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  opentelemetry:
+    tracing:
+      sampler: trace-id-ratio
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://otel-collector:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+logging:
+  file:
+    name: ${APP_LOG_FILE_NAME:${user.home}/cheil-be/logs/application.log}
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [${spring.application.name:},%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+app:
+  common-code-cache:
+    ttl: ${APP_COMMON_CODE_CACHE_TTL:1d}
+    read-timeout: ${APP_COMMON_CODE_CACHE_READ_TIMEOUT:1s}
+  department-cache:
+    ttl: ${APP_DEPARTMENT_CACHE_TTL:1d}
+    read-timeout: ${APP_DEPARTMENT_CACHE_READ_TIMEOUT:1s}
+  file:
+    storage-root: ${APP_FILE_STORAGE_ROOT:${java.io.tmpdir}/cheil-be/files}
+    download-path: /files
+    public-base-url: ${APP_FILE_PUBLIC_BASE_URL:}
+    create-directories: true
+    max-size: ${APP_FILE_MAX_SIZE:50MB}
+    allowed-extensions: ${APP_FILE_ALLOWED_EXTENSIONS:pdf,doc,docx,xls,xlsx,ppt,pptx,hwp,hwpx,txt,csv,jpg,jpeg,png,gif,zip}
+    blocked-extensions: ${APP_FILE_BLOCKED_EXTENSIONS:exe,bat,cmd,com,dll,msi,sh,bash,ps1,jar,war,ear,js,vbs,wsf,hta,scr,reg}
+    max-filename-length: ${APP_FILE_MAX_FILENAME_LENGTH:255}
+  mail:
+    enabled: ${APP_MAIL_ENABLED:false}
+    default-from: ${APP_MAIL_DEFAULT_FROM:no-reply@cheil.local}
+  security:
+    token:
+      # 서비스 토큰 발급/검증에 쓰는 기본 비밀키와 만료 시간.
+      issuer: ${spring.application.name}
+      secret: ${APP_TOKEN_SECRET:19091d9f34f0a94c1b5c2a5ad5c9c0fcd89839d94bc8566207919fa4199198d8}
+      ttl: ${APP_TOKEN_TTL:1h}
+    user-session:
+      # 로그인 세션 유지 시간.
+      ttl: ${APP_USER_SESSION_TTL:9h}
+      idle-ttl: ${APP_USER_SESSION_IDLE_TTL:1h}
+    integrations:
+      application:
+        # 내부 서비스 호출 시 검증하는 자격 증명.
+        service-id: application
+        api-key: ${APP_APPLICATION_API_KEY:30aafc86257cbf251b0307cfc2cf5243f66fad37d63e2693176f451e83c301a8}
+    filter:
+      # 인증 필터에서 제외할 공개 경로 목록.
+      excluded-paths:
+        - /auth/login
+        - /auth/signup
+        - /auth/session
+        - /auth/logout
+        - /code/**
+        - /system/permissions/roles
+        - /actuator/health/**
+        - /actuator/prometheus
+        - /docs/**
+        - /files/**
+        - /error
+        - /api/auth/login
+        - /api/auth/signup
+        - /api/auth/session
+        - /api/auth/logout
+        - /api/code/**
+        - /api/system/permissions/roles
+        - /api/actuator/health/**
+        - /api/actuator/prometheus
+        - /api/docs/**
+        - /api/files/**
+        - /api/error
+      login-excluded-paths:
+        - /token
+        - /api/token
+    cors:
+      allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:*}
+      allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}
+      allowed-headers: ${APP_CORS_ALLOWED_HEADERS:Accept,Authorization,Content-Type,Origin,x-api-key,x-service-id,x-login-id,x-program-code}
+      exposed-headers: ${APP_CORS_EXPOSED_HEADERS:}
+      allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:false}
+      max-age: ${APP_CORS_MAX_AGE:3600}

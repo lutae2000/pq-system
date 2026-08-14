@@ -1,0 +1,70 @@
+= Cheil BE API
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+:sectlinks:
+
+== Authentication
+
+Frontend login uses a single active session per `loginId`.
+
+The login response includes `token.accessToken` and `token.expiresAt`. Store that access token on the client and send it as `Authorization: Bearer <accessToken>` when calling authenticated user APIs.
+
+This login session is separate from the service-to-service JWT token issued by `POST /token`.
+`/token` requires service authentication headers and returns `accessToken` for backend integration calls.
+
+Session check:
+
+`GET /auth/session`
+
+Signup:
+
+`POST /auth/signup`
+
+Request body:
+
+```json
+{
+  "employeeNo": "250001",
+  "userName": "Seongtae Lee",
+  "loginId": "stleekm",
+  "userPassword": "password",
+  "deptCode": "10",
+  "groupCode": "100"
+}
+```
+
+Login requests still use the request body below.
+
+include::{snippets}/auth-token-issue-success/request-headers.adoc[]
+
+=== Issue Token
+
+==== Success
+
+include::{snippets}/auth-token-issue-success/http-request.adoc[]
+include::{snippets}/auth-token-issue-success/request-fields.adoc[]
+include::{snippets}/auth-token-issue-success/http-response.adoc[]
+include::{snippets}/auth-token-issue-success/response-fields.adoc[]
+
+==== Missing Headers
+
+include::{snippets}/auth-token-issue-missing-headers/http-request.adoc[]
+include::{snippets}/auth-token-issue-missing-headers/http-response.adoc[]
+include::{snippets}/auth-token-issue-missing-headers/response-fields.adoc[]
+
+==== Invalid API Key
+
+include::{snippets}/auth-token-issue-invalid-api-key/http-request.adoc[]
+include::{snippets}/auth-token-issue-invalid-api-key/request-headers.adoc[]
+include::{snippets}/auth-token-issue-invalid-api-key/http-response.adoc[]
+include::{snippets}/auth-token-issue-invalid-api-key/response-fields.adoc[]
+
+==== Server Bypass
+
+include::{snippets}/auth-token-issue-server-bypass/http-request.adoc[]
+include::{snippets}/auth-token-issue-server-bypass/request-headers.adoc[]
+include::{snippets}/auth-token-issue-server-bypass/http-response.adoc[]
+include::{snippets}/auth-token-issue-server-bypass/response-fields.adoc[]

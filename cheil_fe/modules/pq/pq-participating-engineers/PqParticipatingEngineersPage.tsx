@@ -1,0 +1,1116 @@
+"use client";
+
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Checkbox,
+  Grid,
+  MenuItem,
+  Snackbar,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
+import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
+import { standardFieldSx } from "@/components/common/FormControls";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SearchPanel } from "@/components/common/SearchPanel";
+import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
+import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { listCertifications } from "@/modules/code/certifications/api";
+import { formatReferenceLabel, toSelectOptions, type SelectOption } from "@/modules/common/reference/referenceFormat";
+import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
+import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { EngineerHistoryReadonlyCard } from "@/modules/pq/engineers/history-tabs/EngineerHistoryReadonlyCard";
+import type { EngineerStatus } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
+import {
+  listPqParticipatingEngineerCandidates,
+  listPqParticipatingEngineers,
+  replacePqParticipatingEngineers,
+  type PqParticipatingEngineerCandidate,
+  type PqParticipatingEngineerRecord,
+} from "@/modules/pq/pq-participating-engineers/api";
+import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+
+type CodeOption = SelectOption;
+
+type CandidateFilters = {
+  certificationCode: string;
+  constructionManagementGrade: string;
+  designGrade: string;
+  jobField: string;
+  keyword: string;
+  relatedProjectHistoryConditions: RelatedProjectHistoryCondition[];
+  specialtyField: string;
+  status: EngineerStatus | "전체";
+};
+
+type SelectedPqEngineer = {
+  department: string;
+  engineerId: string;
+  jobField: string;
+  memo: string;
+  name: string;
+  priority: number;
+  role: string;
+  specialtyField: string;
+  status: EngineerStatus;
+  title: string;
+};
+
+type SelectionClickEvent = {
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+};
+
+function toRetireYn(status: CandidateFilters["status"]) {
+  if (status === "퇴직") {
+    return "Y" as const;
+  }
+  if (status === "재직") {
+    return "N" as const;
+  }
+  return undefined;
+}
+
+const emptyFilters = (): CandidateFilters => ({
+  certificationCode: "",
+  constructionManagementGrade: "",
+  designGrade: "",
+  jobField: "",
+  keyword: "",
+  relatedProjectHistoryConditions: [],
+  specialtyField: "",
+  status: "재직",
+});
+
+const filterAutocompleteSx = {
+  flex: "0 1 140px",
+  maxWidth: 155,
+  minWidth: 125,
+  width: "auto",
+} as const;
+
+const keywordFilterSx = {
+  flex: "0 1 220px",
+  maxWidth: 240,
+  minWidth: 190,
+  width: "auto",
+} as const;
+
+const certificationFilterSx = {
+  ...filterAutocompleteSx,
+  flex: "0 1 220px",
+  maxWidth: 240,
+  minWidth: 190,
+} as const;
+
+const statusFilterSx = {
+  ...standardFieldSx,
+  flex: "0 1 110px",
+  maxWidth: 120,
+  minWidth: 100,
+  width: "auto",
+} as const;
+
+const companyPerformanceRowSx = {
+  flex: "1 0 100%",
+  flexBasis: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  width: "100%",
+} as const;
+
+const companyPerformanceFilterSx = {
+  display: "flex",
+  gap: 0.75,
+  maxWidth: 760,
+  minWidth: 0,
+  width: "100%",
+} as const;
+
+const panelScrollHeight = { xs: 420, lg: "clamp(620px, calc(100vh - 300px), 800px)" } as const;
+const SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT = 320;
+const SELECTED_ENGINEER_CARD_MIN_HEIGHT = 240;
+const SELECTED_ENGINEER_CARD_MAX_HEIGHT = 560;
+const SELECTED_ENGINEER_CARD_GRID_OFFSET = 104;
+const selectedEngineerActionButtonSx = { minWidth: 128 } as const;
+
+const gridSx = {
+  border: 0,
+  height: panelScrollHeight,
+  "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
+  "& .MuiDataGrid-main": { overflow: "hidden" },
+  "& .MuiDataGrid-virtualScroller": {
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+  },
+} as const;
+
+
+function formatStatusChip(status: EngineerStatus) {
+  const color = status === "재직" ? "success" : status === "퇴직" ? "warning" : "default";
+  return <Chip color={color} label={status} size="small" variant={status === "재직" ? "filled" : "outlined"} />;
+}
+
+function toEngineerStatus(retireYn: "Y" | "N" | null | undefined): EngineerStatus {
+  return retireYn === "Y" ? "퇴직" : "재직";
+}
+
+function toSelectedEngineer(candidate: PqParticipatingEngineerCandidate, nextPriority: number): SelectedPqEngineer {
+  return {
+    department: candidate.department ?? "",
+    engineerId: candidate.engrId,
+    jobField: candidate.jobField ?? "",
+    memo: "",
+    name: candidate.name ?? "",
+    priority: nextPriority,
+    role: "참여기술인",
+    specialtyField: candidate.specialtyField ?? "",
+    status: toEngineerStatus(candidate.retireYn),
+    title: candidate.position ?? "",
+  };
+}
+
+function toSelectedEngineerFromRecord(record: PqParticipatingEngineerRecord, index: number): SelectedPqEngineer {
+  return {
+    department: record.department ?? "",
+    engineerId: record.engrId,
+    jobField: record.jobField ?? "",
+    memo: record.memo ?? "",
+    name: record.name ?? "",
+    priority: record.priority ?? index + 1,
+    role: record.role ?? "참여기술인",
+    specialtyField: record.specialtyField ?? "",
+    status: toEngineerStatus(record.retireYn),
+    title: record.position ?? "",
+  };
+}
+
+function serializeSelectedEngineers(items: SelectedPqEngineer[]) {
+  return items
+    .map((engineer) => [engineer.engineerId, engineer.priority, engineer.role ?? "", engineer.memo ?? ""].join(":"))
+    .join("|");
+}
+
+export function PqParticipatingEngineersPage() {
+  const queryClient = useQueryClient();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
+  const workDutyId = currentSession?.employeeNo ?? "";
+  const candidateClickTimerRef = useRef<number | null>(null);
+  const [filters, setFilters] = useState<CandidateFilters>(() => emptyFilters());
+  const [appliedFilters, setAppliedFilters] = useState<CandidateFilters>(() => emptyFilters());
+  const [candidatePage, setCandidatePage] = useState(0);
+  const [candidatePageSize, setCandidatePageSize] = useState(100);
+  const [historyEngineerId, setHistoryEngineerId] = useState("");
+  const [selectedCompanyPerformance, setSelectedCompanyPerformance] = useState<BidNoticeRecord | null>(null);
+  const [companyPerformanceDialogOpen, setCompanyPerformanceDialogOpen] = useState(false);
+  const [selectedEngineerCardHeight, setSelectedEngineerCardHeight] = useState(SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT);
+  const [selectedEngineers, setSelectedEngineers] = useState<SelectedPqEngineer[]>([]);
+  const [selectedEngineerSnapshot, setSelectedEngineerSnapshot] = useState("");
+  const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
+  const [selectedEngineerSelectionAnchorId, setSelectedEngineerSelectionAnchorId] = useState<string | null>(null);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+  const [candidateSelectionAnchorId, setCandidateSelectionAnchorId] = useState<string | null>(null);
+  const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
+  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
+
+  const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: canRead });
+  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
+  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
+
+  const certificationsQuery = useQuery({
+    queryKey: ["code-certifications"],
+    queryFn: listCertifications,
+  });
+
+  const candidateQueryFilters = useMemo(
+    () => ({
+      bidSeq: selectedCompanyPerformance?.bidSeq ?? undefined,
+      certificationName: appliedFilters.certificationCode || undefined,
+      constructionManagementGrade: appliedFilters.constructionManagementGrade || undefined,
+      designGrade: appliedFilters.designGrade || undefined,
+      jobField: appliedFilters.jobField || undefined,
+      keyword: appliedFilters.keyword.trim() || undefined,
+      page: candidatePage,
+      projectHistoryConditions: appliedFilters.relatedProjectHistoryConditions,
+      retireYn: toRetireYn(appliedFilters.status),
+      size: candidatePageSize,
+      specialtyField: appliedFilters.specialtyField || undefined,
+      workDutyId: workDutyId || undefined,
+    }),
+    [appliedFilters, candidatePage, candidatePageSize, selectedCompanyPerformance?.bidSeq, workDutyId],
+  );
+
+  const candidatesQuery = useQuery({
+    queryKey: ["pq-participating-engineer-candidates", candidateQueryFilters],
+    queryFn: () => listPqParticipatingEngineerCandidates(candidateQueryFilters),
+    enabled: canRead,
+    placeholderData: keepPreviousData,
+  });
+
+  const selectedEngineersQuery = useQuery({
+    queryKey: ["pq-participating-engineers", selectedCompanyPerformance?.bidSeq, workDutyId],
+    queryFn: () => listPqParticipatingEngineers({ bidSeq: selectedCompanyPerformance?.bidSeq ?? 0, workDutyId }),
+    enabled: canRead && Boolean(selectedCompanyPerformance?.bidSeq),
+  });
+
+  const gradeOptions = useMemo<CodeOption[]>(() => toSelectOptions(gradeReferences.options), [gradeReferences.options]);
+  const jobFieldOptions = useMemo<CodeOption[]>(() => toSelectOptions(jobFieldReferences.options), [jobFieldReferences.options]);
+  const specialtyFieldOptions = useMemo<CodeOption[]>(() => toSelectOptions(specialtyFieldReferences.options), [specialtyFieldReferences.options]);
+
+  const certificationOptions = useMemo<CodeOption[]>(
+    () =>
+      (certificationsQuery.data ?? []).map((certification) => ({
+        label: certification.certName,
+        value: certification.certCode,
+      })),
+    [certificationsQuery.data],
+  );
+
+  const labelByJobField = jobFieldReferences.labelByValue;
+  const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
+  const labelByGrade = gradeReferences.labelByValue;
+
+  useEffect(() => {
+    if (!selectedEngineersQuery.data) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      const nextSelectedEngineers = selectedEngineersQuery.data.map(toSelectedEngineerFromRecord);
+      setSelectedEngineers(nextSelectedEngineers);
+      setSelectedEngineerSnapshot(serializeSelectedEngineers(nextSelectedEngineers));
+      setSelectedEngineerIds([]);
+      setSelectedEngineerSelectionAnchorId(null);
+      setPendingBulkDeleteEngineerIds(null);
+      setHistoryEngineerId((current) =>
+        current && nextSelectedEngineers.some((engineer) => engineer.engineerId === current)
+          ? current
+          : nextSelectedEngineers[0]?.engineerId ?? "",
+      );
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedEngineersQuery.data]);
+
+  const emptyCandidatePage = useMemo(
+    () => ({
+      content: [] as PqParticipatingEngineerCandidate[],
+      page: candidatePage,
+      size: candidatePageSize,
+      totalElements: 0,
+      totalPages: 0,
+    }),
+    [candidatePage, candidatePageSize],
+  );
+  const candidatesPage = candidatesQuery.data ?? emptyCandidatePage;
+  const candidates = useMemo(() => candidatesPage.content ?? [], [candidatesPage.content]);
+  const selectedEngineerRowIds = useMemo(() => selectedEngineers.map((engineer) => engineer.engineerId), [selectedEngineers]);
+  const selectedEngineerIdSet = useMemo(() => new Set(selectedEngineerIds), [selectedEngineerIds]);
+  const candidateRowIds = useMemo(() => candidates.map((candidate) => candidate.engrId), [candidates]);
+  const selectedCandidateIdSet = useMemo(() => new Set(selectedCandidateIds), [selectedCandidateIds]);
+  const selectedCandidateRows = useMemo(
+    () => candidates.filter((candidate) => selectedCandidateIdSet.has(candidate.engrId)),
+    [candidates, selectedCandidateIdSet],
+  );
+  const candidateRowCount = candidatesPage.totalElements;
+  const selectedEngineerSignature = useMemo(() => serializeSelectedEngineers(selectedEngineers), [selectedEngineers]);
+  const hasUnsavedSelectedEngineerChanges = selectedEngineerSignature !== selectedEngineerSnapshot;
+
+  const saveSelectedEngineersMutation = useMutation({
+    mutationFn: () => {
+      const bidSeq = selectedCompanyPerformance?.bidSeq;
+      if (!bidSeq) {
+        throw new Error("PQ참여할 공고문을 먼저 선택하세요.");
+      }
+      if (!workDutyId) {
+        throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
+      }
+      return replacePqParticipatingEngineers({
+        bidSeq,
+        workDutyId,
+        engineers: selectedEngineers.map((engineer, index) => ({
+          engrId: engineer.engineerId,
+          memo: engineer.memo || null,
+          priority: index + 1,
+          role: engineer.role || null,
+        })),
+      });
+    },
+    onSuccess: async (records) => {
+      const nextSelectedEngineers = records.map(toSelectedEngineerFromRecord);
+      setSelectedEngineers(nextSelectedEngineers);
+      setSelectedEngineerSnapshot(serializeSelectedEngineers(nextSelectedEngineers));
+      await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineer-candidates"] });
+      await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineers", selectedCompanyPerformance?.bidSeq, workDutyId] });
+      setSnackbar({ message: "PQ참여 기술인 목록을 저장했습니다.", severity: "success" });
+    },
+    onError: (error) => {
+      setSnackbar({ message: error instanceof Error ? error.message : "PQ참여 기술인 목록 저장에 실패했습니다.", severity: "error" });
+    },
+  });
+
+  const stageCandidates = useCallback(
+    (candidatesToAdd: PqParticipatingEngineerCandidate[]) => {
+      if (!canCreate) {
+        setSnackbar({ message: "PQ참여 기술인 추가 권한이 없습니다.", severity: "error" });
+        return;
+      }
+      if (!selectedCompanyPerformance?.bidSeq) {
+        setSnackbar({ message: "PQ참여할 공고문을 먼저 선택하세요.", severity: "error" });
+        return;
+      }
+      if (!workDutyId) {
+        setSnackbar({ message: "로그인 작업자 정보를 확인할 수 없습니다.", severity: "error" });
+        return;
+      }
+
+      const existingIds = new Set(selectedEngineers.map((engineer) => engineer.engineerId));
+      const uniqueCandidates = candidatesToAdd.filter((candidate) => !existingIds.has(candidate.engrId));
+
+      if (uniqueCandidates.length === 0) {
+        setSnackbar({ message: "이미 선정 목록에 포함된 기술인입니다.", severity: "info" });
+        return;
+      }
+
+      setSelectedEngineers((current) => {
+        const currentIds = new Set(current.map((engineer) => engineer.engineerId));
+        const nextEntries = uniqueCandidates.filter((candidate) => !currentIds.has(candidate.engrId));
+
+        if (nextEntries.length === 0) {
+          return current;
+        }
+
+        return [...nextEntries.map((candidate, index) => toSelectedEngineer(candidate, current.length + index + 1)), ...current];
+      });
+      setSelectedCandidateIds([]);
+      setCandidateSelectionAnchorId(null);
+      setHistoryEngineerId((current) => current || uniqueCandidates[0]?.engrId || "");
+      setSnackbar({
+        message: `후보 기술인 ${uniqueCandidates.length}명을 선정 목록에 추가했습니다. 저장 버튼을 눌러 반영하세요.`,
+        severity: "success",
+      });
+    },
+    [canCreate, selectedCompanyPerformance?.bidSeq, selectedEngineers, workDutyId],
+  );
+
+  const clearCandidateClickTimer = useCallback(() => {
+    if (candidateClickTimerRef.current !== null) {
+      window.clearTimeout(candidateClickTimerRef.current);
+      candidateClickTimerRef.current = null;
+    }
+  }, []);
+
+  const handleCandidateSelection = useCallback(
+    (id: string, event?: SelectionClickEvent, source: "row" | "checkbox" = "row") => {
+      const isModifierClick = Boolean(event?.ctrlKey || event?.metaKey);
+      const isRangeClick = Boolean(event?.shiftKey);
+
+      setSelectedCandidateIds((current) => {
+        if (!isModifierClick && !isRangeClick) {
+          setCandidateSelectionAnchorId(id);
+          if (source === "checkbox") {
+            return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+          }
+          return [id];
+        }
+
+        if (isRangeClick) {
+          const anchorId = candidateSelectionAnchorId ?? current[current.length - 1] ?? id;
+          const anchorIndex = candidateRowIds.indexOf(anchorId);
+          const targetIndex = candidateRowIds.indexOf(id);
+
+          if (anchorIndex < 0 || targetIndex < 0) {
+            setCandidateSelectionAnchorId(id);
+            return Array.from(new Set([...current, id]));
+          }
+
+          const [startIdx, endIdx] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+          const rangeIds = candidateRowIds.slice(startIdx, endIdx + 1);
+          setCandidateSelectionAnchorId(anchorId);
+          return Array.from(new Set([...current, ...rangeIds]));
+        }
+
+        setCandidateSelectionAnchorId(id);
+        return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      });
+    },
+    [candidateRowIds, candidateSelectionAnchorId],
+  );
+
+  const addSelectedCandidates = useCallback(() => {
+    if (!canCreate) {
+      setSnackbar({ message: "PQ참여 기술인 추가 권한이 없습니다.", severity: "error" });
+      return;
+    }
+    if (!selectedCompanyPerformance?.bidSeq) {
+      setSnackbar({ message: "PQ참여할 공고문을 먼저 선택하세요.", severity: "error" });
+      return;
+    }
+
+    const candidatesToAdd = candidates.filter((candidate) => selectedCandidateIdSet.has(candidate.engrId));
+    if (candidatesToAdd.length === 0) {
+      setSnackbar({ message: "추가할 후보기술인를 먼저 선택해 주세요.", severity: "info" });
+      return;
+    }
+
+    setSelectedEngineers((current) => {
+      const existing = new Set(current.map((engineer) => engineer.engineerId));
+      const nextEntries = candidatesToAdd.filter((candidate) => !existing.has(candidate.engrId));
+
+      if (nextEntries.length === 0) {
+        setSnackbar({ message: "이미 선정 목록에 포함된 기술인입니다.", severity: "info" });
+        return current;
+      }
+
+      return [...nextEntries.map((candidate, index) => toSelectedEngineer(candidate, current.length + index + 1)), ...current];
+    });
+
+    setSelectedCandidateIds([]);
+    setCandidateSelectionAnchorId(null);
+  }, [canCreate, candidates, selectedCandidateIdSet, selectedCompanyPerformance?.bidSeq]);
+
+  const handleCandidateRowClick = useCallback(
+    (params: GridRowParams<PqParticipatingEngineerCandidate>, event: SelectionClickEvent) => {
+      clearCandidateClickTimer();
+      setHistoryEngineerId(params.row.engrId);
+      handleCandidateSelection(params.row.engrId, event);
+    },
+    [clearCandidateClickTimer, handleCandidateSelection],
+  );
+
+  const handleCandidateRowDoubleClick = useCallback(
+    (params: GridRowParams<PqParticipatingEngineerCandidate>) => {
+      clearCandidateClickTimer();
+      setHistoryEngineerId(params.row.engrId);
+      stageCandidates([params.row]);
+    },
+    [clearCandidateClickTimer, stageCandidates],
+  );
+
+  useEffect(() => () => clearCandidateClickTimer(), [clearCandidateClickTimer]);
+
+  const handleSelectedEngineerSelection = useCallback(
+    (id: string, event?: SelectionClickEvent, source: "row" | "checkbox" = "row") => {
+      const isModifierClick = Boolean(event?.ctrlKey || event?.metaKey);
+      const isRangeClick = Boolean(event?.shiftKey);
+
+      setSelectedEngineerIds((current) => {
+        if (!isModifierClick && !isRangeClick) {
+          setSelectedEngineerSelectionAnchorId(id);
+          if (source === "checkbox") {
+            return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+          }
+          return [id];
+        }
+
+        if (isRangeClick) {
+          const anchorId = selectedEngineerSelectionAnchorId ?? current[current.length - 1] ?? id;
+          const anchorIndex = selectedEngineerRowIds.indexOf(anchorId);
+          const targetIndex = selectedEngineerRowIds.indexOf(id);
+
+          if (anchorIndex < 0 || targetIndex < 0) {
+            setSelectedEngineerSelectionAnchorId(id);
+            return Array.from(new Set([...current, id]));
+          }
+
+          const [startIdx, endIdx] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+          const rangeIds = selectedEngineerRowIds.slice(startIdx, endIdx + 1);
+          setSelectedEngineerSelectionAnchorId(anchorId);
+          return Array.from(new Set([...current, ...rangeIds]));
+        }
+
+        setSelectedEngineerSelectionAnchorId(id);
+        return current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      });
+    },
+    [selectedEngineerRowIds, selectedEngineerSelectionAnchorId],
+  );
+
+  const removeSelectedEngineers = useCallback(() => {
+    if (!canDelete) {
+      setSnackbar({ message: "PQ참여 기술인를 제외할 권한이 없습니다.", severity: "error" });
+      return;
+    }
+
+    const nextIds = selectedEngineerIds.length > 0 ? selectedEngineerIds : [];
+    if (nextIds.length === 0) {
+      setSnackbar({ message: "삭제할 선정 기술인를 먼저 선택해 주세요.", severity: "info" });
+      return;
+    }
+
+    setPendingBulkDeleteEngineerIds(nextIds);
+  }, [canDelete, selectedEngineerIds]);
+
+  const confirmRemoveSelectedEngineers = useCallback(() => {
+    if (!pendingBulkDeleteEngineerIds || pendingBulkDeleteEngineerIds.length === 0) {
+      return;
+    }
+
+    const removedIds = new Set(pendingBulkDeleteEngineerIds);
+    const nextSelectedEngineers = selectedEngineers
+      .filter((engineer) => !removedIds.has(engineer.engineerId))
+      .map((engineer, index) => ({ ...engineer, priority: index + 1 }));
+
+    setSelectedEngineers(nextSelectedEngineers);
+    setSelectedEngineerIds((current) => current.filter((id) => !removedIds.has(id)));
+    setSelectedEngineerSelectionAnchorId((current) => (current && removedIds.has(current) ? null : current));
+    setPendingBulkDeleteEngineerIds(null);
+    setHistoryEngineerId((current) => {
+      if (!removedIds.has(current)) {
+        return current;
+      }
+      return nextSelectedEngineers[0]?.engineerId ?? "";
+    });
+    setSnackbar({
+      message: `선정 기술인 ${pendingBulkDeleteEngineerIds.length}명을 목록에서 제외했습니다. 저장 버튼을 눌러 반영하세요.`,
+      severity: "success",
+    });
+  }, [pendingBulkDeleteEngineerIds, selectedEngineers]);
+
+  const cancelRemoveSelectedEngineers = useCallback(() => {
+    setPendingBulkDeleteEngineerIds(null);
+  }, []);
+
+
+  const applyRelatedProjectHistoryConditions = (conditions: RelatedProjectHistoryCondition[]) => {
+    setCandidatePage(0);
+    setSelectedCandidateIds([]);
+    setCandidateSelectionAnchorId(null);
+    const nextFilters = {
+      ...filters,
+      relatedProjectHistoryConditions: conditions,
+    };
+    setFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+  };
+
+  const handleSearch = (keyword: string) => {
+    setCandidatePage(0);
+    setSelectedCandidateIds([]);
+    setCandidateSelectionAnchorId(null);
+    setAppliedFilters({ ...filters, keyword });
+  };
+
+  const handleReset = () => {
+    const nextFilters = emptyFilters();
+    setFilters(nextFilters);
+    setAppliedFilters(nextFilters);
+    setCandidatePage(0);
+    setSelectedCompanyPerformance(null);
+    setSelectedEngineers([]);
+    setSelectedEngineerSnapshot("");
+    setSelectedEngineerIds([]);
+    setSelectedEngineerSelectionAnchorId(null);
+    setPendingBulkDeleteEngineerIds(null);
+    setSelectedCandidateIds([]);
+    setCandidateSelectionAnchorId(null);
+    setHistoryEngineerId("");
+  };
+
+  const handleSave = () => {
+    if (!canUpdate && !canCreate) {
+      setSnackbar({ message: "PQ참여 기술인 목록을 저장할 권한이 없습니다.", severity: "error" });
+      return;
+    }
+    if (!selectedCompanyPerformance?.bidSeq) {
+      setSnackbar({ message: "PQ참여할 공고문을 먼저 선택하세요.", severity: "error" });
+      return;
+    }
+    if (!hasUnsavedSelectedEngineerChanges) {
+      setSnackbar({ message: "저장할 변경사항이 없습니다.", severity: "info" });
+      return;
+    }
+    saveSelectedEngineersMutation.mutate();
+  };
+
+  const candidateColumns = useMemo<GridColDef<PqParticipatingEngineerCandidate>[]>(
+    () => [
+      {
+        field: "__select__",
+        headerName: "선택",
+        width: 64,
+        align: "center",
+        headerAlign: "center",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <Checkbox
+            checked={selectedCandidateIdSet.has(params.row.engrId)}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleCandidateSelection(params.row.engrId, event, "checkbox");
+            }}
+            size="small"
+            sx={{
+              p: 0,
+              "& .MuiSvgIcon-root": {
+                fontSize: 18,
+              },
+            }}
+          />
+        ),
+      },
+      { field: "name", headerName: "성명", width: 100, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.name ?? "" },
+      { field: "position", headerName: "직위", width: 90, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.position ?? "" },
+      {
+        field: "jobField",
+        headerName: "직무분야",
+        width: 120,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => row.jobField ?? "",
+        valueFormatter: (value) => formatReferenceLabel(labelByJobField, value),
+      },
+      {
+        field: "specialtyField",
+        headerName: "전문분야",
+        width: 120,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => row.specialtyField ?? "",
+        valueFormatter: (value) => formatReferenceLabel(labelBySpecialtyField, value),
+      },
+      {
+        field: "designGrade",
+        headerName: "설계등급",
+        flex: 1,
+        minWidth: 110,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => row.designGrade ?? "",
+        valueFormatter: (value) => formatReferenceLabel(labelByGrade, value),
+      },
+    ],
+    [handleCandidateSelection, labelByGrade, labelByJobField, labelBySpecialtyField, selectedCandidateIdSet],
+  );
+
+  const selectedColumns = useMemo<GridColDef<SelectedPqEngineer>[]>(
+    () => [
+      {
+        field: "__select__",
+        headerName: "선택",
+        width: 64,
+        align: "center",
+        headerAlign: "center",
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <Checkbox
+            checked={selectedEngineerIdSet.has(params.row.engineerId)}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleSelectedEngineerSelection(params.row.engineerId, event, "checkbox");
+            }}
+            size="small"
+            sx={{
+              p: 0,
+              "& .MuiSvgIcon-root": {
+                fontSize: 18,
+              },
+            }}
+          />
+        ),
+      },
+      { field: "priority", headerName: "순번", width: 70, align: "center", headerAlign: "center" },
+      { field: "name", headerName: "성명", width: 100, align: "center", headerAlign: "center" },
+      { field: "department", headerName: "부서", minWidth: 100, flex: 0.8, align: "center", headerAlign: "center" },
+      { field: "title", headerName: "직위", width: 90, align: "center", headerAlign: "center" },
+      {
+        field: "jobField",
+        headerName: "직무분야",
+        width: 120,
+        align: "center",
+        headerAlign: "center",
+        valueFormatter: (value) => formatReferenceLabel(labelByJobField, value),
+      },
+      {
+        field: "specialtyField",
+        headerName: "전문분야",
+        width: 150,
+        align: "center",
+        headerAlign: "center",
+        valueFormatter: (value) => formatReferenceLabel(labelBySpecialtyField, value),
+      },
+      {
+        field: "status",
+        headerName: "재직상태",
+        width: 100,
+        align: "center",
+        headerAlign: "center",
+        renderCell: (params) => formatStatusChip(params.value as EngineerStatus),
+      },
+    ],
+    [handleSelectedEngineerSelection, labelByJobField, labelBySpecialtyField, selectedEngineerIdSet],
+  );
+
+  const candidatePaginationModel = useMemo<GridPaginationModel>(
+    () => ({ page: candidatePage, pageSize: candidatePageSize }),
+    [candidatePage, candidatePageSize],
+  );
+  const selectedEngineerGridHeight = Math.max(
+    140,
+    selectedEngineerCardHeight - SELECTED_ENGINEER_CARD_GRID_OFFSET,
+  );
+  const handleSelectedEngineerResizeStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const startY = event.clientY;
+      const startHeight = selectedEngineerCardHeight;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const nextHeight = Math.min(
+          SELECTED_ENGINEER_CARD_MAX_HEIGHT,
+          Math.max(SELECTED_ENGINEER_CARD_MIN_HEIGHT, startHeight + moveEvent.clientY - startY),
+        );
+        setSelectedEngineerCardHeight(nextHeight);
+      };
+      const handlePointerUp = () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [selectedEngineerCardHeight],
+  );
+
+  return (
+    <Box>
+      <PageHeader title="PQ참여 기술인 관리" />
+
+      <SearchPanel
+        keyword={filters.keyword}
+        keywordLabel="기술인명"
+        keywordPlaceholder="성명, 부서, 직위"
+        keywordSx={keywordFilterSx}
+        keywordIndex={1}
+        onKeywordChange={(keyword) => setFilters((current) => ({ ...current, keyword }))}
+        onReset={handleReset}
+        onSearch={handleSearch}
+        searchDisabled={!canRead}
+      >
+        <Stack sx={companyPerformanceRowSx}>
+          <Stack direction="row" sx={companyPerformanceFilterSx}>
+            <TextField
+              fullWidth
+              label="PQ참여할 공고문 선택"
+              placeholder="공고문 선택"
+              size="small"
+              sx={standardFieldSx}
+              value={selectedCompanyPerformance?.projectName ?? ""}
+              slotProps={{
+                input: {
+                  readOnly: true,
+                },
+              }}
+            />
+            <Button
+              disabled={!canRead}
+              onClick={() => setCompanyPerformanceDialogOpen(true)}
+              startIcon={<SearchOutlinedIcon />}
+              sx={{ flex: "0 0 auto", minWidth: 88, whiteSpace: "nowrap" }}
+              type="button"
+              variant="outlined"
+            >
+              {"선택"}
+            </Button>
+          </Stack>
+        </Stack>
+        <TextField
+          label="재직상태"
+          select
+          size="small"
+          sx={statusFilterSx}
+          value={filters.status}
+          onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as CandidateFilters["status"] }))}
+        >
+          {(["전체", "재직", "퇴직"] as const).map((status) => (
+            <MenuItem key={status} value={status}>
+              {status}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Autocomplete
+          options={certificationOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={certificationFilterSx}
+          value={certificationOptions.find((option) => option.value === filters.certificationCode) ?? null}
+          onChange={(_, option) => setFilters((current) => ({ ...current, certificationCode: option?.value ?? "" }))}
+          renderInput={(params) => <TextField {...params} label="보유 자격증" size="small" sx={standardFieldSx} />}
+        />
+        <Autocomplete
+          options={specialtyFieldOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={filterAutocompleteSx}
+          value={specialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null}
+          onChange={(_, option) => setFilters((current) => ({ ...current, specialtyField: option?.value ?? "" }))}
+          renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={standardFieldSx} />}
+        />
+        <Autocomplete
+          options={jobFieldOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={filterAutocompleteSx}
+          value={jobFieldOptions.find((option) => option.value === filters.jobField) ?? null}
+          onChange={(_, option) => setFilters((current) => ({ ...current, jobField: option?.value ?? "" }))}
+          renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={standardFieldSx} />}
+        />
+        <Autocomplete
+          options={gradeOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={filterAutocompleteSx}
+          value={gradeOptions.find((option) => option.value === filters.designGrade) ?? null}
+          onChange={(_, option) => setFilters((current) => ({ ...current, designGrade: option?.value ?? "" }))}
+          renderInput={(params) => <TextField {...params} label="설계등급" size="small" sx={standardFieldSx} />}
+        />
+
+        <Box sx={companyPerformanceRowSx}>
+          <RelatedProjectHistoryConditionsPanel
+            bidSeq={selectedCompanyPerformance?.bidSeq ?? null}
+            disabled={!canRead}
+            onApply={applyRelatedProjectHistoryConditions}
+            value={filters.relatedProjectHistoryConditions}
+          />
+        </Box>
+      </SearchPanel>
+
+      {!canRead ? (
+        <Alert severity="warning">PQ참여 기술인를 조회할 권한이 없습니다.</Alert>
+      ) : (
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, lg: 5 }}>
+            <Card>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
+                  <Box>
+                    <Typography sx={{ fontWeight: 800 }} variant="h6">
+                      {"후보 기술인"}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <Chip label={`선택 ${selectedCandidateRows.length}명`} size="small" variant={selectedCandidateRows.length > 0 ? "filled" : "outlined"} />
+                    <Chip label={`총 ${candidatesPage.totalElements}명`} size="small" variant="outlined" />
+                    <Button
+                      disabled={!canCreate || selectedCandidateRows.length === 0}
+                      onClick={addSelectedCandidates}
+                      startIcon={<AddOutlinedIcon />}
+                      size="small"
+                      variant="contained"
+                    >
+                      {"추가"}
+                    </Button>
+                  </Stack>
+                </Box>
+                <EnterpriseDataGrid<PqParticipatingEngineerCandidate>
+                  columns={candidateColumns}
+                  getRowId={(row) => row.engrId}
+                  hideFooter
+                  hideFooterSelectedRowCount
+                  loading={candidatesQuery.isLoading || candidatesQuery.isFetching}
+                  onPaginationModelChange={(model) => {
+                    setCandidatePage(model.pageSize !== candidatePageSize ? 0 : model.page);
+                    setCandidatePageSize(model.pageSize);
+                    setSelectedCandidateIds([]);
+                    setCandidateSelectionAnchorId(null);
+                  }}
+                  onRowClick={handleCandidateRowClick}
+                  onRowDoubleClick={handleCandidateRowDoubleClick}
+                  pageSizeOptions={[25, 50, 100]}
+                  paginationMode="server"
+                  paginationModel={candidatePaginationModel}
+                  rowCount={candidateRowCount}
+                  rows={candidates}
+                  getRowClassName={({ row }) => (selectedCandidateIdSet.has(row.engrId) ? "candidate-row-selected" : "")}
+                  wrapperMinHeight={panelScrollHeight}
+                  sx={{
+                    ...gridSx,
+                    "& .MuiDataGrid-row:hover": { cursor: "pointer" },
+                    "& .MuiDataGrid-row.candidate-row-selected": {
+                      backgroundColor: "rgba(25, 118, 210, 0.10)",
+                    },
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid size={{ xs: 12, lg: 7 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateRows: { xs: "auto auto", lg: `${selectedEngineerCardHeight}px minmax(0, 1fr)` },
+                height: { xs: "auto", lg: panelScrollHeight },
+                minHeight: 0,
+              }}
+            >
+              <Card sx={{ height: { lg: selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative" }}>
+                <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", pb: 2.5 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 800 }} variant="h6">
+                        {"선정 기술인"}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                      <Chip label={`선택 ${selectedEngineerIds.length}명`} size="small" variant={selectedEngineerIds.length > 0 ? "filled" : "outlined"} />
+                      {hasUnsavedSelectedEngineerChanges ? <Chip color="warning" label="저장 필요" size="small" variant="outlined" /> : null}
+                      <Button
+                        color="error"
+                        disabled={!canDelete || selectedEngineerIds.length === 0}
+                        onClick={removeSelectedEngineers}
+                        startIcon={<DeleteOutlineOutlinedIcon />}
+                        size="small"
+                        sx={selectedEngineerActionButtonSx}
+                        variant="outlined"
+                      >
+                        {"선택 삭제"}
+                      </Button>
+                      <Button
+                        disabled={(!canCreate && !canUpdate) || saveSelectedEngineersMutation.isPending || !hasUnsavedSelectedEngineerChanges}
+                        onClick={handleSave}
+                        size="small"
+                        startIcon={<SaveOutlinedIcon />}
+                        sx={selectedEngineerActionButtonSx}
+                        variant="contained"
+                      >
+                        {"선정 목록 저장"}
+                      </Button>
+                    </Stack>
+                  </Box>
+                  <EnterpriseDataGrid<SelectedPqEngineer>
+                    columns={selectedColumns}
+                    getRowId={(row) => row.engineerId}
+                    hideFooter
+                    hideFooterSelectedRowCount
+                    onRowClick={(params: GridRowParams<SelectedPqEngineer>, event) => {
+                      setHistoryEngineerId(params.row.engineerId);
+                      handleSelectedEngineerSelection(params.row.engineerId, event);
+                    }}
+                    paginationMode="server"
+                    rowCount={selectedEngineers.length}
+                    rows={selectedEngineers}
+                    getRowClassName={({ row }) => (selectedEngineerIdSet.has(row.engineerId) ? "engineer-row-selected" : "")}
+                    wrapperMinHeight={selectedEngineerGridHeight}
+                    sx={{
+                      ...gridSx,
+                      height: selectedEngineerGridHeight,
+                      "& .MuiDataGrid-row.engineer-row-selected": {
+                        backgroundColor: "rgba(25, 118, 210, 0.10)",
+                      },
+                    }}
+                  />
+                </CardContent>
+                <Box
+                  aria-label="선정 기술인 영역 높이 조정"
+                  onPointerDown={handleSelectedEngineerResizeStart}
+                  role="separator"
+                  sx={{
+                    alignItems: "center",
+                    bottom: 0,
+                    cursor: "row-resize",
+                    display: { xs: "none", lg: "flex" },
+                    height: 14,
+                    justifyContent: "center",
+                    left: 0,
+                    position: "absolute",
+                    right: 0,
+                    touchAction: "none",
+                    "&::before": {
+                      bgcolor: "divider",
+                      borderRadius: 1,
+                      content: '""',
+                      height: 3,
+                      width: 48,
+                    },
+                    "&:hover::before": {
+                      bgcolor: "primary.main",
+                    },
+                  }}
+                />
+              </Card>
+
+              <Card sx={{ minHeight: 0, minWidth: 0 }}>
+                <CardContent
+                  sx={{
+                    height: { xs: panelScrollHeight, lg: "100%" },
+                    minHeight: 0,
+                    overflowY: "auto",
+                    overscrollBehavior: "contain",
+                    p: 2,
+                  }}
+                >
+                  <EngineerHistoryReadonlyCard canRead={canRead} engineerId={historyEngineerId} />
+                </CardContent>
+              </Card>
+            </Box>
+          </Grid>
+        </Grid>
+      )}
+
+      <ConfirmActionDialog
+        confirmColor="error"
+        confirmLabel="제외"
+        enableKeyboardActions
+        loading={false}
+        message={`선택된 ${pendingBulkDeleteEngineerIds?.length ?? 0}명의 선정 기술인를 목록에서 제외합니다.`}
+        open={Boolean(pendingBulkDeleteEngineerIds?.length)}
+        targetLabel="선정 기술인"
+        title="선택 제외 확인"
+        onClose={cancelRemoveSelectedEngineers}
+        onConfirm={confirmRemoveSelectedEngineers}
+      />
+
+      <Snackbar
+        autoHideDuration={2500}
+        message={snackbar?.message}
+        onClose={() => setSnackbar(null)}
+        open={Boolean(snackbar)}
+      />
+
+      <BidNoticeSelectDialog
+        onClose={() => setCompanyPerformanceDialogOpen(false)}
+        onSelect={(record) => {
+          setSelectedCompanyPerformance(record);
+          setCandidatePage(0);
+          setSelectedEngineers([]);
+          setSelectedEngineerSnapshot("");
+          setSelectedEngineerIds([]);
+          setSelectedEngineerSelectionAnchorId(null);
+          setPendingBulkDeleteEngineerIds(null);
+          setSelectedCandidateIds([]);
+          setCandidateSelectionAnchorId(null);
+          setHistoryEngineerId("");
+          setCompanyPerformanceDialogOpen(false);
+        }}
+        open={companyPerformanceDialogOpen}
+      />
+    </Box>
+  );
+}
+
+

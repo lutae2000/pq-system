@@ -1,0 +1,10 @@
+
+> cheil_fe@0.1.0 dev:local
+> next dev -H 0.0.0.0 -p 5000
+
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:5000
+- Network:       http://0.0.0.0:5000
+- Environments: .env.local, .env.development
+✓ Ready in 635ms
+

@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: 'postgres:18.4'
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cheil_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cheil}
+      POSTGRES_USER: ${POSTGRES_USER:-cheil}ㄴㅇㄴ
+    ports:
+      - '5432:5432'
+    volumes:
+      - '../../docker/postgres/init:/docker-entrypoint-initdb.d:ro'
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cheil} -d ${POSTGRES_DB:-cheil_local}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: 'quay.io/prometheuscommunity/postgres-exporter:v0.19.1'
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-cheil}:${POSTGRES_PASSWORD:-cheil}@postgres:5432/${POSTGRES_DB:-cheil_local}?sslmode=disable
+    ports:
+      - '9187:9187'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: 'redis:latest'
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

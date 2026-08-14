@@ -1,0 +1,18 @@
+# Generated on 2026-06-18.
+# x-service-id is "application" for the default internal client.
+# Move production values to a secret manager or runtime environment variables before real operation.
+
+local:
+  x-service-id: application
+  x-api-key: c925442dfe501dfad4ed375fc45daf1b7b03ad8561670b792a775e8931828ac7
+
+dev:
+  x-service-id: application
+  x-api-key: 30aafc86257cbf251b0307cfc2cf5243f66fad37d63e2693176f451e83c301a8
+
+prod:
+  x-service-id: application
+  x-api-key: ca9f7161483a1a35e43048c1ddc1a4a6ad803c1a5f527777871aca6682179712
+
+token:
+  signing-secret: 19091d9f34f0a94c1b5c2a5ad5c9c0fcd89839d94bc8566207919fa4199198d8

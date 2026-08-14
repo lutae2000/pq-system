@@ -1,0 +1,50 @@
+{
+  "name": "cheil_fe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "generate:page-registry": "node scripts/generate-page-registry.mjs",
+    "prebuild": "npm run generate:page-registry",
+    "predev:local": "npm run generate:page-registry",
+    "dev:local": "next dev -H 0.0.0.0 -p 5000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "lint": "eslint",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fullcalendar/core": "^6.1.21",
+    "@fullcalendar/daygrid": "^6.1.21",
+    "@fullcalendar/interaction": "^6.1.21",
+    "@fullcalendar/react": "^6.1.21",
+    "@fullcalendar/timegrid": "^6.1.21",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
+    "@mui/material-nextjs": "^9.0.1",
+    "@mui/x-charts": "^9.3.0",
+    "@mui/x-data-grid": "^9.3.0",
+    "@tanstack/react-query": "^5.101.0",
+    "axios": "^1.18.1",
+    "dayjs": "^1.11.21",
+    "next": "16.2.7",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@storybook/nextjs": "^10.4.6",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.7",
+    "storybook": "^10.4.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

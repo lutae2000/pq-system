@@ -1,0 +1,5 @@
+pypdf
+pdfplumber
+pandas
+openpyxl
+pyinstaller

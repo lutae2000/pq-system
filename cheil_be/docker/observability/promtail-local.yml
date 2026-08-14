@@ -1,0 +1,24 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: cheil-be-local
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: cheil-be
+          app: cheil-be
+          source: ide
+          __path__: /workspace/logs/*.log
+    pipeline_stages:
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}'
+          max_wait_time: 3s

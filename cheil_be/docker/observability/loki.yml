@@ -1,0 +1,47 @@
+auth_enabled: false
+
+server:
+  # Loki HTTP/gRPC 수신 포트
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  # 청크와 인덱스/룰 데이터를 로컬 파일 시스템에 저장
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  # 단일 노드 Loki 구성
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+query_range:
+  # 반복 조회 비용을 줄이기 위한 메모리 캐시
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+compactor:
+  # 보관 기간이 지난 로그를 정리하기 위한 compactor 설정
+  working_directory: /loki/compactor
+  retention_enabled: true
+
+limits_config:
+  # 로그 보관 기간은 7일
+  retention_period: 168h
+
+schema_config:
+  # 로컬 파일 시스템 기반 TSDB 스키마
+  configs:
+    - from: 2024-06-25
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h

@@ -1,0 +1,76 @@
+spring:
+  sql:
+    init:
+      # 로컬에서만 초기 데이터 파일을 읽는다. 이 값이 부팅 시 데이터 주입 여부를 결정한다.
+      mode: never
+      # 부팅 시 실행할 초기 데이터 스크립트 위치.
+      data-locations: classpath:data-dev.sql
+  jpa:
+    # 로컬은 스키마를 자동 반영하고, 데이터는 위 sql.init 설정으로 넣는다.
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+  datasource:
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
+    username: ${POSTGRES_USER:cheil}
+    password: ${POSTGRES_PASSWORD:cheil}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+logging:
+  level:
+    SQL_COMPLETED: DEBUG
+    p6spy: OFF
+    com.p6spy: OFF
+    org.hibernate.SQL: OFF
+    org.hibernate.orm.jdbc.bind: OFF
+    org.springframework.boot.actuate: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+
+management:
+  endpoints:
+    web:
+      # 로컬에서만 더 많은 관리 엔드포인트를 노출한다.
+      exposure:
+        include: health,info,metrics,prometheus,loggers,threaddump,heapdump
+  tracing:
+      sampling:
+        probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  metrics:
+    distribution:
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99
+      sla:
+        http.server.requests: 100ms,300ms,500ms,1s
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+
+app:
+  security:
+    user-session:
+      # 로컬 세션 유지 시간.
+      ttl: ${APP_USER_SESSION_TTL:9h}
+  file:
+    # 로컬 파일 저장 위치와 공개 경로.
+    storage-root: ${APP_FILE_STORAGE_ROOT:E:/cheil-be/files/local}

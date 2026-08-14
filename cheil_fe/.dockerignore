@@ -1,0 +1,15 @@
+.git
+.next
+node_modules
+coverage
+storybook-static
+tmp
+*.log
+.env.local
+.env.development
+.env.production.local
+.env.test
+tsconfig.tsbuildinfo
+.idea
+.junie
+README.md
