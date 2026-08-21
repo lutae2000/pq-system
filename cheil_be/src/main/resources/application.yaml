@@ -1,6 +1,9 @@
 spring:
   application:
     name: cheil-be
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
   docker:
     compose:
       enabled: false
@@ -54,6 +57,9 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
+jdbc:
+  includes: CONNECTION,QUERY
+
 management:
   endpoints:
     web:
@@ -98,10 +104,8 @@ management:
         enabled: false
 
 logging:
-  file:
-    name: ${APP_LOG_FILE_NAME:${user.home}/cheil-be/logs/application.log}
   pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [${spring.application.name:},%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5level) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%thread]){faint} %clr(trace_id=%X{traceId:-}){yellow} %clr(%logger{39}){cyan} %clr(:){faint} %msg%n%wEx"
 
 app:
   common-code-cache:
@@ -123,6 +127,7 @@ app:
     enabled: ${APP_MAIL_ENABLED:false}
     default-from: ${APP_MAIL_DEFAULT_FROM:no-reply@cheil.local}
   security:
+    aes256-secret: ${APP_AES256_SECRET:cheil-local-aes256-secret}
     token:
       # 서비스 토큰 발급/검증에 쓰는 기본 비밀키와 만료 시간.
       issuer: ${spring.application.name}
@@ -172,3 +177,24 @@ app:
       exposed-headers: ${APP_CORS_EXPOSED_HEADERS:}
       allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:false}
       max-age: ${APP_CORS_MAX_AGE:3600}
+  education-reminder:
+    send:
+      enabled: ${APP_EDUCATION_REMINDER_SEND_ENABLED:true}
+      lms:
+        enabled: ${APP_EDUCATION_REMINDER_LMS_ENABLED:true}
+        simulate: ${APP_EDUCATION_REMINDER_LMS_SIMULATE:true}
+        endpoint-url: ${APP_EDUCATION_REMINDER_LMS_ENDPOINT_URL:}
+        sender-name: ${APP_EDUCATION_REMINDER_LMS_SENDER_NAME:}
+        api-key: ${APP_EDUCATION_REMINDER_LMS_API_KEY:}
+      sms:
+        enabled: ${APP_EDUCATION_REMINDER_SMS_ENABLED:true}
+        simulate: ${APP_EDUCATION_REMINDER_SMS_SIMULATE:true}
+        endpoint-url: ${APP_EDUCATION_REMINDER_SMS_ENDPOINT_URL:}
+        sender-name: ${APP_EDUCATION_REMINDER_SMS_SENDER_NAME:}
+        api-key: ${APP_EDUCATION_REMINDER_SMS_API_KEY:}
+      kakao:
+        enabled: ${APP_EDUCATION_REMINDER_KAKAO_ENABLED:true}
+        simulate: ${APP_EDUCATION_REMINDER_KAKAO_SIMULATE:true}
+        endpoint-url: ${APP_EDUCATION_REMINDER_KAKAO_ENDPOINT_URL:}
+        sender-name: ${APP_EDUCATION_REMINDER_KAKAO_SENDER_NAME:}
+        api-key: ${APP_EDUCATION_REMINDER_KAKAO_API_KEY:}

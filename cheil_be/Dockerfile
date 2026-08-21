@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk AS build
+FROM amazoncorretto:25-al2023-jdk AS build
 WORKDIR /workspace
 
 COPY gradlew settings.gradle build.gradle ./
@@ -8,7 +8,7 @@ COPY src ./src
 RUN chmod +x gradlew
 RUN ./gradlew clean bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre
+FROM amazoncorretto:25-al2023-jdk
 WORKDIR /app
 
 RUN groupadd --system spring && useradd --system --gid spring spring

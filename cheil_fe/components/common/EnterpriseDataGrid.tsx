@@ -123,7 +123,7 @@ type PendingRowUpdate<Row extends GridValidRowModel> = {
 
 function forceGridRowViewMode<Row extends GridValidRowModel>(
   apiRef: ReturnType<typeof useGridApiRef>,
-  resolvedColumns: GridColDef<Row>[],
+  resolvedColumns: readonly GridColDef<Row>[],
   rowId: GridRowId,
   ignoreModifications = false,
 ) {
@@ -868,15 +868,16 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   const handleRowModesModelChange = useCallback<NonNullable<DataGridProps<Row>["onRowModesModelChange"]>>(
     (nextRowModesModel, details) => {
       const previousRowModesModel = userRowModesModel ?? {};
+      const safeNextRowModesModel = nextRowModesModel ?? {};
 
-      for (const [rowId, rowMode] of Object.entries(nextRowModesModel)) {
+      for (const [rowId, rowMode] of Object.entries(safeNextRowModesModel)) {
         const previousMode = previousRowModesModel[rowId]?.mode;
         if (rowMode?.mode === GridRowModes.View && previousMode === GridRowModes.Edit) {
           forceGridRowViewMode(apiRef, resolvedColumns, rowId, Boolean(rowMode.ignoreModifications));
         }
       }
 
-      userOnRowModesModelChange?.(nextRowModesModel, details);
+      userOnRowModesModelChange?.(safeNextRowModesModel, details);
     },
     [apiRef, resolvedColumns, userOnRowModesModelChange, userRowModesModel],
   );
@@ -884,8 +885,9 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   const handleRowEditStop = useCallback<NonNullable<DataGridProps<Row>["onRowEditStop"]>>(
     (params, event, details) => {
       if (params.reason === GridRowEditStopReasons.escapeKeyDown) {
-        event.stopPropagation();
-        (event.nativeEvent as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+        const nativeEvent = (event as unknown as { nativeEvent?: Event }).nativeEvent;
+        (event as unknown as { stopPropagation?: () => void }).stopPropagation?.();
+        (nativeEvent as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
       }
 
       if (params.reason === GridRowEditStopReasons.rowFocusOut && userRowModesModel && userOnRowModesModelChange) {
@@ -914,8 +916,9 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   const handleCellEditStop = useCallback<NonNullable<DataGridProps<Row>["onCellEditStop"]>>(
     (params, event, details) => {
       if (params.reason === GridCellEditStopReasons.escapeKeyDown) {
-        event.stopPropagation();
-        (event.nativeEvent as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+        const nativeEvent = (event as unknown as { nativeEvent?: Event }).nativeEvent;
+        (event as unknown as { stopPropagation?: () => void }).stopPropagation?.();
+        (nativeEvent as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
       }
 
       userOnCellEditStop?.(params, event, details);

@@ -6,6 +6,7 @@ public record EducationReminderCompletionRequest(
         String educationStartDate1,
         String educationStartDate2,
         Boolean educationRegistered,
-        String remark
+        String remark,
+        Boolean advanceCycle
 ) {
 }

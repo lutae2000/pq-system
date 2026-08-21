@@ -9,16 +9,32 @@ export type EducationReminderBasicInfoRecord = {
   cycleUnit: EducationReminderCycleUnit;
   cycleValue: number;
   description: string | null;
-  id: number;
   lastChangedAt: string;
   lastChangedId: string | null;
   name: string;
+};
+
+export type EducationReminderBasicInfoEngineerRecord = {
+  basicInfoCode: string;
+  createdAt: string;
+  createdId: string | null;
+  departmentName: string;
+  engineerId: string;
+  engineerName: string;
+  grade: string;
+  jobField: string;
+  lastChangedAt: string;
+  lastChangedId: string | null;
+  phoneNo: string;
+  retireYn: "Y" | "N";
+  specialtyField: string;
 };
 
 export type EducationReminderCompletionRecord = {
   createdAt: string | null;
   createdId: string | null;
   department: string;
+  designGrade: string;
   educationCode: string;
   educationName: string;
   highlightTone: "NONE" | "UPCOMING" | "OVERDUE";
@@ -31,10 +47,10 @@ export type EducationReminderCompletionRecord = {
   lastChangedId: string | null;
   name: string;
   professionalCertNames: string;
+  phoneNo: string;
   recentEducationStartDate1: string;
   recentEducationStartDate2: string;
   remark: string;
-  retireYn: "Y" | "N";
   rowKey: string;
   scheduledEducation1: string;
   scheduledEducation2: string;
@@ -57,16 +73,17 @@ export type EducationReminderNotificationTargetRecord = {
 };
 
 export type EducationReminderCompletionSearchParams = {
+  educationCodes?: string[];
   educationRegistered?: boolean;
   jobField?: string;
   name?: string;
-  recentEducationStartDate1?: string;
-  recentEducationStartDate2?: string;
-  retireYn?: "" | "Y" | "N";
+  scheduledEducationYear?: string;
   specialtyField?: string;
+  upcomingWithinDays?: 30 | 60;
 };
 
 export type EducationReminderCompletionUpsertRequest = {
+  advanceCycle?: boolean;
   educationCode: string;
   educationRegistered: boolean;
   educationStartDate1: string;
@@ -90,6 +107,7 @@ export type EducationReminderTemplateRecord = {
   lastChangedAt: string;
   lastChangedId: string | null;
   name: string;
+  homepageUrl: string | null;
   title: string;
 };
 
@@ -99,8 +117,11 @@ export type EducationReminderBasicInfoRequest = {
   cycleUnit: EducationReminderCycleUnit;
   cycleValue: number;
   description: string | null;
-  id?: number | null;
   name: string;
+};
+
+export type EducationReminderBasicInfoEngineerAssignRequest = {
+  engineerIds: string[];
 };
 
 export type EducationReminderTemplateRequest = {
@@ -108,6 +129,7 @@ export type EducationReminderTemplateRequest = {
   channel: EducationReminderChannel;
   content: string;
   description: string | null;
+  homepageUrl: string;
   id?: number | null;
   name: string;
   title: string;
@@ -130,7 +152,6 @@ export const emptyBasicInfo = (): EducationReminderBasicInfoRequest => ({
   cycleUnit: "YEAR",
   cycleValue: 1,
   description: "",
-  id: null,
   name: "",
 });
 
@@ -139,6 +160,7 @@ export const emptyTemplate = (): EducationReminderTemplateRequest => ({
   channel: "LMS",
   content: "",
   description: "",
+  homepageUrl: "",
   id: null,
   name: "",
   title: "",

@@ -26,6 +26,7 @@ import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderHigh
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderNotificationPhoneRequest;
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderNotificationPhoneResponse;
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderNotificationTargetResponse;
+import com.cheil.cheil_be.common.crypto.Aes256CryptoService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
@@ -38,17 +39,21 @@ public class EducationReminderCompletionService {
     private static final int PHONE_NO_MAX_LENGTH = 50;
     private static final int REMARK_MAX_LENGTH = 4000;
 
+    private record EducationCycle(String unit, int value) {
+    }
+
     private final JdbcClient jdbcClient;
     private final EducationReminderCompletionHighlightResolver highlightResolver;
+    private final Aes256CryptoService aes256CryptoService;
 
     private record CompletionSearchCriteria(
             String name,
             Boolean educationRegistered,
-            String retireYn,
             String specialtyField,
             String jobField,
-            String recentEducationStartDate1,
-            String recentEducationStartDate2
+            String scheduledEducationYear,
+            Integer upcomingWithinDays,
+            List<String> educationCodes
     ) {
     }
 
@@ -120,17 +125,18 @@ public class EducationReminderCompletionService {
             String retireYn,
             String specialtyField,
             String jobField,
-            String recentEducationStartDate1,
-            String recentEducationStartDate2
+            String scheduledEducationYear,
+            Integer upcomingWithinDays,
+            List<String> educationCodes
     ) {
         CompletionSearchCriteria criteria = normalizeSearchCriteria(
                 name,
                 educationRegistered,
-                retireYn,
                 specialtyField,
                 jobField,
-                recentEducationStartDate1,
-                recentEducationStartDate2
+                scheduledEducationYear,
+                upcomingWithinDays,
+                educationCodes
         );
         QueryParts queryParts = buildQueryParts(criteria);
 
@@ -152,6 +158,7 @@ public class EducationReminderCompletionService {
                 "N",
                 specialtyField,
                 jobField,
+                null,
                 null,
                 null
         );
@@ -193,6 +200,7 @@ public class EducationReminderCompletionService {
                         m.namekor,
                         m.deptname,
                         m.grade,
+                        m.design_grade,
                         COALESCE(m.retireyn, 'N') AS retireyn,
                         m.dutypart,
                         m.propart
@@ -208,22 +216,15 @@ public class EducationReminderCompletionService {
                     WHERE c.cert_kind = 4
                     GROUP BY l.engr_id
                 ),
-                required_educations AS (
+                assigned_educations AS (
                     SELECT
-                        b.code AS education_code,
+                        eb.engineer_id AS engr_id,
+                        eb.basic_info_code AS education_code,
                         b.name AS education_name,
                         b.cycle_unit,
-                        b.cycle_value,
-                        FALSE AS professional_only
-                    FROM education_reminder_basic_infos b
-                    WHERE b.active = TRUE
-                    UNION ALL
-                    SELECT
-                        'PE-EXTRA' AS education_code,
-                        '기술사 추가 교육' AS education_name,
-                        'YEAR' AS cycle_unit,
-                        5 AS cycle_value,
-                        TRUE AS professional_only
+                        b.cycle_value
+                    FROM education_reminder_basic_info_engineers eb
+                    JOIN education_reminder_basic_infos b ON b.code = eb.basic_info_code
                 ),
                 target_matrix AS (
                     SELECT
@@ -231,20 +232,19 @@ public class EducationReminderCompletionService {
                         e.namekor,
                         e.deptname,
                         e.grade,
+                        e.design_grade,
                         e.retireyn,
                         e.dutypart,
                         e.propart,
-                        r.education_code,
-                        r.education_name,
-                        r.cycle_unit,
-                        r.cycle_value,
+                        a.education_code,
+                        a.education_name,
+                        a.cycle_unit,
+                        a.cycle_value,
                         CASE WHEN p.engr_id IS NOT NULL THEN 'Y' ELSE 'N' END AS has_professional_cert,
                         COALESCE(p.professional_cert_names, '') AS professional_cert_names
                     FROM engineer_base e
                     LEFT JOIN professional_engineers p ON p.engr_id = e.engr_id
-                    JOIN required_educations r
-                      ON r.professional_only = FALSE
-                      OR p.engr_id IS NOT NULL
+                    JOIN assigned_educations a ON a.engr_id = e.engr_id
                 ),
                 latest_completion AS (
                     SELECT *
@@ -270,55 +270,110 @@ public class EducationReminderCompletionService {
                         FROM education_management em
                     ) ranked
                     WHERE ranked.rn = 1
+                ),
+                completion_view AS (
+                    SELECT
+                        t.engr_id,
+                        t.namekor,
+                        t.deptname,
+                        t.grade,
+                        t.design_grade,
+                        t.retireyn,
+                        t.dutypart,
+                        t.propart,
+                        t.education_code,
+                        t.education_name,
+                        t.cycle_unit,
+                        t.cycle_value,
+                        t.has_professional_cert,
+                        t.professional_cert_names,
+                        lc.education_start_date_1,
+                        lc.education_start_date_2,
+                        COALESCE(lc.education_registered, FALSE) AS education_registered,
+                        lc.remark,
+                        lc.created_at,
+                        lc.created_id,
+                        lc.last_changed_at,
+                        lc.last_changed_id,
+                        CASE
+                            WHEN NULLIF(lc.education_start_date_1, '') IS NULL THEN ''
+                            WHEN t.cycle_unit = 'MONTH' THEN TO_CHAR(
+                                TO_DATE(lc.education_start_date_1, 'YYYYMMDD') + MAKE_INTERVAL(months => t.cycle_value),
+                                'YYYYMMDD'
+                            )
+                            ELSE TO_CHAR(
+                                TO_DATE(lc.education_start_date_1, 'YYYYMMDD') + MAKE_INTERVAL(years => t.cycle_value),
+                                'YYYYMMDD'
+                            )
+                        END AS scheduled_education_1,
+                        CASE
+                            WHEN NULLIF(lc.education_start_date_2, '') IS NULL THEN ''
+                            WHEN t.cycle_unit = 'MONTH' THEN TO_CHAR(
+                                TO_DATE(lc.education_start_date_2, 'YYYYMMDD') + MAKE_INTERVAL(months => t.cycle_value),
+                                'YYYYMMDD'
+                            )
+                            ELSE TO_CHAR(
+                                TO_DATE(lc.education_start_date_2, 'YYYYMMDD') + MAKE_INTERVAL(years => t.cycle_value),
+                                'YYYYMMDD'
+                            )
+                        END AS scheduled_education_2
+                    FROM target_matrix t
+                    LEFT JOIN latest_completion lc
+                      ON lc.engr_id = t.engr_id
+                     AND lc.education_code = t.education_code
                 )
                 SELECT
-                    t.engr_id,
-                    t.namekor,
-                    t.deptname,
-                    t.grade,
-                    t.retireyn,
-                    t.dutypart,
-                    t.propart,
-                    t.has_professional_cert,
-                    t.professional_cert_names,
-                    t.education_code,
-                    t.education_name,
-                    t.cycle_unit,
-                    t.cycle_value,
-                    lc.education_start_date_1,
-                    lc.education_start_date_2,
-                    COALESCE(lc.education_registered, FALSE) AS education_registered,
-                    lc.remark,
-                    lc.created_at,
-                    lc.created_id,
-                    lc.last_changed_at,
-                    lc.last_changed_id
-                FROM target_matrix t
-                LEFT JOIN latest_completion lc
-                  ON lc.engr_id = t.engr_id
-                 AND lc.education_code = t.education_code
+                    cv.engr_id,
+                    cv.namekor,
+                    cv.deptname,
+                    cv.grade,
+                    cv.design_grade,
+                    cv.retireyn,
+                    cv.dutypart,
+                    cv.propart,
+                    cv.has_professional_cert,
+                    cv.professional_cert_names,
+                    cv.education_code,
+                    cv.education_name,
+                    cv.cycle_unit,
+                    cv.cycle_value,
+                    cv.education_start_date_1,
+                    cv.education_start_date_2,
+                    cv.education_registered,
+                    cv.remark,
+                    p.phone_no,
+                    cv.created_at,
+                    cv.created_id,
+                    cv.last_changed_at,
+                    cv.last_changed_id
+                FROM completion_view cv
+                LEFT JOIN engineer_contacts p ON p.engr_id = cv.engr_id
                 %s
-                ORDER BY t.namekor, t.engr_id, t.education_name
+                ORDER BY cv.namekor, cv.engr_id, cv.education_name
                 """.formatted(queryParts.engineerBaseWhere(), queryParts.outerWhere());
     }
 
     private CompletionSearchCriteria normalizeSearchCriteria(
             String name,
             Boolean educationRegistered,
-            String retireYn,
             String specialtyField,
             String jobField,
-            String recentEducationStartDate1,
-            String recentEducationStartDate2
+            String scheduledEducationYear,
+            Integer upcomingWithinDays,
+            List<String> educationCodes
     ) {
         return new CompletionSearchCriteria(
                 like(name),
                 educationRegistered,
-                nullIfBlank(retireYn),
                 nullIfBlank(specialtyField),
                 nullIfBlank(jobField),
-                EducationReminderDateUtils.normalizeOptionalDateFilter(recentEducationStartDate1),
-                EducationReminderDateUtils.normalizeOptionalDateFilter(recentEducationStartDate2)
+                EducationReminderDateUtils.normalizeOptionalDateFilter(scheduledEducationYear),
+                upcomingWithinDays,
+                educationCodes == null ? null : educationCodes.stream()
+                        .filter(StringUtils::hasText)
+                        .map(String::trim)
+                        .distinct()
+                        .toList()
         );
     }
 
@@ -339,14 +394,11 @@ public class EducationReminderCompletionService {
             Map<String, Object> params
     ) {
         engineerBaseWhere.append("\n                      AND COALESCE(m.education_exception, FALSE) = FALSE");
+        engineerBaseWhere.append("\n                      AND COALESCE(m.retireyn, 'N') = 'N'");
 
         if (criteria.name() != null) {
             engineerBaseWhere.append("\n                      AND LOWER(m.namekor) LIKE :name");
             params.put("name", criteria.name());
-        }
-        if (criteria.retireYn() != null) {
-            engineerBaseWhere.append("\n                      AND COALESCE(m.retireyn, 'N') = :retireYn");
-            params.put("retireYn", criteria.retireYn());
         }
         if (criteria.specialtyField() != null) {
             engineerBaseWhere.append("\n                      AND m.propart = :specialtyField");
@@ -364,35 +416,75 @@ public class EducationReminderCompletionService {
             Map<String, Object> params
     ) {
         if (criteria.educationRegistered() != null) {
-            outerWhere.append("\n                  AND COALESCE(lc.education_registered, FALSE) = :educationRegistered");
+            outerWhere.append("\n                  AND COALESCE(cv.education_registered, FALSE) = :educationRegistered");
             params.put("educationRegistered", criteria.educationRegistered());
         }
-        if (criteria.recentEducationStartDate1() != null) {
+        if (criteria.scheduledEducationYear() != null) {
             EducationReminderDateUtils.appendDateFilterCondition(
                     outerWhere,
                     params,
-                    "lc.education_start_date_1",
-                    "recentEducationStartDate1",
-                    criteria.recentEducationStartDate1()
+                    scheduledEducationDateExpression("cv.education_start_date_1", "cv.cycle_unit", "cv.cycle_value"),
+                    scheduledEducationDateExpression("cv.education_start_date_2", "cv.cycle_unit", "cv.cycle_value"),
+                    "scheduledEducationYear",
+                    criteria.scheduledEducationYear()
             );
         }
-        if (criteria.recentEducationStartDate2() != null) {
-            EducationReminderDateUtils.appendDateFilterCondition(
-                    outerWhere,
-                    params,
-                    "lc.education_start_date_2",
-                    "recentEducationStartDate2",
-                    criteria.recentEducationStartDate2()
-            );
+        if (criteria.upcomingWithinDays() != null) {
+            String scheduledDate1 = scheduledEducationDateExpression("cv.education_start_date_1", "cv.cycle_unit", "cv.cycle_value");
+            String scheduledDate2 = scheduledEducationDateExpression("cv.education_start_date_2", "cv.cycle_unit", "cv.cycle_value");
+            outerWhere.append("\n                  AND (TO_DATE(NULLIF(%s, ''), 'YYYYMMDD') BETWEEN CURRENT_DATE - MAKE_INTERVAL(days => :upcomingWithinDays) AND CURRENT_DATE".formatted(scheduledDate1));
+            outerWhere.append("\n                       OR TO_DATE(NULLIF(%s, ''), 'YYYYMMDD') BETWEEN CURRENT_DATE - MAKE_INTERVAL(days => :upcomingWithinDays) AND CURRENT_DATE)".formatted(scheduledDate2));
+            params.put("upcomingWithinDays", criteria.upcomingWithinDays());
         }
+        if (criteria.educationCodes() != null && !criteria.educationCodes().isEmpty()) {
+            outerWhere.append("\n                  AND cv.education_code IN (:educationCodes)");
+            params.put("educationCodes", criteria.educationCodes());
+        }
+    }
+
+    private String scheduledEducationDateExpression(String educationStartDateColumn, String cycleUnitColumn, String cycleValueColumn) {
+        return """
+                CASE
+                    WHEN NULLIF(%s, '') IS NULL THEN ''
+                    WHEN %s = 'MONTH' THEN TO_CHAR(
+                        TO_DATE(%s, 'YYYYMMDD') + MAKE_INTERVAL(months => %s),
+                        'YYYYMMDD'
+                    )
+                    ELSE TO_CHAR(
+                        TO_DATE(%s, 'YYYYMMDD') + MAKE_INTERVAL(years => %s),
+                        'YYYYMMDD'
+                    )
+                END
+                """.formatted(
+                educationStartDateColumn,
+                cycleUnitColumn,
+                educationStartDateColumn,
+                cycleValueColumn,
+                educationStartDateColumn,
+                cycleValueColumn
+        ).trim();
     }
 
     @Transactional
     public EducationReminderCompletionResponse saveCompletion(EducationReminderCompletionRequest request) {
         EducationReminderCompletionRequest normalized = normalize(request);
         String actor = AuditActorResolver.resolve();
-        Map<String, Object> params = completionWriteParams(normalized, actor);
 
+        if (Boolean.TRUE.equals(normalized.advanceCycle()) && normalized.educationRegistered()) {
+            Map<String, Object> completedParams = completionWriteParams(normalized, actor);
+            if (existsCompletion(normalized.engrId(), normalized.educationCode())) {
+                updateCompletion(completedParams);
+            } else {
+                insertCompletion(completedParams);
+            }
+
+            EducationReminderCompletionRequest nextCycle = advanceToNextCycle(normalized);
+            insertCompletion(completionWriteParams(nextCycle, actor));
+
+            return findCompletion(nextCycle.engrId(), nextCycle.educationCode());
+        }
+
+        Map<String, Object> params = completionWriteParams(normalized, actor);
         if (existsCompletion(normalized.engrId(), normalized.educationCode())) {
             updateCompletion(params);
         } else {
@@ -411,33 +503,49 @@ public class EducationReminderCompletionService {
 
         if (!StringUtils.hasText(phoneNo)) {
             deleteNotificationPhone(normalizedEngineerId);
-            return new EducationReminderNotificationPhoneResponse(normalizedEngineerId, "");
+            return new EducationReminderNotificationPhoneResponse(normalizedEngineerId, "", null, null, null, null);
         }
 
-        jdbcClient.sql("""
-                        INSERT INTO education_reminder_phone_numbers (
+        String actor = AuditActorResolver.resolve();
+        return jdbcClient.sql("""
+                        INSERT INTO engineer_contacts (
                             engr_id,
-                            phone_no
+                            phone_no,
+                            created_id,
+                            last_changed_id
                         )
                         VALUES (
                             :engrId,
-                            :phoneNo
+                            :phoneNo,
+                            :actor,
+                            :actor
                         )
                         ON CONFLICT (engr_id) DO UPDATE
-                        SET phone_no = EXCLUDED.phone_no
+                        SET phone_no = EXCLUDED.phone_no,
+                            last_changed_at = CURRENT_TIMESTAMP,
+                            last_changed_id = EXCLUDED.last_changed_id
+                        RETURNING created_at, created_id, last_changed_at, last_changed_id
                         """)
                 .param("engrId", normalizedEngineerId)
-                .param("phoneNo", phoneNo)
-                .update();
+                .param("phoneNo", aes256CryptoService.encrypt(phoneNo))
+                .param("actor", actor)
+                .query((rs, rowNum) -> new EducationReminderNotificationPhoneResponse(
+                        normalizedEngineerId,
+                        phoneNo,
+                        timestampToString(rs.getTimestamp("created_at")),
+                        rs.getString("created_id"),
+                        timestampToString(rs.getTimestamp("last_changed_at")),
+                        rs.getString("last_changed_id")
+                ))
+                .single();
 
-        return new EducationReminderNotificationPhoneResponse(normalizedEngineerId, phoneNo);
     }
 
     @Transactional
     public void deleteNotificationPhone(String engrId) {
         String normalizedEngineerId = required(engrId, "engrId", ENGINEER_ID_MAX_LENGTH);
         jdbcClient.sql("""
-                        DELETE FROM education_reminder_phone_numbers
+                        DELETE FROM engineer_contacts
                         WHERE engr_id = :engrId
                         """)
                 .param("engrId", normalizedEngineerId)
@@ -445,7 +553,7 @@ public class EducationReminderCompletionService {
     }
 
     private EducationReminderCompletionResponse findCompletion(String engrId, String educationCode) {
-        return findCompletions(null, null, null, null, null, null, null).stream()
+        return findCompletions(null, null, null, null, null, null, null, null).stream()
                 .filter(item -> item.engineerId().equals(engrId) && item.educationCode().equals(educationCode))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Education reminder completion not found."));
@@ -465,7 +573,30 @@ public class EducationReminderCompletionService {
                 EducationReminderDateUtils.normalizeDateForResponse(request.educationStartDate1()),
                 EducationReminderDateUtils.normalizeDateForResponse(request.educationStartDate2()),
                 request.educationRegistered(),
-                StringUtils.hasText(request.remark()) ? request.remark().trim() : ""
+                StringUtils.hasText(request.remark()) ? request.remark().trim() : "",
+                Boolean.TRUE.equals(request.advanceCycle())
+        );
+    }
+
+    private EducationReminderCompletionRequest advanceToNextCycle(EducationReminderCompletionRequest request) {
+        EducationCycle cycle = jdbcClient.sql("""
+                        SELECT cycle_unit, cycle_value
+                        FROM education_reminder_basic_infos
+                        WHERE code = :educationCode
+                        """)
+                .param("educationCode", request.educationCode())
+                .query((rs, rowNum) -> new EducationCycle(rs.getString("cycle_unit"), rs.getInt("cycle_value")))
+                .optional()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Education basic information not found."));
+
+        return new EducationReminderCompletionRequest(
+                request.engrId(),
+                request.educationCode(),
+                EducationReminderDateUtils.addCycle(request.educationStartDate1(), cycle.unit(), cycle.value()),
+                EducationReminderDateUtils.addCycle(request.educationStartDate2(), cycle.unit(), cycle.value()),
+                false,
+                "",
+                false
         );
     }
 
@@ -486,6 +617,7 @@ public class EducationReminderCompletionService {
                 rs.getString("namekor"),
                 rs.getString("deptname"),
                 rs.getString("grade"),
+                rs.getString("design_grade"),
                 rs.getString("retireyn"),
                 rs.getString("dutypart"),
                 rs.getString("propart"),
@@ -500,6 +632,7 @@ public class EducationReminderCompletionService {
                 highlightResolver.resolve(scheduledEducation1, scheduledEducation2, educationRegistered),
                 educationRegistered,
                 StringUtils.hasText(rs.getString("remark")) ? rs.getString("remark") : "",
+                aes256CryptoService.decrypt(rs.getString("phone_no")),
                 timestampToString(rs.getTimestamp("created_at")),
                 rs.getString("created_id"),
                 timestampToString(rs.getTimestamp("last_changed_at")),
@@ -528,11 +661,11 @@ public class EducationReminderCompletionService {
 
         return jdbcClient.sql("""
                         SELECT engr_id, phone_no
-                        FROM education_reminder_phone_numbers
+                        FROM engineer_contacts
                         WHERE engr_id IN (:engrIds)
                         """)
                 .param("engrIds", engineerIds)
-                .query((rs, rowNum) -> Map.entry(rs.getString("engr_id"), rs.getString("phone_no")))
+                .query((rs, rowNum) -> Map.entry(rs.getString("engr_id"), aes256CryptoService.decrypt(rs.getString("phone_no"))))
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(
                         Map.Entry::getKey,
@@ -553,7 +686,7 @@ public class EducationReminderCompletionService {
     }
 
     private String normalizePhoneNo(String value) {
-        String normalized = StringUtils.hasText(value) ? value.trim() : "";
+        String normalized = StringUtils.hasText(value) ? value.replaceAll("\\D", "") : "";
         StringValues.validateMaxLength(normalized, PHONE_NO_MAX_LENGTH, "phoneNo");
         return normalized;
     }

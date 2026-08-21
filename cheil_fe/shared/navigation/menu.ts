@@ -12,11 +12,13 @@ export type MenuIconKey =
   | "permissions"
   | "pq"
   | "notifications"
+  | "education"
   | "codeCommonCode"
   | "codeDepartment"
   | "codeHeadquarters"
   | "permissionProgramManagement"
   | "pqAnnouncement"
+  | "pqBid"
   | "pqCertificate"
   | "pqClientCode"
   | "pqCommonCode"
@@ -24,10 +26,19 @@ export type MenuIconKey =
   | "pqCompanyPerformanceEngineers"
   | "pqConstruction"
   | "pqDocumentEngineerPerformanceDocs"
+  | "pqDocumentCompanyPerformanceDocs"
   | "pqDocumentParticipatingEngineers"
+  | "pqDocumentEngineerOverlapCheck"
   | "pqEngineer"
+  | "pqEngineerPerformance"
+  | "pqNewEmploymentRates"
   | "pqNewTechnology"
-  | "pqService";
+  | "pqService"
+  | "pqShinindo"
+  | "pqSimilarServicePerformance"
+  | "pqServicePerformance"
+  | "pqWorkOverlap"
+  | "notice";
 
 export type MenuItemDto = {
   id: string;
@@ -63,11 +74,12 @@ const isRemovedMenu = (permission: MenuPermission) => {
 const iconForMenu = (permission: MenuPermission): MenuIconKey => {
   const code = normalize(permission.menuCode);
   const path = normalize(permission.menuPath);
+  const name = normalize(permission.menuName);
 
   if (path === "/dashboard" || code.includes("dashboard")) return "analytics";
+  if (code.includes("education") || path.includes("education")) return "education";
   if (code.includes("notification") || path.includes("/notifications")) return "notifications";
-  if (code.includes("notice") || path.includes("/notices")) return "notifications";
-  if (code.includes("education") || path.includes("education")) return "notifications";
+  if (code.includes("notice") || path.includes("/notices")) return "notice";
   if (code.includes("user") || path.includes("user-management")) return "users";
   if (code.includes("department") || path.includes("department")) return "codeDepartment";
   if (code.includes("common-code") || path.includes("common-code")) return "codeCommonCode";
@@ -78,12 +90,24 @@ const iconForMenu = (permission: MenuPermission): MenuIconKey => {
   if (code.includes("menu-management") || path === "/system/menus") return "permissionProgramManagement";
   if (code.includes("role-permission") || path === "/system/roles") return "permissions";
   if (code.includes("permission") || path.startsWith("/system")) return "permissions";
+  if (code.includes("engineer-overlap") || path.includes("engineer-overlap")) return "pqDocumentEngineerOverlapCheck";
+  if (code.includes("performance-certificate") || path.includes("performance-certificate")) return "pqCertificate";
+  if (code.includes("engineer-performance-doc") || path.includes("engineer-performance-doc")) return "pqDocumentEngineerPerformanceDocs";
+  if (code.includes("participating-engineer") || path.includes("participating-engineer")) return "pqDocumentParticipatingEngineers";
+  if (code.includes("company-performance-doc") || path.includes("company-performance-doc")) return "pqDocumentCompanyPerformanceDocs";
+  if (code.includes("company-performance-engineer") || path.includes("company-performance-engineer")) return "pqCompanyPerformanceEngineers";
   if (code.includes("construction") || path.includes("construction")) return "pqConstruction";
   if (code.includes("new-technology") || path.includes("new-technology")) return "pqNewTechnology";
+  if (code.includes("new-employment") || path.includes("new-employment")) return "pqNewEmploymentRates";
+  if (code.includes("shinindo") || path.includes("shinindo")) return "pqShinindo";
+  if (code.includes("work-overlap") || path.includes("work-overlap")) return "pqWorkOverlap";
+  if (code.includes("similar-service-performance") || path.includes("similar-service-performance")) return "pqSimilarServicePerformance";
+  if (code.includes("service-performance") || path.includes("service-performance")) return "pqServicePerformance";
+  if (name.includes("입찰") || code.includes("bid") || path.includes("bid-notice") || path.includes("/bids")) return "pqBid";
   if (code.includes("announcement") || path.includes("announcement")) return "pqAnnouncement";
-  if (code.includes("engineer") || path.includes("engineer")) return "pqEngineer";
+  if (code.includes("engineer-performance") || path.includes("engineers/performance")) return "pqEngineerPerformance";
   if (code.includes("performance") || path.includes("performance")) return "pqCompanyPerformance";
-  if (code.includes("document") || path.includes("document")) return "pqDocumentParticipatingEngineers";
+  if (code.includes("engineer") || path.includes("engineer")) return "pqEngineer";
   if (code.includes("service") || path.includes("service")) return "pqService";
   if (code.includes("pq") || path.includes("/pq")) return "pq";
   return "settings";

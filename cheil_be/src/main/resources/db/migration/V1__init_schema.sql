@@ -25,7 +25,8 @@ CREATE TABLE api_call_logs (
     error_message TEXT,
     duration_millis BIGINT NOT NULL,
     login_id VARCHAR(100),
-    program_code VARCHAR(100)
+    program_code VARCHAR(100),
+    trace_id VARCHAR(32)
 );
 
 
@@ -34,6 +35,9 @@ CREATE INDEX idx_api_call_logs_occurred_at
 
 CREATE INDEX idx_api_call_logs_service_id
     ON api_call_logs (service_id);
+
+CREATE INDEX idx_api_call_logs_trace_id
+    ON api_call_logs (trace_id);
 
 CREATE TABLE auth_users (
     login_id VARCHAR(100) PRIMARY KEY,

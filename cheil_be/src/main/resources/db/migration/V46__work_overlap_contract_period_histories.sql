@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS work_overlap_contract_period_histories (
     before_value VARCHAR(8),
     after_value VARCHAR(8),
     change_content TEXT NOT NULL,
+    change_reason TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

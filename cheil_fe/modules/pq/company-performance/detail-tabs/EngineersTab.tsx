@@ -319,6 +319,9 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         headerName: "성명",
         width: 190,
         editable: true,
+        // 화면에는 기술인명을 표시하지만 실제 값은 engineerId이므로,
+        // 기본 그리드 필터가 성명으로도 검색할 수 있도록 필터용 값을 명시한다.
+        valueGetter: (_value, row) => [text(row.name), text(row.engineerId)].filter(Boolean).join(" "),
         renderCell: (params) => engineerNameById.get(text(params.row.engineerId)) ?? displayBlank(params.row.name),
         renderEditCell: (params) => (
           <EngineerAutocompleteEditCell

@@ -12,9 +12,15 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
+import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 
 @RestController
 @RequestMapping("/pq/engineer-performance-docs")
@@ -22,6 +28,27 @@ import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPer
 public class EngineerPerformanceDocumentController {
 
     private final EngineerPerformanceDocumentService engineerPerformanceDocumentService;
+    private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
+
+    @PostMapping(value = "/hwpx/inspect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<HwpxTemplateFieldResponse>> inspectHwpx(@RequestPart("template") MultipartFile template) {
+        return ResponseEntity.ok(hwpxDocumentGenerationService.inspect(template));
+    }
+
+    @PostMapping(value = "/hwpx/generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<byte[]> generateHwpx(
+            @RequestPart("template") MultipartFile template,
+            @RequestPart("request") HwpxGenerateRequest request
+    ) {
+        byte[] content = hwpxDocumentGenerationService.generate(template, request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(content.length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("기술인실적_산출물.zip", java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .body(content);
+    }
 
     @GetMapping("/project-histories")
     public ResponseEntity<List<EngineerProjectHistoryReviewResponse>> listProjectHistories(

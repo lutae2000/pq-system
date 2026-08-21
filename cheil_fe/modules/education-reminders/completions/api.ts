@@ -16,7 +16,13 @@ const NOTIFICATION_PHONES_BASE = "/education-reminders/notification-phones";
 export async function listEducationReminderCompletions(
   params: EducationReminderCompletionSearchParams = {},
 ): Promise<EducationReminderCompletionRecord[]> {
-  return apiRequest(apiClient.get(COMPLETIONS_BASE, { params }), "교육 알림 이수 정보를 불러오지 못했습니다.");
+  return apiRequest(
+    apiClient.get(COMPLETIONS_BASE, {
+      params,
+      paramsSerializer: { indexes: null },
+    }),
+    "교육 알림 이수 정보를 불러오지 못했습니다.",
+  );
 }
 
 export async function saveEducationReminderCompletion(

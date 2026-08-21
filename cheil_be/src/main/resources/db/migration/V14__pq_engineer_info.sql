@@ -15,6 +15,7 @@ CREATE TABLE pq_engineer_master (
     retireyn CHAR(1) NOT NULL DEFAULT 'N',
     dutypart VARCHAR(100),
     propart VARCHAR(100),
+    education_exception BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

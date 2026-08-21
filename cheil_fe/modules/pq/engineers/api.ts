@@ -125,6 +125,7 @@ type EngineerProfileView = EngineerProfile;
 
 export type EngineerProfileListFilters = {
   certificationName?: string;
+  department?: string;
   designGrade?: string;
   jobField?: string;
   keyword?: string;

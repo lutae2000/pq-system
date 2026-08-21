@@ -38,6 +38,9 @@ public class EducationReminderTemplateEntity extends AuditEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "homepage_url", length = 500)
+    private String homepageUrl;
+
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
@@ -53,6 +56,7 @@ public class EducationReminderTemplateEntity extends AuditEntity {
         channel = request.channel();
         title = request.title();
         description = request.description();
+        homepageUrl = request.homepageUrl();
         content = request.content();
         active = Boolean.TRUE.equals(request.active());
     }
@@ -64,6 +68,7 @@ public class EducationReminderTemplateEntity extends AuditEntity {
                 channel,
                 title,
                 description,
+                homepageUrl,
                 content,
                 active,
                 createdAt == null ? null : createdAt.toString(),

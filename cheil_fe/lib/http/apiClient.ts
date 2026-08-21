@@ -12,14 +12,9 @@ type ApiErrorBody = {
 
 const UNAUTHORIZED_NOTICE_MESSAGE = "세션이 종료되었습니다. 다시 로그인해 주세요.";
 
-const NEXT_API_KEY_VALUE = process.env.NEXT_API_KEY ?? "";
-const NEXT_SERVICE_ID_VALUE = process.env.NEXT_SERVICE_ID ?? "application";
-
 const buildDefaultHeaders = () => ({
   "Accept": "application/json",
   "Content-Type": "application/json",
-  "x-api-key": NEXT_API_KEY_VALUE,
-  "x-service-id": NEXT_SERVICE_ID_VALUE,
 });
 
 const buildLoginHeaders = () => {
@@ -51,8 +46,6 @@ apiClient.interceptors.request.use((config) => {
   } else {
     headers.set("Content-Type", defaultHeaders["Content-Type"]);
   }
-  headers.set("x-api-key", defaultHeaders["x-api-key"]);
-  headers.set("x-service-id", defaultHeaders["x-service-id"]);
 
   const loginHeaders = buildLoginHeaders();
   if (loginHeaders.Authorization) {

@@ -1,4 +1,4 @@
-﻿﻿﻿"use client";
+﻿"use client";
 
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
@@ -15,7 +15,7 @@ import type {
   GridRowSelectionModel,
 } from "@mui/x-data-grid";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ResizableCard } from "@/components/common/ResizableCard";
@@ -243,15 +243,6 @@ const buildEngineerColumns = (
     minWidth: 150,
     flex: 1,
     valueGetter: (_value, row) => specialtyFieldLabelByCode[row.specialtyField] ?? row.specialtyField,
-  },
-  {
-    field: "workOverlapRate",
-    headerName: "업무 중복도",
-    width: 110,
-    align: "center",
-    headerAlign: "center",
-    renderCell: ({ row }: GridRenderCellParams<WorkOverlapEngineerRow>) =>
-      taskPeriodDays > 0 ? `${((row.participationDays / taskPeriodDays) * 100).toFixed(1)}%` : "-",
   },
   {
     field: "status",
@@ -615,6 +606,30 @@ export function WorkOverlapEngineerListPage() {
   );
   const appliedReferenceDate = appliedFilters.referenceDate || todayInputValue();
   const selectedEngineerIdForQuery = selectedEngineer?.engineerId ?? "";
+
+  useEffect(() => {
+    if (!engineerProfilesQuery.isSuccess || engineerProfilesQuery.isFetching || filteredEngineers.length !== 1) {
+      return;
+    }
+
+    const onlyEngineer = filteredEngineers[0];
+    if (selectedEngineerId === onlyEngineer.engineerId) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSelectedEngineerId(onlyEngineer.engineerId);
+      setSelectedContractIds(new Set());
+      setContractPaginationModel((current) => (current.page === 0 ? current : { ...current, page: 0 }));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    engineerProfilesQuery.isFetching,
+    engineerProfilesQuery.isSuccess,
+    filteredEngineers,
+    selectedEngineerId,
+  ]);
 
   const selectedEngineerRowId = visibleEngineers.some((row) => row.engineerId === selectedEngineerIdForQuery)
     ? selectedEngineerIdForQuery

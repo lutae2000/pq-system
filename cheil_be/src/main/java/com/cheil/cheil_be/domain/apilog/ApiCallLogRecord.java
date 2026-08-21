@@ -8,6 +8,7 @@ import java.util.UUID;
  */
 public record ApiCallLogRecord(
         UUID requestId,
+        String traceId,
         Instant occurredAt,
         String httpMethod,
         String requestUri,

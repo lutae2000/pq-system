@@ -1,7 +1,7 @@
 # Cheil BE Agent Guide
 
 ## Project Overview
-- Java 21 and Spring Boot 4.1 based backend.
+- Java 25 and Spring Boot 4.1 based backend.
 - The product is an enterprise admin system for permissions, common codes, attachments, and audit logging.
 - Main stack: JPA, Redis, Security, Actuator, Prometheus, Flyway, REST Docs.
 

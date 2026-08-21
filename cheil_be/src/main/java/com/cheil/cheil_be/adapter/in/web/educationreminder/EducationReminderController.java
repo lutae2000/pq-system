@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.educationreminder.service.EducationReminderAdminService;
+import com.cheil.cheil_be.application.educationreminder.service.EducationReminderBasicInfoEngineerService;
 import com.cheil.cheil_be.application.educationreminder.service.EducationReminderCompletionService;
 
 @RestController
@@ -23,6 +24,7 @@ import com.cheil.cheil_be.application.educationreminder.service.EducationReminde
 public class EducationReminderController {
 
     private final EducationReminderAdminService educationReminderAdminService;
+    private final EducationReminderBasicInfoEngineerService educationReminderBasicInfoEngineerService;
     private final EducationReminderCompletionService educationReminderCompletionService;
 
     @GetMapping("/basic-infos")
@@ -30,9 +32,9 @@ public class EducationReminderController {
         return ResponseEntity.ok(educationReminderAdminService.findAllBasicInfos());
     }
 
-    @GetMapping("/basic-infos/{id}")
-    public ResponseEntity<EducationReminderBasicInfoResponse> getBasicInfo(@PathVariable Long id) {
-        return ResponseEntity.ok(educationReminderAdminService.findBasicInfoById(id));
+    @GetMapping("/basic-infos/{code}")
+    public ResponseEntity<EducationReminderBasicInfoResponse> getBasicInfo(@PathVariable String code) {
+        return ResponseEntity.ok(educationReminderAdminService.findBasicInfoByCode(code));
     }
 
     @PostMapping("/basic-infos")
@@ -40,17 +42,36 @@ public class EducationReminderController {
         return ResponseEntity.ok(educationReminderAdminService.createBasicInfo(request));
     }
 
-    @PutMapping("/basic-infos/{id}")
+    @PutMapping("/basic-infos/{code}")
     public ResponseEntity<EducationReminderBasicInfoResponse> updateBasicInfo(
-            @PathVariable Long id,
+            @PathVariable String code,
             @RequestBody EducationReminderBasicInfoRequest request
     ) {
-        return ResponseEntity.ok(educationReminderAdminService.updateBasicInfo(id, request));
+        return ResponseEntity.ok(educationReminderAdminService.updateBasicInfo(code, request));
     }
 
-    @DeleteMapping("/basic-infos/{id}")
-    public ResponseEntity<Void> deleteBasicInfo(@PathVariable Long id) {
-        educationReminderAdminService.deleteBasicInfo(id);
+    @DeleteMapping("/basic-infos/{code}")
+    public ResponseEntity<Void> deleteBasicInfo(@PathVariable String code) {
+        educationReminderAdminService.deleteBasicInfo(code);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/basic-infos/{code}/engineers")
+    public ResponseEntity<List<EducationReminderBasicInfoEngineerResponse>> listBasicInfoEngineers(@PathVariable String code) {
+        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.findAssignedEngineers(code));
+    }
+
+    @PostMapping("/basic-infos/{code}/engineers")
+    public ResponseEntity<List<EducationReminderBasicInfoEngineerResponse>> addBasicInfoEngineers(
+            @PathVariable String code,
+            @RequestBody EducationReminderBasicInfoEngineerAssignRequest request
+    ) {
+        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.addAssignments(code, request));
+    }
+
+    @DeleteMapping("/basic-infos/{code}/engineers/{engrId}")
+    public ResponseEntity<Void> deleteBasicInfoEngineer(@PathVariable String code, @PathVariable String engrId) {
+        educationReminderBasicInfoEngineerService.deleteAssignment(code, engrId);
         return ResponseEntity.noContent().build();
     }
 
@@ -90,8 +111,9 @@ public class EducationReminderController {
             @RequestParam(required = false) String retireYn,
             @RequestParam(required = false) String specialtyField,
             @RequestParam(required = false) String jobField,
-            @RequestParam(required = false) String recentEducationStartDate1,
-            @RequestParam(required = false) String recentEducationStartDate2
+            @RequestParam(required = false) String scheduledEducationYear,
+            @RequestParam(required = false) Integer upcomingWithinDays,
+            @RequestParam(required = false) List<String> educationCodes
     ) {
         return ResponseEntity.ok(
                 educationReminderCompletionService.findCompletions(
@@ -100,8 +122,9 @@ public class EducationReminderController {
                         retireYn,
                         specialtyField,
                         jobField,
-                        recentEducationStartDate1,
-                        recentEducationStartDate2
+                        scheduledEducationYear,
+                        upcomingWithinDays,
+                        educationCodes
                 )
         );
     }

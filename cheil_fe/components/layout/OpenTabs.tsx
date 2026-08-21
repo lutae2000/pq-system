@@ -1,22 +1,28 @@
 ﻿"use client";
 
-import ClearAllOutlinedIcon from "@mui/icons-material/ClearAllOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
+import ClearAllOutlinedIcon from "@mui/icons-material/ClearAllOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { Box, Button, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, type WheelEvent as ReactWheelEvent } from "react";
 import { getPageLabel } from "@/shared/navigation/routeMeta";
 import { useSessionMenuPermissions } from "@/shared/navigation/useSessionMenuPermissions";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useLayoutStore } from "@/store/layoutStore";
+
+const MAX_OPEN_TABS = 10;
 
 export function OpenTabs() {
   const pathname = usePathname();
   const router = useRouter();
   const tabsRailRef = useRef<HTMLDivElement | null>(null);
+  const lastAllowedPathRef = useRef("/dashboard");
   const tabs = useLayoutStore((state) => state.tabs);
   const openTab = useLayoutStore((state) => state.openTab);
   const closeTab = useLayoutStore((state) => state.closeTab);
   const closeAllTabs = useLayoutStore((state) => state.closeAllTabs);
+  const { showWarning } = useAppSnackbar();
   const permissions = useSessionMenuPermissions();
 
   useEffect(() => {
@@ -33,11 +39,20 @@ export function OpenTabs() {
       return;
     }
 
+    const isCurrentTabOpen = tabs.some((tab) => tab.href === currentTab.href);
+    if (!isCurrentTabOpen && tabs.length >= MAX_OPEN_TABS) {
+      showWarning("열린 탭은 최대 10개입니다. 불필요한 탭을 닫아주세요.");
+      router.replace(lastAllowedPathRef.current);
+      return;
+    }
+
     openTab(currentTab);
-  }, [currentTab, openTab, pathname]);
+    lastAllowedPathRef.current = pathname;
+  }, [currentTab, openTab, pathname, router, showWarning, tabs]);
 
   const activeTabHref = tabs.some((tab) => tab.href === pathname) ? pathname : false;
   const canCloseAll = tabs.length > 1;
+  const isAtTabLimit = tabs.length >= MAX_OPEN_TABS;
 
   const handleCloseTab = (href: string) => {
     const activeIndex = tabs.findIndex((tab) => tab.href === href);
@@ -92,7 +107,7 @@ export function OpenTabs() {
           minWidth: 0,
           pl: 0.5,
           pr: 0.75,
-          py: 0.5,
+          py: 0.25,
         }}
       >
         <Tabs
@@ -102,15 +117,15 @@ export function OpenTabs() {
           variant="scrollable"
           sx={{
             flex: 1,
-            minHeight: 32,
+            minHeight: 28,
             minWidth: 0,
             position: "relative",
             "& .MuiTabs-flexContainer": {
               gap: 0.5,
             },
             "& .MuiTabs-indicator": {
-              bottom: 2,
-              height: 30,
+              bottom: 1,
+              height: 26,
               borderRadius: 999,
               transition:
                 "left 280ms cubic-bezier(0.22, 1, 0.36, 1), width 280ms cubic-bezier(0.22, 1, 0.36, 1), transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
@@ -126,10 +141,10 @@ export function OpenTabs() {
               minWidth: 0,
             },
             "& .MuiTab-root": {
-              minHeight: 32,
+              minHeight: 28,
               minWidth: "auto",
-              px: 1.25,
-              py: 0.45,
+              px: 1.1,
+              py: 0.25,
               borderRadius: 999,
               textTransform: "none",
               transition: "all 120ms ease",
@@ -250,14 +265,14 @@ export function OpenTabs() {
           <Button
             disabled={!canCloseAll}
             onClick={handleCloseAll}
-            startIcon={<ClearAllOutlinedIcon fontSize="small" />}
+            startIcon={isAtTabLimit ? <WarningAmberOutlinedIcon fontSize="small" /> : <ClearAllOutlinedIcon fontSize="small" />}
             variant="text"
             sx={{
               borderRadius: 999,
-              bgcolor: "background.paper",
+              bgcolor: isAtTabLimit ? "warning.light" : "background.paper",
               border: "1px solid",
-              borderColor: "divider",
-              color: "text.secondary",
+              borderColor: isAtTabLimit ? "warning.main" : "divider",
+              color: "text.primary",
               flexShrink: 0,
               fontSize: 13,
               fontWeight: 700,
@@ -266,12 +281,15 @@ export function OpenTabs() {
               px: 1.8,
               whiteSpace: "nowrap",
               textTransform: "none",
-              boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
+              boxShadow: isAtTabLimit ? "0 2px 10px rgba(245, 158, 11, 0.16)" : "0 1px 3px rgba(15, 23, 42, 0.06)",
               "&:hover": {
-                bgcolor: "action.hover",
-                borderColor: "primary.main",
-                color: "primary.main",
-                boxShadow: "0 2px 8px rgba(25, 118, 210, 0.12)",
+                bgcolor: isAtTabLimit ? "warning.light" : "action.hover",
+                borderColor: isAtTabLimit ? "warning.main" : "primary.main",
+                color: "text.primary",
+                boxShadow: isAtTabLimit ? "0 4px 14px rgba(245, 158, 11, 0.20)" : "0 2px 8px rgba(25, 118, 210, 0.12)",
+              },
+              "& .MuiButton-startIcon": {
+                color: isAtTabLimit ? "warning.main" : "inherit",
               },
             }}
           >

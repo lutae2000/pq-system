@@ -187,7 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           pt: 0,
         }}
       >
-        <Toolbar sx={{ flexShrink: 0, height: TOP_HEADER_HEIGHT, minHeight: TOP_HEADER_HEIGHT }} />
+        <Toolbar sx={{ flexShrink: 0, height: TOP_HEADER_HEIGHT, minHeight: `${TOP_HEADER_HEIGHT}px !important` }} />
         <TabFrameOutlet>
           {children}
         </TabFrameOutlet>

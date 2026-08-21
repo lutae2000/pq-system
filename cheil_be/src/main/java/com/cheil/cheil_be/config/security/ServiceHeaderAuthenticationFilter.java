@@ -20,6 +20,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 
 import com.cheil.cheil_be.application.apilog.port.out.ApiCallLogRecorder;
 import com.cheil.cheil_be.common.logging.SensitiveValueMasker;
@@ -43,6 +45,7 @@ public class ServiceHeaderAuthenticationFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final ObjectProvider<ApiCallLogRecorder> apiCallLogRecorderProvider;
+    private final ObjectProvider<Tracer> tracerProvider;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -128,6 +131,7 @@ public class ServiceHeaderAuthenticationFilter extends OncePerRequestFilter {
 
         recorder.record(new ApiCallLogRecord(
                 UUID.randomUUID(),
+                currentTraceId(),
                 Instant.now(clock),
                 request.getMethod(),
                 request.getRequestURI(),
@@ -144,6 +148,12 @@ public class ServiceHeaderAuthenticationFilter extends OncePerRequestFilter {
                 UNAUTHORIZED_MESSAGE,
                 Duration.ofNanos(System.nanoTime() - startedAt).toMillis()
         ));
+    }
+
+    private String currentTraceId() {
+        Tracer tracer = tracerProvider.getIfAvailable();
+        Span span = tracer == null ? null : tracer.currentSpan();
+        return span == null ? null : span.context().traceId();
     }
 
     private static String header(HttpServletRequest request, String name) {

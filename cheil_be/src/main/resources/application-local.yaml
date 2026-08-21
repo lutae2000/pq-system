@@ -42,8 +42,12 @@ management:
       exposure:
         include: health,info,metrics,prometheus,loggers,threaddump,heapdump
   tracing:
-      sampling:
-        probability: 1.0
+    export:
+      enabled: ${MANAGEMENT_TRACING_EXPORT_ENABLED:true}
+      otlp:
+        enabled: ${MANAGEMENT_TRACING_OTLP_EXPORT_ENABLED:true}
+    sampling:
+      probability: 1.0
   opentelemetry:
     tracing:
       export:
@@ -67,7 +71,11 @@ server:
     include-stacktrace: always
 
 app:
+  observability:
+    jdbc:
+      include-parameter-values: true
   security:
+    aes256-secret: ${APP_AES256_SECRET:cheil-local-aes256-secret}
     user-session:
       # 로컬 세션 유지 시간.
       ttl: ${APP_USER_SESSION_TTL:9h}

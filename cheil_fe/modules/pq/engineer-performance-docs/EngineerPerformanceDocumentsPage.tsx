@@ -15,12 +15,18 @@ import {
   Checkbox,
   Grid,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import { type GridColDef, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -34,14 +40,15 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
-import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
+import { HancomWebHwpPanel } from "@/modules/pq/engineer-performance-docs/HancomWebHwpPanel";
+import { HwpxTemplateGenerationPanel } from "@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel";
 import {
   createEngineerProjectHistoryReviewResults,
   deleteEngineerProjectHistoryReviewResult,
   listEngineerProjectHistories,
   listEngineerProjectHistoryReviewResults,
-  syncEngineerProjectHistoryReviewResults,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
 import { listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
@@ -92,6 +99,11 @@ const reviewGridHeight = { xs: 240, md: "clamp(260px, calc(100vh - 400px), 440px
 
 const text = (value: string | number | null | undefined) => String(value ?? "").trim();
 
+const historySelectionKey = (row: PerformanceHistoryRow) => {
+  const rowId = text(row.id);
+  return rowId || `${row.engineerId}-${row.seq}`;
+};
+
 const formatMoney = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === "") {
     return "-";
@@ -121,7 +133,7 @@ const clampSelectorPanelWidth = (width: number) =>
   Math.min(Math.max(Math.round(width), SELECTOR_PANEL_MIN_WIDTH), SELECTOR_PANEL_MAX_WIDTH);
 
 const buildHwpHtml = (
-  bidNotice: BidNoticeRecord | null,
+  bidNotice: BidNoticeApiRecord | null,
   rows: PerformanceHistoryRow[],
   relatedProjectHistoryConditions: RelatedProjectHistoryCondition[],
 ) => {
@@ -157,17 +169,15 @@ const buildHwpHtml = (
   <table>
     <thead>
       <tr>
-        <th>실적SEQ</th>
-        <th>기술인</th>
         <th>용역명</th>
         <th>발주처</th>
         <th>계약금액</th>
-        <th>자사금액</th>
-        <th>계약기간</th>
-        <th>참여기간</th>
+        <th>계약시작</th>
+        <th>계약종료</th>
+        <th>참여시작</th>
+        <th>참여종료</th>
         <th>담당업무</th>
         <th>전문분야</th>
-        <th>신고여부</th>
       </tr>
     </thead>
     <tbody>
@@ -176,21 +186,19 @@ const buildHwpHtml = (
           ? rows
               .map(
                 (row) => `<tr>
-        <td>${row.seq ?? "-"}</td>
-        <td>${row.engineerName}</td>
         <td>${text(row.jobName) || "-"}</td>
         <td>${text(row.orderClient) || "-"}</td>
         <td>${formatMoney(row.contractAmt)}</td>
-        <td>${formatMoney(row.ownAmt)}</td>
-        <td>${formatDateYmd(row.contractFromDate) || "-"} ~ ${formatDateYmd(row.contractToDate) || "-"}</td>
-        <td>${formatDateYmd(row.startDate) || "-"} ~ ${formatDateYmd(row.endDate) || "-"}</td>
+        <td>${formatDateYmd(row.contractFromDate) || "-"}</td>
+        <td>${formatDateYmd(row.contractToDate) || "-"}</td>
+        <td>${formatDateYmd(row.startDate) || "-"}</td>
+        <td>${formatDateYmd(row.endDate) || "-"}</td>
         <td>${text(row.duty) || "-"}</td>
         <td>${text(row.proPart) || "-"}</td>
-        <td>${text(row.returnYn) || "-"}</td>
       </tr>`,
               )
               .join("")
-          : `<tr><td colspan="10">선택된 실적이 없습니다.</td></tr>`
+          : `<tr><td colspan="9">선택된 실적이 없습니다.</td></tr>`
       }
     </tbody>
   </table>
@@ -210,17 +218,63 @@ const downloadHwp = (filename: string, html: string) => {
   URL.revokeObjectURL(url);
 };
 
+function PerformanceDocumentPreview({ rows }: { rows: PerformanceHistoryRow[] }) {
+  return (
+    <TableContainer sx={{ maxHeight: 420, overflowX: "auto" }}>
+      <Table aria-label="기술인 실적 산출물 미리보기" size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>용역명</TableCell>
+            <TableCell>발주처</TableCell>
+            <TableCell align="right">계약금액</TableCell>
+            <TableCell>계약시작</TableCell>
+            <TableCell>계약종료</TableCell>
+            <TableCell>참여시작</TableCell>
+            <TableCell>참여종료</TableCell>
+            <TableCell>담당업무</TableCell>
+            <TableCell>전문분야</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell align="center" colSpan={9}>
+                선택된 실적이 없습니다.
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow key={`${row.engineerId}-${row.id}`} hover>
+                <TableCell>{text(row.jobName) || "-"}</TableCell>
+                <TableCell>{text(row.orderClient) || "-"}</TableCell>
+                <TableCell align="right">{formatMoney(row.contractAmt)}</TableCell>
+                <TableCell>{formatDateYmd(row.contractFromDate) || "-"}</TableCell>
+                <TableCell>{formatDateYmd(row.contractToDate) || "-"}</TableCell>
+                <TableCell>{formatDateYmd(row.startDate) || "-"}</TableCell>
+                <TableCell>{formatDateYmd(row.endDate) || "-"}</TableCell>
+                <TableCell>{text(row.duty) || "-"}</TableCell>
+                <TableCell>{text(row.proPart) || "-"}</TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
 export function EngineerPerformanceDocumentsPage() {
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const canGenerate = canCreate || canUpdate;
   const queryClient = useQueryClient();
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
-  const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeRecord | null>(null);
+  const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [keyword, setKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
   const [generatedAt, setGeneratedAt] = useState("");
+  const [outputTestPanel, setOutputTestPanel] = useState<"hwpx" | "webhwp" | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
@@ -316,45 +370,20 @@ export function EngineerPerformanceDocumentsPage() {
   );
   const reviewRowById = useMemo(() => new Map(reviewRows.filter((row) => row.reviewId != null).map((row) => [String(row.reviewId), row])), [reviewRows]);
   const reviewRowIds = useMemo(() => reviewRows.filter((row) => row.reviewId != null).map((row) => String(row.reviewId)), [reviewRows]);
-  const reviewSourceSeqSet = useMemo(() => new Set(reviewRows.map((row) => row.sourceSeq)), [reviewRows]);
+  const reviewSourceHistoryIdSet = useMemo(() => new Set(reviewRows.map((row) => text(row.id))), [reviewRows]);
   const availableHistoryRows = useMemo(
-    () => activeEngineerHistoryRows.filter((row) => !reviewSourceSeqSet.has(row.seq)),
-    [activeEngineerHistoryRows, reviewSourceSeqSet],
+    () => activeEngineerHistoryRows.filter((row) => !reviewSourceHistoryIdSet.has(text(row.id))),
+    [activeEngineerHistoryRows, reviewSourceHistoryIdSet],
   );
   const selectedHistoryRows = useMemo(
-    () => availableHistoryRows.filter((row) => selectedHistoryIds.includes(row.id)),
+    () => availableHistoryRows.filter((row) => selectedHistoryIds.includes(historySelectionKey(row))),
     [availableHistoryRows, selectedHistoryIds],
   );
-  const historyAllSelected = availableHistoryRows.length > 0 && selectedHistoryIds.length === availableHistoryRows.length;
-  const historySomeSelected = selectedHistoryIds.length > 0 && selectedHistoryIds.length < availableHistoryRows.length;
+  const historyRowIds = useMemo(() => availableHistoryRows.map(historySelectionKey), [availableHistoryRows]);
+  const historyAllSelected = historyRowIds.length > 0 && historyRowIds.every((id) => selectedHistoryIds.includes(id));
+  const historySomeSelected = historyRowIds.some((id) => selectedHistoryIds.includes(id)) && !historyAllSelected;
   const reviewAllSelected = reviewRowIds.length > 0 && selectedReviewIds.length === reviewRowIds.length;
   const reviewSomeSelected = selectedReviewIds.length > 0 && selectedReviewIds.length < reviewRowIds.length;
-  const syncReviewResults = useCallback(async () => {
-    if (!selectedBidSeq || !activeEngineerId || relatedProjectHistoryConditions.length === 0) {
-      return;
-    }
-
-    await syncEngineerProjectHistoryReviewResults({
-      bidSeq: selectedBidSeq,
-      engineerId: activeEngineerId,
-      relatedProjectHistoryConditions,
-    });
-    await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "review-results"] });
-  }, [activeEngineerId, queryClient, relatedProjectHistoryConditions, selectedBidSeq]);
-
-  useEffect(() => {
-    if (!selectedBidSeq || !activeEngineerId || relatedProjectHistoryConditions.length === 0) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void syncReviewResults();
-    }, 250);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [activeEngineerId, relatedProjectHistoryConditions, selectedBidSeq, syncReviewResults]);
-
-  const historyRowIds = useMemo(() => availableHistoryRows.map((row) => row.id), [availableHistoryRows]);
   const handleToggleAllHistorySelection = useCallback(() => {
     setSelectedHistoryIds(historyAllSelected ? [] : historyRowIds);
     setHistorySelectionAnchorId(null);
@@ -574,11 +603,15 @@ export function EngineerPerformanceDocumentsPage() {
         ),
         renderCell: ({ row }) => (
           <Checkbox
-            checked={selectedHistoryIds.includes(row.id)}
+            checked={selectedHistoryIds.includes(historySelectionKey(row))}
             onClick={(event) => {
               event.stopPropagation();
-              handleHistorySelection(row.id, event, "checkbox");
             }}
+            onChange={(event) => {
+              event.stopPropagation();
+              handleHistorySelection(historySelectionKey(row), undefined, "checkbox");
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
             size="small"
             sx={{
               p: 0,
@@ -716,10 +749,11 @@ export function EngineerPerformanceDocumentsPage() {
       }
 
       const bidSeq = selectedBidNotice.bidSeq;
-      const requestBodies = selectedHistoryRows.map((row) => ({
+      const uniqueRowsBySourceHistoryId = Array.from(new Map(selectedHistoryRows.map((row) => [text(row.id), row])).values());
+      const requestBodies = uniqueRowsBySourceHistoryId.map((row) => ({
         bidSeq,
         engineerId: activeEngineerProfile.summary.id,
-        sourceSeq: row.seq,
+        sourceSeq: Number(row.id),
         sourceRow: row,
       }));
 
@@ -977,12 +1011,12 @@ export function EngineerPerformanceDocumentsPage() {
                   <Box sx={{ minHeight: 0 }}>
                     <EnterpriseDataGrid<PerformanceHistoryRow>
                       columns={historyColumns}
-                      getRowId={(row) => row.id}
+                      getRowId={(row) => historySelectionKey(row)}
                       hideFooter
                       hideFooterSelectedRowCount
                       loading={projectHistoryRowsQuery.isLoading || projectHistoryRowsQuery.isFetching}
                       onRowClick={(params: GridRowParams<PerformanceHistoryRow>, event) => {
-                        handleHistorySelection(params.row.id, event);
+                        handleHistorySelection(historySelectionKey(params.row), event);
                       }}
                       onRowDoubleClick={(params: GridRowParams<PerformanceHistoryRow>) => {
                         if (params.row.seq) {
@@ -1135,6 +1169,46 @@ export function EngineerPerformanceDocumentsPage() {
               </Box>
             </CardContent>
           </Card>
+          <Card variant="outlined">
+            <CardContent>
+              <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
+                    산출물 표 미리보기
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    현재 선택한 기술인의 검토결과를 테스트 산출물 형식으로 확인합니다.
+                  </Typography>
+                </Box>
+                <Chip label={`${reviewDocumentRows.length}건`} size="small" variant="outlined" />
+              </Box>
+              <PerformanceDocumentPreview rows={reviewDocumentRows} />
+            </CardContent>
+          </Card>
+          <Card variant="outlined">
+            <CardContent>
+              <Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
+                    산출물 생성 방식 테스트
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    HWPX 양식 업로드 매핑 또는 한컴 웹 기안기 연동을 선택해 테스트합니다.
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "hwpx" ? null : "hwpx"))} variant={outputTestPanel === "hwpx" ? "contained" : "outlined"}>
+                    1. HWPX 업로드 매핑
+                  </Button>
+                  <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "webhwp" ? null : "webhwp"))} variant={outputTestPanel === "webhwp" ? "contained" : "outlined"}>
+                    2. 한컴 웹 기안기
+                  </Button>
+                </Stack>
+              </Box>
+            </CardContent>
+          </Card>
+          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open={outputTestPanel === "hwpx"} profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
+          <HancomWebHwpPanel bidNotice={selectedBidNotice} open={outputTestPanel === "webhwp"} profiles={profiles} />
         </Stack>
       )}
 

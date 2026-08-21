@@ -36,6 +36,9 @@ class ApiCallLogEntity {
     @Column(nullable = false)
     private UUID requestId;
 
+    @Column(length = 32)
+    private String traceId;
+
     @Column(nullable = false)
     private Instant occurredAt;
 
@@ -83,6 +86,7 @@ class ApiCallLogEntity {
     static ApiCallLogEntity from(ApiCallLogRecord record) {
         return ApiCallLogEntity.builder()
                 .requestId(record.requestId())
+                .traceId(record.traceId())
                 .occurredAt(record.occurredAt())
                 .httpMethod(record.httpMethod())
                 .requestUri(record.requestUri())

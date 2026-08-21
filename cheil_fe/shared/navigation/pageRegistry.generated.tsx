@@ -18,36 +18,37 @@ import { DashboardPage as GeneratedPageComponent8 } from "@/modules/dashboard/Da
 import { EducationReminderManagementPage as GeneratedPageComponent9 } from "@/modules/education-reminders/basic-infos/EducationReminderManagementPage";
 import { EducationReminderBasicInfoManagementPage as GeneratedPageComponent10 } from "@/modules/education-reminders/basic-infos/EducationReminderBasicInfoManagementPage";
 import { EducationReminderCompletionManagementPage as GeneratedPageComponent11 } from "@/modules/education-reminders/completions/EducationReminderCompletionManagementPage";
-import { EducationReminderTemplateManagementPage as GeneratedPageComponent12 } from "@/modules/education-reminders/templates/EducationReminderTemplateManagementPage";
-import { PqManagementPage as GeneratedPageComponent13 } from "@/modules/pq/PqManagementPage";
-import { BidNoticePage as GeneratedPageComponent14 } from "@/modules/pq/bid-notice/BidNoticePage";
-import { BidResultsManagementPage as GeneratedPageComponent15 } from "@/modules/pq/bid-results/BidResultsManagementPage";
-import { CompanyPerformanceManagementPage as GeneratedPageComponent16 } from "@/modules/pq/company-performance/CompanyPerformanceManagementPage";
-import { CompanyPerformanceDocumentsPage as GeneratedPageComponent17 } from "@/modules/pq/company-performance-docs/CompanyPerformanceDocumentsPage";
-import { PqPlaceholderPage as GeneratedPageComponent18 } from "@/modules/pq/PqPlaceholderPage";
-import { EngineerPerformanceDocumentsPage as GeneratedPageComponent19 } from "@/modules/pq/engineer-performance-docs/EngineerPerformanceDocumentsPage";
-import { PerformanceCertificateEngineersPage as GeneratedPageComponent20 } from "@/modules/pq/performance-certificate-engineers/PerformanceCertificateEngineersPage";
-import { PqParticipatingEngineersPage as GeneratedPageComponent21 } from "@/modules/pq/pq-participating-engineers/PqParticipatingEngineersPage";
-import { EducationReminderManagementPage as GeneratedPageComponent22 } from "@/modules/education-reminders/basic-infos/EducationReminderManagementPage";
-import { EngineerPerformanceManagementPage as GeneratedPageComponent23 } from "@/modules/pq/engineers/EngineerPerformanceManagementPage";
-import { EngineerPersonalInfoPage as GeneratedPageComponent24 } from "@/modules/pq/engineers/EngineerPersonalInfoPage";
-import { NewEmploymentRateManagementPage as GeneratedPageComponent25 } from "@/modules/pq/new-employment-rates/NewEmploymentRateManagementPage";
-import { NewTechnologyDevelopmentManagementPage as GeneratedPageComponent26 } from "@/modules/pq/new-technology-developments/NewTechnologyDevelopmentManagementPage";
-import { NewTechnologyInvestmentManagementPage as GeneratedPageComponent27 } from "@/modules/pq/new-technology-investments/NewTechnologyInvestmentManagementPage";
-import { NewTechnologyUsageManagementPage as GeneratedPageComponent28 } from "@/modules/pq/new-technology-usages/NewTechnologyUsageManagementPage";
-import { PartnerCodesManagementPage as GeneratedPageComponent29 } from "@/modules/pq/partnerCodes/PartnerCodesManagementPage";
-import { QualificationCriteriaPage as GeneratedPageComponent30 } from "@/modules/pq/qualification-criteria/QualificationCriteriaPage";
-import { ServicePerformanceManagementPage as GeneratedPageComponent31 } from "@/modules/pq/service-performance-management/ServicePerformanceManagementPage";
-import { ShinindoManagementPage as GeneratedPageComponent32 } from "@/modules/pq/shinindo-management/ShinindoManagementPage";
-import { SimilarServicePerformanceManagementPage as GeneratedPageComponent33 } from "@/modules/pq/similar-service-performances/SimilarServicePerformanceManagementPage";
-import { SystemMenuPage as GeneratedPageComponent34 } from "@/modules/system/SystemMenuPage";
-import { MenuManagementPage as GeneratedPageComponent35 } from "@/modules/system/menus/MenuManagementPage";
-import { NotificationManagementPage as GeneratedPageComponent36 } from "@/modules/system/notices/NotificationManagementPage";
-import { SystemPolicyManagementPage as GeneratedPageComponent37 } from "@/modules/system/policies/SystemPolicyManagementPage";
-import { RolePermissionManagementPage as GeneratedPageComponent38 } from "@/modules/system/roles/RolePermissionManagementPage";
-import { UserManagementPage as GeneratedPageComponent39 } from "@/modules/system/user-management/UserManagementPage";
-import { WorkOverlapContractManagementPage as GeneratedPageComponent40 } from "@/modules/work-overlap/contracts/WorkOverlapContractManagementPage";
-import { WorkOverlapEngineerListPage as GeneratedPageComponent41 } from "@/modules/work-overlap/engineers/WorkOverlapEngineerListPage";
+import { EducationReminderSendHistoryPage as GeneratedPageComponent12 } from "@/modules/education-reminders/send-history/EducationReminderSendHistoryPage";
+import { EducationReminderTemplateManagementPage as GeneratedPageComponent13 } from "@/modules/education-reminders/templates/EducationReminderTemplateManagementPage";
+import { PqManagementPage as GeneratedPageComponent14 } from "@/modules/pq/PqManagementPage";
+import { BidNoticePage as GeneratedPageComponent15 } from "@/modules/pq/bid-notice/BidNoticePage";
+import { BidResultsManagementPage as GeneratedPageComponent16 } from "@/modules/pq/bid-results/BidResultsManagementPage";
+import { CompanyPerformanceManagementPage as GeneratedPageComponent17 } from "@/modules/pq/company-performance/CompanyPerformanceManagementPage";
+import { CompanyPerformanceDocumentsPage as GeneratedPageComponent18 } from "@/modules/pq/company-performance-docs/CompanyPerformanceDocumentsPage";
+import { PqPlaceholderPage as GeneratedPageComponent19 } from "@/modules/pq/PqPlaceholderPage";
+import { EngineerPerformanceDocumentsPage as GeneratedPageComponent20 } from "@/modules/pq/engineer-performance-docs/EngineerPerformanceDocumentsPage";
+import { PerformanceCertificateEngineersPage as GeneratedPageComponent21 } from "@/modules/pq/performance-certificate-engineers/PerformanceCertificateEngineersPage";
+import { PqParticipatingEngineersPage as GeneratedPageComponent22 } from "@/modules/pq/pq-participating-engineers/PqParticipatingEngineersPage";
+import { EducationReminderManagementPage as GeneratedPageComponent23 } from "@/modules/education-reminders/basic-infos/EducationReminderManagementPage";
+import { EngineerPerformanceManagementPage as GeneratedPageComponent24 } from "@/modules/pq/engineers/EngineerPerformanceManagementPage";
+import { EngineerPersonalInfoPage as GeneratedPageComponent25 } from "@/modules/pq/engineers/EngineerPersonalInfoPage";
+import { NewEmploymentRateManagementPage as GeneratedPageComponent26 } from "@/modules/pq/new-employment-rates/NewEmploymentRateManagementPage";
+import { NewTechnologyDevelopmentManagementPage as GeneratedPageComponent27 } from "@/modules/pq/new-technology-developments/NewTechnologyDevelopmentManagementPage";
+import { NewTechnologyInvestmentManagementPage as GeneratedPageComponent28 } from "@/modules/pq/new-technology-investments/NewTechnologyInvestmentManagementPage";
+import { NewTechnologyUsageManagementPage as GeneratedPageComponent29 } from "@/modules/pq/new-technology-usages/NewTechnologyUsageManagementPage";
+import { PartnerCodesManagementPage as GeneratedPageComponent30 } from "@/modules/pq/partnerCodes/PartnerCodesManagementPage";
+import { QualificationCriteriaPage as GeneratedPageComponent31 } from "@/modules/pq/qualification-criteria/QualificationCriteriaPage";
+import { ServicePerformanceManagementPage as GeneratedPageComponent32 } from "@/modules/pq/service-performance-management/ServicePerformanceManagementPage";
+import { ShinindoManagementPage as GeneratedPageComponent33 } from "@/modules/pq/shinindo-management/ShinindoManagementPage";
+import { SimilarServicePerformanceManagementPage as GeneratedPageComponent34 } from "@/modules/pq/similar-service-performances/SimilarServicePerformanceManagementPage";
+import { SystemMenuPage as GeneratedPageComponent35 } from "@/modules/system/SystemMenuPage";
+import { MenuManagementPage as GeneratedPageComponent36 } from "@/modules/system/menus/MenuManagementPage";
+import { NotificationManagementPage as GeneratedPageComponent37 } from "@/modules/system/notices/NotificationManagementPage";
+import { SystemPolicyManagementPage as GeneratedPageComponent38 } from "@/modules/system/policies/SystemPolicyManagementPage";
+import { RolePermissionManagementPage as GeneratedPageComponent39 } from "@/modules/system/roles/RolePermissionManagementPage";
+import { UserManagementPage as GeneratedPageComponent40 } from "@/modules/system/user-management/UserManagementPage";
+import { WorkOverlapContractManagementPage as GeneratedPageComponent41 } from "@/modules/work-overlap/contracts/WorkOverlapContractManagementPage";
+import { WorkOverlapEngineerListPage as GeneratedPageComponent42 } from "@/modules/work-overlap/engineers/WorkOverlapEngineerListPage";
 
 import type { GeneratedPagePath } from "@/shared/navigation/pagePaths.generated";
 
@@ -64,34 +65,35 @@ export const pageRegistry: Record<GeneratedPagePath, ComponentType> = {
   "/education-reminders": GeneratedPageComponent9,
   "/education-reminders/basic-infos": GeneratedPageComponent10,
   "/education-reminders/completions": GeneratedPageComponent11,
-  "/education-reminders/templates": GeneratedPageComponent12,
-  "/pq": GeneratedPageComponent13,
-  "/pq/bid-notice": GeneratedPageComponent14,
-  "/pq/bid-results": GeneratedPageComponent15,
-  "/pq/company-performance": GeneratedPageComponent16,
-  "/pq/documents/company-performance-docs": GeneratedPageComponent17,
-  "/pq/documents/engineer-overlap-check": GeneratedPageComponent18,
-  "/pq/documents/engineer-performance-docs": GeneratedPageComponent19,
-  "/pq/documents/performance-certificate-engineers": GeneratedPageComponent20,
-  "/pq/documents/pq-participating-engineers": GeneratedPageComponent21,
-  "/pq/education-reminders": GeneratedPageComponent22,
-  "/pq/engineers/performance": GeneratedPageComponent23,
-  "/pq/engineers/profile": GeneratedPageComponent24,
-  "/pq/new-employment-rates": GeneratedPageComponent25,
-  "/pq/new-technology-developments": GeneratedPageComponent26,
-  "/pq/new-technology-investments": GeneratedPageComponent27,
-  "/pq/new-technology-usages": GeneratedPageComponent28,
-  "/pq/partner-order-codes": GeneratedPageComponent29,
-  "/pq/qualification-criteria": GeneratedPageComponent30,
-  "/pq/service-performance-management": GeneratedPageComponent31,
-  "/pq/shinindo-management": GeneratedPageComponent32,
-  "/pq/similar-service-performances": GeneratedPageComponent33,
-  "/system": GeneratedPageComponent34,
-  "/system/menus": GeneratedPageComponent35,
-  "/system/notices": GeneratedPageComponent36,
-  "/system/policies": GeneratedPageComponent37,
-  "/system/roles": GeneratedPageComponent38,
-  "/system/user-management": GeneratedPageComponent39,
-  "/work-overlap/contracts": GeneratedPageComponent40,
-  "/work-overlap/engineers": GeneratedPageComponent41,
+  "/education-reminders/send-history": GeneratedPageComponent12,
+  "/education-reminders/templates": GeneratedPageComponent13,
+  "/pq": GeneratedPageComponent14,
+  "/pq/bid-notice": GeneratedPageComponent15,
+  "/pq/bid-results": GeneratedPageComponent16,
+  "/pq/company-performance": GeneratedPageComponent17,
+  "/pq/documents/company-performance-docs": GeneratedPageComponent18,
+  "/pq/documents/engineer-overlap-check": GeneratedPageComponent19,
+  "/pq/documents/engineer-performance-docs": GeneratedPageComponent20,
+  "/pq/documents/performance-certificate-engineers": GeneratedPageComponent21,
+  "/pq/documents/pq-participating-engineers": GeneratedPageComponent22,
+  "/pq/education-reminders": GeneratedPageComponent23,
+  "/pq/engineers/performance": GeneratedPageComponent24,
+  "/pq/engineers/profile": GeneratedPageComponent25,
+  "/pq/new-employment-rates": GeneratedPageComponent26,
+  "/pq/new-technology-developments": GeneratedPageComponent27,
+  "/pq/new-technology-investments": GeneratedPageComponent28,
+  "/pq/new-technology-usages": GeneratedPageComponent29,
+  "/pq/partner-order-codes": GeneratedPageComponent30,
+  "/pq/qualification-criteria": GeneratedPageComponent31,
+  "/pq/service-performance-management": GeneratedPageComponent32,
+  "/pq/shinindo-management": GeneratedPageComponent33,
+  "/pq/similar-service-performances": GeneratedPageComponent34,
+  "/system": GeneratedPageComponent35,
+  "/system/menus": GeneratedPageComponent36,
+  "/system/notices": GeneratedPageComponent37,
+  "/system/policies": GeneratedPageComponent38,
+  "/system/roles": GeneratedPageComponent39,
+  "/system/user-management": GeneratedPageComponent40,
+  "/work-overlap/contracts": GeneratedPageComponent41,
+  "/work-overlap/engineers": GeneratedPageComponent42,
 };

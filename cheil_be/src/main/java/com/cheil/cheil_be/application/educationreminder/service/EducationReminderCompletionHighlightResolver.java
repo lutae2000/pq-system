@@ -9,7 +9,7 @@ import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderHigh
 @Component
 class EducationReminderCompletionHighlightResolver {
 
-    private static final int UPCOMING_WARNING_DAYS = 30;
+    private static final int UPCOMING_WARNING_DAYS = 60;
 
     EducationReminderHighlightTone resolve(String scheduledEducation1, String scheduledEducation2, boolean educationRegistered) {
         if (educationRegistered) {
@@ -17,22 +17,23 @@ class EducationReminderCompletionHighlightResolver {
         }
 
         LocalDate today = LocalDate.now();
-        if (isAfterToday(scheduledEducation1, today) || isAfterToday(scheduledEducation2, today)) {
+        if (isAfterTodayWithinWindow(scheduledEducation1, today, UPCOMING_WARNING_DAYS)
+                || isAfterTodayWithinWindow(scheduledEducation2, today, UPCOMING_WARNING_DAYS)) {
             return EducationReminderHighlightTone.OVERDUE;
         }
-        if (isWithinRecentWindow(scheduledEducation1, today, UPCOMING_WARNING_DAYS)
-                || isWithinRecentWindow(scheduledEducation2, today, UPCOMING_WARNING_DAYS)) {
+        if (isUpcomingWithinWindow(scheduledEducation1, today, UPCOMING_WARNING_DAYS)
+                || isUpcomingWithinWindow(scheduledEducation2, today, UPCOMING_WARNING_DAYS)) {
             return EducationReminderHighlightTone.UPCOMING;
         }
         return EducationReminderHighlightTone.NONE;
     }
 
-    private boolean isAfterToday(String value, LocalDate today) {
+    private boolean isAfterTodayWithinWindow(String value, LocalDate today, int days) {
         LocalDate date = EducationReminderDateUtils.parseResponseDate(value);
-        return date != null && date.isAfter(today);
+        return date != null && date.isAfter(today) && !date.isAfter(today.plusDays(days));
     }
 
-    private boolean isWithinRecentWindow(String value, LocalDate today, int days) {
+    private boolean isUpcomingWithinWindow(String value, LocalDate today, int days) {
         LocalDate date = EducationReminderDateUtils.parseResponseDate(value);
         return date != null && !date.isBefore(today.minusDays(days)) && !date.isAfter(today);
     }

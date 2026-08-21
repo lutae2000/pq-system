@@ -32,6 +32,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
+    implementation 'net.ttddyy.observation:datasource-micrometer:1.0.2'
     implementation 'org.aspectj:aspectjweaver'
     implementation 'com.google.code.gson:gson:2.13.1'
     implementation 'p6spy:p6spy:3.9.1'

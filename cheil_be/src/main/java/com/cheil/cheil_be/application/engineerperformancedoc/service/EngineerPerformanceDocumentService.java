@@ -63,7 +63,7 @@ public class EngineerPerformanceDocumentService {
                             NULL::BIGINT AS review_id,
                             NULL::BIGINT AS bid_seq,
                             h.engr_id AS engineer_id,
-                            h.seq AS source_seq,
+                            h.id AS source_seq,
                             CAST(h.id AS TEXT) AS id,
                             cp.job_name AS jobname,
                             cp.seq,
@@ -118,8 +118,6 @@ public class EngineerPerformanceDocumentService {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
         params.put("engineerId", engineerId.trim());
-
-        String conditionSql = buildProjectHistoryConditionSql(parseProjectHistoryConditions(relatedProjectHistoryConditions), params);
         String sql = """
                 SELECT
                     r.review_id,
@@ -157,14 +155,18 @@ public class EngineerPerformanceDocumentService {
                     r.last_changed_at,
                     r.last_changed_id
                 FROM pq_engineer_project_history_review_results r
-                JOIN pq_engineer_project_history h
-                  ON h.engr_id = r.engineer_id
-                 AND h.seq = r.source_seq
+                JOIN LATERAL (
+                    SELECT h.*
+                    FROM pq_engineer_project_history h
+                    WHERE h.engr_id = r.engineer_id
+                      AND (h.id = r.source_seq OR h.seq = r.source_seq)
+                    ORDER BY CASE WHEN h.id = r.source_seq THEN 0 ELSE 1 END, h.id DESC
+                    LIMIT 1
+                ) h ON TRUE
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE r.bid_seq = :bidSeq
                   AND r.engineer_id = :engineerId
-                """ + conditionSql + """
                 ORDER BY cp.contract_to_date DESC NULLS LAST, h.enddt DESC NULLS LAST, h.seq DESC, r.review_id
                 """;
 
@@ -216,13 +218,13 @@ public class EngineerPerformanceDocumentService {
         List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(request.relatedProjectHistoryConditions());
         String conditionSql = buildProjectHistoryConditionSql(conditions, params);
         String selectSql = """
-                SELECT DISTINCT h.seq
+                SELECT DISTINCT h.id
                 FROM pq_engineer_project_history h
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE h.engr_id = :engineerId
                 """ + conditionSql + """
-                ORDER BY h.seq
+                ORDER BY h.id
                 """;
 
         List<Integer> matchingSourceSeqs = jdbcClient.sql(selectSql)
@@ -341,10 +343,15 @@ public class EngineerPerformanceDocumentService {
                             r.created_id,
                             r.last_changed_at,
                             r.last_changed_id
-                        FROM pq_engineer_project_history_review_results r
-                        JOIN pq_engineer_project_history h
-                          ON h.engr_id = r.engineer_id
-                         AND h.seq = r.source_seq
+                FROM pq_engineer_project_history_review_results r
+                JOIN LATERAL (
+                    SELECT h.*
+                    FROM pq_engineer_project_history h
+                    WHERE h.engr_id = r.engineer_id
+                      AND (h.id = r.source_seq OR h.seq = r.source_seq)
+                    ORDER BY CASE WHEN h.id = r.source_seq THEN 0 ELSE 1 END, h.id DESC
+                    LIMIT 1
+                ) h ON TRUE
                         JOIN company_performances cp
                           ON cp.seq = h.seq
                         WHERE r.review_id = :reviewId
@@ -362,7 +369,7 @@ public class EngineerPerformanceDocumentService {
                         JOIN company_performances cp
                           ON cp.seq = h.seq
                         WHERE h.engr_id = :engineerId
-                          AND h.seq = :sourceSeq
+                          AND h.id = :sourceSeq
                         """)
                 .param("engineerId", engineerId)
                 .param("sourceSeq", sourceSeq)

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS shinindo_managements (
     applied_yn VARCHAR(1) NOT NULL DEFAULT 'Y',
     acquired_date VARCHAR(8),
     valid_until VARCHAR(8),
+    score NUMERIC(10, 2),
     remark TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
@@ -13,7 +14,8 @@ CREATE TABLE IF NOT EXISTS shinindo_managements (
     CONSTRAINT uq_shinindo_managements_client_item UNIQUE (client_code, item_name),
     CONSTRAINT ck_shinindo_managements_applied_yn CHECK (applied_yn IN ('Y', 'N')),
     CONSTRAINT ck_shinindo_managements_acquired_date CHECK (acquired_date IS NULL OR acquired_date ~ '^[0-9]{8}$'),
-    CONSTRAINT ck_shinindo_managements_valid_until CHECK (valid_until IS NULL OR valid_until ~ '^[0-9]{8}$')
+    CONSTRAINT ck_shinindo_managements_valid_until CHECK (valid_until IS NULL OR valid_until ~ '^[0-9]{8}$'),
+    CONSTRAINT ck_shinindo_managements_score CHECK (score IS NULL OR score >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS ix_shinindo_managements_client_code

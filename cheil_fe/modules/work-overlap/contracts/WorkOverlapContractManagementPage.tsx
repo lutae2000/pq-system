@@ -156,7 +156,7 @@ const SUMMARY_ITEMS = [
   {
     key: "processed",
     label: "처리완료",
-    note: "실적증명, 참여명단, CEMS가 모두 승인된 건수",
+    note: "실적증명, 참여명단, CEMS 모두 승인된 건수",
     color: "success.main",
     icon: CheckCircleOutlineOutlinedIcon,
   },

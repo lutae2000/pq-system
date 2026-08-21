@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { menuIconMap } from "@/components/layout/navigation";
+import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
 import { getMenuItems, type MenuItemDto } from "@/shared/navigation/menu";
 
 const emptyMenuItems: MenuItemDto[] = [];
@@ -48,6 +49,7 @@ function hasActiveChild(item: MenuItemDto, pathname: string) {
 export function Sidebar({ drawerWidth }: SidebarProps) {
   const pathname = usePathname();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const { guardTabNavigation } = useTabNavigationGuard();
   const menuQuery = useQuery({
     queryKey: ["menu"],
     queryFn: getMenuItems,
@@ -115,12 +117,12 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
 
     const listItemContent = (
       <Box sx={{ alignItems: "center", display: "flex", minWidth: 0, width: "100%" }}>
-        <ListItemIcon sx={{ minWidth: 40 }}>
-          <Icon fontSize="small" />
-        </ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 40 }}>
+            <Icon fontSize="small" />
+          </ListItemIcon>
         <ListItemText
           primary={
-            <Typography variant="body2" sx={{ fontWeight: selected ? 800 : 600 }}>
+              <Typography variant="body2" sx={{ fontWeight: selected ? 800 : 600 }}>
               {item.label}
             </Typography>
           }
@@ -133,6 +135,13 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
       <ListItemButton
         {...(item.href && routeAvailable ? { LinkComponent: Link, href: item.href } : {})}
         disabled={!routeAvailable || !item.href}
+        onClick={(event) => {
+          if (!item.href || !routeAvailable) {
+            return;
+          }
+
+          guardTabNavigation(item.href, event);
+        }}
         selected={selected}
         sx={{
           borderRadius: 1,
@@ -173,14 +182,23 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
 
   const content = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, px: 3, py: 2 }}>
+          <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          px: 3,
+          pb: 2,
+          pt: 1,
+        }}
+      >
         <Box
           component="img"
           alt="Cheil"
           src="/branding/logo_white_landscape.png"
           sx={{
             display: "block",
-            height: 35,
+            height: 33,
             objectFit: "contain",
             width: 230,
           }}
@@ -195,15 +213,6 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
           menuItems.map((item) => renderItem(item))
         )}
       </List>
-      <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 3 }}>
-        <Typography variant="caption" color="text.secondary">
-          Template version
-        </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-          Next.js 16 App Router
-        </Typography>
-      </Box>
     </Box>
   );
 

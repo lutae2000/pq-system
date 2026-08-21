@@ -46,6 +46,8 @@ server:
     include-stacktrace: on_param
 
 app:
+  security:
+    aes256-secret: ${APP_AES256_SECRET:cheil-dev-aes256-secret}
   file:
     # 개발 파일 저장 경로.
     storage-root: ${APP_FILE_STORAGE_ROOT:/data/cheil-be/files/dev}

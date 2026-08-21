@@ -2,8 +2,6 @@ package com.cheil.cheil_be.adapter.out.persistence.educationreminder;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -22,11 +20,7 @@ import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
 public class EducationReminderBasicInfoEntity extends AuditEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
-    private Long id;
-
-    @Column(name = "code", nullable = false, length = 50, unique = true)
+    @Column(name = "code", nullable = false, length = 50)
     private String code;
 
     @Column(name = "name", nullable = false, length = 300)
@@ -59,7 +53,6 @@ public class EducationReminderBasicInfoEntity extends AuditEntity {
 
     public EducationReminderBasicInfoResponse toResponse() {
         return new EducationReminderBasicInfoResponse(
-                id,
                 code,
                 name,
                 description,

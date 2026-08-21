@@ -1,7 +1,5 @@
 package com.cheil.cheil_be.application.newemployment.service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -27,7 +25,6 @@ import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentEmployeeResp
 import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentMonthlyStatusRequest;
 import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentMonthlyStatusPivotResponse;
 import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentMonthlyStatusResponse;
-import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentRateSummaryResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
@@ -42,33 +39,10 @@ public class NewEmploymentRateService {
     private static final int JOB_CATEGORY_MAX_LENGTH = 100;
     private static final int REMARK_MAX_LENGTH = 1000;
     private static final int MONTHLY_STATUS_WINDOW = 12;
-    private static final int SUMMARY_WINDOW = 24;
     private static final DateTimeFormatter COMPACT_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter YEAR_MONTH_KEY_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
     private final JdbcClient jdbcClient;
-
-    @Transactional(readOnly = true)
-    public NewEmploymentRateSummaryResponse summary(String baseYearMonth, String departmentCode, String employeeName) {
-        List<MonthlyStatusRow> monthlyRows = loadMonthlyStatusRows(baseYearMonth, SUMMARY_WINDOW);
-        List<MonthlyStatusRow> recentRows = monthlyRows.size() >= MONTHLY_STATUS_WINDOW
-                ? monthlyRows.subList(monthlyRows.size() - MONTHLY_STATUS_WINDOW, monthlyRows.size())
-                : monthlyRows;
-        List<MonthlyStatusRow> previousRows = monthlyRows.size() >= MONTHLY_STATUS_WINDOW
-                ? monthlyRows.subList(0, monthlyRows.size() - MONTHLY_STATUS_WINDOW)
-                : List.of();
-        int newHireCount = recentRows.stream().mapToInt(row -> row.newHireCount() == null ? 0 : row.newHireCount()).sum();
-        BigDecimal previousAverage = average(previousRows.stream().map(MonthlyStatusRow::employeeCount).toList());
-        BigDecimal recentAverage = average(recentRows.stream().map(MonthlyStatusRow::employeeCount).toList());
-
-        return new NewEmploymentRateSummaryResponse(
-                newHireCount,
-                previousAverage,
-                recentAverage,
-                rate(BigDecimal.valueOf(newHireCount), previousAverage),
-                rate(BigDecimal.valueOf(newHireCount), recentAverage)
-        );
-    }
 
     @Transactional(readOnly = true)
     public List<NewEmploymentMonthlyStatusResponse> monthlyStatuses(String baseYearMonth, String departmentCode, String employeeName) {
@@ -77,7 +51,7 @@ public class NewEmploymentRateService {
                 .toList();
     }
 
-        @Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public List<NewEmploymentMonthlyStatusPivotResponse> monthlyStatusPivot(String baseYearMonth) {
         String normalizedAnchor = normalizeYearMonthAnchor(baseYearMonth);
         return jdbcClient.sql("""
@@ -85,11 +59,13 @@ public class NewEmploymentRateService {
                             SELECT TO_CHAR(month_date, 'YYYY-MM') AS year_month
                             FROM generate_series(
                                 DATE_TRUNC('month', to_date(:baseYearMonth, 'YYYYMM')) - INTERVAL '12 months',
-                                DATE_TRUNC('month', to_date(:baseYearMonth, 'YYYYMM')),
+                                DATE_TRUNC('month', to_date(:baseYearMonth, 'YYYYMM')) - INTERVAL '1 month',
                                 INTERVAL '1 month'
                             ) AS month_date
                         )
-                        SELECT m.year_month, coalesce(c.employee_count, 0) cnt
+                        SELECT m.year_month,
+                               coalesce(c.employee_count, 0) employee_count,
+                               coalesce(c.new_hire_count, 0) new_hire_count
                         FROM month m
                         left join new_employment_monthly_counts c
                           on (m.year_month = c.base_year_month)
@@ -98,7 +74,37 @@ public class NewEmploymentRateService {
                 .param("baseYearMonth", normalizedAnchor)
                 .query((rs, rowNum) -> new NewEmploymentMonthlyStatusPivotResponse(
                         rs.getString("year_month"),
-                        rs.getBigDecimal("cnt")
+                        rs.getBigDecimal("employee_count"),
+                        rs.getBigDecimal("new_hire_count")
+                ))
+                .list();
+    }
+
+    @Transactional(readOnly = true)
+    public List<NewEmploymentMonthlyStatusPivotResponse> previousYearSamePeriodMonthlyStatusPivot(String baseYearMonth) {
+        String normalizedAnchor = normalizeYearMonthAnchor(baseYearMonth);
+        return jdbcClient.sql("""
+                        with month as (
+                            SELECT TO_CHAR(month_date, 'YYYY-MM') AS year_month
+                            FROM generate_series(
+                                DATE_TRUNC('month', to_date(:baseYearMonth, 'YYYYMM')) - INTERVAL '24 months',
+                                DATE_TRUNC('month', to_date(:baseYearMonth, 'YYYYMM')) - INTERVAL '13 months',
+                                INTERVAL '1 month'
+                        ) AS month_date
+                        )
+                        SELECT m.year_month,
+                               coalesce(c.employee_count, 0) employee_count,
+                               coalesce(c.new_hire_count, 0) new_hire_count
+                        FROM month m
+                        left join new_employment_monthly_counts c
+                          on (m.year_month = c.base_year_month)
+                        order by 1
+                        """)
+                .param("baseYearMonth", normalizedAnchor)
+                .query((rs, rowNum) -> new NewEmploymentMonthlyStatusPivotResponse(
+                        rs.getString("year_month"),
+                        rs.getBigDecimal("employee_count"),
+                        rs.getBigDecimal("new_hire_count")
                 ))
                 .list();
     }
@@ -131,6 +137,11 @@ public class NewEmploymentRateService {
                             :actor,
                             :actor
                         )
+                        ON CONFLICT (base_year_month, department_code) DO UPDATE
+                        SET employee_count = EXCLUDED.employee_count,
+                            new_hire_count = EXCLUDED.new_hire_count,
+                            last_changed_at = CURRENT_TIMESTAMP,
+                            last_changed_id = EXCLUDED.last_changed_id
                         RETURNING id
                         """)
                 .param("baseYearMonth", normalizeMonthStorage(request.baseYearMonth(), "baseYearMonth", true))
@@ -369,7 +380,7 @@ public class NewEmploymentRateService {
                         WITH months AS (
                             SELECT to_char(
                                        date_trunc('month', to_date(:baseYearMonth || '01', 'YYYYMMDD'))
-                                       - make_interval(months => :monthCount - 1)
+                                       - make_interval(months => :monthCount)
                                        + make_interval(months => gs),
                                        'YYYY-MM'
                                    ) AS base_year_month
@@ -465,23 +476,6 @@ public class NewEmploymentRateService {
                 row.lastChangedAt(),
                 row.lastChangedId()
         );
-    }
-
-    private BigDecimal average(List<Integer> values) {
-        if (values.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-        BigDecimal sum = values.stream()
-                .map(value -> BigDecimal.valueOf(value == null ? 0 : value))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return sum.divide(BigDecimal.valueOf(values.size()), 1, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal rate(BigDecimal numerator, BigDecimal denominator) {
-        if (denominator == null || BigDecimal.ZERO.compareTo(denominator) == 0) {
-            return null;
-        }
-        return numerator.multiply(BigDecimal.valueOf(100)).divide(denominator, 2, RoundingMode.HALF_UP);
     }
 
     private String normalizeYearMonthFilter(String value) {
@@ -622,5 +616,3 @@ public class NewEmploymentRateService {
     ) {
     }
 }
-
-

@@ -6,6 +6,7 @@ public record EducationReminderTemplateRequest(
         String channel,
         String title,
         String description,
+        String homepageUrl,
         String content,
         Boolean active
 ) {

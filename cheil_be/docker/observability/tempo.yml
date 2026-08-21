@@ -4,6 +4,8 @@ server:
   http_listen_port: 3200
 
 distributor:
+  # 긴 SQL(jdbc.query[0])이 Tempo 저장 전에 잘리지 않도록 허용 크기를 늘린다.
+  max_attribute_bytes: 65536
   receivers:
     otlp:
       protocols:

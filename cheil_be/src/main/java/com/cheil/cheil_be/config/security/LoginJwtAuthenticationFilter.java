@@ -20,6 +20,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionCommand;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
+import com.cheil.cheil_be.common.security.SecurityHeaders;
+import com.cheil.cheil_be.common.security.ServicePrincipal;
 import com.cheil.cheil_be.common.web.ApiErrorResponse;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,7 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
-    private static final String UNAUTHORIZED_MESSAGE = "Invalid or expired login token.";
+    private static final String UNAUTHORIZED_MESSAGE = "Bearer Token 값이 유효하지 않습니다.";
 
     private final LoginAccessTokenService loginAccessTokenService;
     private final ValidateLoginSessionUseCase validateLoginSessionUseCase;
@@ -40,6 +42,7 @@ public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
+                || ServicePrincipal.SERVER_SERVICE_ID.equals(request.getHeader(SecurityHeaders.SERVICE_ID))
                 || appSecurityProperties.filter().excludedPaths().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path))
                 || appSecurityProperties.filter().loginExcludedPaths().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
     }

@@ -27,6 +27,7 @@ import { consumeAuthNotice, writeAuthSession } from "@/lib/auth/authSession";
 import { SignupDialog } from "@/modules/auth/SignupDialog";
 import { useLoginMutation } from "@/modules/auth/authMutations";
 import { changePassword, listMyMenuPermissions } from "@/modules/auth/authApi";
+import { useLayoutStore } from "@/store/layoutStore";
 
 export function LoginPage() {
   const router = useRouter();
@@ -78,6 +79,7 @@ export function LoginPage() {
       };
 
       writeAuthSession(baseSession);
+      useLayoutStore.getState().resetTabs();
       const permissions = await listMyMenuPermissions();
       writeAuthSession({ ...baseSession, permissions });
 

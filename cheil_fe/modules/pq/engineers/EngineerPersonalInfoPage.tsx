@@ -42,6 +42,7 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { EngineerHistoryTabs } from "@/modules/pq/engineers/history-tabs/EngineerHistoryTabs";
 import { listCertifications } from "@/modules/code/certifications/api";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
@@ -131,6 +132,38 @@ function formatDate8(value: unknown) {
   }
 
   return `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}`;
+}
+
+function calculateAge(birthDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
+    return null;
+  }
+
+  const birth = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) {
+    return null;
+  }
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const birthdayPassed =
+    today.getMonth() > birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
+
+  if (!birthdayPassed) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+}
+
+function formatEngineerAge(birthDate: string, fallbackAge: number) {
+  const calculatedAge = calculateAge(birthDate);
+  if (calculatedAge != null) {
+    return `${calculatedAge}세`;
+  }
+
+  return fallbackAge > 0 ? `${fallbackAge}세` : "";
 }
 
 function createSummaryColumns(
@@ -514,6 +547,7 @@ function getNextSelectedId<T extends { id: string }>(rows: T[], deletedId: strin
 
 export function EngineerPersonalInfoPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const { showError } = useAppSnackbar();
   const careerGridApiRef = useGridApiRef();
   const certificateGridApiRef = useGridApiRef();
   const educationGridApiRef = useGridApiRef();
@@ -778,12 +812,9 @@ export function EngineerPersonalInfoPage() {
     [selectedSpecialtyField, specialtyFieldLabelByCode, specialtyFieldOptions],
   );
 
-  const selectedEngineerAge =
-    selectedEngineer?.detail.age != null
-      ? `${selectedEngineer.detail.age}세`
-      : selectedEngineer?.detail.birthDate
-        ? `${new Date().getFullYear() - new Date(selectedEngineer.detail.birthDate).getFullYear()}세`
-        : "";
+  const selectedEngineerAge = selectedEngineer
+    ? formatEngineerAge(selectedEngineer.detail.birthDate, selectedEngineer.detail.age)
+    : "";
 
   const selectedDetailRows = useMemo<SelectedDetailRows>(() => {
     if (!selectedEngineer) {
@@ -828,6 +859,10 @@ export function EngineerPersonalInfoPage() {
   };
 
   const handleNew = () => {
+    if (selectedEngineer?.summary.isNew) {
+      return;
+    }
+
     const nextId = createNewEngineerId(profiles.map((profile) => profile.summary.id));
     const nextProfile = createEmptyEngineerProfile(nextId, filters);
 
@@ -846,9 +881,13 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer as any);
-    replaceProfile(saved as any);
-    setSelectedEngineerId(saved.summary.id);
+    try {
+      const saved = await saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer as any);
+      replaceProfile(saved as any);
+      setSelectedEngineerId(saved.summary.id);
+    } catch (error) {
+      showError(error instanceof Error && error.message === "중복된 기술인이 있습니다." ? error.message : "기술인 정보 저장에 실패했습니다.");
+    }
   };
 
   const confirmSaveMaster = () => {
@@ -1830,7 +1869,12 @@ export function EngineerPersonalInfoPage() {
                   </Box>
                   {selectedEngineer ? (
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="contained">
+                      <Button
+                        disabled={!canCreate || Boolean(selectedEngineer.summary.isNew)}
+                        onClick={handleNew}
+                        startIcon={<AddOutlinedIcon />}
+                        variant="contained"
+                      >
                         신규
                       </Button>
                       <Button

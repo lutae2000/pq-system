@@ -18,26 +18,40 @@ import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import net.ttddyy.observation.tracing.QueryContext;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @Profile({ "local", "dev" })
 public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger("SQL_COMPLETED");
+    private final ObjectProvider<ObservationRegistry> observationRegistryProvider;
+
+    public CompletedQueryLoggingDataSourcePostProcessor(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+        this.observationRegistryProvider = observationRegistryProvider;
+    }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof DataSource dataSource && !Proxy.isProxyClass(bean.getClass())) {
-            return JdbcLoggingProxy.wrap(dataSource);
+            return JdbcLoggingProxy.wrap(dataSource, observationRegistryProvider.getIfAvailable());
         }
         return bean;
     }
 
     private static final class JdbcLoggingProxy {
+
+        private static ObservationRegistry observationRegistry;
 
         private static final Set<String> STATEMENT_SQL_METHODS = Set.of(
                 "execute",
@@ -58,7 +72,8 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
         private JdbcLoggingProxy() {
         }
 
-        static DataSource wrap(DataSource target) {
+        static DataSource wrap(DataSource target, ObservationRegistry registry) {
+            observationRegistry = registry;
             return (DataSource) Proxy.newProxyInstance(
                     DataSource.class.getClassLoader(),
                     new Class<?>[] { DataSource.class },
@@ -101,13 +116,24 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
 
         private static void logSql(String sql) {
             if (log.isDebugEnabled() && shouldLog(sql)) {
-                log.debug(formatSql(sql));
+                String formattedSql = formatSql(sql);
+                recordCompletedQuery(formattedSql);
+                log.debug(formattedSql);
             }
         }
 
         private static void logSql(String sql, Map<Integer, Object> parameters) {
             if (log.isDebugEnabled() && shouldLog(sql)) {
-                log.debug(formatSql(render(sql, parameters)));
+                String formattedSql = formatSql(render(sql, parameters));
+                recordCompletedQuery(formattedSql);
+                log.debug(formattedSql);
+            }
+        }
+
+        private static void recordCompletedQuery(String sql) {
+            Observation currentObservation = observationRegistry == null ? null : observationRegistry.getCurrentObservation();
+            if (currentObservation != null && currentObservation.getContext() instanceof QueryContext queryContext) {
+                queryContext.setQueries(java.util.List.of(sql));
             }
         }
 

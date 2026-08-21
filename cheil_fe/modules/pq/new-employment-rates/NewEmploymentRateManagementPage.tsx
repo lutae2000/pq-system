@@ -1,13 +1,9 @@
-"use client";
+﻿"use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-import PercentOutlinedIcon from "@mui/icons-material/PercentOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
-import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
 import {
   Alert,
   Autocomplete,
@@ -16,10 +12,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Snackbar,
   Stack,
@@ -33,8 +25,8 @@ import {
   type GridPaginationModel,
   type GridRowParams,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type ReactNode } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -48,22 +40,26 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useCommonCodeLevel3Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import {
+  NewEmploymentMonthlyStatusDialog,
+  type EditableMonthlyStatusRow,
+} from "@/modules/pq/new-employment-rates/NewEmploymentMonthlyStatusDialog";
+import {
   createNewEmploymentMonthlyStatus,
   createNewEmploymentEmployee,
   deleteNewEmploymentMonthlyStatus,
   deleteNewEmploymentEmployee,
   getNewEmploymentEmployee,
-  getNewEmploymentRateSummary,
   listNewEmploymentEmployees,
   listNewEmploymentMonthlyStatuses,
   listNewEmploymentMonthlyStatusPivot,
+  listNewEmploymentPreviousYearSamePeriodMonthlyStatusPivot,
   NEW_EMPLOYMENT_CERTIFICATE_ATTACHMENT_TYPE,
   NEW_EMPLOYMENT_RATE_PAGE_SIZE,
   NEW_EMPLOYMENT_RATE_PROGRAM_ATTACHMENT_OWNER_TYPE,
   type NewEmploymentEmployeePageResponse,
   type NewEmploymentEmployeeRecord,
   type NewEmploymentEmployeeRequest,
-  type NewEmploymentMonthlyStatusRecord,
+  type NewEmploymentMonthlyStatusPivotRecord,
   type NewEmploymentMonthlyStatusRequest,
   updateNewEmploymentMonthlyStatus,
   updateNewEmploymentEmployee,
@@ -84,8 +80,20 @@ type MonthlyStatusPivotRow = {
   monthKeys: string[];
 };
 
-type EditableMonthlyStatusRow = NewEmploymentMonthlyStatusRecord & {
-  isNew?: boolean;
+type MonthlyStatusPivotMetric = {
+  id: string;
+  label: string;
+  valueByMonth: Array<number | null>;
+};
+
+type MonthlyStatusPivotGrid = {
+  columns: GridColDef<MonthlyStatusPivotRow>[];
+  rows: MonthlyStatusPivotRow[];
+};
+
+type MonthlyStatusCounts = {
+  employeeCount: number | null;
+  newHireCount: number | null;
 };
 
 const today = new Date();
@@ -137,10 +145,64 @@ const formatDate = (value: string | null | undefined) => {
 };
 const formatNumber = (value: number | null | undefined) =>
   value === null || value === undefined ? "-" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
-const formatPercent = (value: number | null | undefined) =>
-  value === null || value === undefined
-    ? "-"
-    : `${Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
+const buildMonthlyStatusPivotGrid = (
+  sourceRows: NewEmploymentMonthlyStatusPivotRecord[],
+  rowIdPrefix: string,
+  monthLabel: string,
+): MonthlyStatusPivotGrid => {
+  const monthRows = sourceRows.slice().sort((left, right) => yearMonthValue(left.yearMonth).localeCompare(yearMonthValue(right.yearMonth)));
+  const monthKeys = monthRows.map((item) => text(item.yearMonth));
+  const metrics: MonthlyStatusPivotMetric[] = [
+    {
+      id: `${rowIdPrefix}-employee-count`,
+      label: "고용인원",
+      valueByMonth: monthRows.map((item) => item.employeeCount),
+    },
+    {
+      id: `${rowIdPrefix}-new-hire-count`,
+      label: "신규 고용현황",
+      valueByMonth: monthRows.map((item) => item.newHireCount),
+    },
+  ];
+
+  const rows: MonthlyStatusPivotRow[] = metrics.map((metric) => ({
+    average:
+      metric.valueByMonth.length > 0
+        ? metric.valueByMonth.reduce((sum, value) => sum + Number(value ?? 0), 0) / metric.valueByMonth.length
+        : null,
+    id: metric.id,
+    label: metric.label,
+    monthKeys,
+    months: metric.valueByMonth,
+  }));
+
+  const columns: GridColDef<MonthlyStatusPivotRow>[] = [
+    { field: "label", headerName: "구분", minWidth: 96, flex: 0.9, renderHeader: () => <span>구분</span> },
+    {
+      field: "average",
+      headerName: "평균",
+      minWidth: 72,
+      align: "right",
+      headerAlign: "center",
+      renderHeader: () => <span>평균</span>,
+      valueGetter: (_value, pivotRow) => formatNumber(pivotRow.average),
+    },
+    ...monthKeys.map((yearMonth, index) => ({
+      field: `month-${index}`,
+      headerName: yearMonth || `${monthLabel}-${index + 1}`,
+      minWidth: 72,
+      align: "right" as const,
+      headerAlign: "center" as const,
+      renderHeader: () => <span>{yearMonth || `${monthLabel}-${index + 1}`}</span>,
+      valueGetter: (_value: unknown, pivotRow: MonthlyStatusPivotRow) => formatNumber(pivotRow.months[index]),
+    })),
+  ];
+
+  return {
+    columns,
+    rows,
+  };
+};
 
 const toNullableNumber = (value: unknown) => {
   if (value === null || value === undefined || value === "") {
@@ -150,11 +212,14 @@ const toNullableNumber = (value: unknown) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
-const emptyMonthlyStatusRow = (baseYearMonth = currentYearMonth): EditableMonthlyStatusRow => ({
+const emptyMonthlyStatusRow = (
+  baseYearMonth = currentYearMonth,
+  counts: Partial<MonthlyStatusCounts> = {},
+): EditableMonthlyStatusRow => ({
   id: Date.now(),
   baseYearMonth,
-  employeeCount: null,
-  newHireCount: null,
+  employeeCount: counts.employeeCount ?? null,
+  newHireCount: counts.newHireCount ?? null,
   createdAt: null,
   createdId: null,
   lastChangedAt: null,
@@ -165,7 +230,7 @@ const emptyMonthlyStatusRow = (baseYearMonth = currentYearMonth): EditableMonthl
 const toMonthlyStatusRequest = (row: EditableMonthlyStatusRow): NewEmploymentMonthlyStatusRequest => ({
   baseYearMonth: yearMonthValue(row.baseYearMonth),
   employeeCount: toNullableNumber(row.employeeCount),
-  newHireCount: null,
+  newHireCount: toNullableNumber(row.newHireCount),
 });
 
 const toRequest = (draft: NewEmploymentEmployeeRecord, fallbackBaseYearMonth: string): NewEmploymentEmployeeRequest => ({
@@ -194,7 +259,7 @@ export function NewEmploymentRateManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<NewEmploymentEmployeeRecord | null>(null);
   const [deleteMonthlyStatusTarget, setDeleteMonthlyStatusTarget] = useState<EditableMonthlyStatusRow | null>(null);
   const [monthlyStatusDialogOpen, setMonthlyStatusDialogOpen] = useState(false);
-  const [monthlyStatusDraft, setMonthlyStatusDraft] = useState<EditableMonthlyStatusRow>(() => emptyMonthlyStatusRow());
+  const [monthlyStatusDraft, setMonthlyStatusDraft] = useState<EditableMonthlyStatusRow | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
@@ -203,22 +268,28 @@ export function NewEmploymentRateManagementPage() {
   const departmentOptions = departmentReferences.options;
   const jobCategoryOptions = jobCategoryReferences.options;
 
-  const summaryQuery = useQuery({
-    queryKey: ["new-employment-rate-summary", baseYearMonth],
-    queryFn: () => getNewEmploymentRateSummary(baseYearMonth),
-    enabled: tabQueryEnabled,
-  });
-
   const monthlyStatusPivotQuery = useQuery({
     queryKey: ["new-employment-monthly-status-pivot", baseYearMonth],
     queryFn: () => listNewEmploymentMonthlyStatusPivot(baseYearMonth),
     enabled: tabQueryEnabled,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const previousYearSamePeriodMonthlyStatusPivotQuery = useQuery({
+    queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot", baseYearMonth],
+    queryFn: () => listNewEmploymentPreviousYearSamePeriodMonthlyStatusPivot(baseYearMonth),
+    enabled: tabQueryEnabled,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 
   const monthlyStatusesQuery = useQuery({
     queryKey: ["new-employment-monthly-statuses", baseYearMonth],
     queryFn: () => listNewEmploymentMonthlyStatuses(baseYearMonth),
     enabled: tabQueryEnabled,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
 
   const employeeParams = useMemo(
@@ -245,61 +316,26 @@ export function NewEmploymentRateManagementPage() {
     enabled: tabQueryEnabled && selectedEmployeeId > 0,
   });
 
-  const summary = summaryQuery.data;
   const employeePage = employeesQuery.data ?? emptyEmployeePage(page, NEW_EMPLOYMENT_RATE_PAGE_SIZE);
   const selectedRecord = detailQuery.data ?? draft;
   const selectedYearMonthLabel = formatMonth(selectedYearMonth);
   const canSave = draft.id > 0 ? canUpdate : canCreate;
   const programAttachmentOwnerId = selectedYearMonth.trim();
 
-  const monthlyAverageEmployeeCount = summary?.recentYearMonthlyAverageEmployeeCount ?? null;
-  const previousYearAverageEmployeeCount = summary?.samePeriodAverageEmployeeCount ?? null;
-  const recentYearNewHireCount = summary?.recentYearNewHireCount ?? null;
-  const recentYearNewHireRate = summary?.recentYearRate ?? null;
+  const monthlyStatusPivotGrid = useMemo(
+    () => buildMonthlyStatusPivotGrid(monthlyStatusPivotQuery.data ?? [], "monthly-status-pivot", "월별 고용현황"),
+    [monthlyStatusPivotQuery.data],
+  );
 
-  const monthlyStatusPivotGrid = useMemo(() => {
-    const sourceRows = monthlyStatusPivotQuery.data ?? [];
-    const monthRows = sourceRows.slice().sort((left, right) => yearMonthValue(left.yearMonth).localeCompare(yearMonthValue(right.yearMonth)));
-    const average = monthRows.length > 0 ? monthRows.reduce((sum, item) => sum + Number(item.cnt ?? 0), 0) / monthRows.length : null;
-
-    const row: MonthlyStatusPivotRow = {
-      average,
-      id: "monthly-status-pivot",
-      label: "월별 고용현황",
-      monthKeys: monthRows.map((item) => text(item.yearMonth)),
-      months: monthRows.map((item) => item.cnt),
-    };
-
-    const columns: GridColDef<MonthlyStatusPivotRow>[] = [
-      { field: "label", headerName: "구분", minWidth: 70, flex: 0.9, renderHeader: () => <span>구분</span> },
-      {
-        field: "average",
-        headerName: "평균",
-        minWidth: 50,
-        align: "right",
-        headerAlign: "center",
-        renderHeader: () => <span>평균</span>,
-        valueGetter: (_value, pivotRow) => formatNumber(pivotRow.average),
-      },
-      ...monthRows.map((item, index) => {
-        const yearMonth = text(item.yearMonth) || `month-${index + 1}`;
-          return {
-            field: `month-${index}`,
-            headerName: yearMonth,
-            minWidth: 60,
-            align: "right" as const,
-            headerAlign: "center" as const,
-            renderHeader: () => <span>{yearMonth}</span>,
-            valueGetter: (_value: unknown, pivotRow: MonthlyStatusPivotRow) => formatNumber(pivotRow.months[index]),
-          } satisfies GridColDef<MonthlyStatusPivotRow>;
-      }),
-    ];
-
-    return {
-      columns,
-      rows: [row],
-    };
-  }, [monthlyStatusPivotQuery.data]);
+  const previousYearSamePeriodMonthlyStatusPivotGrid = useMemo(
+    () =>
+      buildMonthlyStatusPivotGrid(
+        previousYearSamePeriodMonthlyStatusPivotQuery.data ?? [],
+        "previous-year-same-period-monthly-status-pivot",
+        "직전년도 동기간 고용현황",
+      ),
+    [previousYearSamePeriodMonthlyStatusPivotQuery.data],
+  );
 
   const monthlyStatusSaveMutation = useMutation({
     mutationFn: async (row: EditableMonthlyStatusRow) => {
@@ -312,9 +348,9 @@ export function NewEmploymentRateManagementPage() {
     onSuccess: async (saved) => {
       setMonthlyStatusDraft({ ...saved, isNew: false });
       setMonthlyStatusDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-rate-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
+      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
       setNotice({ message: "월별 고용현황이 저장되었습니다.", severity: "success" });
     },
     onError: (error) =>
@@ -329,10 +365,11 @@ export function NewEmploymentRateManagementPage() {
     },
     onSuccess: async () => {
       setDeleteMonthlyStatusTarget(null);
+      setMonthlyStatusDraft(null);
       setMonthlyStatusDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-rate-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
+      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
       setNotice({ message: "월별 고용현황이 삭제되었습니다.", severity: "success" });
     },
     onError: (error) =>
@@ -380,10 +417,10 @@ export function NewEmploymentRateManagementPage() {
       setDraft(saved);
       setSelectedYearMonth(saved.baseYearMonth);
       setSaveConfirmOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-rate-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employees"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
+      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
       setNotice({ message: "저장되었습니다.", severity: "success" });
     },
     onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
@@ -394,10 +431,10 @@ export function NewEmploymentRateManagementPage() {
     onSuccess: async () => {
       setDraft(emptyDraft(departmentCode === "All" ? "" : departmentCode, selectedYearMonth));
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-rate-summary"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employees"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
+      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
       setNotice({ message: "삭제되었습니다.", severity: "success" });
     },
     onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
@@ -435,7 +472,7 @@ export function NewEmploymentRateManagementPage() {
     setMonthlyStatusDialogOpen(true);
   };
 
-  const openMonthlyStatusDialog = (baseYearMonthValue: string) => {
+  const openMonthlyStatusDialog = (baseYearMonthValue: string, fallbackCounts?: MonthlyStatusCounts) => {
     const normalizedBaseYearMonth = yearMonthValue(baseYearMonthValue);
     const existing = (monthlyStatusesQuery.data ?? []).find(
       (item) => yearMonthValue(item.baseYearMonth) === normalizedBaseYearMonth,
@@ -444,30 +481,9 @@ export function NewEmploymentRateManagementPage() {
     setMonthlyStatusDraft(
       existing
         ? { ...existing, isNew: false }
-        : emptyMonthlyStatusRow(normalizedBaseYearMonth || baseYearMonth),
+        : emptyMonthlyStatusRow(normalizedBaseYearMonth || baseYearMonth, fallbackCounts),
     );
     setMonthlyStatusDialogOpen(true);
-  };
-
-  const handleMonthlyStatusDialogSave = async () => {
-    if (monthlyStatusDraft.isNew && !canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
-      return;
-    }
-    if (!monthlyStatusDraft.isNew && !canUpdate) {
-      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
-      return;
-    }
-    await monthlyStatusSaveMutation.mutateAsync({
-      ...monthlyStatusDraft,
-      baseYearMonth: yearMonthValue(monthlyStatusDraft.baseYearMonth),
-      employeeCount: toNullableNumber(monthlyStatusDraft.employeeCount),
-      newHireCount: toNullableNumber(monthlyStatusDraft.newHireCount),
-    });
-  };
-
-  const updateMonthlyStatusDraft = <K extends keyof EditableMonthlyStatusRow>(field: K, value: EditableMonthlyStatusRow[K]) => {
-    setMonthlyStatusDraft((current) => ({ ...current, [field]: value }));
   };
 
   const handleSaveClick = () => {
@@ -492,7 +508,7 @@ export function NewEmploymentRateManagementPage() {
 
   return (
     <Box>
-      <PageHeader title="신규 고용자 관리" />
+      <PageHeader title="신규 고용률 관리" />
 
       <SearchPanel
         keyword={keyword}
@@ -525,13 +541,6 @@ export function NewEmploymentRateManagementPage() {
 
       <Stack spacing={2}>
 
-        <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" } }}>
-          <SummaryCard icon={<WorkOutlineOutlinedIcon />} label="최근 12개월 평균 고용자 수" value={`${formatNumber(monthlyAverageEmployeeCount)}명`} />
-          <SummaryCard icon={<GroupsOutlinedIcon />} label="전년 동기 평균 고용자 수" value={`${formatNumber(previousYearAverageEmployeeCount)}명`} />
-          <SummaryCard icon={<TrendingUpOutlinedIcon />} label="최근 12개월 신규 고용자 수" value={`${formatNumber(recentYearNewHireCount)}명`} />
-          <SummaryCard icon={<PercentOutlinedIcon />} label="최근 12개월 신규 고용률" value={formatPercent(recentYearNewHireRate)} />
-        </Box>
-
         <Card>
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
@@ -550,7 +559,7 @@ export function NewEmploymentRateManagementPage() {
                 getRowId={(row) => row.id}
                 hideFooter
                 hideFooterSelectedRowCount
-                loading={monthlyStatusPivotQuery.isLoading || monthlyStatusPivotQuery.isFetching}
+                loading={monthlyStatusPivotQuery.isLoading}
                 onCellDoubleClick={(params) => {
                   if (params.field === "label" || params.field === "average") {
                     return;
@@ -565,8 +574,52 @@ export function NewEmploymentRateManagementPage() {
                 readOnly
                 rows={monthlyStatusPivotGrid.rows}
                 showToolbar={false}
-                sx={{ height: 100, minHeight: 100 }}
-                wrapperMinHeight={100}
+                sx={{ height: 140, minHeight: 140 }}
+                wrapperMinHeight={140}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent sx={{ p: 2 }}>
+            <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
+              <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
+                <Typography sx={{ fontWeight: 800 }} variant="h6">
+                  직전년도 동기간 고용현황
+                </Typography>
+              </Box>
+            </Box>
+            <EnterpriseDataGrid<MonthlyStatusPivotRow>
+              columns={previousYearSamePeriodMonthlyStatusPivotGrid.columns}
+              getRowId={(row) => row.id}
+              hideFooter
+              hideFooterSelectedRowCount
+              loading={previousYearSamePeriodMonthlyStatusPivotQuery.isLoading}
+              onCellDoubleClick={(params) => {
+                if (params.field === "label" || params.field === "average") {
+                  return;
+                }
+                const index = Number(params.field.replace("month-", ""));
+                const yearMonth = params.row.monthKeys[index];
+                if (!yearMonth) {
+                  return;
+                }
+                const employeeCountRow = previousYearSamePeriodMonthlyStatusPivotGrid.rows.find(
+                  (row) => row.label === "고용인원",
+                );
+                const newHireCountRow = previousYearSamePeriodMonthlyStatusPivotGrid.rows.find(
+                  (row) => row.label === "신규 고용현황",
+                );
+                openMonthlyStatusDialog(yearMonth, {
+                  employeeCount: employeeCountRow?.months[index] ?? null,
+                  newHireCount: newHireCountRow?.months[index] ?? null,
+                });
+              }}
+              readOnly
+              rows={previousYearSamePeriodMonthlyStatusPivotGrid.rows}
+              showToolbar={false}
+              sx={{ height: 140, minHeight: 140 }}
+              wrapperMinHeight={140}
             />
           </CardContent>
         </Card>
@@ -701,58 +754,18 @@ export function NewEmploymentRateManagementPage() {
         targetLabel={draft.employeeName}
         title="저장 확인"
       />
-      <Dialog fullWidth maxWidth="sm" onClose={() => setMonthlyStatusDialogOpen(false)} open={monthlyStatusDialogOpen}>
-        <DialogTitle>{monthlyStatusDraft.isNew ? "월별 고용현황 등록" : "월별 고용현황 수정"}</DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, pt: 0.5 }}>
-            <TextField
-              label="기준년월"
-              onChange={(event) => updateMonthlyStatusDraft("baseYearMonth", yearMonthValue(event.target.value))}
-              size="small"
-              sx={standardFieldSx}
-              value={yearMonthValue(monthlyStatusDraft.baseYearMonth)}
-              placeholder="YYYYMM"
-            />
-            <TextField
-              label="고용자 수"
-              onChange={(event) => updateMonthlyStatusDraft("employeeCount", toNullableNumber(event.target.value))}
-              size="small"
-              sx={standardFieldSx}
-              type="number"
-              value={monthlyStatusDraft.employeeCount ?? ""}
-            />
-          </Box>
-          <AuditFields
-            createdAt={monthlyStatusDraft.createdAt}
-            createdBy={monthlyStatusDraft.createdId}
-            updatedAt={monthlyStatusDraft.lastChangedAt}
-            updatedBy={monthlyStatusDraft.lastChangedId}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          {!monthlyStatusDraft.isNew ? (
-            <Button
-              color="error"
-              disabled={!canDelete || monthlyStatusDeleteMutation.isPending}
-              onClick={() => setDeleteMonthlyStatusTarget(monthlyStatusDraft)}
-              variant="outlined"
-            >
-              삭제
-            </Button>
-          ) : <Box sx={{ flex: 1 }} />}
-          <Button onClick={() => setMonthlyStatusDialogOpen(false)} variant="outlined">
-            취소
-          </Button>
-          <Button
-            disabled={monthlyStatusSaveMutation.isPending || (monthlyStatusDraft.isNew ? !canCreate : !canUpdate)}
-            onClick={() => void handleMonthlyStatusDialogSave()}
-            startIcon={<SaveOutlinedIcon />}
-            variant="contained"
-          >
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <NewEmploymentMonthlyStatusDialog
+        canCreate={canCreate}
+        canDelete={canDelete}
+        canUpdate={canUpdate}
+        key={`${monthlyStatusDialogOpen ? "open" : "closed"}-${monthlyStatusDraft?.id ?? "none"}`}
+        loading={monthlyStatusSaveMutation.isPending || monthlyStatusDeleteMutation.isPending}
+        onClose={() => setMonthlyStatusDialogOpen(false)}
+        onDeleteRequest={(record) => setDeleteMonthlyStatusTarget(record)}
+        onSave={(record) => monthlyStatusSaveMutation.mutateAsync(record)}
+        open={monthlyStatusDialogOpen}
+        record={monthlyStatusDraft}
+      />
       <ConfirmDeleteDialog
         loading={monthlyStatusDeleteMutation.isPending}
         message="선택한 월별 고용현황을 삭제합니다."
@@ -820,49 +833,5 @@ function ReferenceAutocompleteField({
       value={selectedOption}
       renderInput={(params) => <TextField {...params} label={label} size="small" sx={standardFieldSx} />}
     />
-  );
-}
-
-function SummaryCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <Box
-      sx={{
-        alignItems: "center",
-        bgcolor: "background.paper",
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 1,
-        display: "flex",
-        gap: 1.25,
-        minWidth: 0,
-        px: 1.75,
-        py: 1.5,
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          bgcolor: "background.default",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 1,
-          display: "flex",
-          flex: "0 0 auto",
-          height: 40,
-          justifyContent: "center",
-          width: 40,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography color="text.secondary" sx={{ fontWeight: 600 }} variant="body2">
-          {label}
-        </Typography>
-        <Typography sx={{ fontWeight: 800 }} variant="h6">
-          {value}
-        </Typography>
-      </Box>
-    </Box>
   );
 }

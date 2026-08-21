@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record NewEmploymentMonthlyStatusPivotResponse(
         String yearMonth,
-        BigDecimal cnt
+        BigDecimal employeeCount,
+        BigDecimal newHireCount
 ) {
 }

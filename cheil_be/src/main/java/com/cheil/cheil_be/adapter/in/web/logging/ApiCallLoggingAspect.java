@@ -15,6 +15,10 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 import lombok.RequiredArgsConstructor;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -48,6 +52,8 @@ public class ApiCallLoggingAspect {
     private final ApiCallLogRecorder apiCallLogRecorder;
     private final ObjectMapper objectMapper;
     private final ObjectProvider<HttpServletRequest> requestProvider;
+    private final ObjectProvider<ObservationRegistry> observationRegistryProvider;
+    private final ObjectProvider<Tracer> tracerProvider;
     private final Clock clock;
 
     @Around("within(@org.springframework.web.bind.annotation.RestController *)")
@@ -80,17 +86,25 @@ public class ApiCallLoggingAspect {
             long startedAt
     ) {
         Integer statusCode = statusCode(result, thrown);
+        String serviceId = ServicePrincipal.currentServiceId().orElse(null);
+        String loginId = header(request, SecurityHeaders.LOGIN_ID);
+        String programCode = header(request, SecurityHeaders.PROGRAM_CODE);
+        String clientIp = ClientIpResolver.resolve(request);
+        String traceId = currentTraceId();
+        addTraceAttributes(serviceId, loginId, programCode, clientIp);
+
         apiCallLogRecorder.record(new ApiCallLogRecord(
                 UUID.randomUUID(),
+                traceId,
                 occurredAt,
                 request.getMethod(),
                 request.getRequestURI(),
                 decodeQueryString(request.getQueryString()),
                 joinPoint.getSignature().toShortString(),
-                ServicePrincipal.currentServiceId().orElse(null),
-                header(request, SecurityHeaders.LOGIN_ID),
-                header(request, SecurityHeaders.PROGRAM_CODE),
-                ClientIpResolver.resolve(request),
+                serviceId,
+                loginId,
+                programCode,
+                clientIp,
                 serializeArguments(joinPoint.getArgs()),
                 serializeResponse(result),
                 statusCode,
@@ -98,6 +112,31 @@ public class ApiCallLoggingAspect {
                 thrown == null ? null : truncate(thrown.getMessage()),
                 Duration.ofNanos(System.nanoTime() - startedAt).toMillis()
         ));
+    }
+
+    private String currentTraceId() {
+        Tracer tracer = tracerProvider.getIfAvailable();
+        Span span = tracer == null ? null : tracer.currentSpan();
+        return span == null ? null : span.context().traceId();
+    }
+
+    private void addTraceAttributes(String serviceId, String loginId, String programCode, String clientIp) {
+        ObservationRegistry observationRegistry = observationRegistryProvider.getIfAvailable();
+        Observation observation = observationRegistry == null ? null : observationRegistry.getCurrentObservation();
+        if (observation == null) {
+            return;
+        }
+
+        addHighCardinalityAttribute(observation, "user.id", loginId);
+        addHighCardinalityAttribute(observation, "client.address", clientIp);
+        addHighCardinalityAttribute(observation, "app.program_code", programCode);
+        addHighCardinalityAttribute(observation, "app.service_id", serviceId);
+    }
+
+    private static void addHighCardinalityAttribute(Observation observation, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            observation.highCardinalityKeyValue(key, value);
+        }
     }
 
     private static String header(HttpServletRequest request, String name) {

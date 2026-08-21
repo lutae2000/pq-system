@@ -13,43 +13,72 @@ export type BreadcrumbItem = {
 
 const dashboardLabel = "Dashboard";
 
+const buildTwoLevelBreadcrumb = (parentHref: string, parentLabel: string, currentLabel: string): BreadcrumbItem[] => [
+  { current: false, href: parentHref, label: parentLabel },
+  { current: true, label: currentLabel },
+];
+
 const routeLabelBySegment: Record<string, string> = {
-  "education-reminders": "교육 관리",
+  "education-reminders": "교육",
   "basic-infos": "기초 정보 관리",
   completions: "교육 알림 이수 관리",
   templates: "템플릿 관리",
+  "send-history": "교육알림 발송 이력",
 };
 
 const routeMetaByPath: Partial<Record<string, { breadcrumbItems?: BreadcrumbItem[]; pageLabel?: string }>> = {
+  "/pq": {
+    breadcrumbItems: [{ current: true, label: "신기술" }],
+    pageLabel: "신기술",
+  },
+  "/pq/new-technology-developments": {
+    breadcrumbItems: buildTwoLevelBreadcrumb("/pq", "신기술", "개발실적"),
+    pageLabel: "개발실적",
+  },
+  "/pq/new-technology-investments": {
+    breadcrumbItems: buildTwoLevelBreadcrumb("/pq", "신기술", "투자실적"),
+    pageLabel: "투자실적",
+  },
+  "/pq/new-technology-usages": {
+    breadcrumbItems: buildTwoLevelBreadcrumb("/pq", "신기술", "활용실적"),
+    pageLabel: "활용실적",
+  },
   "/education-reminders": {
     breadcrumbItems: [
-      { current: false, href: "/education-reminders", label: "교육 관리" },
+      { current: false, href: "/education-reminders", label: "교육" },
       { current: true, label: "기초 정보 관리" },
     ],
     pageLabel: "기초 정보 관리",
   },
   "/education-reminders/basic-infos": {
     breadcrumbItems: [
-      { current: false, href: "/education-reminders", label: "교육 관리" },
+      { current: false, href: "/education-reminders", label: "교육" },
       { current: true, label: "기초 정보 관리" },
     ],
     pageLabel: "기초 정보 관리",
   },
   "/education-reminders/completions": {
     breadcrumbItems: [
-      { current: false, href: "/education-reminders", label: "교육 관리" },
+      { current: false, href: "/education-reminders", label: "교육" },
       { current: true, label: "교육 알림 이수 관리" },
     ],
   },
   "/education-reminders/templates": {
     breadcrumbItems: [
-      { current: false, href: "/education-reminders", label: "교육 관리" },
+      { current: false, href: "/education-reminders", label: "교육" },
       { current: true, label: "템플릿 관리" },
     ],
   },
+  "/education-reminders/send-history": {
+    breadcrumbItems: [
+      { current: false, href: "/education-reminders", label: "교육" },
+      { current: true, label: "교육알림 발송 이력" },
+    ],
+    pageLabel: "교육알림 발송 이력",
+  },
   "/pq/education-reminders": {
     breadcrumbItems: [
-      { current: false, href: "/education-reminders", label: "교육 관리" },
+      { current: false, href: "/education-reminders", label: "교육" },
       { current: true, label: "기초 정보 관리" },
     ],
     pageLabel: "기초 정보 관리",

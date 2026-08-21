@@ -74,6 +74,7 @@ class EngineerAdminServiceTest {
                         "manager",
                         "design-grade",
                         "construction-management-grade",
+                        false,
                         "N",
                         "design",
                         "construction"
@@ -129,7 +130,7 @@ class EngineerAdminServiceTest {
 
     private void stubEmptyRelatedProfiles(String engrId) {
         when(licenseRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
-        when(careerRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
+        when(careerRepository.findByEngrIdOrderByEntryDtAsc(engrId)).thenReturn(List.of());
         when(prizeRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
         when(educationRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
         when(projectHistoryRepository.findByEngrIdOrderByStartDtDescIdDesc(engrId)).thenReturn(List.of());
@@ -138,7 +139,7 @@ class EngineerAdminServiceTest {
 
     private void stubEmptyRelatedProfilesExceptSchool(String engrId) {
         when(licenseRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
-        when(careerRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
+        when(careerRepository.findByEngrIdOrderByEntryDtAsc(engrId)).thenReturn(List.of());
         when(prizeRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
         when(educationRepository.findByEngrIdOrderById(engrId)).thenReturn(List.of());
         when(projectHistoryRepository.findByEngrIdOrderByStartDtDescIdDesc(engrId)).thenReturn(List.of());

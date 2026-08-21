@@ -400,16 +400,15 @@ export function NewTechnologyDevelopmentManagementPage() {
           value={compactDate(scoreReferenceDate)}
         />
         <TextField label="적용대상" onChange={(event) => setTargetField(event.target.value)} size="small" sx={standardFieldSx} value={targetField} />
-        <Box sx={{ flex: "1 1 100%", minWidth: 0, width: "100%" }}>
-          <DateRangeField
-            endValue={applicationDateTo}
-            label="출원일"
-            onEndChange={(value) => setApplicationDateTo(compactDate(value))}
-            onStartChange={(value) => setApplicationDateFrom(compactDate(value))}
-            startValue={applicationDateFrom}
-            sx={{ width: "100%" }}
-          />
-        </Box>
+        <div aria-hidden style={{ flex: "0 0 100%", minWidth: "100%", width: "100%" }} />
+        <DateRangeField
+          endValue={toDateInputValue(applicationDateTo)}
+          label="출원일"
+          onEndChange={(value) => setApplicationDateTo(compactDate(value))}
+          onStartChange={(value) => setApplicationDateFrom(compactDate(value))}
+          startValue={toDateInputValue(applicationDateFrom)}
+          sx={{ minWidth: { xs: "100%", sm: 340 }, width: "100%" }}
+        />
       </SearchPanel>
 
       {!canRead ? (
@@ -477,7 +476,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                   </Stack>
                 </Box>
 
-                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
+                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" } }}>
                   <TextField label="연번" onChange={(event) => updateDraft("sequenceLabel", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.sequenceLabel)} />
                   <TextField label="구분" onChange={(event) => updateDraft("technologyType", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.technologyType)}>
                     {TECHNOLOGY_TYPES.map((type) => (
@@ -486,8 +485,6 @@ export function NewTechnologyDevelopmentManagementPage() {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <TextField label="출원명" onChange={(event) => updateDraft("title", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.title)} />
-                  <TextField label="출원인수" onChange={(event) => updateDraft("applicantCount", event.target.value === "" ? null : Number(event.target.value))} required size="small" sx={standardFieldSx} type="number" value={draft.applicantCount ?? ""} />
                   <TextField
                     label="적용대상"
                     onChange={(event) => updateDraft("targetField", event.target.value)}
@@ -496,6 +493,8 @@ export function NewTechnologyDevelopmentManagementPage() {
                     sx={standardFieldSx}
                     value={draft.targetField}
                   />
+                  <TextField label="출원명" onChange={(event) => updateDraft("title", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.title)} />
+                  <TextField label="출원인수" onChange={(event) => updateDraft("applicantCount", event.target.value === "" ? null : Number(event.target.value))} required size="small" sx={standardFieldSx} type="number" value={draft.applicantCount ?? ""} />
                   <TextField
                     label="자동산정"
                     disabled

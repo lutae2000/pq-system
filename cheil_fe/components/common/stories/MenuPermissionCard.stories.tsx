@@ -1,47 +1,61 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useMemo, useState } from "react";
+
 import type { MenuTreeNode } from "@/lib/permissions/menuPermissionTree";
+
 import { MenuPermissionCard, type MenuPermissionRowLike } from "../MenuPermissionCard";
 
 const menuTree: MenuTreeNode[] = [
   {
     record: {
+      createdAt: "2026-08-18T00:00:00.000Z",
+      createdId: null,
       description: null,
       menuCode: "SYSTEM",
-      menuName: "시스템 관리",
+      menuName: "System Management",
       menuPath: null,
       menuType: "GROUP",
       parentMenuCode: null,
       sortSeq: 1,
       useYn: true,
       visibleYn: true,
+      lastChangedAt: "2026-08-18T00:00:00.000Z",
+      lastChangedId: null,
     },
     children: [
       {
         record: {
+          createdAt: "2026-08-18T00:00:00.000Z",
+          createdId: null,
           description: null,
           menuCode: "USER_MGMT",
-          menuName: "사용자 관리",
+          menuName: "User Management",
           menuPath: "/system/user-management",
           menuType: "PAGE",
           parentMenuCode: "SYSTEM",
           sortSeq: 1,
           useYn: true,
           visibleYn: true,
+          lastChangedAt: "2026-08-18T00:00:00.000Z",
+          lastChangedId: null,
         },
         children: [],
       },
       {
         record: {
+          createdAt: "2026-08-18T00:00:00.000Z",
+          createdId: null,
           description: null,
           menuCode: "ROLE_MGMT",
-          menuName: "역할 권한 관리",
+          menuName: "Role Permission",
           menuPath: "/system/roles",
           menuType: "PAGE",
           parentMenuCode: "SYSTEM",
           sortSeq: 2,
           useYn: true,
           visibleYn: true,
+          lastChangedAt: "2026-08-18T00:00:00.000Z",
+          lastChangedId: null,
         },
         children: [],
       },
@@ -66,8 +80,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Editable: Story = {
   args: {
-    badgeLabel: "변경 1건",
-    description: "역할별 메뉴 접근 권한을 관리합니다.",
+    badgeLabel: "Changed 1",
+    description: "A simple permission card story.",
     expandedMenuCodeSet: new Set(["SYSTEM"]),
     isPermissionChanged: () => false,
     menuTree,
@@ -76,9 +90,12 @@ export const Editable: Story = {
     onToggleCell: () => undefined,
     onToggleExpand: () => undefined,
     permissionByMenuCode: new Map(initialPermissions.map((permission) => [permission.menuCode, permission])),
-    title: "권한 설정",
+    title: "Permissions",
   },
-  render: () => {
+  render: () => <EditableStory />,
+};
+
+function EditableStory() {
     const [expanded, setExpanded] = useState(new Set(["SYSTEM"]));
     const [permissions, setPermissions] = useState(initialPermissions);
     const changedCodes = useMemo(() => new Set(["USER_MGMT"]), []);
@@ -96,8 +113,8 @@ export const Editable: Story = {
 
     return (
       <MenuPermissionCard
-        badgeLabel="변경 1건"
-        description="역할별 메뉴 접근 권한을 관리합니다."
+        badgeLabel="Changed 1"
+        description="A simple permission card story."
         expandedMenuCodeSet={expanded}
         isPermissionChanged={(menuCode) => changedCodes.has(menuCode)}
         menuTree={menuTree}
@@ -123,8 +140,7 @@ export const Editable: Story = {
           })
         }
         permissionByMenuCode={permissionByMenuCode}
-        title="권한 설정"
-      />
-    );
-  },
-};
+        title="Permissions"
+        />
+      );
+}

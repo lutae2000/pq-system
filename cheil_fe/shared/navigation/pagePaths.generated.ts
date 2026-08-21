@@ -17,6 +17,7 @@ export const generatedPagePaths = [
   "/education-reminders",
   "/education-reminders/basic-infos",
   "/education-reminders/completions",
+  "/education-reminders/send-history",
   "/education-reminders/templates",
   "/pq",
   "/pq/bid-notice",

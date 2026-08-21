@@ -83,6 +83,40 @@ final class EducationReminderDateUtils {
         params.put(paramName, normalizedDateFilter);
     }
 
+    static void appendDateFilterCondition(
+            StringBuilder outerWhere,
+            Map<String, Object> params,
+            String firstColumnExpression,
+            String secondColumnExpression,
+            String paramName,
+            String normalizedDateFilter
+    ) {
+        if (normalizedDateFilter.length() == 4) {
+            outerWhere.append("\n                  AND (")
+                    .append(firstColumnExpression)
+                    .append(" LIKE :")
+                    .append(paramName)
+                    .append(" OR ")
+                    .append(secondColumnExpression)
+                    .append(" LIKE :")
+                    .append(paramName)
+                    .append(")");
+            params.put(paramName, normalizedDateFilter + "%");
+            return;
+        }
+
+        outerWhere.append("\n                  AND (")
+                .append(firstColumnExpression)
+                .append(" = :")
+                .append(paramName)
+                .append(" OR ")
+                .append(secondColumnExpression)
+                .append(" = :")
+                .append(paramName)
+                .append(")");
+        params.put(paramName, normalizedDateFilter);
+    }
+
     static String addCycle(String value, String cycleUnit, int cycleValue) {
         LocalDate date = parseResponseDate(value);
         if (date == null) {

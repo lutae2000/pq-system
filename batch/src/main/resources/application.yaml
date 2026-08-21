@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: batch
+  main:
+    web-application-type: none
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
+    username: ${POSTGRES_USER:cheil}
+    password: ${POSTGRES_PASSWORD:cheil}
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: always
+mybatis:
+  mapper-locations: classpath:/mapper/**/*.xml
+
+batch:
+  cleanup:
+    api-call-logs:
+      enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:true}
+      cron: ${BATCH_API_CALL_LOG_CLEANUP_CRON:0 0 3 * * *}
+      retention-months: ${BATCH_API_CALL_LOG_RETENTION_MONTHS:3}
+
+logging:
+  level:
+    com.cheil.batch: INFO

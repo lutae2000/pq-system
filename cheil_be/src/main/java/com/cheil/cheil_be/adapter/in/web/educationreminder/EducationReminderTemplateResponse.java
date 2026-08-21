@@ -6,6 +6,7 @@ public record EducationReminderTemplateResponse(
         String channel,
         String title,
         String description,
+        String homepageUrl,
         String content,
         boolean active,
         String createdAt,

@@ -1,7 +1,6 @@
 package com.cheil.cheil_be.adapter.in.web.educationreminder;
 
 public record EducationReminderBasicInfoRequest(
-        Long id,
         String code,
         String name,
         String description,

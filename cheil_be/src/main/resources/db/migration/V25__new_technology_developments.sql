@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS new_technology_developments (
     application_no VARCHAR(100),
     registration_no VARCHAR(100),
     valid_until VARCHAR(8),
+    use_yn BOOLEAN NOT NULL DEFAULT TRUE,
+    calculated_score NUMERIC(10, 2),
     summary TEXT,
     remark TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -22,7 +24,9 @@ CREATE TABLE IF NOT EXISTS new_technology_developments (
     CONSTRAINT ck_new_technology_application_date
         CHECK (application_date IS NULL OR application_date ~ '^[0-9]{8}$'),
     CONSTRAINT ck_new_technology_valid_until
-        CHECK (valid_until IS NULL OR valid_until ~ '^[0-9]{8}$')
+        CHECK (valid_until IS NULL OR valid_until ~ '^[0-9]{8}$'),
+    CONSTRAINT ck_new_technology_developments_calculated_score
+        CHECK (calculated_score IS NULL OR calculated_score >= 0)
 );
 
 CREATE INDEX IF NOT EXISTS ix_new_technology_developments_title

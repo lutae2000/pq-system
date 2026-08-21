@@ -27,6 +27,7 @@ public class EducationReminderAdminService {
     private static final int DESCRIPTION_MAX_LENGTH = 4000;
     private static final int CHANNEL_MAX_LENGTH = 10;
     private static final int TITLE_MAX_LENGTH = 300;
+    private static final int HOMEPAGE_URL_MAX_LENGTH = 500;
     private static final int CONTENT_MAX_LENGTH = 8000;
 
     private final EducationReminderBasicInfoJpaRepository basicInfoRepository;
@@ -38,8 +39,8 @@ public class EducationReminderAdminService {
     }
 
     @Transactional(readOnly = true)
-    public EducationReminderBasicInfoResponse findBasicInfoById(Long id) {
-        return basicInfoRepository.findById(requiredId(id, "id"))
+    public EducationReminderBasicInfoResponse findBasicInfoByCode(String code) {
+        return basicInfoRepository.findById(requiredCode(code))
                 .map(EducationReminderBasicInfoEntity::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다."));
     }
@@ -51,20 +52,24 @@ public class EducationReminderAdminService {
     }
 
     @Transactional
-    public EducationReminderBasicInfoResponse updateBasicInfo(Long id, EducationReminderBasicInfoRequest request) {
-        EducationReminderBasicInfoEntity entity = basicInfoRepository.findById(requiredId(id, "id"))
+    public EducationReminderBasicInfoResponse updateBasicInfo(String code, EducationReminderBasicInfoRequest request) {
+        EducationReminderBasicInfoEntity entity = basicInfoRepository.findById(requiredCode(code))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다."));
-        entity.update(normalizeBasicInfo(request));
+        EducationReminderBasicInfoRequest normalized = normalizeBasicInfo(request);
+        if (!entity.getCode().equals(normalized.code())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기초 정보 코드는 수정할 수 없습니다.");
+        }
+        entity.update(normalized);
         return basicInfoRepository.save(entity).toResponse();
     }
 
     @Transactional
-    public void deleteBasicInfo(Long id) {
-        Long normalizedId = requiredId(id, "id");
-        if (!basicInfoRepository.existsById(normalizedId)) {
+    public void deleteBasicInfo(String code) {
+        String normalizedCode = requiredCode(code);
+        if (!basicInfoRepository.existsById(normalizedCode)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다.");
         }
-        basicInfoRepository.deleteById(normalizedId);
+        basicInfoRepository.deleteById(normalizedCode);
     }
 
     @Transactional(readOnly = true)
@@ -114,7 +119,6 @@ public class EducationReminderAdminService {
         StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
         StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
         return new EducationReminderBasicInfoRequest(
-                request.id(),
                 code,
                 name,
                 request.description(),
@@ -133,6 +137,8 @@ public class EducationReminderAdminService {
         StringValues.validateMaxLength(channel, CHANNEL_MAX_LENGTH, "channel");
         StringValues.validateMaxLength(title, TITLE_MAX_LENGTH, "title");
         StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
+        String homepageUrl = request.homepageUrl() == null ? "" : request.homepageUrl().trim();
+        StringValues.validateMaxLength(homepageUrl, HOMEPAGE_URL_MAX_LENGTH, "homepageUrl");
         StringValues.validateMaxLength(content, CONTENT_MAX_LENGTH, "content");
         return new EducationReminderTemplateRequest(
                 request.id(),
@@ -140,6 +146,7 @@ public class EducationReminderAdminService {
                 channel,
                 title,
                 request.description(),
+                homepageUrl,
                 content,
                 request.active() == null ? Boolean.TRUE : request.active()
         );
@@ -150,5 +157,12 @@ public class EducationReminderAdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
         }
         return id;
+    }
+
+    private String requiredCode(String code) {
+        if (code == null || code.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "code is required.");
+        }
+        return code.trim();
     }
 }

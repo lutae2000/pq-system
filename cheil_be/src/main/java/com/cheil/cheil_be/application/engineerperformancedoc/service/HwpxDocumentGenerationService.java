@@ -1,0 +1,440 @@
+package com.cheil.cheil_be.application.engineerperformancedoc.service;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
+import java.util.zip.CRC32;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
+import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxGenerateRequest;
+import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxTemplateFieldResponse;
+import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
+import com.cheil.cheil_be.application.engineer.EngineerAdminService;
+import com.cheil.cheil_be.application.engineer.EngineerDtos;
+
+@Service
+@RequiredArgsConstructor
+public class HwpxDocumentGenerationService {
+
+    private static final String HWP_NS = "http://www.hancom.co.kr/hwpml/2011/paragraph";
+    private static final String SECTION_PATTERN = "Contents/section";
+
+    private final EngineerAdminService engineerAdminService;
+    private final BidNoticeAdminService bidNoticeAdminService;
+    private final EngineerPerformanceDocumentService performanceDocumentService;
+
+    public List<HwpxTemplateFieldResponse> inspect(MultipartFile template) {
+        return collectFields(readZip(template)).stream()
+                .map(name -> new HwpxTemplateFieldResponse(name, ""))
+                .toList();
+    }
+
+    public byte[] generate(MultipartFile template, HwpxGenerateRequest request) {
+        validateRequest(template, request);
+        byte[] templateBytes = readBytes(template);
+        var bidNotice = bidNoticeAdminService.findByBidSeq(request.bidSeq());
+        Map<String, byte[]> outputs = new LinkedHashMap<>();
+
+        for (String engineerId : request.engineerIds()) {
+            EngineerDtos.Profile profile = engineerAdminService.findByEngrId(engineerId);
+            List<EngineerProjectHistoryReviewResponse> reviews = performanceDocumentService.findReviewResults(
+                    request.bidSeq(), engineerId, request.relatedProjectHistoryConditions());
+            byte[] output = render(templateBytes, profile, bidNotice, reviews, request.mappings());
+            String filename = safeFilename(profile.basic().nameKor(), engineerId) + "_기술인실적.hwpx";
+            outputs.put(filename, output);
+        }
+
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+                outputs.forEach((filename, content) -> {
+                    try {
+                        zip.putNextEntry(new ZipEntry(filename));
+                        zip.write(content);
+                        zip.closeEntry();
+                    } catch (IOException exception) {
+                        throw new IllegalStateException("HWPX 산출물 ZIP 생성에 실패했습니다.", exception);
+                    }
+                });
+            }
+            return bytes.toByteArray();
+        } catch (IOException exception) {
+            throw new IllegalStateException("HWPX 산출물 ZIP 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private byte[] render(
+            byte[] templateBytes,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            List<EngineerProjectHistoryReviewResponse> reviews,
+            Map<String, String> mappings
+    ) {
+        Map<String, String> globalValues = new LinkedHashMap<>();
+        Map<String, String> mappingValues = mappings == null ? Map.of() : mappings;
+        for (Map.Entry<String, String> mapping : mappingValues.entrySet()) {
+            if (!StringUtils.hasText(mapping.getValue()) || mapping.getValue().startsWith("row.")) continue;
+            globalValues.put(mapping.getKey(), resolve(mapping.getValue(), profile, bidNotice, null));
+        }
+
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(templateBytes), StandardCharsets.UTF_8);
+                 ZipOutputStream output = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+                Map<String, byte[]> entries = new LinkedHashMap<>();
+                ZipEntry entry;
+                while ((entry = input.getNextEntry()) != null) {
+                    byte[] content = input.readAllBytes();
+                    if (isSection(entry.getName())) {
+                        content = renderSection(content, globalValues, mappingValues, profile, bidNotice, reviews);
+                    }
+                    entries.put(entry.getName(), content);
+                }
+                // HWPX requires the mimetype entry to be the first entry and to be STORED.
+                if (entries.containsKey("mimetype")) {
+                    writeZipEntry(output, "mimetype", entries.remove("mimetype"), true);
+                }
+                for (Map.Entry<String, byte[]> generatedEntry : entries.entrySet()) {
+                    writeZipEntry(output, generatedEntry.getKey(), generatedEntry.getValue(), false);
+                }
+            }
+            byte[] generated = bytes.toByteArray();
+            validateGeneratedPackage(generated);
+            return generated;
+        } catch (Exception exception) {
+            throw new IllegalStateException("HWPX 양식에 데이터를 입력하지 못했습니다.", exception);
+        }
+    }
+
+    private void writeZipEntry(ZipOutputStream output, String name, byte[] content, boolean stored) throws IOException {
+        ZipEntry entry = new ZipEntry(name);
+        if (stored) {
+            CRC32 checksum = new CRC32();
+            checksum.update(content);
+            entry.setMethod(ZipEntry.STORED);
+            entry.setSize(content.length);
+            entry.setCompressedSize(content.length);
+            entry.setCrc(checksum.getValue());
+        }
+        output.putNextEntry(entry);
+        output.write(content);
+        output.closeEntry();
+    }
+
+    private void validateGeneratedPackage(byte[] content) {
+        Set<String> entries = new LinkedHashSet<>();
+        try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(content), StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                entries.add(entry.getName());
+                byte[] entryContent = input.readAllBytes();
+                if (isSection(entry.getName())) {
+                    Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(entryContent));
+                    validateTableStructure(document);
+                }
+            }
+        } catch (Exception exception) {
+            throw new IllegalStateException("생성된 HWPX 패키지 검증에 실패했습니다.", exception);
+        }
+        if (!entries.contains("mimetype") || !entries.contains("Contents/content.hpf") || !entries.contains("Contents/header.xml")) {
+            throw new IllegalStateException("생성된 HWPX 패키지의 필수 파일이 누락되었습니다.");
+        }
+    }
+
+    private void validateTableStructure(Document document) {
+        NodeList tables = document.getElementsByTagNameNS(HWP_NS, "tbl");
+        for (int tableIndex = 0; tableIndex < tables.getLength(); tableIndex++) {
+            Element table = (Element) tables.item(tableIndex);
+            List<Element> rows = directChildren(table, "tr");
+            if (parseLong(table.getAttribute("rowCnt")) != rows.size()) {
+                throw new IllegalStateException("HWPX 표의 행 개수 정보가 일치하지 않습니다.");
+            }
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                for (Element cell : directChildren(rows.get(rowIndex), "tc")) {
+                    NodeList addresses = cell.getElementsByTagNameNS(HWP_NS, "cellAddr");
+                    if (addresses.getLength() > 0 && parseLong(((Element) addresses.item(0)).getAttribute("rowAddr")) != rowIndex) {
+                        throw new IllegalStateException("HWPX 표의 셀 행 주소가 일치하지 않습니다.");
+                    }
+                }
+            }
+        }
+    }
+
+    private byte[] renderSection(
+            byte[] source,
+            Map<String, String> globalValues,
+            Map<String, String> mappings,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            List<EngineerProjectHistoryReviewResponse> reviews
+    ) throws Exception {
+        Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
+        NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+        for (int index = 0; index < cells.getLength(); index++) {
+            Element cell = (Element) cells.item(index);
+            String name = cell.getAttribute("name");
+            if (globalValues.containsKey(name)) setCellText(cell, globalValues.get(name));
+        }
+
+        if (!reviews.isEmpty()) {
+            List<Element> rows = elements(document.getElementsByTagNameNS(HWP_NS, "tr"));
+            for (Element row : rows) {
+                Set<String> rowFields = namedCells(row);
+                boolean repeatable = mappings.entrySet().stream()
+                        .anyMatch(mapping -> mapping.getValue() != null && mapping.getValue().startsWith("row.") && rowFields.contains(mapping.getKey()));
+                if (!repeatable || row.getParentNode() == null) continue;
+
+                Node parent = row.getParentNode();
+                if (parent instanceof Element table && "tbl".equals(table.getLocalName())) {
+                    increaseTableHeight(table, row, reviews.size() - 1);
+                }
+                for (EngineerProjectHistoryReviewResponse review : reviews) {
+                    Element clone = (Element) row.cloneNode(true);
+                    NodeList cloneCells = clone.getElementsByTagNameNS(HWP_NS, "tc");
+                    for (int index = 0; index < cloneCells.getLength(); index++) {
+                        Element cell = (Element) cloneCells.item(index);
+                        String name = cell.getAttribute("name");
+                        String path = mappings.get(name);
+                        if (path != null && path.startsWith("row.")) setCellText(cell, resolve(path, profile, bidNotice, review));
+                    }
+                    parent.insertBefore(clone, row);
+                }
+                parent.removeChild(row);
+            }
+        }
+        normalizeTables(document);
+
+        TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        var transformer = transformerFactory.newTransformer();
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        transformer.setOutputProperty(OutputKeys.STANDALONE, "yes");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        transformer.transform(new DOMSource(document), new StreamResult(output));
+        return output.toByteArray();
+    }
+
+    private String resolve(
+            String path,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            EngineerProjectHistoryReviewResponse review
+    ) {
+        if (path == null) return "";
+        if (path.startsWith("row.")) return reviewValue(path.substring(4), review);
+        return switch (path) {
+            case "summary.name" -> profile.basic().nameKor();
+            case "summary.id" -> profile.basic().engrId();
+            case "summary.department" -> profile.basic().deptName();
+            case "summary.position" -> profile.basic().dutyPart();
+            case "detail.birthDate" -> profile.basic().birthday();
+            case "detail.qualificationGrade" -> profile.basic().grade();
+            case "bidNotice.projectName" -> bidNotice.projectName();
+            case "bidNotice.orderClientName", "bidNotice.orderClient" -> bidNotice.orderClient();
+            default -> "";
+        };
+    }
+
+    private String reviewValue(String field, EngineerProjectHistoryReviewResponse review) {
+        if (review == null) return "";
+        return switch (field) {
+            case "jobName" -> review.jobName();
+            case "contractAmt" -> string(review.contractAmt());
+            case "ownAmt" -> string(review.ownAmt());
+            case "contractFromDate" -> review.contractFromDate();
+            case "contractToDate" -> review.contractToDate();
+            case "startDate" -> review.startDate();
+            case "endDate" -> review.endDate();
+            case "compName" -> review.compName();
+            case "orderClient" -> review.orderClient();
+            case "grade" -> review.grade();
+            case "duty" -> review.duty();
+            case "proPart" -> review.proPart();
+            case "jobClass" -> review.jobClass();
+            case "method" -> review.method();
+            case "jobTag" -> review.jobTag();
+            case "jobPart" -> review.jobPart();
+            case "deptName" -> review.deptName();
+            case "returnYn" -> review.returnYn();
+            default -> "";
+        };
+    }
+
+    private Set<String> namedCells(Element row) {
+        Set<String> names = new LinkedHashSet<>();
+        NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
+        for (int index = 0; index < cells.getLength(); index++) {
+            String name = ((Element) cells.item(index)).getAttribute("name");
+            if (StringUtils.hasText(name)) names.add(name);
+        }
+        return names;
+    }
+
+    private void increaseTableHeight(Element table, Element templateRow, int addedRowCount) {
+        if (addedRowCount <= 0) return;
+        long rowHeight = directChildren(templateRow, "tc").stream()
+                .mapToLong(cell -> firstLongAttribute(cell, "cellSz", "height"))
+                .max()
+                .orElse(0L);
+        if (rowHeight <= 0) return;
+        directChildren(table, "sz").stream().findFirst().ifPresent(size -> {
+            long currentHeight = parseLong(size.getAttribute("height"));
+            if (currentHeight > 0) size.setAttribute("height", String.valueOf(currentHeight + rowHeight * addedRowCount));
+        });
+    }
+
+    private void normalizeTables(Document document) {
+        NodeList tables = document.getElementsByTagNameNS(HWP_NS, "tbl");
+        for (int tableIndex = 0; tableIndex < tables.getLength(); tableIndex++) {
+            Element table = (Element) tables.item(tableIndex);
+            List<Element> rows = directChildren(table, "tr");
+            table.setAttribute("rowCnt", String.valueOf(rows.size()));
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                for (Element cell : directChildren(rows.get(rowIndex), "tc")) {
+                    NodeList addresses = cell.getElementsByTagNameNS(HWP_NS, "cellAddr");
+                    if (addresses.getLength() > 0) ((Element) addresses.item(0)).setAttribute("rowAddr", String.valueOf(rowIndex));
+                }
+            }
+        }
+    }
+
+    private List<Element> directChildren(Element parent, String localName) {
+        List<Element> children = new ArrayList<>();
+        for (Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && localName.equals(child.getLocalName())) children.add((Element) child);
+        }
+        return children;
+    }
+
+    private long firstLongAttribute(Element parent, String childName, String attributeName) {
+        NodeList children = parent.getElementsByTagNameNS(HWP_NS, childName);
+        return children.getLength() == 0 ? 0L : parseLong(((Element) children.item(0)).getAttribute(attributeName));
+    }
+
+    private long parseLong(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException exception) {
+            return 0L;
+        }
+    }
+
+    private void setCellText(Element cell, String value) {
+        NodeList subLists = cell.getElementsByTagNameNS(HWP_NS, "subList");
+        if (subLists.getLength() == 0) return;
+        NodeList paragraphs = ((Element) subLists.item(0)).getElementsByTagNameNS(HWP_NS, "p");
+        if (paragraphs.getLength() == 0) return;
+        Element paragraph = (Element) paragraphs.item(0);
+        List<Node> runs = new ArrayList<>();
+        for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && "run".equals(child.getLocalName())) runs.add(child);
+        }
+        runs.forEach(paragraph::removeChild);
+        Element run = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:run");
+        Element text = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:t");
+        text.setTextContent(value == null ? "" : value);
+        run.appendChild(text);
+        Node lineSegments = null;
+        for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && "linesegarray".equals(child.getLocalName())) {
+                lineSegments = child;
+                break;
+            }
+        }
+        if (lineSegments == null) paragraph.appendChild(run);
+        else paragraph.insertBefore(run, lineSegments);
+    }
+
+    private List<Element> elements(NodeList nodes) {
+        List<Element> result = new ArrayList<>();
+        for (int index = 0; index < nodes.getLength(); index++) result.add((Element) nodes.item(index));
+        return result;
+    }
+
+    private Set<String> collectFields(Map<String, byte[]> entries) {
+        Set<String> fields = new LinkedHashSet<>();
+        entries.forEach((name, content) -> {
+            if (!isSection(name)) return;
+            try {
+                Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(content));
+                NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+                for (int index = 0; index < cells.getLength(); index++) {
+                    String field = ((Element) cells.item(index)).getAttribute("name");
+                    if (StringUtils.hasText(field)) fields.add(field);
+                }
+            } catch (Exception exception) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식의 XML을 읽을 수 없습니다.", exception);
+            }
+        });
+        return fields;
+    }
+
+    private Map<String, byte[]> readZip(MultipartFile template) {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (InputStream input = template.getInputStream(); ZipInputStream zip = new ZipInputStream(input, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) entries.put(entry.getName(), zip.readAllBytes());
+            return entries;
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private byte[] readBytes(MultipartFile file) {
+        try { return file.getBytes(); } catch (IOException exception) { throw new IllegalStateException("HWPX 양식을 읽을 수 없습니다.", exception); }
+    }
+
+    private void validateRequest(MultipartFile template, HwpxGenerateRequest request) {
+        if (template == null || template.isEmpty() || !template.getOriginalFilename().toLowerCase().endsWith(".hwpx"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식을 업로드해 주세요.");
+        if (request == null || request.bidSeq() == null || request.engineerIds() == null || request.engineerIds().isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "공고와 기술인을 선택해 주세요.");
+    }
+
+    private boolean isSection(String name) { return name.startsWith(SECTION_PATTERN) && name.endsWith(".xml"); }
+    private String string(Object value) { return value == null ? "" : String.valueOf(value); }
+    private String safeFilename(String name, String fallback) { return (StringUtils.hasText(name) ? name : fallback).replaceAll("[\\\\/:*?\"<>|]", "_"); }
+    private DocumentBuilderFactory documentBuilder() {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+            return factory;
+        } catch (Exception exception) {
+            throw new IllegalStateException("HWPX XML 파서를 초기화하지 못했습니다.", exception);
+        }
+    }
+}

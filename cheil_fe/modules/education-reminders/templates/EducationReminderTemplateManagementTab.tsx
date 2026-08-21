@@ -81,6 +81,7 @@ function normalizeEditingRecord(record: EducationReminderTemplateRequest): Educa
     ...record,
     content: record.content.trim(),
     description: record.description?.trim() || "",
+    homepageUrl: record.homepageUrl.trim(),
     name: record.name.trim(),
     title: record.title.trim(),
   };
@@ -179,6 +180,7 @@ export function EducationReminderTemplateManagementTab() {
         channel: saved.channel,
         content: saved.content,
         description: saved.description ?? "",
+        homepageUrl: saved.homepageUrl ?? "",
         id: saved.id,
         name: saved.name,
         title: saved.title,
@@ -262,9 +264,6 @@ export function EducationReminderTemplateManagementTab() {
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   교육 알림 템플릿
                 </Typography>
-                <Typography color="text.secondary" variant="body2">
-                  발송 채널과 본문을 함께 관리합니다.
-                </Typography>
               </Box>
               <Stack direction="row" spacing={1}>
                 <Button
@@ -276,7 +275,7 @@ export function EducationReminderTemplateManagementTab() {
                   startIcon={<AddOutlinedIcon />}
                   variant="contained"
                 >
-                  異붽?
+                  추가
                 </Button>
                 <Button
                   color="error"
@@ -285,12 +284,12 @@ export function EducationReminderTemplateManagementTab() {
                   startIcon={<DeleteOutlineOutlinedIcon />}
                   variant="outlined"
                 >
-                  ??젣
+                  삭제
                 </Button>
                 <Button
                   onClick={() => {
                     if (!editingRecord.name.trim() || !editingRecord.title.trim() || !editingRecord.content.trim()) {
-                      showError("?쒗뵆由용챸, ?쒕ぉ, 蹂몃Ц???낅젰??二쇱꽭??");
+                      showError("템플릿명, 제목, 본문을 입력해 주세요.");
                       return;
                     }
                     saveMutation.mutate(normalizeEditingRecord(editingRecord));
@@ -298,7 +297,7 @@ export function EducationReminderTemplateManagementTab() {
                   disabled={!canEdit}
                   variant="contained"
                 >
-                  ???
+                  저장
                 </Button>
               </Stack>
             </Box>
@@ -324,6 +323,7 @@ export function EducationReminderTemplateManagementTab() {
                       channel: params.row.channel,
                       content: params.row.content,
                       description: params.row.description ?? "",
+                      homepageUrl: params.row.homepageUrl ?? "",
                       id: params.row.id,
                       name: params.row.name,
                       title: params.row.title,
@@ -336,6 +336,7 @@ export function EducationReminderTemplateManagementTab() {
                       channel: params.row.channel,
                       content: params.row.content,
                       description: params.row.description ?? "",
+                      homepageUrl: params.row.homepageUrl ?? "",
                       id: params.row.id,
                       name: params.row.name,
                       title: params.row.title,
@@ -390,6 +391,16 @@ export function EducationReminderTemplateManagementTab() {
                         value={editingRecord.title}
                       />
                       <TextField
+                        label="바로가기 홈페이지 URL"
+                        disabled={!canEdit}
+                        onChange={(event) => setEditingRecord((current) => ({ ...current, homepageUrl: event.target.value }))}
+                        placeholder="https://"
+                        size="small"
+                        sx={{ gridColumn: "1 / -1", minWidth: 0 }}
+                        type="url"
+                        value={editingRecord.homepageUrl}
+                      />
+                      <TextField
                         label="본문"
                         disabled={!canEdit}
                         multiline
@@ -421,7 +432,7 @@ export function EducationReminderTemplateManagementTab() {
                     </Box>
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                       <Button onClick={() => setEditingRecord(emptyTemplate())} variant="outlined">
-                        珥덇린??
+                        초기화
                       </Button>
                     </Box>
                     <AuditFields

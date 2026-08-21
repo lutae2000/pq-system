@@ -10,6 +10,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface EngineerMasterRepository extends JpaRepository<EngineerMasterEntity, String> {
     @Query("""
+            select count(e) > 0
+            from EngineerMasterEntity e
+            where lower(e.nameKor) = lower(:nameKor)
+              and e.birthday = :birthday
+              and e.engrId <> :excludeEngrId
+            """)
+    boolean existsDuplicate(@Param("nameKor") String nameKor, @Param("birthday") String birthday, @Param("excludeEngrId") String excludeEngrId);
+
+    @Query("""
             select new com.cheil.cheil_be.application.engineer.EngineerCandidate(
                 e.engrId,
                 e.nameKor,
@@ -40,6 +49,7 @@ public interface EngineerMasterRepository extends JpaRepository<EngineerMasterEn
                    where l.engrId = e.engrId
                      and (lower(l.licenseCode) like lower(concat('%', :certificationName, '%'))
                           or lower(l.licenseNo) like lower(concat('%', :certificationName, '%')))))
+              and (:department = '' or e.deptName = :department)
               and (:designGrade = '' or e.designGrade = :designGrade)
               and (:constructionManagementGrade = '' or e.constructionManagementGrade = :constructionManagementGrade)
               and (:specialtyField = '' or e.proPart = :specialtyField)
@@ -50,6 +60,7 @@ public interface EngineerMasterRepository extends JpaRepository<EngineerMasterEn
             @Param("retireYn") String retireYn,
             @Param("keyword") String keyword,
             @Param("certificationName") String certificationName,
+            @Param("department") String department,
             @Param("designGrade") String designGrade,
             @Param("constructionManagementGrade") String constructionManagementGrade,
             @Param("specialtyField") String specialtyField,

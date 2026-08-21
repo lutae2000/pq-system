@@ -8,14 +8,6 @@ export const NEW_EMPLOYMENT_CERTIFICATE_ATTACHMENT_OWNER_TYPE = "NEW_EMPLOYMENT_
 export const NEW_EMPLOYMENT_CERTIFICATE_ATTACHMENT_TYPE = "CAREER_CERTIFICATE";
 export const NEW_EMPLOYMENT_RATE_PROGRAM_ATTACHMENT_OWNER_TYPE = "NEW_EMPLOYMENT_RATE";
 
-export type NewEmploymentRateSummary = {
-  recentYearNewHireCount: number | null;
-  samePeriodAverageEmployeeCount: number | null;
-  recentYearMonthlyAverageEmployeeCount: number | null;
-  samePeriodRate: number | null;
-  recentYearRate: number | null;
-};
-
 export type NewEmploymentMonthlyStatusRecord = {
   id: number;
   baseYearMonth: string;
@@ -36,7 +28,8 @@ export type NewEmploymentMonthlyStatusRequest = {
 
 export type NewEmploymentMonthlyStatusPivotRecord = {
   yearMonth: string;
-  cnt: number | null;
+  employeeCount: number | null;
+  newHireCount: number | null;
 };
 
 export type NewEmploymentEmployeeRecord = {
@@ -102,17 +95,6 @@ const normalizeYearMonth = (value: string | null | undefined) => {
   return normalized.length === 6 ? normalized : undefined;
 };
 
-export async function getNewEmploymentRateSummary(baseYearMonth: string): Promise<NewEmploymentRateSummary> {
-  return apiRequest(
-    apiClient.get<NewEmploymentRateSummary>(`${NEW_EMPLOYMENT_RATES_API}/summary`, {
-      params: {
-        baseYearMonth: normalizeYearMonth(baseYearMonth),
-      },
-    }),
-    "신규 고용률 요약을 불러오지 못했습니다.",
-  );
-}
-
 export async function listNewEmploymentMonthlyStatuses(baseYearMonth?: string): Promise<NewEmploymentMonthlyStatusRecord[]> {
   return apiRequest(
     apiClient.get<NewEmploymentMonthlyStatusRecord[]>(`${NEW_EMPLOYMENT_RATES_API}/monthly-statuses`, {
@@ -132,6 +114,22 @@ export async function listNewEmploymentMonthlyStatusPivot(baseYearMonth?: string
       },
     }),
     "?붾퀎 怨좎슜?꾪솴?꾪븞 ?멸퀬瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??",
+  );
+}
+
+export async function listNewEmploymentPreviousYearSamePeriodMonthlyStatusPivot(
+  baseYearMonth?: string,
+): Promise<NewEmploymentMonthlyStatusPivotRecord[]> {
+  return apiRequest(
+    apiClient.get<NewEmploymentMonthlyStatusPivotRecord[]>(
+      `${NEW_EMPLOYMENT_RATES_API}/monthly-statuses/pivot/previous-year-same-period`,
+      {
+        params: {
+          baseYearMonth: normalizeYearMonth(baseYearMonth),
+        },
+      },
+    ),
+    "?직전년도 동기간 월별 고용현황을 불러오지 못했습니다.",
   );
 }
 

@@ -42,7 +42,8 @@ function useReferenceQuery<TItem>(
   queryFn: () => Promise<ReferenceQueryResult<TItem>>,
   options?: ReferenceQueryOptions<TItem>,
 ) {
-  const enabled = useTabQueryEnabled(options?.enabled ?? true);
+  const enabledOption = options?.enabled;
+  const enabled = useTabQueryEnabled(typeof enabledOption === "boolean" ? enabledOption : true);
   const query = useQuery({
     staleTime: REFERENCE_STALE_TIME,
     ...options,

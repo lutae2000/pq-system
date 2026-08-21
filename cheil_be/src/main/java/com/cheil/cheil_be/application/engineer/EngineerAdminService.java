@@ -29,7 +29,7 @@ public class EngineerAdminService {
 
     @Transactional(readOnly = true)
     public Page<EngineerDtos.Profile> findAll(Integer page, Integer size) {
-        return findAll(page, size, null, null, null, null, null, null, null, null);
+        return findAll(page, size, null, null, null, null, null, null, null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -40,6 +40,7 @@ public class EngineerAdminService {
             String status,
             String keyword,
             String certificationName,
+            String department,
             String designGrade,
             String constructionManagementGrade,
             String specialtyField,
@@ -50,6 +51,7 @@ public class EngineerAdminService {
                 retireYnParam(retireYn, status),
                 blankToEmpty(keyword),
                 blankToEmpty(certificationName),
+                blankToEmpty(department),
                 blankToEmpty(designGrade),
                 blankToEmpty(constructionManagementGrade),
                 blankToEmpty(specialtyField),
@@ -75,6 +77,7 @@ public class EngineerAdminService {
         if (masterRepository.existsById(engrId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Engineer already exists.");
         }
+        validateDuplicate(basic, engrId);
         masterRepository.save(EngineerMasterEntity.from(basic, engrId));
         return findByEngrId(engrId);
     }
@@ -98,10 +101,23 @@ public class EngineerAdminService {
     @Transactional
     public EngineerDtos.Profile saveBasic(String engrId, EngineerDtos.Basic basic) {
         String id = requireExistingEngrId(engrId);
+        validateDuplicate(basic, id);
         EngineerMasterEntity entity = findMaster(id);
         entity.updateFrom(basic);
         masterRepository.save(entity);
         return findByEngrId(id);
+    }
+
+    private void validateDuplicate(EngineerDtos.Basic basic, String engrId) {
+        String nameKor = EngineerEntityUtils.clean(basic.nameKor());
+        String birthday = EngineerEntityUtils.date(basic.birthday());
+        if (nameKor == null || birthday == null) {
+            return;
+        }
+
+        if (masterRepository.existsDuplicate(nameKor, birthday, engrId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "중복된 기술인이 있습니다.");
+        }
     }
 
     @Transactional

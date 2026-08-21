@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS work_overlap_contracts (
-    contract_no VARCHAR(30) PRIMARY KEY,
+    contract_no VARCHAR(8) PRIMARY KEY,
     service_type VARCHAR(100),
     client_name VARCHAR(300),
     service_name VARCHAR(500) NOT NULL,
@@ -21,8 +21,6 @@ CREATE TABLE IF NOT EXISTS work_overlap_contracts (
     last_changed_id VARCHAR(100)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_work_overlap_contracts_contract_no
-    ON work_overlap_contracts (contract_no);
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contracts_service_name
     ON work_overlap_contracts (service_name);
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contracts_client_name
@@ -80,35 +78,6 @@ SELECT role_code, 'pq-work-overlap-contracts', TRUE, TRUE, TRUE, TRUE
 FROM auth_roles
 WHERE role_code = 'ADMIN'
 ON CONFLICT (role_code, menu_code) DO NOTHING;
-
-ALTER TABLE work_overlap_contracts
-    ALTER COLUMN contract_no TYPE VARCHAR(8),
-    ALTER COLUMN contract_no SET NOT NULL;
-
-UPDATE work_overlap_contracts
-SET contract_no = 'C' || LPAD(SUBSTRING(contract_no FROM 2), 7, '0')
-WHERE contract_no ~ '^C[0-9]+$' AND contract_no <> 'C' || LPAD(SUBSTRING(contract_no FROM 2), 7, '0');
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.table_constraints
-        WHERE table_schema = current_schema()
-          AND table_name = 'work_overlap_contracts'
-          AND constraint_type = 'PRIMARY KEY'
-    ) THEN
-        ALTER TABLE work_overlap_contracts DROP CONSTRAINT work_overlap_contracts_pkey;
-    END IF;
-END $$;
-
-ALTER TABLE work_overlap_contracts
-    ADD CONSTRAINT pk_work_overlap_contracts PRIMARY KEY (contract_no);
-
-ALTER TABLE work_overlap_contracts
-    DROP COLUMN IF EXISTS id;
-
-DROP INDEX IF EXISTS ux_work_overlap_contracts_contract_no;
 
 DO $$
 BEGIN

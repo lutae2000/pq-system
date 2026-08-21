@@ -26,15 +26,6 @@ public class NewEmploymentRateController {
 
     private final NewEmploymentRateService newEmploymentRateService;
 
-    @GetMapping("/summary")
-    public ResponseEntity<NewEmploymentRateSummaryResponse> summary(
-            @RequestParam(required = false) String baseYearMonth,
-            @RequestParam(required = false) String departmentCode,
-            @RequestParam(required = false) String employeeName
-    ) {
-        return ResponseEntity.ok(newEmploymentRateService.summary(baseYearMonth, departmentCode, employeeName));
-    }
-
     @GetMapping("/monthly-statuses")
     public ResponseEntity<List<NewEmploymentMonthlyStatusResponse>> monthlyStatuses(
             @RequestParam(required = false) String baseYearMonth,
@@ -49,6 +40,13 @@ public class NewEmploymentRateController {
             @RequestParam(required = false) String baseYearMonth
     ) {
         return ResponseEntity.ok(newEmploymentRateService.monthlyStatusPivot(baseYearMonth));
+    }
+
+    @GetMapping("/monthly-statuses/pivot/previous-year-same-period")
+    public ResponseEntity<List<NewEmploymentMonthlyStatusPivotResponse>> previousYearSamePeriodMonthlyStatusPivot(
+            @RequestParam(required = false) String baseYearMonth
+    ) {
+        return ResponseEntity.ok(newEmploymentRateService.previousYearSamePeriodMonthlyStatusPivot(baseYearMonth));
     }
 
     @GetMapping("/monthly-statuses/{id}")
