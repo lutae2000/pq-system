@@ -17,8 +17,9 @@ import {
   Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { MenuSearchPopper, type SearchMenuItem } from "@/components/layout/MenuSearchPopper";
+import { MyAccountDialog } from "@/components/layout/MyAccountDialog";
 import { OpenTabs } from "@/components/layout/OpenTabs";
 import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
 import { AUTH_SESSION_STORAGE_KEY, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
@@ -90,6 +91,7 @@ export function TopHeader({
   onSidebarToggle,
   sidebarCollapsed = false,
 }: TopHeaderProps) {
+  const [myAccountOpen, setMyAccountOpen] = useState(false);
   const menuQuery = useQuery({
     queryKey: ["menu"],
     queryFn: getMenuItems,
@@ -246,7 +248,9 @@ export function TopHeader({
               minWidth: 0,
             }}
           >
-            <Avatar sx={{ bgcolor: "primary.main", height: 28, width: 28 }}>{userDisplayName.charAt(0)}</Avatar>
+            <IconButton aria-label="내 계정 정보" color="inherit" onClick={() => setMyAccountOpen(true)} size="small" title="내 계정 정보">
+              <Avatar sx={{ bgcolor: "primary.main", height: 28, width: 28 }}>{userDisplayName.charAt(0)}</Avatar>
+            </IconButton>
             <Box sx={{ display: { xs: "none", sm: "flex" }, flexDirection: "column", minWidth: 0 }}>
               <Typography
                 variant="body2"
@@ -292,6 +296,7 @@ export function TopHeader({
           </Box>
         </Box>
       </Toolbar>
+      <MyAccountDialog onClose={() => setMyAccountOpen(false)} open={myAccountOpen} />
     </AppBar>
   );
 }

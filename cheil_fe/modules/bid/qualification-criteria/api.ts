@@ -11,7 +11,7 @@ import type {
   QualificationScoreBandUpsertRequest,
 } from "./qualificationCriteria.types";
 
-const BASE_URL = "/pq/qualification-criteria";
+const BASE_URL = "/bid/qualification-criteria";
 
 export async function listQualificationReviewAgencies(
   params: QualificationCriteriaSearchParams = {},

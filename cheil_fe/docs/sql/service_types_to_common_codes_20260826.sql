@@ -1,0 +1,48 @@
+-- service_types 데이터를 common_codes의 ST 2레벨 공통코드로 등록
+-- 기존 CSV 순서를 sort_order에 반영했습니다.
+
+INSERT INTO common_codes (
+    code_level,
+    level1_code,
+    level2_code,
+    level3_code,
+    code_name,
+    code_detail_name,
+    ref_value1,
+    sort_order,
+    remark,
+    use_yn
+)
+VALUES
+    (2, 'ST', 'r', NULL, '검측감리', NULL, NULL, 1, NULL, TRUE),
+    (2, 'ST', '1', NULL, '타당성조사', NULL, NULL, 2, NULL, TRUE),
+    (2, 'ST', '2', NULL, '기본계획', NULL, NULL, 3, NULL, TRUE),
+    (2, 'ST', '3', NULL, '기본설계', NULL, NULL, 4, NULL, TRUE),
+    (2, 'ST', '4', NULL, '실시설계', NULL, NULL, 5, NULL, TRUE),
+    (2, 'ST', '5', NULL, '감리', NULL, NULL, 6, NULL, TRUE),
+    (2, 'ST', '6', NULL, '시공', NULL, NULL, 7, NULL, TRUE),
+    (2, 'ST', '7', NULL, '감독', NULL, NULL, 8, NULL, TRUE),
+    (2, 'ST', '8', NULL, '기본및실시설계', NULL, NULL, 9, NULL, TRUE),
+    (2, 'ST', '9', NULL, '설계감리', NULL, NULL, 10, NULL, TRUE),
+    (2, 'ST', 'b', NULL, '유지관리', NULL, NULL, 11, NULL, TRUE),
+    (2, 'ST', 'a', NULL, '기술자문', NULL, NULL, 12, NULL, TRUE),
+    (2, 'ST', 'c', NULL, '기술진단', NULL, NULL, 13, NULL, TRUE),
+    (2, 'ST', 'e', NULL, '영향평가', NULL, NULL, 14, NULL, TRUE),
+    (2, 'ST', 'f', NULL, '종합계획', NULL, NULL, 15, NULL, TRUE),
+    (2, 'ST', 'g', NULL, '연구', NULL, NULL, 16, NULL, TRUE),
+    (2, 'ST', 'h', NULL, '사업관리', NULL, NULL, 17, NULL, TRUE),
+    (2, 'ST', 'i', NULL, '학술용역', NULL, NULL, 18, NULL, TRUE),
+    (2, 'ST', 'j', NULL, '인허가', NULL, NULL, 19, NULL, TRUE),
+    (2, 'ST', 'k', NULL, '사후환경영향조사', NULL, NULL, 20, NULL, TRUE),
+    (2, 'ST', 'l', NULL, '사전환경성검토', NULL, NULL, 21, NULL, TRUE),
+    (2, 'ST', 'm', NULL, '사전재해영향성검토', NULL, NULL, 22, NULL, TRUE),
+    (2, 'ST', 'o', NULL, '환경성검토', NULL, NULL, 23, NULL, TRUE),
+    (2, 'ST', 'p', NULL, '측량', NULL, NULL, 24, NULL, TRUE),
+    (2, 'ST', 'q', NULL, '지구단위계획', NULL, NULL, 25, NULL, TRUE),
+    (2, 'ST', 'A', NULL, '지하안전영향평가', NULL, NULL, 26, NULL, TRUE),
+    (2, 'ST', 's', NULL, '사후평가', NULL, NULL, 27, NULL, TRUE),
+    (2, 'ST', 'B', NULL, '교통안전진단', NULL, NULL, 28, NULL, TRUE),
+    (2, 'ST', 't', NULL, '조사', NULL, NULL, 29, NULL, TRUE),
+    (2, 'ST', 'x', NULL, '정밀점검', NULL, NULL, 30, NULL, TRUE),
+    (2, 'ST', 'w', NULL, '정밀안전진단', NULL, NULL, 31, NULL, TRUE),
+    (2, 'ST', 'y', NULL, '성능평가', NULL, NULL, 32, NULL, TRUE);

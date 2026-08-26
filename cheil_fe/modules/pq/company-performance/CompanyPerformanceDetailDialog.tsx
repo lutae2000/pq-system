@@ -21,6 +21,7 @@ import {
 import type { ReactNode } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
+import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { CompanyPerformanceContractPeriodsGrid } from "@/modules/pq/company-performance/CompanyPerformanceContractPeriodsGrid";
 import { CompanyPerformanceDetailTabs } from "@/modules/pq/company-performance/detail-tabs/CompanyPerformanceDetailTabs";
 import type { CompanyPerformanceRecord } from "@/modules/pq/company-performance/api";
@@ -207,6 +208,7 @@ export function CompanyPerformanceDetailDialog({
   showSaveButton = true,
 }: DetailDialogProps) {
   const showStopDate = isStoppedStatus(record.jobFinishYn);
+  const serviceTypeReferences = useCommonCodeLevel2Options("ST", { useYn: "Y" }, { enabled: open });
 
   return (
     <Dialog fullWidth maxWidth="xl" onClose={onClose} open={open}>
@@ -318,7 +320,7 @@ export function CompanyPerformanceDetailDialog({
                     <CodeSelect onChange={(value) => onFieldChange("businessType", value)} options={businessTypeOptions} value={text(record.businessType)} />
                   </Field>
                   <Field label="용역구분">
-                    <TextField onChange={(event) => onFieldChange("jobType", event.target.value)} size="small" sx={standardFieldSx} value={text(record.jobType)} />
+                    <CodeSelect onChange={(value) => onFieldChange("jobType", value)} options={serviceTypeReferences.options} value={text(record.jobType)} />
                   </Field>
                 </Box>
 

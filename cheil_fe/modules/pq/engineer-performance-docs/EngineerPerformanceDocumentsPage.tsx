@@ -1,10 +1,11 @@
 "use client";
 
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Alert,
   Box,
@@ -14,17 +15,12 @@ import {
   Chip,
   Checkbox,
   Grid,
+  IconButton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
-import { type GridColDef, type GridRowParams } from "@mui/x-data-grid";
+import { type GridColDef, type GridRenderEditCellParams, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
 
@@ -37,18 +33,23 @@ import { compactFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
+import { BidNoticeDetailPopup } from "@/modules/pq/bid-notice/BidNoticeDetailPopup";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
 import { HancomWebHwpPanel } from "@/modules/pq/engineer-performance-docs/HancomWebHwpPanel";
 import { HwpxTemplateGenerationPanel } from "@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel";
+import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer-performance-docs/engineerPerformanceDocumentsExcel";
 import {
   createEngineerProjectHistoryReviewResults,
   deleteEngineerProjectHistoryReviewResult,
   listEngineerProjectHistories,
   listEngineerProjectHistoryReviewResults,
+  syncEngineerProjectHistoryReviewResults,
+  updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
 import { listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
@@ -132,148 +133,18 @@ const clampHistoryCardHeight = (height: number) =>
 const clampSelectorPanelWidth = (width: number) =>
   Math.min(Math.max(Math.round(width), SELECTOR_PANEL_MIN_WIDTH), SELECTOR_PANEL_MAX_WIDTH);
 
-const buildHwpHtml = (
-  bidNotice: BidNoticeApiRecord | null,
-  rows: PerformanceHistoryRow[],
-  relatedProjectHistoryConditions: RelatedProjectHistoryCondition[],
-) => {
-  const relatedConditionLabels = relatedProjectHistoryConditions.map((condition) => condition.label || "조건 입력 중");
-  const title = "기술인실적 문서";
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${title}</title>
-  <style>
-    body { font-family: "Malgun Gothic", Arial, sans-serif; font-size: 12px; color: #111827; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    h2 { font-size: 15px; margin: 18px 0 8px; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    th, td { border: 1px solid #9ca3af; padding: 6px; word-break: break-all; }
-    th { background: #eef2ff; font-weight: 700; }
-    .meta td:first-child { width: 120px; background: #f8fafc; font-weight: 700; }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  <table class="meta">
-    <tbody>
-      <tr><td>공고명</td><td>${text(bidNotice?.projectName) || "-"}</td></tr>
-      <tr><td>발주처</td><td>${text(bidNotice?.orderClientName ?? bidNotice?.orderClient) || "-"}</td></tr>
-      <tr><td>입찰등록 마감</td><td>${text(bidNotice?.bidClosingDate).slice(0, 10) || "-"}</td></tr>
-      <tr><td>관련공사 참여 이력</td><td>${relatedConditionLabels.length > 0 ? relatedConditionLabels.join(" / ") : "-"}</td></tr>
-    </tbody>
-  </table>
-  <h2>기술인 실적 목록</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>용역명</th>
-        <th>발주처</th>
-        <th>계약금액</th>
-        <th>계약시작</th>
-        <th>계약종료</th>
-        <th>참여시작</th>
-        <th>참여종료</th>
-        <th>담당업무</th>
-        <th>전문분야</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${
-        rows.length > 0
-          ? rows
-              .map(
-                (row) => `<tr>
-        <td>${text(row.jobName) || "-"}</td>
-        <td>${text(row.orderClient) || "-"}</td>
-        <td>${formatMoney(row.contractAmt)}</td>
-        <td>${formatDateYmd(row.contractFromDate) || "-"}</td>
-        <td>${formatDateYmd(row.contractToDate) || "-"}</td>
-        <td>${formatDateYmd(row.startDate) || "-"}</td>
-        <td>${formatDateYmd(row.endDate) || "-"}</td>
-        <td>${text(row.duty) || "-"}</td>
-        <td>${text(row.proPart) || "-"}</td>
-      </tr>`,
-              )
-              .join("")
-          : `<tr><td colspan="9">선택된 실적이 없습니다.</td></tr>`
-      }
-    </tbody>
-  </table>
-</body>
-</html>`;
-};
-
-const downloadHwp = (filename: string, html: string) => {
-  const blob = new Blob([html], { type: "application/x-hwp;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-};
-
-function PerformanceDocumentPreview({ rows }: { rows: PerformanceHistoryRow[] }) {
-  return (
-    <TableContainer sx={{ maxHeight: 420, overflowX: "auto" }}>
-      <Table aria-label="기술인 실적 산출물 미리보기" size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <TableCell>용역명</TableCell>
-            <TableCell>발주처</TableCell>
-            <TableCell align="right">계약금액</TableCell>
-            <TableCell>계약시작</TableCell>
-            <TableCell>계약종료</TableCell>
-            <TableCell>참여시작</TableCell>
-            <TableCell>참여종료</TableCell>
-            <TableCell>담당업무</TableCell>
-            <TableCell>전문분야</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell align="center" colSpan={9}>
-                선택된 실적이 없습니다.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={`${row.engineerId}-${row.id}`} hover>
-                <TableCell>{text(row.jobName) || "-"}</TableCell>
-                <TableCell>{text(row.orderClient) || "-"}</TableCell>
-                <TableCell align="right">{formatMoney(row.contractAmt)}</TableCell>
-                <TableCell>{formatDateYmd(row.contractFromDate) || "-"}</TableCell>
-                <TableCell>{formatDateYmd(row.contractToDate) || "-"}</TableCell>
-                <TableCell>{formatDateYmd(row.startDate) || "-"}</TableCell>
-                <TableCell>{formatDateYmd(row.endDate) || "-"}</TableCell>
-                <TableCell>{text(row.duty) || "-"}</TableCell>
-                <TableCell>{text(row.proPart) || "-"}</TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-}
-
 export function EngineerPerformanceDocumentsPage() {
-  const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const canGenerate = canCreate || canUpdate;
   const queryClient = useQueryClient();
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
+  const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
   const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [keyword, setKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
-  const [generatedAt, setGeneratedAt] = useState("");
   const [outputTestPanel, setOutputTestPanel] = useState<"hwpx" | "webhwp" | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
@@ -282,6 +153,7 @@ export function EngineerPerformanceDocumentsPage() {
   const [reviewSelectionAnchorId, setReviewSelectionAnchorId] = useState<string | null>(null);
   const [addConfirmOpen, setAddConfirmOpen] = useState(false);
   const [pendingBulkDeleteReviewIds, setPendingBulkDeleteReviewIds] = useState<string[] | null>(null);
+  const [isExcelDownloading, setIsExcelDownloading] = useState(false);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
   const selectorResizeStartXRef = useRef(0);
   const selectorResizeStartWidthRef = useRef(DEFAULT_SELECTOR_PANEL_WIDTH);
@@ -294,7 +166,7 @@ export function EngineerPerformanceDocumentsPage() {
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
 
   const engineersQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none"],
+    queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", keyword.trim()],
     queryFn: () =>
       listSelectedEngineerProfilesForBidNotice({
         bidSeq: selectedBidNotice?.bidSeq ?? 0,
@@ -348,26 +220,16 @@ export function EngineerPerformanceDocumentsPage() {
       "review-results",
       selectedBidSeq ?? "none",
       activeEngineerId || "none",
-      relatedProjectHistoryConditions,
     ],
     queryFn: () =>
       listEngineerProjectHistoryReviewResults({
-        bidSeq: selectedBidSeq ?? 0,
-        engineerId: activeEngineerId,
-        relatedProjectHistoryConditions,
-      }),
+            bidSeq: selectedBidSeq ?? 0,
+            engineerId: activeEngineerId,
+          }),
     enabled: tabQueryEnabled && Boolean(selectedBidSeq) && Boolean(activeEngineerId),
   });
 
   const reviewRows = useMemo(() => reviewRowsQuery.data ?? [], [reviewRowsQuery.data]);
-  const reviewDocumentRows = useMemo<PerformanceHistoryRow[]>(
-    () =>
-      reviewRows.map((row) => ({
-        ...row,
-        engineerName: profiles.find((profile) => profile.summary.id === row.engineerId)?.summary.name ?? row.engineerId,
-      })),
-    [profiles, reviewRows],
-  );
   const reviewRowById = useMemo(() => new Map(reviewRows.filter((row) => row.reviewId != null).map((row) => [String(row.reviewId), row])), [reviewRows]);
   const reviewRowIds = useMemo(() => reviewRows.filter((row) => row.reviewId != null).map((row) => String(row.reviewId)), [reviewRows]);
   const reviewSourceHistoryIdSet = useMemo(() => new Set(reviewRows.map((row) => text(row.id))), [reviewRows]);
@@ -637,7 +499,7 @@ export function EngineerPerformanceDocumentsPage() {
     [handleHistorySelection, handleToggleAllHistorySelection, historyAllSelected, historySomeSelected, selectedHistoryIds],
   );
 
-    const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(
+  const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(
     () => [
       {
         field: "__select__",
@@ -681,6 +543,29 @@ export function EngineerPerformanceDocumentsPage() {
           />
         ),
       },
+      {
+        field: "displayOrder",
+        headerName: "순번",
+        width: 70,
+        ...center,
+        editable: canUpdate,
+        sortComparator: (left, right) => Number(left ?? Number.MAX_SAFE_INTEGER) - Number(right ?? Number.MAX_SAFE_INTEGER),
+        renderEditCell: (params: GridRenderEditCellParams<EngineerProjectHistoryReviewRecord, number | null>) => (
+          <TextField
+            autoFocus
+            fullWidth
+            onChange={(event) => {
+              const digitsOnly = event.target.value.replace(/\D/g, "");
+              void params.api.setEditCellValue({ field: params.field, id: params.id, value: digitsOnly });
+            }}
+            onClick={(event) => event.stopPropagation()}
+            size="small"
+            slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
+            value={params.value ?? ""}
+            variant="standard"
+          />
+        ),
+      },
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
       { field: "orderClient", headerName: "발주처", width: 150 },
       { field: "contractAmt", headerName: "계약금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
@@ -693,7 +578,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [handleReviewSelection, handleToggleAllReviewSelection, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
+    [canUpdate, handleReviewSelection, handleToggleAllReviewSelection, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
   );
 
   const handleLoad = () => {
@@ -712,18 +597,6 @@ export function EngineerPerformanceDocumentsPage() {
     }
   };
 
-  const handleDownload = () => {
-    if (!canGenerate || !selectedBidNotice) {
-      return;
-    }
-
-    const html = buildHwpHtml(selectedBidNotice, reviewDocumentRows, relatedProjectHistoryConditions);
-    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-    const safeProjectName = text(selectedBidNotice.projectName).replace(/[\\/:*?"<>|]/g, "_") || "공고문";
-    downloadHwp(`${safeProjectName}_기술인실적_${dateStamp}.hwp`, html);
-    setGeneratedAt(new Date().toLocaleString("ko-KR"));
-  };
-
   const handleReset = () => {
     setKeyword("");
     setActiveEngineerId("");
@@ -732,16 +605,41 @@ export function EngineerPerformanceDocumentsPage() {
     setReviewSelectionAnchorId(null);
     setPendingBulkDeleteReviewIds(null);
     setRelatedProjectHistoryConditions([]);
-    setGeneratedAt("");
   };
 
   const invalidateReviewRows = async () => {
     await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "review-results"] });
   };
 
+  const syncReviewResultsForConditions = useCallback(
+    async (conditions: RelatedProjectHistoryCondition[]) => {
+      if ((!canCreate && !canUpdate) || !selectedBidSeq || profiles.length === 0) {
+        return;
+      }
+
+      try {
+        await Promise.all(
+          profiles.map((profile) =>
+            syncEngineerProjectHistoryReviewResults({
+              bidSeq: selectedBidSeq,
+              engineerId: profile.summary.id,
+              relatedProjectHistoryConditions: conditions,
+            }),
+          ),
+        );
+        await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "review-results"] });
+        showSuccess("관련 공사 참여 이력을 검토결과에 반영했습니다.");
+      } catch (error) {
+        showError(error instanceof Error ? error.message : "관련 공사 참여 이력을 검토결과에 반영하지 못했습니다.");
+        throw error;
+      }
+    },
+    [canCreate, canUpdate, profiles, queryClient, selectedBidSeq, showError, showSuccess],
+  );
+
   const addReviewMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedBidNotice?.bidSeq) {
+      if (!canCreate || !selectedBidNotice?.bidSeq) {
         throw new Error("공고문을 먼저 선택하세요.");
       }
       if (!activeEngineerProfile) {
@@ -750,10 +648,12 @@ export function EngineerPerformanceDocumentsPage() {
 
       const bidSeq = selectedBidNotice.bidSeq;
       const uniqueRowsBySourceHistoryId = Array.from(new Map(selectedHistoryRows.map((row) => [text(row.id), row])).values());
+      const nextDisplayOrder = Math.max(0, ...reviewRows.map((row) => row.displayOrder ?? 0)) + 1;
       const requestBodies = uniqueRowsBySourceHistoryId.map((row) => ({
         bidSeq,
         engineerId: activeEngineerProfile.summary.id,
         sourceSeq: Number(row.id),
+        displayOrder: nextDisplayOrder + uniqueRowsBySourceHistoryId.indexOf(row),
         sourceRow: row,
       }));
 
@@ -768,7 +668,7 @@ export function EngineerPerformanceDocumentsPage() {
 
   const deleteReviewMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedBidNotice?.bidSeq) {
+      if (!canDelete || !selectedBidNotice?.bidSeq) {
         throw new Error("삭제할 검토결과가 없습니다.");
       }
 
@@ -801,6 +701,71 @@ export function EngineerPerformanceDocumentsPage() {
     },
   });
 
+  const processReviewRowUpdate = useCallback(
+    async (updatedRow: EngineerProjectHistoryReviewRecord, originalRow: EngineerProjectHistoryReviewRecord) => {
+      if (!canUpdate || updatedRow.reviewId == null) {
+        return originalRow;
+      }
+
+      const displayOrder = Number(updatedRow.displayOrder);
+      if (!Number.isInteger(displayOrder) || displayOrder < 1) {
+        throw new Error("순번은 1 이상의 정수로 입력해 주세요.");
+      }
+
+      try {
+        const saved = await updateEngineerProjectHistoryReviewResult(
+          {
+            bidSeq: updatedRow.bidSeq ?? selectedBidSeq ?? 0,
+            engineerId: updatedRow.engineerId,
+            sourceSeq: updatedRow.sourceSeq,
+            displayOrder,
+            sourceRow: originalRow,
+          },
+          updatedRow.reviewId,
+        );
+        showSuccess("검토결과 순번을 저장했습니다.");
+        return saved;
+      } catch (error) {
+        showError(error instanceof Error ? error.message : "검토결과 순번을 저장하지 못했습니다.");
+        throw error;
+      }
+    },
+    [canUpdate, selectedBidSeq, showError, showSuccess],
+  );
+
+  const handleExcelDownload = useCallback(async () => {
+    if (!canRead || !selectedBidNotice?.bidSeq || profiles.length === 0 || isExcelDownloading) {
+      return;
+    }
+
+    const bidSeq = selectedBidNotice.bidSeq;
+    setIsExcelDownloading(true);
+
+    try {
+      const reviewResultsByEngineer = await Promise.all(
+        profiles.map(async (profile) => {
+          const engineerId = profile.summary.id;
+          const results = await listEngineerProjectHistoryReviewResults({
+            bidSeq,
+            engineerId,
+          });
+
+          return { engineerId, results };
+        }),
+      );
+
+      await downloadEngineerPerformanceReviewWorkbook({
+        profiles,
+        projectName: text(selectedBidNotice.projectName),
+        reviewResultsByEngineer,
+      });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀을 다운로드하지 못했습니다.");
+    } finally {
+      setIsExcelDownloading(false);
+    }
+  }, [canRead, isExcelDownloading, profiles, selectedBidNotice, showError]);
+
   function openBulkDeleteConfirm() {
     if (selectedReviewIds.length === 0) {
       return;
@@ -821,7 +786,7 @@ export function EngineerPerformanceDocumentsPage() {
           <Card variant="outlined">
             <CardContent>
               <Grid container spacing={1.5}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 7 }}>
                   <Stack direction="row" spacing={1}>
                     <TextField
                       fullWidth
@@ -842,8 +807,20 @@ export function EngineerPerformanceDocumentsPage() {
                     >
                       선택
                     </Button>
+                    <Button
+                      disabled={!selectedBidNotice || !canRead}
+                      onClick={() => setBidNoticeDetailOpen(true)}
+                      startIcon={<VisibilityOutlinedIcon />}
+                      sx={{ flex: "0 0 auto", minWidth: 112, whiteSpace: "nowrap" }}
+                      type="button"
+                      variant="outlined"
+                    >
+                      상세보기
+                    </Button>
                   </Stack>
                 </Grid>
+                {selectedBidNotice ? (
+                  <>
                 <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <TextField
                     fullWidth
@@ -854,7 +831,7 @@ export function EngineerPerformanceDocumentsPage() {
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                   <TextField
                     fullWidth
                     label="공고일"
@@ -864,7 +841,7 @@ export function EngineerPerformanceDocumentsPage() {
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 1.5 }}>
                   <TextField
                     fullWidth
                     label="입찰등록 마감"
@@ -874,19 +851,25 @@ export function EngineerPerformanceDocumentsPage() {
                     slotProps={{ input: { readOnly: true } }}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, sm: 4, md: 2 }}>
                   <TextField
                     fullWidth
                     label="기술인 검색"
                     onChange={(event) => setKeyword(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleLoad();
+                      }
+                    }}
                     size="small"
                     sx={fieldSx}
                     value={keyword}
                   />
                 </Grid>
-                <Grid size={{ xs: 12 }}>
-                  <Box sx={{ alignItems: "center", display: "flex", justifyContent: "flex-end", gap: 1, flexWrap: "wrap" }}>
-                    <Button disabled={!selectedBidNotice || engineersQuery.isFetching} onClick={handleLoad} startIcon={<SearchOutlinedIcon />} variant="contained">
+                <Grid size={{ xs: 12, sm: 8, md: 10 }}>
+                  <Box sx={{ alignItems: "center", display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, gap: 1, flexWrap: "wrap" }}>
+                    <Button disabled={!canRead || !selectedBidNotice || engineersQuery.isFetching} onClick={handleLoad} startIcon={<SearchOutlinedIcon />} variant="contained">
                       조회
                     </Button>
                     <Button onClick={handleReset} startIcon={<RefreshOutlinedIcon />} variant="outlined">
@@ -894,6 +877,8 @@ export function EngineerPerformanceDocumentsPage() {
                     </Button>
                   </Box>
                 </Grid>
+                  </>
+                ) : null}
               </Grid>
             </CardContent>
           </Card>
@@ -913,7 +898,18 @@ export function EngineerPerformanceDocumentsPage() {
                       선택 기술인 목록
                     </Typography>
                   </Box>
-                  <Chip label={`${engineerRows.length}명`} size="small" variant="outlined" />
+                  <Box sx={{ alignItems: "center", display: "flex", gap: 0.5 }}>
+                    <Chip label={`${engineerRows.length}명`} size="small" variant="outlined" />
+                    <IconButton
+                      aria-label="기술인별 검토결과 엑셀로 내보내기"
+                      disabled={!selectedBidNotice || profiles.length === 0 || engineersQuery.isFetching || isExcelDownloading}
+                      onClick={() => void handleExcelDownload()}
+                      size="small"
+                      title={isExcelDownloading ? "엑셀 생성 중" : "기술인별 검토결과 엑셀로 내보내기"}
+                    >
+                      <FileDownloadOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </Box>
                 <EnterpriseDataGrid<EngineerDocumentRow>
                   columns={engineerColumns}
@@ -998,7 +994,7 @@ export function EngineerPerformanceDocumentsPage() {
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                       <Chip label={`${availableHistoryRows.length}건`} size="small" variant="outlined" />
                       <Button
-                        disabled={!canGenerate || selectedHistoryRows.length === 0}
+                        disabled={!canCreate || selectedHistoryRows.length === 0}
                         onClick={() => setAddConfirmOpen(true)}
                         startIcon={<AddOutlinedIcon />}
                         size="small"
@@ -1092,14 +1088,15 @@ export function EngineerPerformanceDocumentsPage() {
                     >
                       <RelatedProjectHistoryConditionsPanel
                         bidSeq={selectedBidSeq}
-                        disabled={!canRead}
+                        disabled={!canCreate && !canUpdate}
                         onApply={setRelatedProjectHistoryConditions}
+                        onSaved={syncReviewResultsForConditions}
                         value={relatedProjectHistoryConditions}
                       />
                       <Chip color="success" label={`검토결과 ${reviewRows.length}건`} size="small" />
                       <Button
                         color="error"
-                        disabled={selectedReviewIds.length === 0}
+                        disabled={!canDelete || selectedReviewIds.length === 0}
                         onClick={openBulkDeleteConfirm}
                         startIcon={<DeleteOutlineOutlinedIcon />}
                         size="small"
@@ -1115,22 +1112,41 @@ export function EngineerPerformanceDocumentsPage() {
                     hideFooter
                     hideFooterSelectedRowCount
                     loading={reviewRowsQuery.isLoading || reviewRowsQuery.isFetching}
+                    onCellClick={(params, event) => {
+                      if (canUpdate && params.field === "displayOrder") {
+                        params.api.startCellEditMode({ field: params.field, id: params.id });
+                        event.stopPropagation();
+                      }
+                    }}
                     onRowClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>, event) => {
                       if (params.row.reviewId != null) {
                         handleReviewSelection(String(params.row.reviewId), event);
                       }
                     }}
-                    onRowDoubleClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>) => {
+                    onRowDoubleClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>, event) => {
+                      const clickedField = event.target instanceof HTMLElement
+                        ? event.target.closest(".MuiDataGrid-cell")?.getAttribute("data-field")
+                        : null;
+                      if (clickedField === "displayOrder") {
+                        return;
+                      }
                       if (params.row.seq) {
                         setPerformanceDetailSeq(params.row.seq);
                       }
                     }}
                     paginationMode="server"
+                    editMode="cell"
+                    initialState={{ sorting: { sortModel: [{ field: "displayOrder", sort: "asc" }] } }}
+                    onProcessRowUpdateError={() => undefined}
+                    processRowUpdate={canUpdate ? processReviewRowUpdate : undefined}
                     rowCount={reviewRows.length}
                     rows={reviewRows}
                     columnHeaderHeight={36}
                     rowHeight={23}
-                    showToolbar={false}
+                    exportFileNamePrefix="관련공사 참여이력 검토결과"
+                    showPrintButton={false}
+                    showToolbar
+                    showXlsxExportButton
                     wrapperMinHeight={reviewGridHeight}
                     sx={{
                       border: 0,
@@ -1149,44 +1165,6 @@ export function EngineerPerformanceDocumentsPage() {
           </Box>
           <Card variant="outlined">
             <CardContent>
-              <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "space-between" }}>
-                <Box>
-                  <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
-                    생성 상태
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    {generatedAt ? `${generatedAt} 한글파일을 생성했습니다.` : "생성 전입니다. 검토결과를 확인한 뒤 문서를 생성하세요."}
-                  </Typography>
-                </Box>
-                <Button
-                  disabled={!selectedBidNotice || reviewRows.length === 0 || !canGenerate}
-                  onClick={handleDownload}
-                  startIcon={<DescriptionOutlinedIcon />}
-                  variant="contained"
-                >
-                  검토결과 한글파일 생성
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-          <Card variant="outlined">
-            <CardContent>
-              <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
-                <Box>
-                  <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
-                    산출물 표 미리보기
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    현재 선택한 기술인의 검토결과를 테스트 산출물 형식으로 확인합니다.
-                  </Typography>
-                </Box>
-                <Chip label={`${reviewDocumentRows.length}건`} size="small" variant="outlined" />
-              </Box>
-              <PerformanceDocumentPreview rows={reviewDocumentRows} />
-            </CardContent>
-          </Card>
-          <Card variant="outlined">
-            <CardContent>
               <Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "space-between" }}>
                 <Box>
                   <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
@@ -1198,10 +1176,13 @@ export function EngineerPerformanceDocumentsPage() {
                 </Box>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                   <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "hwpx" ? null : "hwpx"))} variant={outputTestPanel === "hwpx" ? "contained" : "outlined"}>
-                    1. HWPX 업로드 매핑
+                    1. HWPX 업로드 (AI개발)
                   </Button>
                   <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "webhwp" ? null : "webhwp"))} variant={outputTestPanel === "webhwp" ? "contained" : "outlined"}>
                     2. 한컴 웹 기안기
+                  </Button>
+                  <Button disabled variant="outlined">
+                    3. HWPX 업로드 (한글로젠)
                   </Button>
                 </Stack>
               </Box>
@@ -1219,6 +1200,7 @@ export function EngineerPerformanceDocumentsPage() {
         onSelect={(record) => {
           setSelectedBidNotice(record);
           setBidNoticeDialogOpen(false);
+          setKeyword("");
           setActiveEngineerId("");
           setPerformanceDetailSeq(null);
           setSelectedHistoryIds([]);
@@ -1227,9 +1209,14 @@ export function EngineerPerformanceDocumentsPage() {
           setReviewSelectionAnchorId(null);
           setAddConfirmOpen(false);
           setPendingBulkDeleteReviewIds(null);
-          setGeneratedAt("");
           setRelatedProjectHistoryConditions([]);
         }}
+      />
+      <BidNoticeDetailPopup
+        bidSeq={selectedBidNotice?.bidSeq ?? null}
+        onClose={() => setBidNoticeDetailOpen(false)}
+        open={bidNoticeDetailOpen}
+        readOnly
       />
       <ConfirmActionDialog
         confirmColor="primary"

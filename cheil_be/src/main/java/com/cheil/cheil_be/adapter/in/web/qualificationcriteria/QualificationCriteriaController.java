@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cheil.cheil_be.application.qualificationcriteria.service.QualificationCriteriaService;
 
 @RestController
-@RequestMapping("/pq/qualification-criteria")
+@RequestMapping("/bid/qualification-criteria")
 @RequiredArgsConstructor
 public class QualificationCriteriaController {
 

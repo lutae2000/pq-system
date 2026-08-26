@@ -35,6 +35,24 @@ export type ChangePasswordRequest = {
   newPassword: string;
 };
 
+export type MyAccountResponse = {
+  deptCode: string;
+  employeeNo: string;
+  email: string | null;
+  groupCode: string;
+  loginId: string;
+  passwordResetDt: string | null;
+  userName: string;
+};
+
+export type MyAccountUpdateRequest = {
+  employeeNo: string;
+  deptCode: string;
+  email: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
+
 export type SignupRequest = {
   employeeNo: string;
   userName: string;
@@ -69,6 +87,17 @@ export async function listMyMenuPermissions(): Promise<MenuPermissionResponse[]>
   return apiRequest(
     apiClient.get<MenuPermissionResponse[]>("/auth/menu-permissions"),
     "메뉴 권한 조회에 실패했습니다.",
+  );
+}
+
+export async function getMyAccount(): Promise<MyAccountResponse> {
+  return apiRequest(apiClient.get<MyAccountResponse>("/auth/me"), "내 계정 정보를 불러오지 못했습니다.");
+}
+
+export async function updateMyAccount(request: MyAccountUpdateRequest): Promise<MyAccountResponse> {
+  return apiRequest(
+    apiClient.patch<MyAccountResponse>("/auth/me", request),
+    "내 계정 정보를 저장하지 못했습니다.",
   );
 }
 

@@ -48,6 +48,7 @@ public class EngineerPerformanceDocumentService {
             Map.entry("C0150C1", "h.compname"),
             Map.entry("C0160C1", "h.jobpart")
     );
+    private static final Set<String> NUMERIC_COLUMNS = Set.of("cp.contract_amt", "cp.own_amt");
 
     private final JdbcClient jdbcClient;
     private final Gson gson = new Gson();
@@ -64,16 +65,26 @@ public class EngineerPerformanceDocumentService {
                             NULL::BIGINT AS bid_seq,
                             h.engr_id AS engineer_id,
                             h.id AS source_seq,
+                            NULL::INTEGER AS display_order,
                             CAST(h.id AS TEXT) AS id,
                             cp.job_name AS jobname,
+                            cp.summary,
+                            to_char(to_date(cp.contract_from_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                                to_char(to_date(cp.contract_to_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                                '(' || to_char(to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS contract_term,
+                            to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD') + 1 AS contract_days,
+                            to_char(to_date(h.startdt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                                to_char(to_date(h.enddt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                                '(' || to_char(to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS work_term,
+                            to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD') + 1 AS work_days,
                             cp.seq,
                             cp.order_client,
                             cp.contract_amt,
                             cp.own_amt,
                             cp.contract_from_date,
                             cp.contract_to_date,
-                            h.startdt,
-                            h.enddt,
+                            h.startdt AS work_from_date,
+                            h.enddt AS work_to_date,
                             h.jobclass,
                             h.method,
                             h.jobtag,
@@ -124,16 +135,26 @@ public class EngineerPerformanceDocumentService {
                     r.bid_seq,
                     r.engineer_id,
                     r.source_seq,
+                    r.display_order,
                     CAST(h.id AS TEXT) AS id,
                     cp.job_name AS jobname,
+                    cp.summary,
+                    to_char(to_date(cp.contract_from_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                        to_char(to_date(cp.contract_to_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                        '(' || to_char(to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS contract_term,
+                    to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD') AS contract_days,
+                    to_char(to_date(h.startdt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                        to_char(to_date(h.enddt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                        '(' || to_char(to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS work_term,
+                    to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD') AS work_days,
                     cp.seq,
                     cp.order_client,
                     cp.contract_amt,
                     cp.own_amt,
                     cp.contract_from_date,
                     cp.contract_to_date,
-                    h.startdt,
-                    h.enddt,
+                    h.startdt AS work_from_date,
+                    h.enddt AS work_to_date,
                     h.jobclass,
                     h.method,
                     h.jobtag,
@@ -155,19 +176,14 @@ public class EngineerPerformanceDocumentService {
                     r.last_changed_at,
                     r.last_changed_id
                 FROM pq_engineer_project_history_review_results r
-                JOIN LATERAL (
-                    SELECT h.*
-                    FROM pq_engineer_project_history h
-                    WHERE h.engr_id = r.engineer_id
-                      AND (h.id = r.source_seq OR h.seq = r.source_seq)
-                    ORDER BY CASE WHEN h.id = r.source_seq THEN 0 ELSE 1 END, h.id DESC
-                    LIMIT 1
-                ) h ON TRUE
+                JOIN pq_engineer_project_history h
+                  ON h.engr_id = r.engineer_id
+                 AND h.id = r.source_seq
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE r.bid_seq = :bidSeq
                   AND r.engineer_id = :engineerId
-                ORDER BY cp.contract_to_date DESC NULLS LAST, h.enddt DESC NULLS LAST, h.seq DESC, r.review_id
+                ORDER BY r.display_order NULLS LAST, r.review_id
                 """;
 
         return jdbcClient.sql(sql)
@@ -182,14 +198,15 @@ public class EngineerPerformanceDocumentService {
         String engineerId = required(request.engineerId(), "engineerId");
         Integer sourceSeq = requiredSourceSeq(request.sourceSeq());
         ensureSourceHistoryExists(engineerId, sourceSeq);
+        Integer displayOrder = request.displayOrder() == null ? nextDisplayOrder(bidSeq, engineerId) : request.displayOrder();
 
         String actor = AuditActorResolver.resolve();
         Long reviewId = jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history_review_results (
-                            bid_seq, engineer_id, source_seq, created_id, last_changed_id
+                            bid_seq, engineer_id, source_seq, display_order, created_id, last_changed_id
                         )
                         VALUES (
-                            :bidSeq, :engineerId, :sourceSeq, :actor, :actor
+                            :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
                         )
                         ON CONFLICT (bid_seq, engineer_id, source_seq)
                         DO UPDATE SET
@@ -200,6 +217,7 @@ public class EngineerPerformanceDocumentService {
                 .param("bidSeq", bidSeq)
                 .param("engineerId", engineerId)
                 .param("sourceSeq", sourceSeq)
+                .param("displayOrder", displayOrder)
                 .param("actor", actor)
                 .query(Long.class)
                 .single();
@@ -223,6 +241,13 @@ public class EngineerPerformanceDocumentService {
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE h.engr_id = :engineerId
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM pq_engineer_project_history_review_results existing
+                      WHERE existing.bid_seq = :bidSeq
+                        AND existing.engineer_id = :engineerId
+                        AND existing.source_seq = h.id
+                  )
                 """ + conditionSql + """
                 ORDER BY h.id
                 """;
@@ -237,22 +262,22 @@ public class EngineerPerformanceDocumentService {
         }
 
         String actor = AuditActorResolver.resolve();
+        int displayOrder = nextDisplayOrder(bidSeq, engineerId);
         for (Integer sourceSeq : matchingSourceSeqs) {
             jdbcClient.sql("""
                             INSERT INTO pq_engineer_project_history_review_results (
-                                bid_seq, engineer_id, source_seq, created_id, last_changed_id
+                                bid_seq, engineer_id, source_seq, display_order, created_id, last_changed_id
                             )
                             VALUES (
-                                :bidSeq, :engineerId, :sourceSeq, :actor, :actor
+                                :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
                             )
                             ON CONFLICT (bid_seq, engineer_id, source_seq)
-                            DO UPDATE SET
-                                last_changed_at = CURRENT_TIMESTAMP,
-                                last_changed_id = EXCLUDED.last_changed_id
+                            DO NOTHING
                             """)
                     .param("bidSeq", bidSeq)
                     .param("engineerId", engineerId)
                     .param("sourceSeq", sourceSeq)
+                    .param("displayOrder", displayOrder++)
                     .param("actor", actor)
                     .update();
         }
@@ -268,6 +293,7 @@ public class EngineerPerformanceDocumentService {
         String engineerId = required(request.engineerId(), "engineerId");
         Integer sourceSeq = requiredSourceSeq(request.sourceSeq());
         ensureSourceHistoryExists(engineerId, sourceSeq);
+        Integer displayOrder = request.displayOrder() == null ? findByReviewId(reviewId).displayOrder() : request.displayOrder();
 
         String actor = AuditActorResolver.resolve();
         jdbcClient.sql("""
@@ -275,6 +301,7 @@ public class EngineerPerformanceDocumentService {
                         SET bid_seq = :bidSeq,
                             engineer_id = :engineerId,
                             source_seq = :sourceSeq,
+                            display_order = :displayOrder,
                             last_changed_at = CURRENT_TIMESTAMP,
                             last_changed_id = :actor
                         WHERE review_id = :reviewId
@@ -283,6 +310,7 @@ public class EngineerPerformanceDocumentService {
                 .param("bidSeq", bidSeq)
                 .param("engineerId", engineerId)
                 .param("sourceSeq", sourceSeq)
+                .param("displayOrder", displayOrder)
                 .param("actor", actor)
                 .update();
 
@@ -313,16 +341,26 @@ public class EngineerPerformanceDocumentService {
                             r.bid_seq,
                             r.engineer_id,
                             r.source_seq,
+                            r.display_order,
                             CAST(h.id AS TEXT) AS id,
                             cp.job_name AS jobname,
+                            cp.summary,
+                            to_char(to_date(cp.contract_from_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                                to_char(to_date(cp.contract_to_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                                '(' || to_char(to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS contract_term,
+                            to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD') AS contract_days,
+                            to_char(to_date(h.startdt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
+                                to_char(to_date(h.enddt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
+                                '(' || to_char(to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD'), 'FM999,999,999,999') || '일)' AS work_term,
+                            to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD') AS work_days,
                             cp.seq,
                             cp.order_client,
                             cp.contract_amt,
                             cp.own_amt,
                             cp.contract_from_date,
                             cp.contract_to_date,
-                            h.startdt,
-                            h.enddt,
+                            h.startdt AS work_from_date,
+                            h.enddt AS work_to_date,
                             h.jobclass,
                             h.method,
                             h.jobtag,
@@ -344,14 +382,9 @@ public class EngineerPerformanceDocumentService {
                             r.last_changed_at,
                             r.last_changed_id
                 FROM pq_engineer_project_history_review_results r
-                JOIN LATERAL (
-                    SELECT h.*
-                    FROM pq_engineer_project_history h
-                    WHERE h.engr_id = r.engineer_id
-                      AND (h.id = r.source_seq OR h.seq = r.source_seq)
-                    ORDER BY CASE WHEN h.id = r.source_seq THEN 0 ELSE 1 END, h.id DESC
-                    LIMIT 1
-                ) h ON TRUE
+                JOIN pq_engineer_project_history h
+                  ON h.engr_id = r.engineer_id
+                 AND h.id = r.source_seq
                         JOIN company_performances cp
                           ON cp.seq = h.seq
                         WHERE r.review_id = :reviewId
@@ -378,22 +411,40 @@ public class EngineerPerformanceDocumentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Source project history was not found."));
     }
 
+    private int nextDisplayOrder(Long bidSeq, String engineerId) {
+        return jdbcClient.sql("""
+                        SELECT COALESCE(MAX(display_order), 0) + 1
+                        FROM pq_engineer_project_history_review_results
+                        WHERE bid_seq = :bidSeq
+                          AND engineer_id = :engineerId
+                        """)
+                .param("bidSeq", bidSeq)
+                .param("engineerId", engineerId)
+                .query(Integer.class)
+                .single();
+    }
+
     private EngineerProjectHistoryReviewResponse mapResponse(ResultSet rs, int rowNum) throws SQLException {
         return new EngineerProjectHistoryReviewResponse(
                 getNullableLong(rs, "review_id"),
                 getNullableLong(rs, "bid_seq"),
                 rs.getString("engineer_id"),
                 getNullableInteger(rs, "source_seq"),
+                getNullableInteger(rs, "display_order"),
                 rs.getString("id"),
                 rs.getString("jobname"),
+                rs.getString("summary"),
+                rs.getString("contract_term"),
+                rs.getString("work_term"),
+                formatDays(rs.getObject("work_days")),
                 getNullableInteger(rs, "seq"),
                 rs.getString("order_client"),
                 rs.getBigDecimal("contract_amt"),
                 rs.getBigDecimal("own_amt"),
                 rs.getString("contract_from_date"),
                 rs.getString("contract_to_date"),
-                rs.getString("startdt"),
-                rs.getString("enddt"),
+                rs.getString("work_from_date"),
+                rs.getString("work_to_date"),
                 rs.getString("jobclass"),
                 rs.getString("method"),
                 rs.getString("jobtag"),
@@ -528,7 +579,7 @@ public class EngineerPerformanceDocumentService {
         }
 
         String valueType = normalize(condition.valueType());
-        boolean numberType = "number".equals(valueType);
+        boolean numberType = "number".equals(valueType) || NUMERIC_COLUMNS.contains(column);
         boolean dateType = "date".equals(valueType);
         String expression = numberType
                 ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)"
@@ -537,6 +588,10 @@ public class EngineerPerformanceDocumentService {
         String valueToParamName = "historyValueTo" + index;
 
         if ("LIKE".equals(operator)) {
+            if (numberType) {
+                params.put(paramName, typedValue(value, paramName, true, false));
+                return expression + " = :" + paramName;
+            }
             params.put(paramName, "%" + (value == null ? "" : value.toLowerCase(Locale.ROOT)) + "%");
             return "LOWER(CAST(" + column + " AS TEXT)) LIKE :" + paramName;
         }
@@ -610,6 +665,18 @@ public class EngineerPerformanceDocumentService {
 
     private String logicalOperator(String value) {
         return "OR".equalsIgnoreCase(normalize(value)) ? "OR" : "AND";
+    }
+
+    private String formatDays(Object value) {
+        if (value == null) {
+            return "";
+        }
+        try {
+            long days = new BigDecimal(String.valueOf(value)).longValue();
+            return "(" + String.format(Locale.US, "%,d", days) + "일)";
+        } catch (NumberFormatException exception) {
+            return String.valueOf(value);
+        }
     }
 
     private BigDecimal number(String value, String fieldName) {

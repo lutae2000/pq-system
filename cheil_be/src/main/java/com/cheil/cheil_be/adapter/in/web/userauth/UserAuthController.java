@@ -104,6 +104,33 @@ public class UserAuthController {
                 .toList());
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UserAccountResponse> me(
+            @RequestHeader(SecurityHeaders.AUTHORIZATION) String authorization
+    ) {
+        var token = validateAccessToken(authorization);
+        return ResponseEntity.ok(UserAccountResponse.from(userAccountAdminService.findByLoginId(token.loginId())));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<UserAccountResponse> updateMe(
+            @RequestHeader(SecurityHeaders.AUTHORIZATION) String authorization,
+            @RequestBody SelfProfileUpdateRequest request
+    ) {
+        var token = validateAccessToken(authorization);
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+        }
+        return ResponseEntity.ok(UserAccountResponse.from(userAccountAdminService.updateSelfProfile(
+                token.loginId(),
+                request.employeeNo(),
+                request.deptCode(),
+                request.email(),
+                request.currentPassword(),
+                request.newPassword()
+        )));
+    }
+
     /**
      * 비밀번호를 변경한다.
      */
@@ -176,6 +203,15 @@ public class UserAuthController {
     }
 
     public record ChangePasswordRequest(
+            String currentPassword,
+            String newPassword
+    ) {
+    }
+
+    public record SelfProfileUpdateRequest(
+            String employeeNo,
+            String deptCode,
+            String email,
             String currentPassword,
             String newPassword
     ) {

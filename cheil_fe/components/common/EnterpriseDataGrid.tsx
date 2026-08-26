@@ -867,19 +867,11 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
 
   const handleRowModesModelChange = useCallback<NonNullable<DataGridProps<Row>["onRowModesModelChange"]>>(
     (nextRowModesModel, details) => {
-      const previousRowModesModel = userRowModesModel ?? {};
       const safeNextRowModesModel = nextRowModesModel ?? {};
-
-      for (const [rowId, rowMode] of Object.entries(safeNextRowModesModel)) {
-        const previousMode = previousRowModesModel[rowId]?.mode;
-        if (rowMode?.mode === GridRowModes.View && previousMode === GridRowModes.Edit) {
-          forceGridRowViewMode(apiRef, resolvedColumns, rowId, Boolean(rowMode.ignoreModifications));
-        }
-      }
 
       userOnRowModesModelChange?.(safeNextRowModesModel, details);
     },
-    [apiRef, resolvedColumns, userOnRowModesModelChange, userRowModesModel],
+    [userOnRowModesModelChange],
   );
 
   const handleRowEditStop = useCallback<NonNullable<DataGridProps<Row>["onRowEditStop"]>>(

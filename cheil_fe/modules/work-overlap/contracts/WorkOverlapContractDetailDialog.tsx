@@ -47,7 +47,10 @@ import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import {
+  useCommonCodeLevel3Options,
+  useDepartmentOptions,
+} from "@/modules/common/reference/useReferenceOptions";
 import {
   createWorkOverlapContractEngineer,
   deleteWorkOverlapContractEngineer,
@@ -523,6 +526,8 @@ export function WorkOverlapContractDetailDialog({
   const { showError } = useAppSnackbar();
   const { canCreate, canDelete, canRead, canUpdate } =
     useCurrentMenuPermission();
+  const { isLoading: departmentsLoading, options: departmentOptions } =
+    useDepartmentOptions({ useYn: true }, { enabled: open && canRead });
   const [draft, setDraft] = useState<WorkOverlapContractRecord>(
     () => record ?? defaultWorkOverlapContractRecord(),
   );
@@ -552,6 +557,13 @@ export function WorkOverlapContractDetailDialog({
   const [periodChangeReason, setPeriodChangeReason] = useState("");
   const isEdit = Boolean(draft.contractNo);
   const contractNo = draft.contractNo;
+  const selectedDepartment = useMemo(
+    () =>
+      departmentOptions.find(
+        (option) => option.value === draft.supervisingDepartmentCode,
+      ) ?? null,
+    [departmentOptions, draft.supervisingDepartmentCode],
+  );
 
   useEffect(() => {
     const timeoutId = window.setTimeout(
@@ -1216,6 +1228,28 @@ export function WorkOverlapContractDetailDialog({
                             : formatNumberText(draft.shareAmount)
                         }
                       />
+                        <Autocomplete
+                            loading={departmentsLoading}
+                            onChange={(_, option) =>
+                                updateField(
+                                    "supervisingDepartmentCode",
+                                    option?.value ?? null,
+                                )
+                            }
+                            options={departmentOptions}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="주관부서"
+                                    size="small"
+                                    sx={standardFieldSx}
+                                />
+                            )}
+                            value={selectedDepartment}
+                            isOptionEqualToValue={(option, value) =>
+                                option.value === value.value
+                            }
+                        />
                     </Box>
                   </Box>
                 </Section>

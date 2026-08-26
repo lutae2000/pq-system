@@ -2,7 +2,7 @@
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
-import { Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createSimilarServicePerformance,
   deleteSimilarServicePerformance,
@@ -78,7 +79,7 @@ export function SimilarServicePerformanceManagementPage() {
   const [bulkWeightConfirmOpen, setBulkWeightConfirmOpen] = useState(false);
   const [bulkWeightValue, setBulkWeightValue] = useState("");
   const [bulkWeightTargets, setBulkWeightTargets] = useState<SimilarServicePerformanceRecord[]>([]);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<SimilarServicePerformanceSearchParams>(
     () => ({
@@ -255,9 +256,9 @@ export function SimilarServicePerformanceManagementPage() {
       setDialogOpen(false);
       setEditingRecord(null);
       await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      setNotice({ message: "유사용역 수행실적을 저장했습니다.", severity: "success" });
+      showSnackbar({ message: "유사용역 수행실적을 저장했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
 
   const deleteMutation = useMutation({
@@ -265,9 +266,9 @@ export function SimilarServicePerformanceManagementPage() {
     onSuccess: async () => {
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      setNotice({ message: "유사용역 수행실적을 삭제했습니다.", severity: "success" });
+      showSnackbar({ message: "유사용역 수행실적을 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
   });
 
   const bulkWeightMutation = useMutation({
@@ -289,9 +290,9 @@ export function SimilarServicePerformanceManagementPage() {
       setBulkWeightTargets([]);
       setRowSelectionModel({ ids: new Set(), type: "include" });
       await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      setNotice({ message: `${variables.rows.length.toLocaleString("ko-KR")}건의 가중치를 일괄 저장했습니다.`, severity: "success" });
+      showSnackbar({ message: `${variables.rows.length.toLocaleString("ko-KR")}건의 가중치를 일괄 저장했습니다.`, severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "가중치 일괄 저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "가중치 일괄 저장에 실패했습니다.", severity: "error" }),
   });
 
   const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
@@ -554,11 +555,6 @@ export function SimilarServicePerformanceManagementPage() {
         targetLabel={`${bulkWeightTargets.length.toLocaleString("ko-KR")}건 / 가중치 ${bulkWeightValue || "-"}`}
         title="일괄 저장 확인"
       />
-      <Snackbar anchorOrigin={{ horizontal: "center", vertical: "bottom" }} autoHideDuration={3000} open={Boolean(notice)} onClose={() => setNotice(null)}>
-        <Alert onClose={() => setNotice(null)} severity={notice?.severity ?? "info"} variant="filled">
-          {notice?.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

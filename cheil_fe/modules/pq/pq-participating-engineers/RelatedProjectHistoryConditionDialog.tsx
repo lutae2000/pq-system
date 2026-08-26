@@ -1,7 +1,7 @@
 "use client";
 
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
   Box,
   Button,
@@ -77,24 +77,6 @@ type OutlineDetailRow = {
   name: string;
 };
 
-const generalConditionRows: CodeOption[] = [
-  { code: "C0104C1", label: "사업시작일" },
-  { code: "C0105C1", label: "계약종료일" },
-  { code: "C0108C1", label: "구분(설계,감리)" },
-  { code: "C0101C1", label: "용역명" },
-  { code: "C0110C1", label: "용역구분" },
-  { code: "C0121C1", label: "공사개요" },
-  { code: "C0160C1", label: "참여분야직위" },
-  { code: "C0150C1", label: "자사타사구분" },
-  { code: "C0107C1", label: "출금액" },
-  { code: "C0108C1_AMT", label: "당사금액" },
-  { code: "C0140C1", label: "실질참여여부" },
-  { code: "C0120C1", label: "참여시작일" },
-  { code: "C0141C1", label: "신고여부" },
-  { code: "C0102C1", label: "발주처구분" },
-  { code: "C0130C1", label: "진행상태" },
-];
-
 const conditionTypeLabels: Record<PqParticipatingEngineerProjectHistoryConditionType, string> = {
   constructionKind: "공종",
   general: "일반조건",
@@ -132,6 +114,32 @@ const createConditionId = () => {
 
 const defaultOperator = (valueType: PqParticipatingEngineerProjectHistoryConditionValueType) =>
   valueType === "number" || valueType === "date" ? ">=" : "=";
+
+const generalConditionValueType = (label: string): PqParticipatingEngineerProjectHistoryConditionValueType => {
+  if (label.includes("일")) {
+    return "date";
+  }
+  if (label.includes("금액")) {
+    return "number";
+  }
+  return "text";
+};
+
+const normalizeCondition = (condition: RelatedProjectHistoryCondition): RelatedProjectHistoryCondition => {
+  const valueType =
+    condition.conditionType === "general" && condition.label
+      ? generalConditionValueType(condition.label)
+      : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
+  const availableOperators = operatorsByValueType[valueType];
+  const operator = availableOperators.includes(condition.operator ?? "") ? condition.operator! : defaultOperator(valueType);
+
+  return {
+    ...condition,
+    operator,
+    valueTo: operator === "BETWEEN" ? condition.valueTo : "",
+    valueType,
+  };
+};
 
 const needsValueInput = (condition: RelatedProjectHistoryCondition) => condition.conditionType !== "constructionKind";
 
@@ -236,6 +244,18 @@ export function RelatedProjectHistoryConditionDialog({
     enabled: open,
   });
 
+  const generalConditionsQuery = useQuery({
+    queryKey: ["common-codes", "PQCT", "C*", "C1", "pq-participating-engineers", "condition-dialog"],
+    queryFn: () =>
+      listCommonCodes({
+        level1Code: "PQCT",
+        level2CodePrefix: "C",
+        level3Code: "C1",
+        sort: "level3Code",
+      }),
+    enabled: open,
+  });
+
   const constructionRows = useMemo(() => buildConstructionRows(constructionTypesQuery.data ?? []), [constructionTypesQuery.data]);
 
   const outlineCategoryRows = useMemo<OutlineCategoryRow[]>(
@@ -276,8 +296,14 @@ export function RelatedProjectHistoryConditionDialog({
   );
 
   const filteredGeneralRows = useMemo(
-    () => generalConditionRows.filter((row) => includesKeyword([row.code, row.label], keyword)),
-    [keyword],
+    () => {
+      const rows = (generalConditionsQuery.data ?? []).map((code) => ({
+        code: `${code.level2Code}${code.level3Code}`,
+        label: code.codeDetailName || code.codeName,
+      }));
+      return rows.filter((row) => includesKeyword([row.code, row.label], keyword));
+    },
+    [generalConditionsQuery.data, keyword],
   );
 
   const filteredOutlineCategoryRows = useMemo(
@@ -334,7 +360,7 @@ export function RelatedProjectHistoryConditionDialog({
   };
 
   const handleApply = () => {
-    onApply(draft);
+    onApply(draft.map(normalizeCondition));
   };
 
   const constructionColumns = useMemo<GridColDef<ConstructionKindRow>[]>(
@@ -457,6 +483,7 @@ export function RelatedProjectHistoryConditionDialog({
                   getRowId={(row) => row.code}
                   hideFooterSelectedRowCount
                   initialState={{ pagination: { paginationModel: { page: 0, pageSize: 40 } } }}
+                  loading={generalConditionsQuery.isLoading || generalConditionsQuery.isFetching}
                   onRowDoubleClick={(params: GridRowParams<CodeOption>) =>
                     addCondition({
                       conditionType: "general",
@@ -464,9 +491,9 @@ export function RelatedProjectHistoryConditionDialog({
                       id: createConditionId(),
                       label: `${params.row.code} - ${params.row.label}`,
                       logicalOperator: "AND",
-                      operator: params.row.label.includes("일") ? ">=" : "LIKE",
+                      operator: defaultOperator(generalConditionValueType(params.row.label)),
                       value: "",
-                      valueType: params.row.label.includes("일") ? "date" : "text",
+                      valueType: generalConditionValueType(params.row.label),
                     })
                   }
                   pageSizeOptions={[20, 40, 100]}
@@ -550,9 +577,13 @@ export function RelatedProjectHistoryConditionDialog({
                   </Box>
                 ) : (
                   draft.map((condition, index) => {
-                    const valueType = condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
-                    const operator = condition.operator ?? defaultOperator(valueType);
+                    const valueType =
+                      condition.conditionType === "general" && condition.label
+                        ? generalConditionValueType(condition.label)
+                        : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
                     const availableOperators = operatorsByValueType[valueType];
+                    const configuredOperator = condition.operator ?? defaultOperator(valueType);
+                    const operator = availableOperators.includes(configuredOperator) ? configuredOperator : defaultOperator(valueType);
 
                     return (
                       <Box
@@ -683,7 +714,7 @@ export function RelatedProjectHistoryConditionDialog({
         <Button color="inherit" onClick={onClose} type="button" variant="outlined">
           {"취소"}
         </Button>
-        <Button disabled={disabled || applyLoading} onClick={handleApply} startIcon={<SearchOutlinedIcon />} type="button" variant="contained">
+        <Button disabled={disabled || applyLoading} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">
           {"적용"}
         </Button>
       </DialogActions>

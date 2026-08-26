@@ -4,7 +4,7 @@ import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Card, CardContent, InputAdornment, TextField } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { Children, type ReactNode } from "react";
+import { Children, useState, type ReactNode } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
 
@@ -16,6 +16,7 @@ export type SearchPanelProps = {
   keywordPlaceholder?: string;
   keywordSx?: SxProps<Theme>;
   keywordIndex?: number;
+  localKeyword?: boolean;
   onKeywordChange: (keyword: string) => void;
   onSearch: (keyword: string) => void;
   onReset: () => void;
@@ -32,6 +33,7 @@ export function SearchPanel({
   keywordPlaceholder = "검색어를 입력하세요.",
   keywordSx,
   keywordIndex = 0,
+  localKeyword = true,
   onKeywordChange,
   onSearch,
   onReset,
@@ -39,6 +41,10 @@ export function SearchPanel({
   searchDisabled = false,
   searchLabel = "조회",
 }: SearchPanelProps) {
+  const [localKeywordValue, setLocalKeywordValue] = useState(keyword);
+
+  const keywordValue = localKeyword ? localKeywordValue : keyword;
+
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent>
@@ -50,7 +56,7 @@ export function SearchPanel({
               return;
             }
 
-            const nextKeyword = keyword;
+            const nextKeyword = keywordValue;
             onKeywordChange(nextKeyword);
             onSearch(nextKeyword);
           }}
@@ -88,7 +94,14 @@ export function SearchPanel({
                   key="search-panel-keyword"
                   fullWidth
                   label={keywordLabel}
-                  onChange={(event) => onKeywordChange(event.target.value)}
+                  onChange={(event) => {
+                    const nextKeyword = event.target.value;
+                    if (localKeyword) {
+                      setLocalKeywordValue(nextKeyword);
+                    } else {
+                      onKeywordChange(nextKeyword);
+                    }
+                  }}
                   placeholder={keywordPlaceholder}
                   size="small"
                   sx={[
@@ -96,7 +109,7 @@ export function SearchPanel({
                     { flex: "1 1 240px", maxWidth: 320, minWidth: 220, width: "auto" },
                     ...(Array.isArray(keywordSx) ? keywordSx : keywordSx ? [keywordSx] : []),
                   ]}
-                  value={keyword}
+                  value={keywordValue}
                   slotProps={{
                     input: {
                       startAdornment: (
@@ -136,6 +149,9 @@ export function SearchPanel({
             <Button
               color="inherit"
               onClick={() => {
+                if (localKeyword) {
+                  setLocalKeywordValue("");
+                }
                 onKeywordChange("");
                 onReset();
               }}

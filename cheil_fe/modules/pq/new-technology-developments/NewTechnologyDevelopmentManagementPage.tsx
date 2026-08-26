@@ -3,7 +3,7 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -18,6 +18,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createNewTechnologyDevelopment,
   deleteNewTechnologyDevelopment,
@@ -151,7 +152,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const pageSize = NEW_TECHNOLOGY_DEVELOPMENT_PAGE_SIZE;
   const [draft, setDraft] = useState<NewTechnologyDevelopmentRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyDevelopmentRecord | null>(null);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<NewTechnologyDevelopmentSearchParams>(
     () => ({
@@ -204,9 +205,9 @@ export function NewTechnologyDevelopmentManagementPage() {
       setDraft(saved);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-developments"] });
       await queryClient.invalidateQueries({ queryKey: ["new-technology-development", saved.id] });
-      setNotice({ message: "신기술 개발실적을 저장했습니다.", severity: "success" });
+      showSnackbar({ message: "신기술 개발실적을 저장했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
 
   const deleteMutation = useMutation({
@@ -215,9 +216,9 @@ export function NewTechnologyDevelopmentManagementPage() {
       setDraft(emptyDraft());
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-developments"] });
-      setNotice({ message: "신기술 개발실적을 삭제했습니다.", severity: "success" });
+      showSnackbar({ message: "신기술 개발실적을 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
   });
 
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
@@ -256,7 +257,7 @@ export function NewTechnologyDevelopmentManagementPage() {
             color={params.value === "\uc720\ud6a8" ? "success" : params.value === "\ub9cc\ub8cc" ? "error" : "default"}
             label={params.value as string}
             size="small"
-            variant="outlined"
+            variant={params.value === "유효" ? "filled" : "outlined"}
           />
         ),
       },
@@ -346,11 +347,11 @@ export function NewTechnologyDevelopmentManagementPage() {
 
   const handleSave = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: "신기술 개발실적을 수정할 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "신기술 개발실적을 수정할 권한이 없습니다.", severity: "error" });
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: "신기술 개발실적을 등록할 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "신기술 개발실적을 등록할 권한이 없습니다.", severity: "error" });
       return;
     }
     saveMutation.mutate();
@@ -420,7 +421,7 @@ export function NewTechnologyDevelopmentManagementPage() {
               alignItems: "start",
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.2fr) minmax(440px, 0.8fr)" },
+              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.35fr) minmax(380px, 0.65fr)" },
             }}
           >
             <Card>
@@ -476,7 +477,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                   </Stack>
                 </Box>
 
-                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" } }}>
+                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
                   <TextField label="연번" onChange={(event) => updateDraft("sequenceLabel", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.sequenceLabel)} />
                   <TextField label="구분" onChange={(event) => updateDraft("technologyType", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.technologyType)}>
                     {TECHNOLOGY_TYPES.map((type) => (
@@ -490,7 +491,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                     onChange={(event) => updateDraft("targetField", event.target.value)}
                     size="small"
                     slotProps={{ inputLabel: { shrink: true } }}
-                    sx={standardFieldSx}
+                    sx={{ ...standardFieldSx, gridColumn: "1 / -1" }}
                     value={draft.targetField}
                   />
                   <TextField label="출원명" onChange={(event) => updateDraft("title", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.title)} />
@@ -569,9 +570,6 @@ export function NewTechnologyDevelopmentManagementPage() {
         open={Boolean(deleteTarget)}
         targetLabel={deleteTarget?.title}
       />
-      <Snackbar autoHideDuration={3000} onClose={() => setNotice(null)} open={Boolean(notice)} anchorOrigin={{ horizontal: "center", vertical: "bottom" }}>
-        {notice ? <Alert severity={notice.severity}>{notice.message}</Alert> : undefined}
-      </Snackbar>
     </Box>
   );
 }

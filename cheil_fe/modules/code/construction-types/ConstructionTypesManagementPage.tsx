@@ -114,7 +114,7 @@ const sortConstructionTypes = (records: ConstructionTypeRecord[]) =>
   );
 
 export function ConstructionTypesManagementPage() {
-  const { canCreate, canRead } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
@@ -168,6 +168,7 @@ export function ConstructionTypesManagementPage() {
 
     return level1Rows[0] ?? null;
   }, [isCreating, level1Rows, selectedRecord]);
+  const canSave = isCreating ? canCreate : canUpdate;
   const activeDraft = useMemo<ConstructionTypeDraft>(() => {
     if (isCreating || selectedRecord) {
       return draft;
@@ -604,12 +605,12 @@ export function ConstructionTypesManagementPage() {
             <Divider sx={{ my: 1.5 }} />
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, flexWrap: "wrap", mb: 2, width: "100%" }}>
-              <Button startIcon={<SaveOutlinedIcon />} disabled={saveMutation.isPending} onClick={handleSave} variant="contained">
+              <Button startIcon={<SaveOutlinedIcon />} disabled={!canSave || saveMutation.isPending} onClick={handleSave} variant="contained">
                 저장
               </Button>
               <Button
                 color="error"
-                disabled={!displayRecord}
+                disabled={!canDelete || !displayRecord}
                 startIcon={<DeleteOutlineOutlinedIcon />}
                 onClick={() => {
                   if (displayRecord) {
@@ -687,7 +688,7 @@ export function ConstructionTypesManagementPage() {
               />
 
               <Box sx={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                <Switch checked={activeDraft.useYn} onChange={(_, checked) => setDraft((current) => ({ ...current, useYn: checked }))} />
+            <Switch disabled={!canSave} checked={activeDraft.useYn} onChange={(_, checked) => setDraft((current) => ({ ...current, useYn: checked }))} />
                 <Typography variant="body2">사용</Typography>
               </Box>
 
@@ -736,7 +737,7 @@ export function ConstructionTypesManagementPage() {
           </Button>
           <Button
             color="error"
-            disabled={deleteMutation.isPending}
+            disabled={!canDelete || deleteMutation.isPending}
             onClick={() => {
               if (deleteTarget) {
                 deleteMutation.mutate(deleteTarget.codeId);

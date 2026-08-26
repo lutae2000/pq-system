@@ -22,6 +22,7 @@ type RelatedProjectHistoryConditionsPanelProps = {
   disabled?: boolean;
   label?: string;
   onApply: (conditions: RelatedProjectHistoryCondition[]) => void;
+  onSaved?: (conditions: RelatedProjectHistoryCondition[]) => void | Promise<void>;
   value: RelatedProjectHistoryCondition[];
 };
 
@@ -47,6 +48,7 @@ export function RelatedProjectHistoryConditionsPanel({
   disabled = false,
   label = "관련공사 참여 이력",
   onApply,
+  onSaved,
   value,
 }: RelatedProjectHistoryConditionsPanelProps) {
   const [open, setOpen] = useState(false);
@@ -83,6 +85,7 @@ export function RelatedProjectHistoryConditionsPanel({
     },
     onSuccess: async (conditions) => {
       onApply(conditions);
+      await onSaved?.(conditions);
       setOpen(false);
       if (bidSeq) {
         await queryClient.invalidateQueries({ queryKey: ["related-project-history-conditions", bidSeq] });

@@ -127,4 +127,34 @@ public record UserAccount(
                 actorId
         );
     }
+
+    public UserAccount updateProfile(
+            String nextEmployeeNo,
+            String nextDeptCode,
+            String nextEmail,
+            String encodedPassword,
+            String nextPasswordResetDt,
+            boolean nextPasswordReset,
+            Instant occurredAt,
+            String actorId
+    ) {
+        return new UserAccount(
+                nextEmployeeNo,
+                userName,
+                loginId,
+                encodedPassword,
+                useYn,
+                groupCode,
+                nextDeptCode,
+                loginDt,
+                recentIpAddr,
+                nextPasswordResetDt,
+                nextPasswordReset,
+                picYn,
+                wrongPasswordCount,
+                nextEmail,
+                occurredAt,
+                actorId
+        );
+    }
 }

@@ -5,7 +5,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button, Card, CardContent, Chip, MenuItem, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import {
   GridActionsCellItem,
   GridRowModes,
@@ -21,6 +21,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 type BidResultStatus = "낙찰" | "패찰" | "유찰" | "심사중";
 type SearchStatus = "All" | BidResultStatus;
@@ -150,7 +151,7 @@ export function BidResultsManagementPage() {
   const [rows, setRows] = useState<BidResultRow[]>(sampleRows);
   const [rowModesModel, setRowModesModel] = useState<GridRowModesModel>({});
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const filteredRows = useMemo(() => {
     const normalizedKeyword = normalizeText(appliedKeyword);
@@ -247,7 +248,7 @@ export function BidResultsManagementPage() {
     };
 
     setRows((current) => current.map((row) => (row.id === normalizedRow.id ? normalizedRow : row)));
-    setNotice({ message: "입찰결과를 저장했습니다.", severity: "success" });
+    showSnackbar({ message: "입찰결과를 저장했습니다.", severity: "success" });
     return normalizedRow;
   };
 
@@ -269,7 +270,7 @@ export function BidResultsManagementPage() {
 
     setRows((current) => current.filter((row) => row.id !== deleteTarget.id));
     setDeleteTarget(null);
-    setNotice({ message: "입찰결과를 삭제했습니다.", severity: "success" });
+    showSnackbar({ message: "입찰결과를 삭제했습니다.", severity: "success" });
   };
 
   const columns = useMemo<GridColDef<BidResultRow>[]>(
@@ -510,9 +511,6 @@ export function BidResultsManagementPage() {
         targetLabel={deleteTarget?.label}
         title="삭제 확인"
       />
-      <Snackbar autoHideDuration={2200} onClose={() => setNotice(null)} open={Boolean(notice)}>
-        <Chip color={notice?.severity === "success" ? "success" : "default"} label={notice?.message ?? ""} />
-      </Snackbar>
     </Box>
   );
 }

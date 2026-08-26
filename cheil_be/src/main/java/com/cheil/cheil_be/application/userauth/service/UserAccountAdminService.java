@@ -245,6 +245,63 @@ public class UserAccountAdminService {
         ));
     }
 
+    @Transactional
+    public UserAccount updateSelfProfile(
+            String loginId,
+            String employeeNo,
+            String deptCode,
+            String email,
+            String currentPassword,
+            String newPassword
+    ) {
+        UserAccount userAccount = findByLoginId(loginId);
+        String nextEmployeeNo = requiredValue(employeeNo, "employeeNo");
+        String nextDeptCode = requiredValue(deptCode, "deptCode");
+        String nextEmail = StringValues.normalize(email);
+
+        userAccountRepository.findByEmployeeNo(nextEmployeeNo)
+                .filter(item -> !item.loginId().equals(userAccount.loginId()))
+                .ifPresent(item -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 사번입니다.");
+                });
+
+        boolean passwordChanged = StringUtils.hasText(newPassword);
+        String encodedPassword = userAccount.userPassword();
+        String passwordResetDt = userAccount.passwordResetDt();
+        boolean passwordReset = userAccount.passwordReset();
+        if (passwordChanged) {
+            if (!StringUtils.hasText(currentPassword)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호는 필수입니다.");
+            }
+            if (!passwordVerificationService.matches(currentPassword, userAccount.userPassword())) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 올바르지 않습니다.");
+            }
+            encodedPassword = passwordHashService.hash(newPassword.trim());
+            passwordResetDt = passwordResetDate(Instant.now(clock));
+            passwordReset = false;
+        }
+
+        Instant occurredAt = Instant.now(clock);
+        return userAccountRepository.save(userAccount.updateProfile(
+                nextEmployeeNo,
+                nextDeptCode,
+                nextEmail,
+                encodedPassword,
+                passwordResetDt,
+                passwordReset,
+                occurredAt,
+                AuditActorResolver.resolve(loginId)
+        ));
+    }
+
+    private static String requiredValue(String value, String fieldName) {
+        String normalized = StringValues.normalize(value);
+        if (!StringUtils.hasText(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
+        }
+        return normalized;
+    }
+
     private static Instant parseInstant(String value) {
         if (value == null || value.isBlank()) {
             return null;

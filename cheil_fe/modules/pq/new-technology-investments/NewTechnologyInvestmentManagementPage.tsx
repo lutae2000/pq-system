@@ -3,7 +3,7 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import { BarPlot, ChartsContainer, ChartsGrid, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis, LinePlot, MarkPlot } from "@mui/x-charts";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createNewTechnologyInvestment,
   deleteNewTechnologyInvestment,
@@ -101,7 +102,7 @@ export function NewTechnologyInvestmentManagementPage() {
   const [draft, setDraft] = useState<NewTechnologyInvestmentRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyInvestmentRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<NewTechnologyInvestmentSearchParams>(
     () => ({ page, size: pageSize, yearFrom, yearTo }),
@@ -148,9 +149,9 @@ export function NewTechnologyInvestmentManagementPage() {
       setSaveConfirmOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-investments"] });
       await queryClient.invalidateQueries({ queryKey: ["new-technology-investment", saved.id] });
-      setNotice({ message: "투자실적을 저장했습니다.", severity: "success" });
+      showSnackbar({ message: "투자실적을 저장했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
 
   const deleteMutation = useMutation({
@@ -159,9 +160,9 @@ export function NewTechnologyInvestmentManagementPage() {
       setDraft(emptyDraft());
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-investments"] });
-      setNotice({ message: "투자실적을 삭제했습니다.", severity: "success" });
+      showSnackbar({ message: "투자실적을 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
   });
 
   const columns = useMemo<GridColDef<NewTechnologyInvestmentRecord>[]>(
@@ -222,11 +223,11 @@ export function NewTechnologyInvestmentManagementPage() {
 
   const handleSaveClick = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: "투자실적 수정 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "투자실적 수정 권한이 없습니다.", severity: "error" });
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: "투자실적 등록 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "투자실적 등록 권한이 없습니다.", severity: "error" });
       return;
     }
     setSaveConfirmOpen(true);
@@ -406,9 +407,6 @@ export function NewTechnologyInvestmentManagementPage() {
         open={Boolean(deleteTarget)}
         targetLabel={deleteTarget?.investmentYear}
       />
-      <Snackbar autoHideDuration={3000} onClose={() => setNotice(null)} open={Boolean(notice)} anchorOrigin={{ horizontal: "center", vertical: "bottom" }}>
-        {notice ? <Alert severity={notice.severity}>{notice.message}</Alert> : undefined}
-      </Snackbar>
     </Box>
   );
 }

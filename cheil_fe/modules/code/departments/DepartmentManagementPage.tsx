@@ -223,7 +223,7 @@ const useYnOptions = [
 ];
 
 export function DepartmentManagementPage() {
-  const { canCreate, canRead } = useCurrentMenuPermission();
+  const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const [records, setRecords] = useState<DepartmentRecord[]>([]);
   const [filters, setFilters] = useState<DepartmentFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<DepartmentFilters>(initialFilters);
@@ -234,6 +234,7 @@ export function DepartmentManagementPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
+  const canSave = isNewDepartment ? canCreate : canUpdate;
 
   const selectedDepartment = useMemo(
     () => records.find((item) => item.deptCode === selectedDeptCode) ?? null,
@@ -534,7 +535,7 @@ export function DepartmentManagementPage() {
                         : "부서를 선택해 주세요."}
                   </Typography>
                 </Box>
-                <Button onClick={handleSave} startIcon={<SaveOutlinedIcon />} variant="contained" disabled={saving}>
+                <Button onClick={handleSave} startIcon={<SaveOutlinedIcon />} variant="contained" disabled={!canSave || saving}>
                   저장
                 </Button>
               </Box>

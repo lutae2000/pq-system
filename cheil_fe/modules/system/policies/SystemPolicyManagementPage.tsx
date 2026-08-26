@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
 import { listSystemPolicies, saveSystemPolicies, type SystemPolicyRecord } from "./api";
 
@@ -19,6 +20,7 @@ const policyTypeLabel: Record<SystemPolicyRecord["valueType"], string> = {
 };
 
 export function SystemPolicyManagementPage() {
+  const { canRead, canUpdate } = useCurrentMenuPermission();
   const [records, setRecords] = useState<SystemPolicyRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -33,6 +35,9 @@ export function SystemPolicyManagementPage() {
     let active = true;
 
     const initialize = async () => {
+      if (!canRead) {
+        return;
+      }
       setLoading(true);
       try {
         const data = await listSystemPolicies();
@@ -55,13 +60,16 @@ export function SystemPolicyManagementPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [canRead]);
 
   const updateRecord = (policyKey: string, updater: (record: SystemPolicyRecord) => SystemPolicyRecord) => {
     setRecords((current) => current.map((record) => (record.policyKey === policyKey ? updater(record) : record)));
   };
 
   const handleSave = async () => {
+    if (!canUpdate) {
+      return;
+    }
     setSaving(true);
     try {
       const saved = await saveSystemPolicies(sortedRecords);
@@ -73,6 +81,15 @@ export function SystemPolicyManagementPage() {
       setSaving(false);
     }
   };
+
+  if (!canRead) {
+    return (
+      <Box>
+        <PageHeader title="시스템 정책 관리" description="시스템 공통 정책을 관리합니다." />
+        <Alert severity="warning">시스템 정책을 조회할 권한이 없습니다.</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -92,7 +109,7 @@ export function SystemPolicyManagementPage() {
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <Chip label={`${sortedRecords.length}건`} size="small" variant="outlined" />
-                <Button onClick={handleSave} disabled={saving || loading} startIcon={<SaveOutlinedIcon />} variant="contained">
+                <Button onClick={handleSave} disabled={!canUpdate || saving || loading} startIcon={<SaveOutlinedIcon />} variant="contained">
                   저장
                 </Button>
                 <Button
@@ -141,6 +158,7 @@ export function SystemPolicyManagementPage() {
                           control={
                             <Switch
                               checked={policy.useYn}
+                              disabled={!canUpdate}
                               onChange={(event) =>
                                 updateRecord(policy.policyKey, (current) => ({
                                   ...current,
@@ -169,12 +187,14 @@ export function SystemPolicyManagementPage() {
                         sx={standardFieldSx}
                         type="number"
                         value={policy.sortSeq}
+                        disabled={!canUpdate}
                       />
                       {isBooleanPolicy(policy.valueType) ? (
                         <FormControlLabel
                           control={
                             <Switch
                               checked={policy.policyValue === "true"}
+                              disabled={!canUpdate}
                               onChange={(event) =>
                                 updateRecord(policy.policyKey, (current) => ({
                                   ...current,
@@ -200,6 +220,7 @@ export function SystemPolicyManagementPage() {
                           sx={standardFieldSx}
                           type={policy.valueType === "NUMBER" ? "number" : "text"}
                           value={policy.policyValue}
+                          disabled={!canUpdate}
                         />
                       )}
                     </Box>

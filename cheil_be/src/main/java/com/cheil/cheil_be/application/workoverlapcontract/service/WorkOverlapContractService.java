@@ -251,6 +251,7 @@ public class WorkOverlapContractService {
                             c.contract_no,
                             c.service_type,
                             c.client_name,
+                            c.supervising_department_code,
                             c.service_name,
                             c.construction_start_date,
                             c.construction_complete_date,
@@ -294,6 +295,7 @@ public class WorkOverlapContractService {
                         rs.getString("contract_no"),
                         rs.getString("service_type"),
                         rs.getString("client_name"),
+                        rs.getString("supervising_department_code"),
                         rs.getString("service_name"),
                         rs.getString("construction_start_date"),
                         rs.getString("construction_complete_date"),
@@ -417,6 +419,7 @@ public class WorkOverlapContractService {
         return new WorkOverlapContractRequest(
                 limitedText(request.serviceType(), SHORT_TEXT_MAX_LENGTH, "serviceType"),
                 limitedText(request.clientName(), CLIENT_NAME_MAX_LENGTH, "clientName"),
+                limitedText(request.supervisingDepartmentCode(), SHORT_TEXT_MAX_LENGTH, "supervisingDepartmentCode"),
                 requiredText(request.serviceName(), SERVICE_NAME_MAX_LENGTH, "serviceName"),
                 date(request.constructionStartDate(), "constructionStartDate"),
                 date(request.constructionCompleteDate(), "constructionCompleteDate"),
@@ -763,5 +766,4 @@ public class WorkOverlapContractService {
     private record PeriodHistoryEntry(String periodName, String beforeValue, String afterValue) {
     }
 }
-
 

@@ -390,7 +390,11 @@ public class NewEmploymentRateService {
                             SELECT base_year_month,
                                    COALESCE(SUM(employee_count), 0)::integer AS employee_count,
                                    COALESCE(SUM(new_hire_count), 0)::integer AS new_hire_count,
-                                   MAX(id) AS id
+                                   MAX(id) AS id,
+                                   MAX(created_at) AS created_at,
+                                   MAX(created_id) AS created_id,
+                                   MAX(last_changed_at) AS last_changed_at,
+                                   MAX(last_changed_id) AS last_changed_id
                             FROM new_employment_monthly_counts
                             WHERE department_code = :departmentCode
                               AND base_year_month BETWEEN (
@@ -404,10 +408,10 @@ public class NewEmploymentRateService {
                                months.base_year_month,
                                COALESCE(counts.employee_count, 0) AS employee_count,
                                COALESCE(counts.new_hire_count, 0) AS new_hire_count,
-                               NULL AS created_at,
-                               NULL AS created_id,
-                               NULL AS last_changed_at,
-                               NULL AS last_changed_id
+                               counts.created_at,
+                               counts.created_id,
+                               counts.last_changed_at,
+                               counts.last_changed_id
                         FROM months
                         LEFT JOIN monthly_counts counts ON counts.base_year_month = months.base_year_month
                         ORDER BY months.base_year_month

@@ -13,7 +13,6 @@ import {
   CardContent,
   Chip,
   IconButton,
-  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -38,6 +37,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel3Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import {
   NewEmploymentMonthlyStatusDialog,
@@ -204,6 +204,19 @@ const buildMonthlyStatusPivotGrid = (
   };
 };
 
+const calculateEmploymentRate = (grid: MonthlyStatusPivotGrid) => {
+  const employeeCountRow = grid.rows.find((row) => row.label === "고용인원");
+  const newHireCountRow = grid.rows.find((row) => row.label === "신규 고용현황");
+  const averageEmployeeCount = employeeCountRow?.average ?? 0;
+  const totalNewHireCount = (newHireCountRow?.months ?? []).reduce((sum, value) => sum + Number(value ?? 0), 0);
+
+  if (averageEmployeeCount <= 0) {
+    return "-";
+  }
+
+  return `${Math.trunc((totalNewHireCount / averageEmployeeCount) * 100)}%`;
+};
+
 const toNullableNumber = (value: unknown) => {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -261,7 +274,7 @@ export function NewEmploymentRateManagementPage() {
   const [monthlyStatusDialogOpen, setMonthlyStatusDialogOpen] = useState(false);
   const [monthlyStatusDraft, setMonthlyStatusDraft] = useState<EditableMonthlyStatusRow | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const departmentReferences = useDepartmentOptions({ useYn: true }, { enabled: canRead });
   const jobCategoryReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
@@ -351,10 +364,10 @@ export function NewEmploymentRateManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      setNotice({ message: "월별 고용현황이 저장되었습니다.", severity: "success" });
+      showSnackbar({ message: "월별 고용현황이 저장되었습니다.", severity: "success" });
     },
     onError: (error) =>
-      setNotice({ message: error instanceof Error ? error.message : "월별 고용현황 저장에 실패했습니다.", severity: "error" }),
+      showSnackbar({ message: error instanceof Error ? error.message : "월별 고용현황 저장에 실패했습니다.", severity: "error" }),
   });
 
   const monthlyStatusDeleteMutation = useMutation({
@@ -370,10 +383,10 @@ export function NewEmploymentRateManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      setNotice({ message: "월별 고용현황이 삭제되었습니다.", severity: "success" });
+      showSnackbar({ message: "월별 고용현황이 삭제되었습니다.", severity: "success" });
     },
     onError: (error) =>
-      setNotice({ message: error instanceof Error ? error.message : "월별 고용현황 삭제에 실패했습니다.", severity: "error" }),
+      showSnackbar({ message: error instanceof Error ? error.message : "월별 고용현황 삭제에 실패했습니다.", severity: "error" }),
   });
 
 
@@ -421,9 +434,9 @@ export function NewEmploymentRateManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      setNotice({ message: "저장되었습니다.", severity: "success" });
+      showSnackbar({ message: "저장되었습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
 
   const deleteMutation = useMutation({
@@ -435,9 +448,9 @@ export function NewEmploymentRateManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
       await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      setNotice({ message: "삭제되었습니다.", severity: "success" });
+      showSnackbar({ message: "삭제되었습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
   });
 
   const handleSearch = (nextKeyword: string) => {
@@ -465,7 +478,7 @@ export function NewEmploymentRateManagementPage() {
 
   const handleAddMonthlyStatus = () => {
     if (!canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "등록 권한이 없습니다.", severity: "error" });
       return;
     }
     setMonthlyStatusDraft(emptyMonthlyStatusRow(baseYearMonth));
@@ -488,11 +501,11 @@ export function NewEmploymentRateManagementPage() {
 
   const handleSaveClick = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "수정 권한이 없습니다.", severity: "error" });
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "등록 권한이 없습니다.", severity: "error" });
       return;
     }
     setSaveConfirmOpen(true);
@@ -548,6 +561,11 @@ export function NewEmploymentRateManagementPage() {
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   월별 고용현황
                 </Typography>
+                <Tooltip title="현황 = (신규 고용인원 합계 ÷ 월평균 고용인원) × 100 (소수점 버림)">
+                  <Typography color="text.secondary" sx={{ cursor: "help", fontWeight: 700 }} variant="body2">
+                    현황: {calculateEmploymentRate(monthlyStatusPivotGrid)}
+                  </Typography>
+                </Tooltip>
                 <Chip label={`${formatMonth(baseYearMonth)} 기준 최근 12개월`} size="small" variant="outlined" />
               </Box>
               <Button disabled={!canCreate} onClick={handleAddMonthlyStatus} startIcon={<AddOutlinedIcon />} variant="outlined">
@@ -587,6 +605,11 @@ export function NewEmploymentRateManagementPage() {
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   직전년도 동기간 고용현황
                 </Typography>
+                <Tooltip title="현황 = 신규 고용인원 합계 ÷ 고용인원 월평균 × 100 (소수점 버림)">
+                  <Typography color="text.secondary" sx={{ cursor: "help", fontWeight: 700 }} variant="body2">
+                    현황: {calculateEmploymentRate(previousYearSamePeriodMonthlyStatusPivotGrid)}
+                  </Typography>
+                </Tooltip>
               </Box>
             </Box>
             <EnterpriseDataGrid<MonthlyStatusPivotRow>
@@ -784,13 +807,6 @@ export function NewEmploymentRateManagementPage() {
         targetLabel={deleteTarget?.employeeName}
         title="삭제 확인"
       />
-      {notice ? (
-        <Snackbar anchorOrigin={{ horizontal: "center", vertical: "bottom" }} autoHideDuration={2500} onClose={() => setNotice(null)} open>
-          <Alert onClose={() => setNotice(null)} severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Snackbar>
-      ) : null}
     </Box>
   );
 }

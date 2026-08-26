@@ -8,6 +8,7 @@ export const defaultWorkOverlapContractRecord = (): WorkOverlapContractRecord =>
   contractNo: "",
   serviceType: "",
   clientName: "",
+  supervisingDepartmentCode: null,
   serviceName: "",
   constructionStartDate: null,
   constructionCompleteDate: null,
@@ -70,6 +71,7 @@ export const toWorkOverlapContractRequest = (
 
   serviceType: text(draft.serviceType).trim() || null,
   clientName: text(draft.clientName).trim() || null,
+  supervisingDepartmentCode: text(draft.supervisingDepartmentCode).trim() || null,
   serviceName: text(draft.serviceName).trim(),
   constructionStartDate: normalizeDateInputValue(draft.constructionStartDate),
   constructionCompleteDate: normalizeDateInputValue(draft.constructionCompleteDate),

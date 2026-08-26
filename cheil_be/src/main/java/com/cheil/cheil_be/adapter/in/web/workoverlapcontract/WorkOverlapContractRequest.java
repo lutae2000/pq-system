@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record WorkOverlapContractRequest(
         String serviceType,
         String clientName,
+        String supervisingDepartmentCode,
         String serviceName,
         String constructionStartDate,
         String constructionCompleteDate,

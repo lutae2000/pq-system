@@ -202,7 +202,11 @@ public class HwpxDocumentGenerationService {
         for (int index = 0; index < cells.getLength(); index++) {
             Element cell = (Element) cells.item(index);
             String name = cell.getAttribute("name");
-            if (globalValues.containsKey(name)) setCellText(cell, globalValues.get(name));
+            if (globalValues.containsKey(name)) {
+                setCellText(cell, globalValues.get(name));
+            } else if ("row.grade".equals(mappings.get(name)) && !isInsideRepeatableRow(cell, mappings)) {
+                setCellText(cell, profile.basic().grade());
+            }
         }
 
         if (!reviews.isEmpty()) {
@@ -267,9 +271,13 @@ public class HwpxDocumentGenerationService {
     private String reviewValue(String field, EngineerProjectHistoryReviewResponse review) {
         if (review == null) return "";
         return switch (field) {
+            case "seq" -> string(review.seq());
             case "jobName" -> review.jobName();
+            case "summary" -> review.summary();
             case "contractAmt" -> string(review.contractAmt());
             case "ownAmt" -> string(review.ownAmt());
+            case "contractTerm" -> review.contractTerm();
+            case "workTerm" -> review.workTerm();
             case "contractFromDate" -> review.contractFromDate();
             case "contractToDate" -> review.contractToDate();
             case "startDate" -> review.startDate();
@@ -285,6 +293,11 @@ public class HwpxDocumentGenerationService {
             case "jobPart" -> review.jobPart();
             case "deptName" -> review.deptName();
             case "returnYn" -> review.returnYn();
+            case "joinYn" -> review.joinYn();
+            case "joinDay" -> string(review.joinDay());
+            case "partDay" -> string(review.partDay());
+            case "selectDay" -> string(review.selectDay());
+            case "remark" -> review.remark();
             default -> "";
         };
     }
@@ -297,6 +310,19 @@ public class HwpxDocumentGenerationService {
             if (StringUtils.hasText(name)) names.add(name);
         }
         return names;
+    }
+
+    private boolean isInsideRepeatableRow(Element cell, Map<String, String> mappings) {
+        for (Node parent = cell.getParentNode(); parent != null; parent = parent.getParentNode()) {
+            if (!(parent instanceof Element element) || !"tr".equals(element.getLocalName())) {
+                continue;
+            }
+            return mappings.entrySet().stream()
+                    .anyMatch(mapping -> mapping.getValue() != null
+                            && mapping.getValue().startsWith("row.")
+                            && namedCells(element).contains(mapping.getKey()));
+        }
+        return false;
     }
 
     private void increaseTableHeight(Element table, Element templateRow, int addedRowCount) {
@@ -358,20 +384,47 @@ public class HwpxDocumentGenerationService {
         for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
             if (child.getNodeType() == Node.ELEMENT_NODE && "run".equals(child.getLocalName())) runs.add(child);
         }
-        runs.forEach(paragraph::removeChild);
-        Element run = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:run");
+        Element run;
+        if (runs.isEmpty()) {
+            run = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:run");
+        } else {
+            // Keep the template run's charPrIDRef. Dropping it makes HWPX fall back to
+            // an unexpected character style and can cause long values to overlap.
+            run = (Element) runs.get(0);
+            for (int index = 1; index < runs.size(); index++) {
+                paragraph.removeChild(runs.get(index));
+            }
+            List<Node> runChildren = new ArrayList<>();
+            for (Node child = run.getFirstChild(); child != null; child = child.getNextSibling()) {
+                runChildren.add(child);
+            }
+            runChildren.forEach(run::removeChild);
+        }
+        String sourceValue = value == null ? "" : value;
+        String[] lines = sourceValue.split("\\r\\n|\\r|\\n", -1);
         Element text = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:t");
-        text.setTextContent(value == null ? "" : value);
-        run.appendChild(text);
-        Node lineSegments = null;
-        for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
-            if (child.getNodeType() == Node.ELEMENT_NODE && "linesegarray".equals(child.getLocalName())) {
-                lineSegments = child;
-                break;
+        text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        for (int index = 0; index < lines.length; index++) {
+            text.appendChild(paragraph.getOwnerDocument().createTextNode(lines[index]));
+            if (index < lines.length - 1) {
+                text.appendChild(paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:lineBreak"));
             }
         }
-        if (lineSegments == null) paragraph.appendChild(run);
-        else paragraph.insertBefore(run, lineSegments);
+        run.appendChild(text);
+
+        if (run.getParentNode() != paragraph) {
+            paragraph.insertBefore(run, paragraph.getFirstChild());
+        }
+
+        // linesegarray is a cached layout result from the empty template cell.
+        // Keeping it after replacing the text leaves stale line widths/baselines.
+        List<Node> lineSegments = new ArrayList<>();
+        for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && "linesegarray".equals(child.getLocalName())) {
+                lineSegments.add(child);
+            }
+        }
+        lineSegments.forEach(paragraph::removeChild);
     }
 
     private List<Element> elements(NodeList nodes) {

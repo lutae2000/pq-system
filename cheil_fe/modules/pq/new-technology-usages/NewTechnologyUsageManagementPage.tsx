@@ -3,7 +3,7 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -18,6 +18,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createNewTechnologyUsage,
   deleteNewTechnologyUsage,
@@ -123,7 +124,7 @@ export function NewTechnologyUsageManagementPage() {
   const [draft, setDraft] = useState<NewTechnologyUsageRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyUsageRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<NewTechnologyUsageSearchParams>(
     () => ({ client, designationNo, keyword: appliedKeyword, noticeDateFrom: "", noticeDateTo: "", page, size: pageSize }),
@@ -166,9 +167,9 @@ export function NewTechnologyUsageManagementPage() {
       setSaveConfirmOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-usages"] });
       await queryClient.invalidateQueries({ queryKey: ["new-technology-usage", saved.id] });
-      setNotice({ message: "신인도 사용실적이 저장되었습니다.", severity: "success" });
+      showSnackbar({ message: "신인도 사용실적이 저장되었습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
 
   const deleteMutation = useMutation({
@@ -177,9 +178,9 @@ export function NewTechnologyUsageManagementPage() {
       setDraft(emptyDraft());
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-usages"] });
-      setNotice({ message: "신인도 사용실적이 삭제되었습니다.", severity: "success" });
+      showSnackbar({ message: "신인도 사용실적이 삭제되었습니다.", severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
   });
 
   const columns = useMemo<GridColDef<NewTechnologyUsageRecord>[]>(
@@ -253,11 +254,11 @@ export function NewTechnologyUsageManagementPage() {
 
   const handleSaveClick = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: "신인도 사용실적 수정 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "신인도 사용실적 수정 권한이 없습니다.", severity: "error" });
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: "신인도 사용실적 등록 권한이 없습니다.", severity: "error" });
+      showSnackbar({ message: "신인도 사용실적 등록 권한이 없습니다.", severity: "error" });
       return;
     }
     setSaveConfirmOpen(true);
@@ -420,9 +421,6 @@ export function NewTechnologyUsageManagementPage() {
         open={Boolean(deleteTarget)}
         targetLabel={deleteTarget?.title}
       />
-      <Snackbar autoHideDuration={3000} onClose={() => setNotice(null)} open={Boolean(notice)} anchorOrigin={{ horizontal: "center", vertical: "bottom" }}>
-        {notice ? <Alert severity={notice.severity}>{notice.message}</Alert> : undefined}
-      </Snackbar>
     </Box>
   );
 }

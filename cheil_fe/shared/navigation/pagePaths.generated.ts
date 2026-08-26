@@ -5,6 +5,8 @@
  */
 
 export const generatedPagePaths = [
+  "/bid/bid-results",
+  "/bid/qualification-criteria",
   "/code",
   "/code/certifications",
   "/code/clients",
@@ -12,7 +14,6 @@ export const generatedPagePaths = [
   "/code/construction-types",
   "/code/departments",
   "/code/headquarters",
-  "/code/service-types",
   "/dashboard",
   "/education-reminders",
   "/education-reminders/basic-infos",
@@ -21,7 +22,6 @@ export const generatedPagePaths = [
   "/education-reminders/templates",
   "/pq",
   "/pq/bid-notice",
-  "/pq/bid-results",
   "/pq/company-performance",
   "/pq/documents/company-performance-docs",
   "/pq/documents/engineer-overlap-check",
@@ -36,7 +36,6 @@ export const generatedPagePaths = [
   "/pq/new-technology-investments",
   "/pq/new-technology-usages",
   "/pq/partner-order-codes",
-  "/pq/qualification-criteria",
   "/pq/service-performance-management",
   "/pq/shinindo-management",
   "/pq/similar-service-performances",

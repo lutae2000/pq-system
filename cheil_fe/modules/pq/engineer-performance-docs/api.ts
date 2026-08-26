@@ -10,6 +10,11 @@ export type EngineerProjectHistoryReviewRecord = CareerDetailRecord & {
   engineerId: string;
   reviewId: number | null;
   sourceSeq: number;
+  displayOrder: number | null;
+  summary?: string | null;
+  contractTerm?: string | null;
+  workTerm?: string | null;
+  workDays?: string | null;
   orderClient?: string | null;
   contractAmt?: number | null;
   ownAmt?: number | null;
@@ -24,13 +29,13 @@ export type EngineerProjectHistoryReviewRecord = CareerDetailRecord & {
 export type EngineerProjectHistoryReviewListParams = {
   bidSeq: number;
   engineerId: string;
-  relatedProjectHistoryConditions?: RelatedProjectHistoryCondition[];
 };
 
 export type EngineerProjectHistoryReviewSaveRequest = {
   bidSeq: number;
   engineerId: string;
   sourceSeq: number;
+  displayOrder?: number;
   sourceRow: CareerDetailRecord;
 };
 
@@ -54,10 +59,6 @@ export async function listEngineerProjectHistoryReviewResults(
       params: {
         bidSeq: params.bidSeq,
         engineerId: params.engineerId,
-        relatedProjectHistoryConditions:
-          params.relatedProjectHistoryConditions && params.relatedProjectHistoryConditions.length > 0
-            ? JSON.stringify(params.relatedProjectHistoryConditions)
-            : undefined,
       },
     }),
     "관련공사 참여이력 검토결과를 불러오지 못했습니다.",

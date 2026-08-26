@@ -6,6 +6,7 @@ import PreviewOutlinedIcon from "@mui/icons-material/PreviewOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -24,6 +25,7 @@ import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
 type CompanyPerformanceStatus = "대기" | "작성중" | "완료";
 
@@ -153,6 +155,8 @@ const overviewText = {
 } as const;
 
 export function CompanyPerformanceDocumentsPage() {
+  const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
+  const canGenerate = canCreate || canUpdate;
   const [records] = useState(initialRecords);
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -191,6 +195,15 @@ export function CompanyPerformanceDocumentsPage() {
     if (selectedRecord) setDrawerOpen(true);
   };
 
+  if (!canRead) {
+    return (
+      <Box>
+        <PageHeader title="회사실적 문서생성" description="회사실적 문서생성 화면입니다." />
+        <Alert severity="warning">회사실적 문서를 조회할 권한이 없습니다.</Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <PageHeader
@@ -198,10 +211,10 @@ export function CompanyPerformanceDocumentsPage() {
         description="목록에서 실적을 선택한 후 더블클릭하면 우측 용역개요 팝업에서 문서 생성에 필요한 항목을 확인할 수 있습니다."
         action={
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button onClick={handlePreview} startIcon={<PreviewOutlinedIcon />} variant="outlined">
+            <Button disabled={!selectedRecord} onClick={handlePreview} startIcon={<PreviewOutlinedIcon />} variant="outlined">
               미리보기
             </Button>
-            <Button onClick={handleGenerate} startIcon={<DescriptionOutlinedIcon />} variant="contained">
+            <Button disabled={!canGenerate || !selectedRecord} onClick={handleGenerate} startIcon={<DescriptionOutlinedIcon />} variant="contained">
               문서생성
             </Button>
           </Box>
@@ -243,7 +256,7 @@ export function CompanyPerformanceDocumentsPage() {
                   },
                 }}
               />
-              <Button onClick={handleSearch} startIcon={<RefreshOutlinedIcon />} variant="contained">
+              <Button disabled={!canRead} onClick={handleSearch} startIcon={<RefreshOutlinedIcon />} variant="contained">
                 조회
               </Button>
             </Box>
@@ -390,10 +403,10 @@ export function CompanyPerformanceDocumentsPage() {
               </Card>
 
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Button fullWidth variant="outlined" startIcon={<PreviewOutlinedIcon />} onClick={handlePreview}>
+                <Button disabled={!selectedRecord} fullWidth variant="outlined" startIcon={<PreviewOutlinedIcon />} onClick={handlePreview}>
                   미리보기
                 </Button>
-                <Button fullWidth variant="contained" startIcon={<DescriptionOutlinedIcon />} onClick={handleGenerate}>
+                <Button disabled={!canGenerate || !selectedRecord} fullWidth variant="contained" startIcon={<DescriptionOutlinedIcon />} onClick={handleGenerate}>
                   문서생성
                 </Button>
               </Box>

@@ -5,7 +5,7 @@ import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
-import { Alert, Box, Card, CardContent, Chip, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Card, CardContent, Chip, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import type {
   GridColDef,
   GridPaginationModel,
@@ -35,6 +35,7 @@ import {
 } from "@/modules/work-overlap/engineers/api";
 
 type EmploymentStatus = "재직" | "퇴사";
+type CodeOption = { label: string; value: string };
 
 type EngineerListFilters = {
   jobField: string;
@@ -139,6 +140,9 @@ const uniqueBy = <T,>(rows: T[], getKey: (row: T) => string) => {
 
   return uniqueRows;
 };
+
+const areStringSetsEqual = (left: Set<string>, right: Set<string>) =>
+  left.size === right.size && Array.from(left).every((value) => right.has(value));
 
 const calculateRecognizedDays = (row: WorkOverlapEngineerContractRecord) => {
   if (row.remainDate === null || row.remainDate === undefined) {
@@ -507,6 +511,7 @@ export function WorkOverlapEngineerListPage() {
   const [engineerPaginationModel, setEngineerPaginationModel] = useState<GridPaginationModel>(DEFAULT_ENGINEER_PAGINATION);
   const [contractPaginationModel, setContractPaginationModel] = useState<GridPaginationModel>(DEFAULT_CONTRACT_PAGINATION);
   const [selectedEngineerIds, setSelectedEngineerIds] = useState<Set<string>>(() => new Set());
+  const [selectedEngineerRows, setSelectedEngineerRows] = useState<Map<string, WorkOverlapEngineerRow>>(() => new Map());
   const [selectedContractIds, setSelectedContractIds] = useState<Set<string>>(() => new Set());
   const [showSelectedEngineersOnly, setShowSelectedEngineersOnly] = useState(false);
 
@@ -542,43 +547,24 @@ export function WorkOverlapEngineerListPage() {
     () => specialtyFieldReferencesQuery.labelByValue ?? {},
     [specialtyFieldReferencesQuery.labelByValue],
   );
-  const selectedEngineer = useMemo(
-    () => (selectedEngineerId ? engineers.find((engineer) => engineer.engineerId === selectedEngineerId) ?? null : null),
-    [engineers, selectedEngineerId],
-  );
+  const selectedEngineer = useMemo(() => {
+    if (!selectedEngineerId) {
+      return null;
+    }
+
+    return engineers.find((engineer) => engineer.engineerId === selectedEngineerId) ?? selectedEngineerRows.get(selectedEngineerId) ?? null;
+  }, [engineers, selectedEngineerId, selectedEngineerRows]);
 
   const isReferenceDateValid = Boolean(appliedFilters.referenceDate.trim());
   const isRemainingDaysValid = Boolean(appliedFilters.remainingDays.trim());
   const isQueryValid = isReferenceDateValid && isRemainingDaysValid;
   const remainingDaysValue = Number(normalizePositiveInteger(appliedFilters.remainingDays)) || 0;
 
-  const jobFieldOptions = useMemo(() => {
-    const options = Array.from(
-      new Set(
-        engineers
-          .map((row) => row.jobField.trim())
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ).sort((left, right) => left.localeCompare(right, "ko-KR"));
-    if (filters.jobField && !options.includes(filters.jobField)) {
-      options.unshift(filters.jobField);
-    }
-    return options;
-  }, [engineers, filters.jobField]);
-
-  const specialtyFieldOptions = useMemo(() => {
-    const options = Array.from(
-      new Set(
-        engineers
-          .map((row) => row.specialtyField.trim())
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ).sort((left, right) => left.localeCompare(right, "ko-KR"));
-    if (filters.specialtyField && !options.includes(filters.specialtyField)) {
-      options.unshift(filters.specialtyField);
-    }
-    return options;
-  }, [engineers, filters.specialtyField]);
+  const jobFieldOptions = useMemo<CodeOption[]>(() => jobFieldReferencesQuery.options, [jobFieldReferencesQuery.options]);
+  const specialtyFieldOptions = useMemo<CodeOption[]>(
+    () => specialtyFieldReferencesQuery.options,
+    [specialtyFieldReferencesQuery.options],
+  );
 
   const filteredEngineers = useMemo(
     () =>
@@ -601,8 +587,8 @@ export function WorkOverlapEngineerListPage() {
   );
 
   const visibleEngineers = useMemo(
-    () => (showSelectedEngineersOnly ? filteredEngineers.filter((row) => selectedEngineerIds.has(row.engineerId)) : filteredEngineers),
-    [filteredEngineers, selectedEngineerIds, showSelectedEngineersOnly],
+    () => (showSelectedEngineersOnly ? Array.from(selectedEngineerRows.values()).filter((row) => selectedEngineerIds.has(row.engineerId)) : filteredEngineers),
+    [filteredEngineers, selectedEngineerIds, selectedEngineerRows, showSelectedEngineersOnly],
   );
   const appliedReferenceDate = appliedFilters.referenceDate || todayInputValue();
   const selectedEngineerIdForQuery = selectedEngineer?.engineerId ?? "";
@@ -725,6 +711,7 @@ export function WorkOverlapEngineerListPage() {
     setAppliedFilters(DEFAULT_FILTERS);
     setSelectedEngineerId("");
     setSelectedEngineerIds(new Set());
+    setSelectedEngineerRows(new Map());
     setSelectedContractIds(new Set());
     setShowSelectedEngineersOnly(false);
     setEngineerPaginationModel(DEFAULT_ENGINEER_PAGINATION);
@@ -742,12 +729,35 @@ export function WorkOverlapEngineerListPage() {
   };
 
   const handleContractSelectionModelChange = (model: GridRowSelectionModel) => {
-    setSelectedContractIds(new Set(model.ids));
+    const nextIds = new Set(Array.from(model.ids, (id) => String(id)));
+    setSelectedContractIds((current) => (areStringSetsEqual(current, nextIds) ? current : nextIds));
   };
 
   const handleEngineerSelectionModelChange = (model: GridRowSelectionModel) => {
-    const nextIds = new Set(Array.from(model.ids, (id) => String(id)));
+    const modelIds = new Set(Array.from(model.ids, (id) => String(id)));
+    const nextIds = new Set(selectedEngineerIds);
+    visibleEngineers.forEach((engineer) => {
+      if (modelIds.has(engineer.engineerId)) {
+        nextIds.add(engineer.engineerId);
+      } else {
+        nextIds.delete(engineer.engineerId);
+      }
+    });
+    if (areStringSetsEqual(selectedEngineerIds, nextIds)) {
+      return;
+    }
+
     setSelectedEngineerIds(nextIds);
+    setSelectedEngineerRows((current) => {
+      const next = new Map<string, WorkOverlapEngineerRow>();
+      nextIds.forEach((id) => {
+        const row = engineers.find((engineer) => engineer.engineerId === id) ?? current.get(id);
+        if (row) {
+          next.set(id, row);
+        }
+      });
+      return next;
+    });
   };
 
   return (
@@ -772,36 +782,26 @@ export function WorkOverlapEngineerListPage() {
             searchDisabled={!canRead || !isQueryValid}
             searchLabel="조회"
           >
-            <TextField
-              select
-              label="전문분야"
-              onChange={(event) => setFilters((current) => ({ ...current, specialtyField: event.target.value }))}
-              size="small"
-              sx={standardFieldSx}
-              value={filters.specialtyField}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {specialtyFieldOptions.map((option, index) => (
-                <MenuItem key={`specialty-field-${index}-${option}`} value={option}>
-                  {specialtyFieldLabelByCode[option] ?? option}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="직무분야"
-              onChange={(event) => setFilters((current) => ({ ...current, jobField: event.target.value }))}
-              size="small"
-              sx={standardFieldSx}
-              value={filters.jobField}
-            >
-              <MenuItem value="">전체</MenuItem>
-              {jobFieldOptions.map((option, index) => (
-                <MenuItem key={`job-field-${index}-${option}`} value={option}>
-                  {jobFieldLabelByCode[option] ?? option}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Autocomplete<CodeOption>
+              autoHighlight
+              getOptionLabel={(option) => option.label}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              onChange={(_, option) => setFilters((current) => ({ ...current, specialtyField: option?.value ?? "" }))}
+              options={specialtyFieldOptions}
+              sx={{ flex: "0 1 220px", maxWidth: 240, minWidth: 210, width: "auto" }}
+              value={specialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null}
+              renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={standardFieldSx} />}
+            />
+            <Autocomplete<CodeOption>
+              autoHighlight
+              getOptionLabel={(option) => option.label}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              onChange={(_, option) => setFilters((current) => ({ ...current, jobField: option?.value ?? "" }))}
+              options={jobFieldOptions}
+              sx={{ flex: "0 1 220px", maxWidth: 240, minWidth: 210, width: "auto" }}
+              value={jobFieldOptions.find((option) => option.value === filters.jobField) ?? null}
+              renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={standardFieldSx} />}
+            />
             <TextField
               select
               label="상태"

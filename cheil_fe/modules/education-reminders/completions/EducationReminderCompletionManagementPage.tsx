@@ -18,7 +18,6 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import {
   type GridRowSelectionModel,
   type GridColDef,
-  type GridCellParams,
   type GridRenderEditCellParams,
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,19 +71,6 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const INITIAL_PAGE_SIZE = 50;
 const UPCOMING_REMINDER_DAYS = 60;
 
-const nonMergedCompletionHighlightFields = new Set<keyof EducationReminderCompletionRecord | "__actions__">([
-  "__actions__",
-  "educationName",
-  "recentEducationStartDate1",
-  "recentEducationStartDate2",
-  "scheduledEducation1",
-  "scheduledEducation2",
-  "educationRegistered",
-  "remark",
-  "lastChangedId",
-  "lastChangedAt",
-]);
-
 const upcomingSummaryCardSx: SxProps<Theme> = {
   backgroundColor: "rgba(250, 204, 21, 0.18)",
   border: (theme) => `1px solid ${theme.palette.warning.main}`,
@@ -127,14 +113,6 @@ function completionRowClassName(row: { highlightTone: "NONE" | "UPCOMING" | "OVE
     return "education-reminder-upcoming-row";
   }
   return "";
-}
-
-function completionCellClassName(params: GridCellParams<EducationReminderCompletionRecord>) {
-  if (!nonMergedCompletionHighlightFields.has(params.field as keyof EducationReminderCompletionRecord | "__actions__")) {
-    return "";
-  }
-
-  return completionRowClassName({ highlightTone: getCompletionHighlightTone(params.row) });
 }
 
 function SummaryCard({
@@ -766,7 +744,7 @@ function EducationReminderCompletionManagementContent() {
                 checkboxSelection
                 columns={completionColumns}
                 getRowId={(row) => row.rowKey}
-                getCellClassName={completionCellClassName}
+                getRowClassName={(params) => completionRowClassName({ highlightTone: getCompletionHighlightTone(params.row) })}
                 hideFooterSelectedRowCount
                 initialState={{
                   pagination: {
@@ -794,16 +772,16 @@ function EducationReminderCompletionManagementContent() {
                   minWidth: 0,
                   width: "100%",
                   "& .MuiDataGrid-row:hover": { cursor: "pointer" },
-                  "& .MuiDataGrid-cell.education-reminder-upcoming-row": {
+                  "& .MuiDataGrid-row.education-reminder-upcoming-row .MuiDataGrid-cell": {
                     bgcolor: "rgba(250, 204, 21, 0.26)",
                   },
-                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell.education-reminder-upcoming-row": {
+                  "& .MuiDataGrid-row.education-reminder-upcoming-row:hover .MuiDataGrid-cell": {
                     bgcolor: "rgba(250, 204, 21, 0.36)",
                   },
-                  "& .MuiDataGrid-cell.education-reminder-overdue-row": {
+                  "& .MuiDataGrid-row.education-reminder-overdue-row .MuiDataGrid-cell": {
                     bgcolor: "rgba(239, 68, 68, 0.24)",
                   },
-                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell.education-reminder-overdue-row": {
+                  "& .MuiDataGrid-row.education-reminder-overdue-row:hover .MuiDataGrid-cell": {
                     bgcolor: "rgba(239, 68, 68, 0.34)",
                   },
                 }}

@@ -6,6 +6,7 @@ public record EngineerProjectHistoryReviewRequest(
         Long bidSeq,
         String engineerId,
         Integer sourceSeq,
+        Integer displayOrder,
         Map<String, Object> sourceRow
 ) {
 }
