@@ -368,6 +368,16 @@ export function WorkOverlapContractManagementPage() {
     { field: "contractNo", headerName: "계약번호", width: 100, valueGetter: (_value, row) => displayText(row.contractNo) },
     { field: "serviceType", headerName: "구분", width: 50, valueGetter: (_value, row) => displayText(row.serviceType) },
     { field: "clientName", headerName: "발주처", minWidth: 170, flex: 0.8, valueGetter: (_value, row) => displayText(row.clientName) },
+    {
+      field: "publicContractYn",
+      headerName: "공개계약",
+      width: 105,
+      align: "center",
+      headerAlign: "center",
+      renderCell: ({ row }: GridRenderCellParams<WorkOverlapContractRecord>) => (
+        <Chip color={row.publicContractYn ? "success" : "error"} label={row.publicContractYn ? "공개" : "미공개"} size="small" variant={row.publicContractYn ? "filled" : "outlined"} />
+      ),
+    },
     { field: "serviceName", headerName: "용역명", minWidth: 300, flex: 1.4, valueGetter: (_value, row) => displayText(row.serviceName) },
     {
       field: "constructionPeriod",

@@ -6,6 +6,7 @@ public record WorkOverlapContractRequest(
         String serviceType,
         String clientName,
         String supervisingDepartmentCode,
+        Boolean publicContractYn,
         String serviceName,
         String constructionStartDate,
         String constructionCompleteDate,

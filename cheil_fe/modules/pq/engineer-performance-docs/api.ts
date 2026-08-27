@@ -18,6 +18,7 @@ export type EngineerProjectHistoryReviewRecord = CareerDetailRecord & {
   orderClient?: string | null;
   contractAmt?: number | null;
   ownAmt?: number | null;
+  divisionRate?: number | null;
   contractFromDate?: string | null;
   contractToDate?: string | null;
   createdAt?: string | null;

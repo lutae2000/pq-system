@@ -1,5 +1,6 @@
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
+import { formatPaddedLevel2CodeLabel } from "@/modules/common/reference/referenceFormat";
 
 type ReviewResultsByEngineer = {
   engineerId: string;
@@ -9,9 +10,13 @@ type ReviewResultsByEngineer = {
 const reviewHeaders = [
   "순번",
   "용역명",
+  "참여당시 회사",
+  "참여분야 직위",
+  "참여당시 직위",
   "발주처",
   "계약금액",
   "자사금액",
+  "지분율",
   "계약시작",
   "계약종료",
   "참여시작",
@@ -57,12 +62,16 @@ const createUniqueSheetName = (name: string, usedNames: Set<string>) => {
   return sheetName;
 };
 
-const toReviewExportRow = (row: EngineerProjectHistoryReviewRecord) => [
+const toReviewExportRow = (row: EngineerProjectHistoryReviewRecord, engLevelLabelByCode: Record<string, string>) => [
   row.displayOrder ?? "",
   text(row.jobName),
+  text(row.compName),
+  formatPaddedLevel2CodeLabel(engLevelLabelByCode, row.engLevel),
+  text(row.grade),
   text(row.orderClient),
   formatMoney(row.contractAmt),
   formatMoney(row.ownAmt),
+  row.divisionRate ?? "",
   formatDateYmd(row.contractFromDate),
   formatDateYmd(row.contractToDate),
   formatDateYmd(row.startDate),
@@ -76,10 +85,12 @@ export async function downloadEngineerPerformanceReviewWorkbook({
   profiles,
   projectName,
   reviewResultsByEngineer,
+  engLevelLabelByCode,
 }: {
   profiles: EngineerProfile[];
   projectName: string;
   reviewResultsByEngineer: ReviewResultsByEngineer[];
+  engLevelLabelByCode: Record<string, string>;
 }) {
   const xlsx = await import("xlsx");
   const workbook = xlsx.utils.book_new();
@@ -87,7 +98,7 @@ export async function downloadEngineerPerformanceReviewWorkbook({
 
   for (const profile of profiles) {
     const results = reviewResultsByEngineer.find((item) => item.engineerId === profile.summary.id)?.results ?? [];
-    const worksheetRows = [reviewHeaders, ...results.map(toReviewExportRow)];
+    const worksheetRows = [reviewHeaders, ...results.map((row) => toReviewExportRow(row, engLevelLabelByCode))];
     const worksheet = xlsx.utils.aoa_to_sheet(worksheetRows);
     const sheetName = createUniqueSheetName(profile.summary.name, usedSheetNames);
     xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);

@@ -96,7 +96,7 @@ export function SimilarServicePerformanceDialog({
   return (
     <Dialog fullWidth maxWidth="lg" onClose={onClose} open={open}>
       <DialogTitle sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-        <Typography sx={{ fontWeight: 800 }} variant="h6">
+        <Typography component="span" sx={{ fontWeight: 800 }} variant="h6">
           유사용역 수행실적 상세
         </Typography>
       </DialogTitle>

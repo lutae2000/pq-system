@@ -189,7 +189,8 @@ class UserLoginServiceTest {
                         Map.of(),
                         null,
                         null
-                )
+                ),
+                null
         );
     }
 

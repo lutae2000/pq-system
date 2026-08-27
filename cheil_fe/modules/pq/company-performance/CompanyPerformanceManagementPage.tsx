@@ -476,7 +476,16 @@ export function CompanyPerformanceManagementPage() {
         />
       </SearchPanel>
 
-      <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0, p: 2 }}>
+      <Box
+        sx={{
+          bgcolor: "background.paper",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 1,
+          minWidth: 0,
+          p: 2,
+        }}
+      >
         <Box sx={{ alignItems: "center", display: "flex", gap: 2, justifyContent: "space-between" }}>
           <Typography sx={{ fontWeight: 800 }} variant="h6">
             회사 실적 목록
@@ -506,10 +515,10 @@ export function CompanyPerformanceManagementPage() {
           rows={rows}
           showPageNumbers
           showToolbar={false}
+          wrapperMinHeight="clamp(520px, calc(100vh - 360px), 760px)"
           sx={{
             border: 0,
-            height: "calc(100vh - 360px)",
-            minHeight: 760,
+            height: "100%",
             "& .MuiDataGrid-row:hover": { cursor: "pointer" },
           }}
         />

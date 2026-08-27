@@ -7,6 +7,7 @@ public record WorkOverlapEngineerContractResponse(
         String serviceType,
         String clientName,
         String supervisingDepartmentCode,
+        boolean publicContractYn,
         String serviceName,
         String constructionStartDate,
         String constructionCompleteDate,

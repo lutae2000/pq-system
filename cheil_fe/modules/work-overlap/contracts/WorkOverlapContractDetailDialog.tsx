@@ -1250,6 +1250,27 @@ export function WorkOverlapContractDetailDialog({
                                 option.value === value.value
                             }
                         />
+                        <Box
+                            sx={{
+                                alignItems: "center",
+                                display: "flex",
+                                minHeight: 40,
+                            }}
+                        >
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={draft.publicContractYn}
+                                        onChange={(_event, checked) =>
+                                            updateField("publicContractYn", checked)
+                                        }
+                                        size="small"
+                                    />
+                                }
+                                label="공개계약 여부"
+                                sx={{ m: 0, width: "100%" }}
+                            />
+                        </Box>
                     </Box>
                   </Box>
                 </Section>

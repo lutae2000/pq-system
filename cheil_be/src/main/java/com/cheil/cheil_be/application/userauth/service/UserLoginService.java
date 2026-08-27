@@ -39,12 +39,21 @@ public class UserLoginService implements LoginUseCase {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비활성화된 계정입니다.");
         }
 
+        Instant occurredAt = Instant.now(clock);
+        if (loginSessionPolicyService.isInactiveLoginRestricted(userAccount.loginDt(), occurredAt)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "장기 미접속으로 로그인이 제한된 계정입니다.");
+        }
+
+        int passwordFailureLimit = loginSessionPolicyService.passwordFailureLimit();
+        if (passwordFailureLimit > 0 && userAccount.wrongPasswordCount() >= passwordFailureLimit) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 실패 횟수 제한을 초과했습니다.");
+        }
+
         if (!passwordVerificationService.matches(command.userPassword(), userAccount.userPassword())) {
             userAccountRepository.save(userAccount.recordFailedLogin());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다.");
         }
 
-        Instant occurredAt = Instant.now(clock);
         var sessionTimeout = loginSessionPolicyService.sessionTimeout();
         var idleTimeout = loginSessionPolicyService.idleTimeout();
         Instant sessionExpiresAt = occurredAt.plus(sessionTimeout);
@@ -60,7 +69,7 @@ public class UserLoginService implements LoginUseCase {
                 updated.useYn(),
                 updated.loginDt(),
                 updated.recentIpAddr(),
-                updated.passwordReset(),
+                loginSessionPolicyService.isPasswordChangeExpired(updated.passwordResetDt(), updated.passwordReset(), occurredAt),
                 new LoginSessionResult(
                         sessionId,
                         sessionExpiresAt,

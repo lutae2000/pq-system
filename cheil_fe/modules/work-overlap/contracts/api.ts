@@ -10,6 +10,7 @@ export type WorkOverlapContractRecord = {
   serviceType: string | null;
   clientName: string | null;
   supervisingDepartmentCode?: string | null;
+  publicContractYn: boolean;
   serviceName: string;
   constructionStartDate: string | null;
   constructionCompleteDate: string | null;

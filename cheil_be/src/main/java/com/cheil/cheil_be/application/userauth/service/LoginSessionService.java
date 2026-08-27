@@ -8,15 +8,20 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionCommand;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.port.out.LoginSessionStore;
+import com.cheil.cheil_be.application.systempolicy.service.LoginSessionPolicyService;
 
 @Service
 @RequiredArgsConstructor
 public class LoginSessionService implements ValidateLoginSessionUseCase {
 
     private final LoginSessionStore loginSessionStore;
+    private final LoginSessionPolicyService loginSessionPolicyService;
 
     @Override
     public void validate(ValidateLoginSessionCommand command) {
+        if (!loginSessionPolicyService.isSingleSessionLimitEnabled()) {
+            return;
+        }
         var currentSessionId = loginSessionStore.currentSessionId(command.loginId());
         if (currentSessionId.isPresent() && !currentSessionId.get().equals(command.sessionId())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "다른 기기에서 로그인하여 현재 세션이 종료되었습니다.");

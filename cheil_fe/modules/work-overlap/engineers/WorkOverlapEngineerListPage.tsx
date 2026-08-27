@@ -283,6 +283,16 @@ const buildContractColumns = (
   { field: "contractNo", headerName: "계약번호", width: 80 },
   { field: "serviceType", headerName: "구분", width: 40, valueGetter: (_value, row) => row.serviceType ?? "" },
   {
+    field: "publicContractYn",
+    headerName: "공개계약",
+    width: 100,
+    align: "center",
+    headerAlign: "center",
+    renderCell: ({ row }: GridRenderCellParams<WorkOverlapEngineerContractRow>) => (
+      <Chip color={row.publicContractYn ? "success" : "error"} label={row.publicContractYn ? "공개" : "미공개"} size="small" variant={row.publicContractYn ? "filled" : "outlined"} />
+    ),
+  },
+  {
     field: "serviceName",
     headerName: "용역명",
     minWidth: 220,
@@ -382,6 +392,7 @@ const toContractRecord = (contract: WorkOverlapEngineerContractRow) => {
     contractNo: contract.contractNo,
     serviceType: contract.serviceType,
     clientName: contract.clientName,
+    publicContractYn: contract.publicContractYn,
     serviceName: contract.serviceName,
     constructionStartDate: contract.constructionStartDate,
     constructionCompleteDate: contract.constructionCompleteDate,
@@ -513,6 +524,7 @@ export function WorkOverlapEngineerListPage() {
   const [selectedEngineerIds, setSelectedEngineerIds] = useState<Set<string>>(() => new Set());
   const [selectedEngineerRows, setSelectedEngineerRows] = useState<Map<string, WorkOverlapEngineerRow>>(() => new Map());
   const [selectedContractIds, setSelectedContractIds] = useState<Set<string>>(() => new Set());
+  const [deselectedContractIds, setDeselectedContractIds] = useState<Set<string>>(() => new Set());
   const [showSelectedEngineersOnly, setShowSelectedEngineersOnly] = useState(false);
 
   const engineerQueryFilters = useMemo<EngineerProfileListFilters>(
@@ -656,8 +668,13 @@ export function WorkOverlapEngineerListPage() {
     [selectedContractsUnique],
   );
   const selectedContractResolvedIds = useMemo(
-    () => new Set([...selectedContractDefaultIds, ...selectedContractIds]),
-    [selectedContractDefaultIds, selectedContractIds],
+    () =>
+      new Set(
+        [...selectedContractDefaultIds, ...selectedContractIds].filter(
+          (contractNo) => !deselectedContractIds.has(contractNo),
+        ),
+      ),
+    [deselectedContractIds, selectedContractDefaultIds, selectedContractIds],
   );
   const selectedContractRowSelectionModel = useMemo<GridRowSelectionModel>(
     () => ({ ids: new Set<GridRowId>(selectedContractResolvedIds), type: "include" }),
@@ -713,6 +730,7 @@ export function WorkOverlapEngineerListPage() {
     setSelectedEngineerIds(new Set());
     setSelectedEngineerRows(new Map());
     setSelectedContractIds(new Set());
+    setDeselectedContractIds(new Set());
     setShowSelectedEngineersOnly(false);
     setEngineerPaginationModel(DEFAULT_ENGINEER_PAGINATION);
     setContractPaginationModel(DEFAULT_CONTRACT_PAGINATION);
@@ -721,6 +739,7 @@ export function WorkOverlapEngineerListPage() {
   const handleSelectEngineer = (id: string) => {
     setSelectedEngineerId(id);
     setSelectedContractIds(new Set());
+    setDeselectedContractIds(new Set());
     setContractPaginationModel((current) => ({ ...current, page: 0 }));
   };
 
@@ -729,8 +748,32 @@ export function WorkOverlapEngineerListPage() {
   };
 
   const handleContractSelectionModelChange = (model: GridRowSelectionModel) => {
-    const nextIds = new Set(Array.from(model.ids, (id) => String(id)));
-    setSelectedContractIds((current) => (areStringSetsEqual(current, nextIds) ? current : nextIds));
+    const modelIds = new Set(Array.from(model.ids, (id) => String(id)));
+    const visibleContractIds = selectedContractsUnique.map((row) => row.contractNo);
+
+    setSelectedContractIds((current) => {
+      const next = new Set(current);
+      visibleContractIds.forEach((contractNo) => {
+        if (modelIds.has(contractNo)) {
+          next.add(contractNo);
+        } else {
+          next.delete(contractNo);
+        }
+      });
+      return areStringSetsEqual(current, next) ? current : next;
+    });
+
+    setDeselectedContractIds((current) => {
+      const next = new Set(current);
+      visibleContractIds.forEach((contractNo) => {
+        if (modelIds.has(contractNo)) {
+          next.delete(contractNo);
+        } else {
+          next.add(contractNo);
+        }
+      });
+      return areStringSetsEqual(current, next) ? current : next;
+    });
   };
 
   const handleEngineerSelectionModelChange = (model: GridRowSelectionModel) => {

@@ -252,6 +252,7 @@ public class WorkOverlapContractService {
                             c.service_type,
                             c.client_name,
                             c.supervising_department_code,
+                            c.public_contract_yn,
                             c.service_name,
                             c.construction_start_date,
                             c.construction_complete_date,
@@ -276,6 +277,7 @@ public class WorkOverlapContractService {
                                 ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') + 1
                             END AS remain_date,
                             CASE
+                                WHEN c.public_contract_yn = false THEN false
                                 WHEN c.construction_complete_date IS NULL THEN false
                                 ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') +1 > :remainingDays AND c.service_type = '설계'
                             END AS check_yn
@@ -296,6 +298,7 @@ public class WorkOverlapContractService {
                         rs.getString("service_type"),
                         rs.getString("client_name"),
                         rs.getString("supervising_department_code"),
+                        rs.getBoolean("public_contract_yn"),
                         rs.getString("service_name"),
                         rs.getString("construction_start_date"),
                         rs.getString("construction_complete_date"),
@@ -420,6 +423,7 @@ public class WorkOverlapContractService {
                 limitedText(request.serviceType(), SHORT_TEXT_MAX_LENGTH, "serviceType"),
                 limitedText(request.clientName(), CLIENT_NAME_MAX_LENGTH, "clientName"),
                 limitedText(request.supervisingDepartmentCode(), SHORT_TEXT_MAX_LENGTH, "supervisingDepartmentCode"),
+                request.publicContractYn(),
                 requiredText(request.serviceName(), SERVICE_NAME_MAX_LENGTH, "serviceName"),
                 date(request.constructionStartDate(), "constructionStartDate"),
                 date(request.constructionCompleteDate(), "constructionCompleteDate"),
@@ -766,4 +770,3 @@ public class WorkOverlapContractService {
     private record PeriodHistoryEntry(String periodName, String beforeValue, String afterValue) {
     }
 }
-

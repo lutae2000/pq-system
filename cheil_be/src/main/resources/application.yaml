@@ -105,7 +105,7 @@ management:
 
 logging:
   pattern:
-    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5level) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%thread]){faint} %clr(trace_id=%X{traceId:-}){yellow} %clr(%logger{39}){cyan} %clr(:){faint} %msg%n%wEx"
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5level) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%thread]){faint} %clr(%replace(%X{traceId}){'^(.+)$','trace_id=$1 '}){yellow}%clr(%logger{39}){cyan} %clr(:){faint} %msg%n%wEx"
 
 app:
   common-code-cache:

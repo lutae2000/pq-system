@@ -23,7 +23,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { GridColDef, GridRowId } from "@mui/x-data-grid";
+import type { GridColDef, GridRowId, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -94,6 +94,10 @@ export function NotificationManagementPage() {
   const records = useMemo(() => noticesQuery.data ?? EMPTY_NOTICES, [noticesQuery.data]);
   const effectiveSelectedId = selectedId || records[0]?.id || "";
   const selectedRecord = useMemo(() => records.find((record) => record.id === effectiveSelectedId) ?? null, [effectiveSelectedId, records]);
+  const rowSelectionModel = useMemo<GridRowSelectionModel>(
+    () => ({ ids: new Set<GridRowId>(effectiveSelectedId ? [effectiveSelectedId] : []), type: "include" }),
+    [effectiveSelectedId],
+  );
   const activeNotices = useMemo(() => records.filter((record) => record.active), [records]);
   const canSaveCurrent = Boolean(draft) && (records.some((record) => record.id === draft?.id) ? canUpdate : canCreate);
 
@@ -220,12 +224,19 @@ export function NotificationManagementPage() {
               columns={noticeColumns}
               getRowId={(row) => row.id}
               hideFooterSelectedRowCount
+              initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
+              loading={noticesQuery.isLoading || noticesQuery.isFetching}
+              localeText={{ noRowsLabel: "조회된 공지사항이 없습니다." }}
               onRowClick={(params) => setSelectedId(params.id)}
               onRowDoubleClick={(params) => handleEdit(params.row)}
+              pageSizeOptions={[100]}
+              rowSelectionModel={rowSelectionModel}
               rows={records}
+              showPageNumbers
+              showToolbar={false}
+              wrapperMinHeight={480}
               sx={{
                 border: 0,
-                minHeight: 480,
                 "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
                 "& .MuiDataGrid-row:hover": { cursor: "pointer" },
               }}

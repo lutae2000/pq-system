@@ -40,6 +40,7 @@ type EnterpriseDataGridHeight = ResponsiveStyleValue<AllSystemCSSProperties["hei
 export type EnterpriseDataGridProps<Row extends GridValidRowModel> = DataGridProps<Row> & {
   exportFileNamePrefix?: string;
   enableCellSelection?: boolean;
+  enableEditTabNavigation?: boolean;
   enableRowClickCheckboxSelection?: boolean;
   clipboardCopyCellDelimiter?: string;
   confirmProcessRowUpdate?: (
@@ -691,9 +692,11 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     getCellClassName: userGetCellClassName,
     getRowClassName: userGetRowClassName,
     enableCellSelection,
+    enableEditTabNavigation = true,
     initialState,
     columns,
     editMode: userEditMode,
+    onCellKeyDown: userOnCellKeyDown,
     isCellEditable: userIsCellEditable,
     paginationModel: userPaginationModel,
     paginationMode: userPaginationMode,
@@ -917,6 +920,58 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     },
     [userOnCellEditStop],
   );
+
+  const handleCellKeyDown: NonNullable<DataGridProps<Row>["onCellKeyDown"]> = (params, event, details) => {
+    userOnCellKeyDown?.(params, event, details);
+
+    if (
+      !enableEditTabNavigation ||
+      readOnly ||
+      event.defaultMuiPrevented ||
+      event.key !== "Tab" ||
+      !userEditMode
+    ) {
+      return;
+    }
+
+    const editableFields = resolvedColumns.filter((column) => column.editable).map((column) => column.field);
+    const currentFieldIndex = editableFields.indexOf(params.field);
+    const nextField = editableFields[currentFieldIndex + (event.shiftKey ? -1 : 1)];
+
+    if (!nextField) {
+      return;
+    }
+
+    const gridApi = apiRef.current;
+    if (!gridApi) {
+      return;
+    }
+
+    if (userEditMode === "row" && gridApi.getRowMode(params.id) !== GridRowModes.Edit) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (userEditMode === "cell") {
+      if (gridApi.getCellMode(params.id, params.field) !== "edit") {
+        return;
+      }
+      gridApi.stopCellEditMode({ id: params.id, field: params.field });
+      gridApi.startCellEditMode({ id: params.id, field: nextField });
+    }
+
+    gridApi.setCellFocus(params.id, nextField);
+    window.requestAnimationFrame(() => {
+      const rowElement = Array.from(document.querySelectorAll<HTMLElement>(".MuiDataGrid-row")).find(
+        (element) => element.dataset.id === String(params.id),
+      );
+      const cellElement = rowElement?.querySelector<HTMLElement>(`[data-field="${nextField}"]`);
+      const editorElement = cellElement?.querySelector<HTMLElement>("input, textarea, [contenteditable='true']");
+      (editorElement ?? cellElement)?.focus();
+    });
+  };
 
   useEffect(() => {
     const previousRowModesModel = previousRowModesModelRef.current ?? {};
@@ -1391,6 +1446,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
         rowCount={resolvedRowCount}
         getRowSpacing={() => ({ top: 0, bottom: 1 })}
         getRowClassName={getRowClassName}
+        onCellKeyDown={readOnly ? undefined : handleCellKeyDown}
         onCellEditStop={readOnly ? undefined : handleCellEditStop}
         onCellModesModelChange={readOnly ? undefined : userOnCellModesModelChange}
         onRowClick={handleRowClick}

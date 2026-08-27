@@ -34,6 +34,9 @@ public class WorkOverlapContractEntity extends AuditEntity {
     @Column(name = "supervising_department_code", length = 20)
     private String supervisingDepartmentCode;
 
+    @Column(name = "public_contract_yn", nullable = false)
+    private boolean publicContractYn = true;
+
     @Column(name = "service_name", nullable = false, length = 500)
     private String serviceName;
 
@@ -82,6 +85,7 @@ public class WorkOverlapContractEntity extends AuditEntity {
         serviceType = request.serviceType();
         clientName = request.clientName();
         supervisingDepartmentCode = request.supervisingDepartmentCode();
+        publicContractYn = request.publicContractYn() == null || request.publicContractYn();
         serviceName = request.serviceName();
         constructionStartDate = request.constructionStartDate();
         constructionCompleteDate = request.constructionCompleteDate();
@@ -103,6 +107,7 @@ public class WorkOverlapContractEntity extends AuditEntity {
                 serviceType,
                 clientName,
                 supervisingDepartmentCode,
+                publicContractYn,
                 serviceName,
                 constructionStartDate,
                 constructionCompleteDate,

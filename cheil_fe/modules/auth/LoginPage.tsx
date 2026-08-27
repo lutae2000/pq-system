@@ -9,10 +9,6 @@ import {
   Avatar,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   InputAdornment,
   Paper,
@@ -26,8 +22,11 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { consumeAuthNotice, writeAuthSession } from "@/lib/auth/authSession";
 import { SignupDialog } from "@/modules/auth/SignupDialog";
 import { useLoginMutation } from "@/modules/auth/authMutations";
-import { changePassword, listMyMenuPermissions } from "@/modules/auth/authApi";
+import { listMyMenuPermissions } from "@/modules/auth/authApi";
+import { PasswordChangeDialog } from "@/modules/auth/PasswordChangeDialog";
 import { useLayoutStore } from "@/store/layoutStore";
+
+const removeWhitespace = (value: string) => value.replace(/\s/g, "");
 
 export function LoginPage() {
   const router = useRouter();
@@ -38,10 +37,6 @@ export function LoginPage() {
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
-  const [passwordChangeError, setPasswordChangeError] = useState("");
-  const [isPasswordChanging, setIsPasswordChanging] = useState(false);
   const loginMutation = useLoginMutation();
 
   useEffect(() => {
@@ -85,9 +80,6 @@ export function LoginPage() {
 
       if (response.passwordReset) {
         setCurrentPassword(userPassword);
-        setNewPassword("");
-        setNewPasswordConfirm("");
-        setPasswordChangeError("");
         setIsPasswordChangeOpen(true);
         return;
       }
@@ -95,35 +87,6 @@ export function LoginPage() {
       router.replace("/dashboard");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "로그인에 실패했습니다.");
-    }
-  };
-
-  const handleChangePassword = async () => {
-    setPasswordChangeError("");
-
-    if (!newPassword.trim()) {
-      setPasswordChangeError("새 비밀번호를 입력하세요.");
-      return;
-    }
-
-    if (newPassword !== newPasswordConfirm) {
-      setPasswordChangeError("새 비밀번호가 일치하지 않습니다.");
-      return;
-    }
-
-    setIsPasswordChanging(true);
-    try {
-      await changePassword({
-        currentPassword,
-        newPassword,
-      });
-      setIsPasswordChangeOpen(false);
-      setUserPassword("");
-      router.replace("/dashboard");
-    } catch (error) {
-      setPasswordChangeError(error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.");
-    } finally {
-      setIsPasswordChanging(false);
     }
   };
 
@@ -226,9 +189,6 @@ export function LoginPage() {
             <Typography component="h1" sx={{ fontSize: 24, fontWeight: 900, mt: 2 }}>
               로그인
             </Typography>
-            <Typography sx={{ color: "text.secondary", mt: 0.5, textAlign: "center" }} variant="body2">
-              계정 정보를 입력해 주세요.
-            </Typography>
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -237,7 +197,12 @@ export function LoginPage() {
               autoFocus
               fullWidth
               label="Login ID"
-              onChange={(event) => setLoginId(event.target.value)}
+              onChange={(event) => setLoginId(removeWhitespace(event.target.value))}
+              onKeyDown={(event) => {
+                if (event.key === " ") {
+                  event.preventDefault();
+                }
+              }}
               placeholder="아이디"
               required
               size="small"
@@ -249,7 +214,12 @@ export function LoginPage() {
               autoComplete="current-password"
               fullWidth
               label="Password"
-              onChange={(event) => setUserPassword(event.target.value)}
+              onChange={(event) => setUserPassword(removeWhitespace(event.target.value))}
+              onKeyDown={(event) => {
+                if (event.key === " ") {
+                  event.preventDefault();
+                }
+              }}
               required
               size="small"
               type={showPassword ? "text" : "password"}
@@ -316,66 +286,16 @@ export function LoginPage() {
         }}
       />
 
-      <Dialog
-        fullWidth
-        maxWidth="xs"
-        open={isPasswordChangeOpen}
-        onClose={(_, reason) => {
-          if (reason === "backdropClick" || reason === "escapeKeyDown") {
-            return;
-          }
+      <PasswordChangeDialog
+        currentPassword={currentPassword}
+        onClose={() => setIsPasswordChangeOpen(false)}
+        onCompleted={() => {
+          setIsPasswordChangeOpen(false);
+          setUserPassword("");
+          router.replace("/dashboard");
         }}
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>비밀번호 변경</DialogTitle>
-        <DialogContent sx={{ display: "grid", gap: 2, pt: 1 }}>
-          <Typography color="text.secondary" variant="body2">
-            초기 비밀번호로 로그인했습니다. 계속 사용하려면 비밀번호를 변경하세요.
-          </Typography>
-          <TextField
-            autoComplete="current-password"
-            fullWidth
-            label="현재 비밀번호"
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            size="small"
-            sx={standardFieldSx}
-            type="password"
-            value={currentPassword}
-          />
-          <TextField
-            autoComplete="new-password"
-            autoFocus
-            fullWidth
-            label="새 비밀번호"
-            onChange={(event) => setNewPassword(event.target.value)}
-            size="small"
-            sx={standardFieldSx}
-            type="password"
-            value={newPassword}
-          />
-          <TextField
-            autoComplete="new-password"
-            fullWidth
-            label="새 비밀번호 확인"
-            onChange={(event) => setNewPasswordConfirm(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void handleChangePassword();
-              }
-            }}
-            size="small"
-            sx={standardFieldSx}
-            type="password"
-            value={newPasswordConfirm}
-          />
-          {passwordChangeError ? <Alert severity="error">{passwordChangeError}</Alert> : null}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button disabled={isPasswordChanging} onClick={handleChangePassword} variant="contained">
-            변경
-          </Button>
-        </DialogActions>
-      </Dialog>
+        open={isPasswordChangeOpen}
+      />
     </Box>
   );
 }

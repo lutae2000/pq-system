@@ -5,6 +5,8 @@ import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Alert,
   Box,
@@ -14,6 +16,8 @@ import {
   Chip,
   Divider,
   FormControlLabel,
+  IconButton,
+  InputAdornment,
   MenuItem,
   Tab,
   Tabs,
@@ -173,6 +177,9 @@ export function UserManagementPage() {
   const [searchTick, setSearchTick] = useState(0);
   const [selectedEmployeeNo, setSelectedEmployeeNo] = useState("");
   const [draftUser, setDraftUser] = useState<AuthUserAccount>(() => emptyUser());
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
   const [expandedMenuCodes, setExpandedMenuCodes] = useState<string[]>([]);
@@ -326,6 +333,7 @@ export function UserManagementPage() {
     if (users.length === 0) {
       setSelectedEmployeeNo("");
       setDraftUser((current) => (current.employeeNo ? emptyUser() : current));
+      setPasswordConfirm("");
       setPermissionRows([]);
       setBaselinePermissionRows([]);
       return;
@@ -335,12 +343,14 @@ export function UserManagementPage() {
       initialSelectionApplied.current = true;
       setSelectedEmployeeNo(users[0].employeeNo);
       setDraftUser({ ...cloneUser(users[0]), userPassword: "" });
+      setPasswordConfirm("");
       return;
     }
 
     if (selectedEmployeeNo && !users.some((user) => user.employeeNo === selectedEmployeeNo)) {
       setSelectedEmployeeNo(users[0].employeeNo);
       setDraftUser({ ...cloneUser(users[0]), userPassword: "" });
+      setPasswordConfirm("");
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [selectedEmployeeNo, users, usersQuery.isFetching, usersQuery.isLoading]);
@@ -398,6 +408,7 @@ export function UserManagementPage() {
     onSuccess: (savedUser) => {
       setSelectedEmployeeNo(savedUser.employeeNo);
       setDraftUser({ ...savedUser, userPassword: "" });
+      setPasswordConfirm("");
       queryClient.invalidateQueries({ queryKey: ["auth-users"] });
       setNotice({ message: "사용자 계정을 저장했습니다.", severity: "success" });
     },
@@ -414,6 +425,7 @@ export function UserManagementPage() {
     onSuccess: (savedUser) => {
       setSelectedEmployeeNo(savedUser.employeeNo);
       setDraftUser({ ...savedUser, userPassword: "" });
+      setPasswordConfirm("");
       queryClient.invalidateQueries({ queryKey: ["auth-users"] });
       setNotice({ message: "비밀번호를 0000으로 초기화했습니다.", severity: "success" });
     },
@@ -432,11 +444,17 @@ export function UserManagementPage() {
   const handleSelect = (user: AuthUserAccount) => {
     setSelectedEmployeeNo(user.employeeNo);
     setDraftUser({ ...cloneUser(user), userPassword: "" });
+    setPasswordConfirm("");
+    setShowPassword(false);
+    setShowPasswordConfirm(false);
   };
 
   const handleNewUser = () => {
     setSelectedEmployeeNo("");
     setDraftUser(emptyUser());
+    setPasswordConfirm("");
+    setShowPassword(false);
+    setShowPasswordConfirm(false);
     setActiveTab("details");
     setNotice({ message: "새 계정 등록 모드로 전환했습니다.", severity: "info" });
   };
@@ -444,6 +462,10 @@ export function UserManagementPage() {
 
 
   const handleSaveUser = () => {
+    if ((draftUser.userPassword || passwordConfirm) && draftUser.userPassword !== passwordConfirm) {
+      setNotice({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다.", severity: "error" });
+      return;
+    }
     saveMutation.mutate(draftUser);
   };
 
@@ -832,19 +854,42 @@ export function UserManagementPage() {
                             fullWidth
                             label="비밀번호"
                             helperText={selectedUser ? "현재 비밀번호를 유지하려면 비워두세요." : "새 계정에는 비밀번호가 필요합니다."}
-                            onChange={(event) => updateDraft("userPassword", event.target.value)}
+                            onChange={(event) => updateDraft("userPassword", event.target.value.replace(/\s/g, ""))}
                             size="small"
                             sx={standardFieldSx}
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={draftUser.userPassword}
+                            slotProps={{
+                              input: {
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    <IconButton aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} edge="end" onClick={() => setShowPassword((current) => !current)} size="small">
+                                      {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              },
+                            }}
                           />
                           <TextField
                             fullWidth
-                            label="최종 변경자"
-                            onChange={(event) => updateDraft("lastChngUser", event.target.value)}
+                            label="비밀번호 확인"
+                            onChange={(event) => setPasswordConfirm(event.target.value.replace(/\s/g, ""))}
                             size="small"
                             sx={standardFieldSx}
-                            value={draftUser.lastChngUser}
+                            type={showPasswordConfirm ? "text" : "password"}
+                            value={passwordConfirm}
+                            slotProps={{
+                              input: {
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    <IconButton aria-label={showPasswordConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"} edge="end" onClick={() => setShowPasswordConfirm((current) => !current)} size="small">
+                                      {showPasswordConfirm ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              },
+                            }}
                           />
                         </Box>
                       </Box>

@@ -32,6 +32,8 @@ const emptyForm: FormState = {
   newPassword: "",
 };
 
+const accountSectionTitleSx = { fontWeight: 700, mb: 1.25 } as const;
+
 export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useAppSnackbar();
@@ -117,7 +119,7 @@ export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
         <DialogContent dividers>
           {accountQuery.isError ? <Alert severity="error">내 계정 정보를 불러오지 못했습니다.</Alert> : null}
           <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, p: 1.5 }}>
-            <Typography sx={{ fontWeight: 700, mb: 1.25 }} variant="subtitle2">로그인 정보</Typography>
+            <Typography sx={accountSectionTitleSx} variant="subtitle2">로그인 정보</Typography>
             <Alert severity="info" sx={{ mb: 1.5 }}>비밀번호를 변경하려면 현재 비밀번호와 새 비밀번호를 입력해 주세요.</Alert>
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
               <TextField disabled label="로그인 ID" value={accountQuery.data?.loginId ?? ""} />
@@ -183,7 +185,7 @@ export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
             </Box>
           </Box>
           <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, mt: 1.5, p: 1.5 }}>
-            <Typography sx={{ fontWeight: 700, mb: 1.25 }} variant="subtitle2">기본 계정 정보</Typography>
+            <Typography sx={accountSectionTitleSx} variant="subtitle2">기본 계정 정보</Typography>
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
               <TextField disabled label="이름" value={accountQuery.data?.userName ?? ""} />
               <TextField label="사번" onChange={(event) => updateForm("employeeNo", event.target.value)} value={form.employeeNo} />

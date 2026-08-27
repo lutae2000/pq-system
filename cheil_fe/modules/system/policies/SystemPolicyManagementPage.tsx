@@ -1,29 +1,33 @@
 "use client";
 
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
-import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Divider, FormControlLabel, Snackbar, Stack, Switch, TextField, Typography } from "@mui/material";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Snackbar, Stack, Switch, TextField, Typography } from "@mui/material";
+import type { GridColDef } from "@mui/x-data-grid";
 import { useEffect, useMemo, useState } from "react";
 
+import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
-import { listSystemPolicies, saveSystemPolicies, type SystemPolicyRecord } from "./api";
+import { createSystemPolicy, listSystemPolicies, updateSystemPolicy, type SystemPolicyRecord, type SystemPolicyWriteRequest } from "./api";
 
 const isBooleanPolicy = (valueType: SystemPolicyRecord["valueType"]) => valueType === "BOOLEAN";
-
-const policyTypeLabel: Record<SystemPolicyRecord["valueType"], string> = {
-  BOOLEAN: "BOOLEAN",
-  NUMBER: "NUMBER",
-  TEXT: "TEXT",
-};
 
 export function SystemPolicyManagementPage() {
   const { canRead, canUpdate } = useCurrentMenuPermission();
   const [records, setRecords] = useState<SystemPolicyRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newPolicy, setNewPolicy] = useState<SystemPolicyWriteRequest>({
+    description: "",
+    policyName: "",
+    policyValue: "",
+    sortSeq: 0,
+    useYn: true,
+    valueType: "NUMBER",
+  });
   const [notice, setNotice] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
 
   const sortedRecords = useMemo(
@@ -66,21 +70,132 @@ export function SystemPolicyManagementPage() {
     setRecords((current) => current.map((record) => (record.policyKey === policyKey ? updater(record) : record)));
   };
 
-  const handleSave = async () => {
-    if (!canUpdate) {
+  const persistPolicy = async (policy: SystemPolicyRecord) => {
+    if (policy.useYn && (!policy.policyValue.trim() || (policy.valueType === "NUMBER" && !/^\d{1,3}$/.test(policy.policyValue)))) {
+      setNotice({ message: `${policy.policyName}의 설정값을 확인해 주세요.`, severity: "error" });
+      const data = await listSystemPolicies();
+      setRecords(data);
       return;
     }
-    setSaving(true);
     try {
-      const saved = await saveSystemPolicies(sortedRecords);
-      setRecords(saved);
-      setNotice({ message: "시스템 정책을 저장했습니다.", severity: "success" });
+      await updateSystemPolicy(policy.policyKey, policy);
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "시스템 정책 저장에 실패했습니다.", severity: "error" });
-    } finally {
-      setSaving(false);
+      setNotice({ message: error instanceof Error ? error.message : "시스템 정책을 수정하지 못했습니다.", severity: "error" });
+      const data = await listSystemPolicies();
+      setRecords(data);
     }
   };
+
+  const handleCreate = async () => {
+    const policyKey = newPolicy.policyKey?.trim() ?? "";
+    if (!policyKey || !newPolicy.policyName.trim()) {
+      setNotice({ message: "정책 코드와 정책명을 입력해 주세요.", severity: "error" });
+      return;
+    }
+    if (newPolicy.useYn && (!newPolicy.policyValue.trim() || (newPolicy.valueType === "NUMBER" && !/^\d{1,3}$/.test(newPolicy.policyValue)))) {
+      setNotice({ message: "사용 중인 정책의 설정값을 확인해 주세요.", severity: "error" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await createSystemPolicy({ ...newPolicy, policyKey });
+      setRecords(await listSystemPolicies());
+      setAddOpen(false);
+      setNewPolicy({ description: "", policyKey: "", policyName: "", policyValue: "", sortSeq: 0, useYn: true, valueType: "NUMBER" });
+      setNotice({ message: "시스템 정책을 추가했습니다.", severity: "success" });
+    } catch (error) {
+      setNotice({ message: error instanceof Error ? error.message : "시스템 정책을 추가하지 못했습니다.", severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns = useMemo<GridColDef<SystemPolicyRecord>[]>(
+    () => [
+      {
+        field: "policyKey",
+        headerName: "정책 코드",
+        minWidth: 230,
+        width: 230,
+      },
+      {
+        field: "policyName",
+        flex: 1.2,
+        headerName: "정책명",
+        minWidth: 220,
+      },
+      {
+        field: "useYn",
+        headerAlign: "center",
+        headerName: "사용",
+        renderCell: (params) => (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={params.row.useYn}
+                disabled={!canUpdate}
+                onChange={(event) => {
+                  const next = { ...params.row, useYn: event.target.checked };
+                  updateRecord(params.row.policyKey, () => next);
+                  void persistPolicy(next);
+                }}
+              />
+            }
+            label={params.row.useYn ? "사용" : "미사용"}
+            sx={{ m: 0 }}
+          />
+        ),
+        width: 110,
+      },
+      {
+        field: "policyValue",
+        flex: 0.8,
+        headerName: "설정값",
+        minWidth: 180,
+        renderCell: (params) =>
+          isBooleanPolicy(params.row.valueType) ? (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={params.row.policyValue === "true"}
+                  disabled={!canUpdate || !params.row.useYn}
+                  onChange={(event) => {
+                    const next = { ...params.row, policyValue: event.target.checked ? "true" : "false" };
+                    updateRecord(params.row.policyKey, () => next);
+                    void persistPolicy(next);
+                  }}
+                />
+              }
+              label={params.row.policyValue === "true" ? "true" : "false"}
+              sx={{ m: 0 }}
+            />
+          ) : (
+            <TextField
+              disabled={!canUpdate || !params.row.useYn}
+              onChange={(event) =>
+                updateRecord(params.row.policyKey, (current) => ({
+                  ...current,
+                  policyValue: params.row.valueType === "NUMBER" ? event.target.value.replace(/\D/g, "").slice(0, 3) : event.target.value,
+                }))
+              }
+              onBlur={() => {
+                const current = records.find((record) => record.policyKey === params.row.policyKey);
+                if (current) {
+                  void persistPolicy(current);
+                }
+              }}
+              size="small"
+              sx={{ ...standardFieldSx, my: 0.5 }}
+              value={params.row.policyValue}
+              slotProps={{ htmlInput: params.row.valueType === "NUMBER" ? { inputMode: "numeric", maxLength: 3, pattern: "[0-9]*" } : undefined }}
+            />
+          ),
+      },
+      { field: "description", flex: 1.5, headerName: "설명", minWidth: 300 },
+    ],
+    [canUpdate, records],
+  );
 
   if (!canRead) {
     return (
@@ -93,7 +208,7 @@ export function SystemPolicyManagementPage() {
 
   return (
     <Box>
-      <PageHeader title="시스템 정책 관리" description="비밀번호와 계정 운영 기준을 관리합니다." />
+      <PageHeader title="시스템 정책 관리" description="세션, 로그인, 비밀번호 및 감사 로그 정책을 관리합니다." />
 
       <Stack spacing={2}>
         <Card sx={{ borderRadius: 1 }}>
@@ -104,13 +219,13 @@ export function SystemPolicyManagementPage() {
                   정책 목록
                 </Typography>
                 <Typography color="text.secondary" variant="body2">
-                  비밀번호 변경 주기, 실패 제한, 세션 제한 같은 공통 정책을 한 곳에서 조정합니다.
+                  정책별 사용 여부와 기간·횟수 설정값을 한 곳에서 조정합니다.
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <Chip label={`${sortedRecords.length}건`} size="small" variant="outlined" />
-                <Button onClick={handleSave} disabled={!canUpdate || saving || loading} startIcon={<SaveOutlinedIcon />} variant="contained">
-                  저장
+                <Button disabled={!canUpdate || loading} onClick={() => setAddOpen(true)} startIcon={<AddOutlinedIcon />} variant="contained">
+                  추가
                 </Button>
                 <Button
                   onClick={() => {
@@ -129,116 +244,97 @@ export function SystemPolicyManagementPage() {
                       }
                     })();
                   }}
-                  disabled={loading || saving}
+                  disabled={loading}
                   startIcon={<RefreshOutlinedIcon />}
                   variant="outlined"
                 >
-                  새로고침
+                  조회
                 </Button>
               </Box>
             </Box>
             <Divider sx={{ mb: 2 }} />
 
-            <Stack spacing={1.5}>
-              {sortedRecords.map((policy) => (
-                <Card key={policy.policyKey} variant="outlined" sx={{ borderRadius: 1 }}>
-                  <CardContent sx={{ pb: "16px !important" }}>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 1.5 }}>
-                      <Box>
-                        <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
-                          {policy.policyName}
-                        </Typography>
-                        <Typography color="text.secondary" variant="caption">
-                          {policy.policyKey}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                        <Chip label={policyTypeLabel[policy.valueType]} size="small" variant="outlined" />
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={policy.useYn}
-                              disabled={!canUpdate}
-                              onChange={(event) =>
-                                updateRecord(policy.policyKey, (current) => ({
-                                  ...current,
-                                  useYn: event.target.checked,
-                                }))
-                              }
-                            />
-                          }
-                          label="사용"
-                          sx={{ mr: 0 }}
-                        />
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", md: "220px 1fr" } }}>
-                      <TextField
-                        fullWidth
-                        label="정렬 순서"
-                        onChange={(event) =>
-                          updateRecord(policy.policyKey, (current) => ({
-                            ...current,
-                            sortSeq: Number(event.target.value || 0),
-                          }))
-                        }
-                        size="small"
-                        sx={standardFieldSx}
-                        type="number"
-                        value={policy.sortSeq}
-                        disabled={!canUpdate}
-                      />
-                      {isBooleanPolicy(policy.valueType) ? (
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={policy.policyValue === "true"}
-                              disabled={!canUpdate}
-                              onChange={(event) =>
-                                updateRecord(policy.policyKey, (current) => ({
-                                  ...current,
-                                  policyValue: event.target.checked ? "true" : "false",
-                                }))
-                              }
-                            />
-                          }
-                          label={policy.policyValue === "true" ? "true" : "false"}
-                          sx={{ alignSelf: "center", justifyContent: "flex-start" }}
-                        />
-                      ) : (
-                        <TextField
-                          fullWidth
-                          label="값"
-                          onChange={(event) =>
-                            updateRecord(policy.policyKey, (current) => ({
-                              ...current,
-                              policyValue: event.target.value,
-                            }))
-                          }
-                          size="small"
-                          sx={standardFieldSx}
-                          type={policy.valueType === "NUMBER" ? "number" : "text"}
-                          value={policy.policyValue}
-                          disabled={!canUpdate}
-                        />
-                      )}
-                    </Box>
-
-                    {policy.description ? (
-                      <Typography color="text.secondary" sx={{ mt: 1.25 }} variant="caption">
-                        {policy.description}
-                      </Typography>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              ))}
-
-              {!sortedRecords.length && !loading ? <Alert severity="info">등록된 시스템 정책이 없습니다.</Alert> : null}
-            </Stack>
+            <EnterpriseDataGrid<SystemPolicyRecord>
+              columns={columns}
+              disableRowSelectionOnClick
+              getRowId={(row) => row.policyKey}
+              hideFooter
+              loading={loading}
+              rows={sortedRecords}
+              sx={{ minHeight: 360 }}
+            />
           </CardContent>
         </Card>
       </Stack>
+
+      <Dialog fullWidth maxWidth="sm" onClose={() => setAddOpen(false)} open={addOpen}>
+        <DialogTitle>시스템 정책 추가</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 1.5, pt: 1 }}>
+          <TextField
+            label="정책 코드"
+            onChange={(event) => setNewPolicy((current) => ({ ...current, policyKey: event.target.value }))}
+            size="small"
+            sx={standardFieldSx}
+            value={newPolicy.policyKey ?? ""}
+          />
+          <TextField
+            label="정책명"
+            onChange={(event) => setNewPolicy((current) => ({ ...current, policyName: event.target.value }))}
+            size="small"
+            sx={standardFieldSx}
+            value={newPolicy.policyName}
+          />
+          <TextField
+            label="값 유형"
+            onChange={(event) => setNewPolicy((current) => ({ ...current, policyValue: event.target.value === "BOOLEAN" ? "false" : current.policyValue, valueType: event.target.value as SystemPolicyRecord["valueType"] }))}
+            select
+            size="small"
+            sx={standardFieldSx}
+            value={newPolicy.valueType}
+          >
+            <MenuItem value="BOOLEAN">BOOLEAN</MenuItem>
+            <MenuItem value="NUMBER">NUMBER</MenuItem>
+            <MenuItem value="TEXT">TEXT</MenuItem>
+          </TextField>
+          <TextField
+            label="설정값"
+            onChange={(event) =>
+              setNewPolicy((current) => ({
+                ...current,
+                policyValue: current.valueType === "NUMBER" ? event.target.value.replace(/\D/g, "").slice(0, 3) : event.target.value,
+              }))
+            }
+            size="small"
+            sx={standardFieldSx}
+            value={newPolicy.policyValue}
+            slotProps={{ htmlInput: newPolicy.valueType === "NUMBER" ? { inputMode: "numeric", maxLength: 3, pattern: "[0-9]*" } : undefined }}
+          />
+          <TextField
+            label="정렬 순서"
+            onChange={(event) => setNewPolicy((current) => ({ ...current, sortSeq: Number(event.target.value || 0) }))}
+            size="small"
+            sx={standardFieldSx}
+            type="number"
+            value={newPolicy.sortSeq}
+          />
+          <TextField
+            label="설명"
+            multiline
+            onChange={(event) => setNewPolicy((current) => ({ ...current, description: event.target.value }))}
+            size="small"
+            sx={standardFieldSx}
+            value={newPolicy.description ?? ""}
+          />
+          <FormControlLabel
+            control={<Switch checked={newPolicy.useYn} onChange={(event) => setNewPolicy((current) => ({ ...current, useYn: event.target.checked }))} />}
+            label="사용"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setAddOpen(false)} variant="outlined">취소</Button>
+          <Button disabled={loading} onClick={() => void handleCreate()} variant="contained">추가</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         autoHideDuration={2500}

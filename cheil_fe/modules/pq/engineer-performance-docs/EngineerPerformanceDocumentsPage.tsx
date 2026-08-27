@@ -34,8 +34,8 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
-import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
+import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
 import { BidNoticeDetailPopup } from "@/modules/pq/bid-notice/BidNoticeDetailPopup";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
@@ -113,6 +113,13 @@ const formatMoney = (value: string | number | null | undefined) => {
   return Number.isFinite(numericValue) ? numericValue.toLocaleString("ko-KR") : String(value);
 };
 
+const formatDivisionRate = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+  return String(value);
+};
+
 const formatDateYmd = (value: string | number | null | undefined) => {
   const raw = text(value);
   if (!raw) {
@@ -164,6 +171,7 @@ export function EngineerPerformanceDocumentsPage() {
 
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
+  const engLevelReferences = useCommonCodeLevel2Options("51", { useYn: "Y" }, { enabled: canRead });
 
   const engineersQuery = useQuery({
     queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", keyword.trim()],
@@ -403,6 +411,7 @@ export function EngineerPerformanceDocumentsPage() {
   );
   const labelByJobField = jobFieldReferences.labelByValue;
   const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
+  const labelByEngLevel = engLevelReferences.labelByValue;
 
   const engineerColumns = useMemo<GridColDef<EngineerDocumentRow>[]>(
     () => [
@@ -485,9 +494,19 @@ export function EngineerPerformanceDocumentsPage() {
         ),
       },
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
+      { field: "compName", headerName: "참여당시 회사", width: 150 },
+      {
+        field: "engLevel",
+        headerName: "참여분야 직위",
+        width: 130,
+        ...center,
+        valueFormatter: (value) => formatPaddedLevel2CodeLabel(labelByEngLevel, value),
+      },
+      { field: "grade", headerName: "참여당시 직위", width: 120, ...center },
       { field: "orderClient", headerName: "발주처", width: 150 },
       { field: "contractAmt", headerName: "계약금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
       { field: "ownAmt", headerName: "자사금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
+      { field: "divisionRate", headerName: "지분율", width: 90, align: "right", headerAlign: "center", valueFormatter: (value) => formatDivisionRate(value) },
       { field: "contractFromDate", headerName: "계약시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "contractToDate", headerName: "계약종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "startDate", headerName: "참여시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
@@ -496,7 +515,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [handleHistorySelection, handleToggleAllHistorySelection, historyAllSelected, historySomeSelected, selectedHistoryIds],
+    [handleHistorySelection, handleToggleAllHistorySelection, historyAllSelected, historySomeSelected, labelByEngLevel, selectedHistoryIds],
   );
 
   const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(
@@ -567,9 +586,19 @@ export function EngineerPerformanceDocumentsPage() {
         ),
       },
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
+      { field: "compName", headerName: "참여당시 회사", width: 150 },
+      {
+        field: "engLevel",
+        headerName: "참여분야 직위",
+        width: 130,
+        ...center,
+        valueFormatter: (value) => formatPaddedLevel2CodeLabel(labelByEngLevel, value),
+      },
+      { field: "grade", headerName: "참여당시 직위", width: 120, ...center },
       { field: "orderClient", headerName: "발주처", width: 150 },
       { field: "contractAmt", headerName: "계약금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
       { field: "ownAmt", headerName: "자사금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
+      { field: "divisionRate", headerName: "지분율", width: 90, align: "right", headerAlign: "center", valueFormatter: (value) => formatDivisionRate(value) },
       { field: "contractFromDate", headerName: "계약시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "contractToDate", headerName: "계약종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "startDate", headerName: "참여시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
@@ -578,7 +607,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [canUpdate, handleReviewSelection, handleToggleAllReviewSelection, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
+    [canUpdate, handleReviewSelection, handleToggleAllReviewSelection, labelByEngLevel, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
   );
 
   const handleLoad = () => {
@@ -758,13 +787,14 @@ export function EngineerPerformanceDocumentsPage() {
         profiles,
         projectName: text(selectedBidNotice.projectName),
         reviewResultsByEngineer,
+        engLevelLabelByCode: labelByEngLevel,
       });
     } catch (error) {
       showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀을 다운로드하지 못했습니다.");
     } finally {
       setIsExcelDownloading(false);
     }
-  }, [canRead, isExcelDownloading, profiles, selectedBidNotice, showError]);
+  }, [canRead, isExcelDownloading, labelByEngLevel, profiles, selectedBidNotice, showError]);
 
   function openBulkDeleteConfirm() {
     if (selectedReviewIds.length === 0) {
@@ -1023,7 +1053,7 @@ export function EngineerPerformanceDocumentsPage() {
                       rowCount={availableHistoryRows.length}
                       rows={availableHistoryRows}
                       columnHeaderHeight={36}
-                      rowHeight={23}
+                      rowHeight={30}
                       showToolbar={false}
                       wrapperMinHeight={historyGridHeight}
                       sx={{
@@ -1142,7 +1172,7 @@ export function EngineerPerformanceDocumentsPage() {
                     rowCount={reviewRows.length}
                     rows={reviewRows}
                     columnHeaderHeight={36}
-                    rowHeight={23}
+                    rowHeight={30}
                     exportFileNamePrefix="관련공사 참여이력 검토결과"
                     showPrintButton={false}
                     showToolbar

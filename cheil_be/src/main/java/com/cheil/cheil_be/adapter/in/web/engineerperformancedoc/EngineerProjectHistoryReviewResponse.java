@@ -19,6 +19,7 @@ public record EngineerProjectHistoryReviewResponse(
         String orderClient,
         BigDecimal contractAmt,
         BigDecimal ownAmt,
+        BigDecimal divisionRate,
         String contractFromDate,
         String contractToDate,
         String startDate,

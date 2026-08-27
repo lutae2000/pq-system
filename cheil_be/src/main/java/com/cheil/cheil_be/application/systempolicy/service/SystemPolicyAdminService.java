@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.application.systempolicy.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class SystemPolicyAdminService {
             String policyName = requireText(policy.getPolicyName(), "policyName");
             String policyValue = requireText(policy.getPolicyValue(), "policyValue");
             String valueType = requireText(policy.getValueType(), "valueType");
+            validatePolicy(policy);
 
             systemPolicyRepository.findById(policyKey)
                     .map(existing -> {
@@ -63,6 +65,51 @@ public class SystemPolicyAdminService {
         }
 
         return findPolicies();
+    }
+
+    public SystemPolicyEntity createPolicy(SystemPolicyEntity policy) {
+        String policyKey = requireText(policy.getPolicyKey(), "policyKey");
+        if (systemPolicyRepository.existsById(policyKey)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 정책 코드입니다.");
+        }
+        validatePolicy(policy);
+        policy.setPolicyKey(policyKey);
+        policy.setPolicyName(requireText(policy.getPolicyName(), "policyName"));
+        policy.setPolicyValue(requireText(policy.getPolicyValue(), "policyValue"));
+        policy.setValueType(requireText(policy.getValueType(), "valueType"));
+        return systemPolicyRepository.save(policy);
+    }
+
+    public SystemPolicyEntity updatePolicy(String policyKey, SystemPolicyEntity policy) {
+        String normalizedKey = requireText(policyKey, "policyKey");
+        SystemPolicyEntity existing = systemPolicyRepository.findById(normalizedKey)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "정책을 찾을 수 없습니다."));
+        validatePolicy(policy);
+        existing.setPolicyName(requireText(policy.getPolicyName(), "policyName"));
+        existing.setPolicyValue(requireText(policy.getPolicyValue(), "policyValue"));
+        existing.setValueType(requireText(policy.getValueType(), "valueType"));
+        existing.setSortSeq(policy.getSortSeq());
+        existing.setUseYn(policy.isUseYn());
+        existing.setDescription(trimToNull(policy.getDescription()));
+        return existing;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<SystemPolicyEntity> findEnabledPolicy(String policyKey) {
+        return systemPolicyRepository.findById(policyKey).filter(SystemPolicyEntity::isUseYn);
+    }
+
+    private static void validatePolicy(SystemPolicyEntity policy) {
+        if (policy == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "policy is required");
+        }
+        if (policy.isUseYn() && !StringUtils.hasText(policy.getPolicyValue())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "활성화된 정책의 설정값은 필수입니다.");
+        }
+        if ("NUMBER".equalsIgnoreCase(policy.getValueType()) && StringUtils.hasText(policy.getPolicyValue())
+                && !policy.getPolicyValue().trim().matches("\\d{1,3}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "숫자 정책의 설정값은 1~3자리 숫자여야 합니다.");
+        }
     }
 
     private static String requireText(String value, String field) {
