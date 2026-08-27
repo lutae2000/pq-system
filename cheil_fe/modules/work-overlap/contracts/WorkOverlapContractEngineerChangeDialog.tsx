@@ -18,7 +18,7 @@ import {
 import type { Dispatch, SetStateAction } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
-import type { WorkOverlapContractEngineerCandidate } from "@/modules/pq/work-overlap-contracts/api";
+import type { WorkOverlapContractEngineerCandidate } from "@/modules/work-overlap/contracts/api";
 
 export type EngineerChangeDraft = {
   beforeEngineer: WorkOverlapContractEngineerCandidate | null;

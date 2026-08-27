@@ -15,6 +15,7 @@ import type {
   GridRowSelectionModel,
 } from "@mui/x-data-grid";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -27,12 +28,16 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { listEngineerProfiles, type EngineerProfileListFilters } from "@/modules/pq/engineers/api";
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
-import { WorkOverlapContractDetailDialog } from "@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog";
 import {
   listWorkOverlapEngineerContracts,
   type WorkOverlapEngineerContractPageResponse,
   type WorkOverlapEngineerContractRecord,
 } from "@/modules/work-overlap/engineers/api";
+
+const WorkOverlapContractDetailDialog = dynamic(
+  () => import("@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog").then((module) => module.WorkOverlapContractDetailDialog),
+  { ssr: false },
+);
 
 type EmploymentStatus = "재직" | "퇴사";
 type CodeOption = { label: string; value: string };
@@ -221,7 +226,6 @@ const mapEngineerProfileToRow = (profile: EngineerProfile): WorkOverlapEngineerR
 const buildEngineerColumns = (
   jobFieldLabelByCode: Record<string, string>,
   specialtyFieldLabelByCode: Record<string, string>,
-  taskPeriodDays: number,
 ): GridColDef<WorkOverlapEngineerRow>[] => [
   {
     field: "name",
@@ -708,8 +712,8 @@ export function WorkOverlapEngineerListPage() {
   );
 
   const engineerColumns = useMemo(
-    () => buildEngineerColumns(jobFieldLabelByCode, specialtyFieldLabelByCode, taskPeriodDays),
-    [jobFieldLabelByCode, specialtyFieldLabelByCode, taskPeriodDays],
+    () => buildEngineerColumns(jobFieldLabelByCode, specialtyFieldLabelByCode),
+    [jobFieldLabelByCode, specialtyFieldLabelByCode],
   );
 
   const overlapRate = taskPeriodDays > 0 ? (recognizedDaysTotal / taskPeriodDays) * 100 : null;
@@ -1115,15 +1119,17 @@ export function WorkOverlapEngineerListPage() {
         </Stack>
       )}
 
-      <WorkOverlapContractDetailDialog
-        deleteDisabled
-        key={`work-overlap-contract-readonly-${contractDetailRecord?.contractNo ?? "none"}`}
-        onClose={() => setContractDetailRecord(null)}
-        onSave={() => undefined}
-        open={Boolean(contractDetailRecord)}
-        record={contractDetailRecord ? toContractRecord(contractDetailRecord) : null}
-        saveDisabled
-      />
+      {contractDetailRecord ? (
+        <WorkOverlapContractDetailDialog
+          deleteDisabled
+          key={`work-overlap-contract-readonly-${contractDetailRecord.contractNo}`}
+          onClose={() => setContractDetailRecord(null)}
+          onSave={() => undefined}
+          open
+          record={toContractRecord(contractDetailRecord)}
+          saveDisabled
+        />
+      ) : null}
     </Box>
   );
 }

@@ -10,6 +10,7 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRenderCellParams, GridRowParams } from "@mui/x-data-grid";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmActionDialog, ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
@@ -35,7 +36,6 @@ import {
   type WorkOverlapContractSummaryParams,
   type WorkOverlapContractSummaryResponse,
 } from "@/modules/work-overlap/contracts/api";
-import { WorkOverlapContractDetailDialog } from "@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog";
 import type { WorkOverlapContractSavePayload } from "@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog";
 import {
   defaultWorkOverlapContractRecord,
@@ -45,6 +45,11 @@ import {
   formatPeriodText,
   toWorkOverlapContractRequest,
 } from "@/modules/work-overlap/contracts/workOverlapContractForm";
+
+const WorkOverlapContractDetailDialog = dynamic(
+  () => import("@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog").then((module) => module.WorkOverlapContractDetailDialog),
+  { ssr: false },
+);
 
 type WorkOverlapContractFilters = Omit<WorkOverlapContractSearchParams, "page" | "size"> & {
   cemsConfirm: "" | "true" | "false";
@@ -748,21 +753,23 @@ export function WorkOverlapContractManagementPage() {
         </Stack>
       )}
 
-      <WorkOverlapContractDetailDialog
-        deleting={deleteMutation.isPending}
-        deleteDisabled={!canDelete}
-        key={`work-overlap-contract-${dialogSeed}`}
-        onClose={() => {
-          setDialogOpen(false);
-          setEditingRecord(null);
-        }}
-        onDelete={(record) => setDeleteTarget(record)}
-        onSave={setPendingSave}
-        open={dialogOpen}
-        record={editingRecord}
-        saveDisabled={editingRecord?.contractNo ? !canUpdate : !canCreate}
-        saving={saveMutation.isPending}
-      />
+      {dialogOpen ? (
+        <WorkOverlapContractDetailDialog
+          deleting={deleteMutation.isPending}
+          deleteDisabled={!canDelete}
+          key={`work-overlap-contract-${dialogSeed}`}
+          onClose={() => {
+            setDialogOpen(false);
+            setEditingRecord(null);
+          }}
+          onDelete={(record) => setDeleteTarget(record)}
+          onSave={setPendingSave}
+          open
+          record={editingRecord}
+          saveDisabled={editingRecord?.contractNo ? !canUpdate : !canCreate}
+          saving={saveMutation.isPending}
+        />
+      ) : null}
 
       <ConfirmActionDialog
         confirmLabel="저장"

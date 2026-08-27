@@ -34,6 +34,7 @@ import {
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  startTransition,
   useCallback,
   useEffect,
   useMemo,
@@ -679,7 +680,7 @@ export function WorkOverlapContractDetailDialog({
 
   useEffect(() => {
     if (!hasPeriodChanges) {
-      setPeriodChangeReason("");
+      startTransition(() => setPeriodChangeReason(""));
     }
   }, [hasPeriodChanges]);
 
@@ -1577,6 +1578,7 @@ export function WorkOverlapContractDetailDialog({
                   <Section dense title="기간 정보 변경 이력">
                     <Stack spacing={1} sx={{ minWidth: 0 }}>
                       <SubHeader
+                        title="기간 정보 변경 이력"
                         action={
                           <Button
                             color="error"
@@ -1586,6 +1588,7 @@ export function WorkOverlapContractDetailDialog({
                               !selectedPeriodHistory ||
                               deletePeriodHistoryMutation.isPending
                             }
+                            title="기간 정보 변경 이력 삭제"
                             onClick={() =>
                               selectedPeriodHistory &&
                               setPeriodHistoryDeleteTarget(selectedPeriodHistory)
@@ -1662,8 +1665,9 @@ export function WorkOverlapContractDetailDialog({
               left={
                 <Section title="참여 기술인">
                   <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-                    <SubHeader
-                      action={
+                      <SubHeader
+                        title="참여 기술인"
+                        action={
                         <Box
                           sx={{
                             display: "flex",
@@ -1671,6 +1675,7 @@ export function WorkOverlapContractDetailDialog({
                             flexWrap: "nowrap",
                             gap: 0.75,
                           }}
+                          title="참여 기술인 관리"
                         >
                           <Button
                             disabled={
@@ -1808,6 +1813,7 @@ export function WorkOverlapContractDetailDialog({
                 <Section title="기술인 변경 이력">
                   <Stack spacing={1} sx={{ minWidth: 0 }}>
                     <SubHeader
+                      title="기술인 변경 이력"
                       action={
                         <Button
                           color="error"
@@ -1817,6 +1823,7 @@ export function WorkOverlapContractDetailDialog({
                             !selectedHistory ||
                             deleteHistoryMutation.isPending
                           }
+                          title="기술인 변경 이력 삭제"
                           onClick={handleDeleteHistoryClick}
                           size="small"
                           startIcon={<DeleteOutlineOutlinedIcon />}

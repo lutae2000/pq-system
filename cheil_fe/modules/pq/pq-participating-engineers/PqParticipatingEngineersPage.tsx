@@ -30,6 +30,7 @@ import { RelatedProjectHistoryConditionsPanel } from "@/components/common/Relate
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { listCertifications } from "@/modules/code/certifications/api";
@@ -213,6 +214,7 @@ function serializeSelectedEngineers(items: SelectedPqEngineer[]) {
 export function PqParticipatingEngineersPage() {
   const queryClient = useQueryClient();
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
   const workDutyId = currentSession?.employeeNo ?? "";
   const candidateClickTimerRef = useRef<number | null>(null);
@@ -233,9 +235,9 @@ export function PqParticipatingEngineersPage() {
   const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
 
-  const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: canRead });
-  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
-  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
+  const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
 
   const certificationsQuery = useQuery({
     queryKey: ["code-certifications"],
@@ -263,14 +265,14 @@ export function PqParticipatingEngineersPage() {
   const candidatesQuery = useQuery({
     queryKey: ["pq-participating-engineer-candidates", candidateQueryFilters],
     queryFn: () => listPqParticipatingEngineerCandidates(candidateQueryFilters),
-    enabled: canRead,
+    enabled: tabQueryEnabled,
     placeholderData: keepPreviousData,
   });
 
   const selectedEngineersQuery = useQuery({
     queryKey: ["pq-participating-engineers", selectedCompanyPerformance?.bidSeq, workDutyId],
     queryFn: () => listPqParticipatingEngineers({ bidSeq: selectedCompanyPerformance?.bidSeq ?? 0, workDutyId }),
-    enabled: canRead && Boolean(selectedCompanyPerformance?.bidSeq),
+    enabled: tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq),
   });
 
   const gradeOptions = useMemo<CodeOption[]>(() => toSelectOptions(gradeReferences.options), [gradeReferences.options]);

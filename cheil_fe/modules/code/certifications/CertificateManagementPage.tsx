@@ -34,6 +34,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { AuditFields } from "@/components/common/AuditFields";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
 import { createCertification, deleteCertification, listCertifications, updateCertification } from "./api";
@@ -133,11 +134,13 @@ const matchesKeyword = (record: CertificationRecord, keyword: string) => {
 };
 
 export function CertificateManagementPage() {
-  const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const certificationsQuery = useQuery({
     queryKey: ["pq-certifications"],
     queryFn: listCertifications,
+    enabled: tabQueryEnabled,
   });
 
   const records = useMemo(() => certificationsQuery.data ?? [], [certificationsQuery.data]);

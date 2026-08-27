@@ -32,6 +32,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
@@ -151,6 +152,7 @@ const toScoreBandRequest = (row: ScoreBandRow): QualificationScoreBandUpsertRequ
 
 export function QualificationCriteriaPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -169,7 +171,7 @@ export function QualificationCriteriaPage() {
   const useYnParam = useYnFilterToBoolean(useYnFilter);
 
   const agenciesQuery = useQuery({
-    enabled: canRead,
+    enabled: tabQueryEnabled,
     queryFn: () => listQualificationReviewAgencies({ keyword: appliedKeyword || undefined, useYn: useYnParam }),
     queryKey: qualificationCriteriaQueryKeys.agencies(appliedKeyword, useYnParam),
   });
@@ -184,7 +186,7 @@ export function QualificationCriteriaPage() {
       : agencyRows[0]?.id ?? null;
 
   const enabledCriteriaQuery = useQuery({
-    enabled: canRead && effectiveSelectedAgencyId !== null && effectiveSelectedAgencyId > 0,
+    enabled: tabQueryEnabled && effectiveSelectedAgencyId !== null && effectiveSelectedAgencyId > 0,
     queryFn: () =>
       listQualificationReviewCriteria(effectiveSelectedAgencyId as number, { keyword: appliedKeyword || undefined, useYn: useYnParam }),
     queryKey: qualificationCriteriaQueryKeys.criteria(effectiveSelectedAgencyId, appliedKeyword, useYnParam),
@@ -200,7 +202,7 @@ export function QualificationCriteriaPage() {
       : criterionRows[0]?.id ?? null;
 
   const enabledScoreBandsQuery = useQuery({
-    enabled: canRead && effectiveSelectedCriterionId !== null && effectiveSelectedCriterionId > 0,
+    enabled: tabQueryEnabled && effectiveSelectedCriterionId !== null && effectiveSelectedCriterionId > 0,
     queryFn: () => listQualificationScoreBands(effectiveSelectedCriterionId as number),
     queryKey: qualificationCriteriaQueryKeys.scoreBands(effectiveSelectedCriterionId),
   });

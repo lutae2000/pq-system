@@ -32,6 +32,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { KakaoPostcodeFields } from "@/components/common/KakaoPostcodeFields";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { toApiErrorMessage } from "@/lib/http/apiClient";
@@ -106,11 +107,12 @@ const formatDateTime = (value?: string | null) => {
 
 export function HeadquartersManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const companyQuery = useQuery({
     queryKey: ["system-company-profile"],
     queryFn: getCompanyProfile,
-    enabled: canRead,
+    enabled: tabQueryEnabled,
   });
 
   const detail = companyQuery.data;

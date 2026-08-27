@@ -26,6 +26,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { KakaoPostcodeFields } from "@/components/common/KakaoPostcodeFields";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import {
@@ -102,6 +103,7 @@ const toRequest = (draft: ClientCodeRecord): ClientCodeUpsertRequest => ({
 
 export function ClientCodesManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const initialSelectionApplied = useRef(false);
   const [businessName, setBusinessName] = useState("");
@@ -115,8 +117,8 @@ export function ClientCodesManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<ClientCodeRecord | null>(null);
   const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
-  const orderClassReferences = useCommonCodeLevel2Options("QA", { useYn: "Y" });
-  const companyTypeReferences = useCommonCodeLevel2Options("T7", { useYn: "Y" });
+  const orderClassReferences = useCommonCodeLevel2Options("QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const companyTypeReferences = useCommonCodeLevel2Options("T7", { useYn: "Y" }, { enabled: tabQueryEnabled });
 
   const orderClassOptions = useMemo(() => toCodeOptions(orderClassReferences.options), [orderClassReferences.options]);
   const companyTypeOptions = useMemo(() => toCodeOptions(companyTypeReferences.options), [companyTypeReferences.options]);
@@ -134,6 +136,7 @@ export function ClientCodesManagementPage() {
   const clientCodesQuery = useQuery({
     queryKey: ["client-codes", searchParams, searchTick],
     queryFn: () => listClientCodes(searchParams),
+    enabled: tabQueryEnabled,
   });
 
   const clientCodesPage = clientCodesQuery.data ?? {

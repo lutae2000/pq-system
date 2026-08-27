@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { type GridColDef, type GridRenderEditCellParams, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -36,12 +37,7 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
-import { BidNoticeDetailPopup } from "@/modules/pq/bid-notice/BidNoticeDetailPopup";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
-import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
-import { HancomWebHwpPanel } from "@/modules/pq/engineer-performance-docs/HancomWebHwpPanel";
-import { HwpxTemplateGenerationPanel } from "@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel";
 import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer-performance-docs/engineerPerformanceDocumentsExcel";
 import {
   createEngineerProjectHistoryReviewResults,
@@ -54,6 +50,27 @@ import {
 } from "@/modules/pq/engineer-performance-docs/api";
 import { listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+
+const BidNoticeSelectDialog = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
+  { ssr: false },
+);
+const BidNoticeDetailPopup = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeDetailPopup").then((module) => module.BidNoticeDetailPopup),
+  { ssr: false },
+);
+const CompanyPerformanceDetailPopup = dynamic(
+  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailPopup").then((module) => module.CompanyPerformanceDetailPopup),
+  { ssr: false },
+);
+const HancomWebHwpPanel = dynamic(
+  () => import("@/modules/pq/engineer-performance-docs/HancomWebHwpPanel").then((module) => module.HancomWebHwpPanel),
+  { ssr: false },
+);
+const HwpxTemplateGenerationPanel = dynamic(
+  () => import("@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel").then((module) => module.HwpxTemplateGenerationPanel),
+  { ssr: false },
+);
 
 type EngineerDocumentRow = {
   birthDate: string;
@@ -1218,36 +1235,42 @@ export function EngineerPerformanceDocumentsPage() {
               </Box>
             </CardContent>
           </Card>
-          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open={outputTestPanel === "hwpx"} profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
-          <HancomWebHwpPanel bidNotice={selectedBidNotice} open={outputTestPanel === "webhwp"} profiles={profiles} />
+          {outputTestPanel === "hwpx" ? (
+            <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
+          ) : null}
+          {outputTestPanel === "webhwp" ? <HancomWebHwpPanel bidNotice={selectedBidNotice} open profiles={profiles} /> : null}
         </Stack>
       )}
 
-      <BidNoticeSelectDialog
-        open={bidNoticeDialogOpen}
-        onClose={() => setBidNoticeDialogOpen(false)}
-        stateCacheKey="engineer-performance-docs:bid-notice-select"
-        onSelect={(record) => {
-          setSelectedBidNotice(record);
-          setBidNoticeDialogOpen(false);
-          setKeyword("");
-          setActiveEngineerId("");
-          setPerformanceDetailSeq(null);
-          setSelectedHistoryIds([]);
-          setHistorySelectionAnchorId(null);
-          setSelectedReviewIds([]);
-          setReviewSelectionAnchorId(null);
-          setAddConfirmOpen(false);
-          setPendingBulkDeleteReviewIds(null);
-          setRelatedProjectHistoryConditions([]);
-        }}
-      />
-      <BidNoticeDetailPopup
-        bidSeq={selectedBidNotice?.bidSeq ?? null}
-        onClose={() => setBidNoticeDetailOpen(false)}
-        open={bidNoticeDetailOpen}
-        readOnly
-      />
+      {bidNoticeDialogOpen ? (
+        <BidNoticeSelectDialog
+          open
+          onClose={() => setBidNoticeDialogOpen(false)}
+          stateCacheKey="engineer-performance-docs:bid-notice-select"
+          onSelect={(record) => {
+            setSelectedBidNotice(record);
+            setBidNoticeDialogOpen(false);
+            setKeyword("");
+            setActiveEngineerId("");
+            setPerformanceDetailSeq(null);
+            setSelectedHistoryIds([]);
+            setHistorySelectionAnchorId(null);
+            setSelectedReviewIds([]);
+            setReviewSelectionAnchorId(null);
+            setAddConfirmOpen(false);
+            setPendingBulkDeleteReviewIds(null);
+            setRelatedProjectHistoryConditions([]);
+          }}
+        />
+      ) : null}
+      {bidNoticeDetailOpen ? (
+        <BidNoticeDetailPopup
+          bidSeq={selectedBidNotice?.bidSeq ?? null}
+          onClose={() => setBidNoticeDetailOpen(false)}
+          open
+          readOnly
+        />
+      ) : null}
       <ConfirmActionDialog
         confirmColor="primary"
         confirmLabel="추가"
@@ -1268,7 +1291,9 @@ export function EngineerPerformanceDocumentsPage() {
         open={Boolean(pendingBulkDeleteReviewIds?.length)}
         targetLabel={pendingBulkDeleteReviewIds?.length ? `${pendingBulkDeleteReviewIds.length}건` : undefined}
       />
-      <CompanyPerformanceDetailPopup onClose={() => setPerformanceDetailSeq(null)} open={Boolean(performanceDetailSeq)} seq={performanceDetailSeq} />
+      {performanceDetailSeq ? (
+        <CompanyPerformanceDetailPopup onClose={() => setPerformanceDetailSeq(null)} open seq={performanceDetailSeq} />
+      ) : null}
     </Box>
   );
 }

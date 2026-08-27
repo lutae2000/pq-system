@@ -29,6 +29,7 @@ import { CommonSelectField } from "@/components/common/CommonSelectField";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 
@@ -140,6 +141,7 @@ const selectedRowModel = (codeId: number | null) => ({
 
 export function CommonCodeManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
@@ -160,7 +162,7 @@ export function CommonCodeManagementPage() {
         keyword: appliedFilters.keyword,
         useYn: appliedFilters.useYn,
       }),
-    enabled: canRead,
+    enabled: tabQueryEnabled,
   });
 
   const records = useMemo(() => sortCommonCodes(commonCodesQuery.data ?? []), [commonCodesQuery.data]);

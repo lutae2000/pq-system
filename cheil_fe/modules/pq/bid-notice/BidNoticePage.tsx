@@ -7,6 +7,7 @@ import { Autocomplete, Box, Button, Card, CardContent, Chip, Snackbar, Stack, Te
 import { useGridApiRef, type GridColDef, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
 import { CommonSelectField } from "@/components/common/CommonSelectField";
@@ -16,7 +17,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { PeriodRangeField } from "@/components/common/PeriodRangeField";
 import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text, ynToBool } from "@/modules/common/formatters";
-import { BidNoticeDetailDialog } from "@/modules/pq/bid-notice/BidNoticeDetailDialog";
 import { openBidNoticePrintWindow } from "@/modules/pq/bid-notice/bidNoticePrint";
 import {
   formatBidSuccessForXlsx,
@@ -41,6 +41,11 @@ import type {
   BidNoticeRecord,
   BidNoticePeriodType,
 } from "@/modules/pq/bid-notice/bidNotice.types";
+
+const BidNoticeDetailDialog = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeDetailDialog").then((module) => module.BidNoticeDetailDialog),
+  { ssr: false },
+);
 
 const periodOptions: { label: string; value: BidNoticePeriodType }[] = [
   { label: "공고기간", value: "NOTICE" },
@@ -786,17 +791,19 @@ export function BidNoticePage() {
         />
       </Card>
 
-      <BidNoticeDetailDialog
-        onClose={closeDialog}
-        onDeleteRequest={requestDeleteRecord}
-        onFieldChange={updateDraft}
-        onSave={saveRecord}
-        options={detailOptions}
-        open={open}
-        record={draft}
-        saveDisabled={saveMutation.isPending || (draft.seqNo ? !canUpdate : !canCreate)}
-        deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
-      />
+      {open ? (
+        <BidNoticeDetailDialog
+          onClose={closeDialog}
+          onDeleteRequest={requestDeleteRecord}
+          onFieldChange={updateDraft}
+          onSave={saveRecord}
+          options={detailOptions}
+          open
+          record={draft}
+          saveDisabled={saveMutation.isPending || (draft.seqNo ? !canUpdate : !canCreate)}
+          deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
+        />
+      ) : null}
 
       <Snackbar autoHideDuration={2500} message={snackMessage} onClose={() => setSnackMessage("")} open={Boolean(snackMessage)} />
     </Box>

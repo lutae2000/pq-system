@@ -29,6 +29,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
   createConstructionType,
@@ -115,6 +116,7 @@ const sortConstructionTypes = (records: ConstructionTypeRecord[]) =>
 
 export function ConstructionTypesManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
@@ -135,6 +137,7 @@ export function ConstructionTypesManagementPage() {
         keyword: appliedFilters.keyword,
         useYn: appliedFilters.useYn,
       }),
+    enabled: tabQueryEnabled,
   });
 
   const records = useMemo(() => sortConstructionTypes(constructionTypesQuery.data ?? []), [constructionTypesQuery.data]);

@@ -38,7 +38,7 @@ export function SystemMenuPage() {
               ))}
             </Box>
           </CardContent>
-        </Card>
+        </Card>ㄱ
       </Stack>
     </Box>
   );

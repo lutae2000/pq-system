@@ -25,6 +25,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 import { createEducationReminderTemplate, deleteEducationReminderTemplate, listEducationReminderTemplates, updateEducationReminderTemplate } from "./api";
@@ -89,6 +90,7 @@ function normalizeEditingRecord(record: EducationReminderTemplateRequest): Educa
 
 export function EducationReminderTemplateManagementTab() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const canEdit = canCreate || canUpdate;
@@ -100,7 +102,7 @@ export function EducationReminderTemplateManagementTab() {
   const templatesQuery = useQuery({
     queryKey: ["education-reminders", "templates"],
     queryFn: listEducationReminderTemplates,
-    enabled: canRead,
+    enabled: tabQueryEnabled,
   });
 
   const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data]);

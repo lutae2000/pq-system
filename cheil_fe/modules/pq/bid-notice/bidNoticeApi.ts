@@ -51,6 +51,9 @@ export type BidNoticeApiRecord = {
   tpSubmitDate: string | null;
 };
 
+// 조회/선택 화면에서 사용하는 API 응답 레코드의 호환 별칭이다.
+export type BidNoticeRecord = BidNoticeApiRecord;
+
 export type BidNoticeOption = {
   clientCode?: string;
   deptCode?: string;

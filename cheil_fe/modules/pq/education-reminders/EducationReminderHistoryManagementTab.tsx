@@ -43,7 +43,7 @@ const matchesKeyword = (row: SendHistoryRow, keyword: string) => {
   }
 
   return [row.engineerName, row.departmentName, row.phoneNumber, row.templateName, row.messageContent, row.failureReason]
-    .filter(Boolean)
+    .filter((value): value is string => Boolean(value))
     .some((value) => value.toLowerCase().includes(normalized));
 };
 

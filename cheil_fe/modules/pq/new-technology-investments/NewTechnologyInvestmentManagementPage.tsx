@@ -441,7 +441,7 @@ function YearlyInvestmentCharts({ rows }: { rows: NewTechnologyInvestmentRecord[
       ? latest.technologyDevelopmentInvestment - previous.technologyDevelopmentInvestment
       : null;
 
-  /*return (
+  return (
     <Card>
       <CardContent sx={{ p: 2 }}>
         <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
@@ -473,7 +473,7 @@ function YearlyInvestmentCharts({ rows }: { rows: NewTechnologyInvestmentRecord[
         )}
       </CardContent>
     </Card>
-  );*/
+  );
 }
 
 function InvestmentTrendChart({

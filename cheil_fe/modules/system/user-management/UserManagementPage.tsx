@@ -1,7 +1,6 @@
 "use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
@@ -100,7 +99,6 @@ const activeRoleSelectDataSource = defineCommonSelectDataSource<SystemRoleRecord
   valueKey: "roleCode",
 });
 
-const DEFAULT_TEMP_PASSWORD = "0000";
 const EMPTY_USERS: AuthUserAccount[] = [];
 
 type PermissionRow = {

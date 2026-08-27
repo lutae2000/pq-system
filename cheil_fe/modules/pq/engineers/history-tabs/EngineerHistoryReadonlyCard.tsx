@@ -10,7 +10,6 @@ import { listCertifications } from "@/modules/code/certifications/api";
 import { getEngineerProfile } from "@/modules/pq/engineers/api";
 import type {
   AwardRecord,
-  CareerDetailRecord,
   CareerRecord,
   CertificateRecord,
   DetailTab,

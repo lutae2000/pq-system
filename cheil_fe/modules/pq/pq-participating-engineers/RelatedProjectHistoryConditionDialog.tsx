@@ -131,7 +131,8 @@ const normalizeCondition = (condition: RelatedProjectHistoryCondition): RelatedP
       ? generalConditionValueType(condition.label)
       : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
   const availableOperators = operatorsByValueType[valueType];
-  const operator = availableOperators.includes(condition.operator ?? "") ? condition.operator! : defaultOperator(valueType);
+  const candidateOperator = condition.operator;
+  const operator = candidateOperator && availableOperators.includes(candidateOperator) ? candidateOperator : defaultOperator(valueType);
 
   return {
     ...condition,

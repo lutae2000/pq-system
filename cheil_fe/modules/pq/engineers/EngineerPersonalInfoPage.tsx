@@ -28,7 +28,7 @@ import {
   type GridRowParams,
   useGridApiRef,
 } from "@mui/x-data-grid";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
@@ -39,6 +39,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { useEnterpriseRowActionConfirm } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
@@ -547,6 +548,7 @@ function getNextSelectedId<T extends { id: string }>(rows: T[], deletedId: strin
 
 export function EngineerPersonalInfoPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError } = useAppSnackbar();
   const careerGridApiRef = useGridApiRef();
   const certificateGridApiRef = useGridApiRef();
@@ -557,10 +559,10 @@ export function EngineerPersonalInfoPage() {
     confirmationDialog,
     requestConfirmation,
   } = useEnterpriseRowActionConfirm();
-  const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: canRead });
-  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
-  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
-  const degreeReferences = useCommonCodeLevel2Options("ED", { useYn: "Y" }, { enabled: canRead });
+  const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const degreeReferences = useCommonCodeLevel2Options("ED", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const gradeOptions = useMemo<CodeOption[]>(() => toSelectOptions(gradeReferences.options), [gradeReferences.options]);
   const jobFieldOptions = useMemo<CodeOption[]>(() => toSelectOptions(jobFieldReferences.options), [jobFieldReferences.options]);
   const specialtyFieldOptions = useMemo<CodeOption[]>(() => toSelectOptions(specialtyFieldReferences.options), [specialtyFieldReferences.options]);
@@ -576,6 +578,7 @@ export function EngineerPersonalInfoPage() {
   const certificationsQuery = useQuery({
     queryKey: ["code-certifications"],
     queryFn: listCertifications,
+    enabled: tabQueryEnabled,
   });
   const certificationOptions = useMemo<CertificationOption[]>(
     () =>
@@ -649,6 +652,7 @@ export function EngineerPersonalInfoPage() {
   const engineersQuery = useQuery({
     queryKey: ["pq-engineers", engineerQueryFilters],
     queryFn: () => listEngineerProfiles(engineerQueryFilters),
+    enabled: tabQueryEnabled,
   });
   const designGradeOptions = useMemo<CodeOption[]>(
     () => {
@@ -692,8 +696,10 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    setProfiles(engineersQuery.data);
-    setSelectedEngineerId((current) => current || (engineersQuery.data?.[0]?.summary.id ?? ""));
+    startTransition(() => {
+      setProfiles(engineersQuery.data);
+      setSelectedEngineerId((current) => current || (engineersQuery.data?.[0]?.summary.id ?? ""));
+    });
   }, [engineersQuery.data]);
 
   const deferredProfiles = useDeferredValue(profiles);
@@ -744,7 +750,7 @@ export function EngineerPersonalInfoPage() {
     filteredEngineers.find((profile) => profile.summary.id === activeSelectedEngineerId) ??
     null;
   const selectedEngineerDetailQuery = useQuery({
-    enabled: Boolean(activeSelectedEngineerId) && !selectedListEngineer?.summary.isNew,
+    enabled: tabQueryEnabled && Boolean(activeSelectedEngineerId) && !selectedListEngineer?.summary.isNew,
     queryKey: ["pq-engineer", activeSelectedEngineerId],
     queryFn: () => getEngineerProfile(activeSelectedEngineerId),
   });
@@ -755,17 +761,15 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === detail.summary.id ? (detail as any) : profile)),
-    );
+    startTransition(() => {
+      setProfiles((current) => current.map((profile) => (profile.summary.id === detail.summary.id ? detail : profile)));
+    });
   }, [selectedEngineerDetailQuery.data]);
 
   const selectedEngineer = selectedListEngineer;
 
   const replaceProfile = (saved: EngineerProfile, tab?: DetailTab) => {
-    setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
-    );
+    setProfiles((current) => current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)));
 
     if (tab) {
       setRowModesModel((current) => ({ ...current, [tab]: {} }));
@@ -785,32 +789,20 @@ export function EngineerPersonalInfoPage() {
   const selectedTechnicalFieldLabel = formatReferenceLabel(gradeLabelByCode, selectedTechnicalField);
   const selectedQualificationGradeLabel = formatReferenceLabel(gradeLabelByCode, selectedEngineer?.detail.qualificationGrade ?? "");
   const selectedSupervisionQualificationLabel = formatReferenceLabel(gradeLabelByCode, selectedSupervisionQualification);
-  const jobFieldSelectOptions = useMemo(
-    () => {
-      const options = [...jobFieldOptions];
-      if (selectedJobField && !options.some((option) => option.value === selectedJobField)) {
-        options.unshift({
-          label: formatReferenceLabel(jobFieldLabelByCode, selectedJobField),
-          value: selectedJobField,
-        });
-      }
-      return options;
-    },
-    [jobFieldLabelByCode, jobFieldOptions, selectedJobField],
-  );
-  const specialtyFieldSelectOptions = useMemo(
-    () => {
-      const options = [...specialtyFieldOptions];
-      if (selectedSpecialtyField && !options.some((option) => option.value === selectedSpecialtyField)) {
-        options.unshift({
-          label: formatReferenceLabel(specialtyFieldLabelByCode, selectedSpecialtyField),
-          value: selectedSpecialtyField,
-        });
-      }
-      return options;
-    },
-    [selectedSpecialtyField, specialtyFieldLabelByCode, specialtyFieldOptions],
-  );
+  const jobFieldSelectOptions = [...jobFieldOptions];
+  if (selectedJobField && !jobFieldSelectOptions.some((option) => option.value === selectedJobField)) {
+    jobFieldSelectOptions.unshift({
+      label: formatReferenceLabel(jobFieldLabelByCode, selectedJobField),
+      value: selectedJobField,
+    });
+  }
+  const specialtyFieldSelectOptions = [...specialtyFieldOptions];
+  if (selectedSpecialtyField && !specialtyFieldSelectOptions.some((option) => option.value === selectedSpecialtyField)) {
+    specialtyFieldSelectOptions.unshift({
+      label: formatReferenceLabel(specialtyFieldLabelByCode, selectedSpecialtyField),
+      value: selectedSpecialtyField,
+    });
+  }
 
   const selectedEngineerAge = selectedEngineer
     ? formatEngineerAge(selectedEngineer.detail.birthDate, selectedEngineer.detail.age)
@@ -882,8 +874,8 @@ export function EngineerPersonalInfoPage() {
     }
 
     try {
-      const saved = await saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer as any);
-      replaceProfile(saved as any);
+      const saved = await saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer);
+      replaceProfile(saved);
       setSelectedEngineerId(saved.summary.id);
     } catch (error) {
       showError(error instanceof Error && error.message === "중복된 기술인이 있습니다." ? error.message : "기술인 정보 저장에 실패했습니다.");
@@ -1011,8 +1003,8 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.career.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerCareers(selectedEngineer.summary.id, nextRecords as any);
-    replaceProfile(saved as any, "career");
+    const saved = await saveEngineerCareers(selectedEngineer.summary.id, nextRecords);
+    replaceProfile(saved, "career");
     setSelectedCareerRowId(resolveSavedRowId(saved.career, nextRow.id));
     return nextRow;
   };
@@ -1032,8 +1024,8 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.certificates.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerLicenses(selectedEngineer.summary.id, nextRecords as any);
-    replaceProfile(saved as any, "certificate");
+    const saved = await saveEngineerLicenses(selectedEngineer.summary.id, nextRecords);
+    replaceProfile(saved, "certificate");
     setSelectedCertificateRowId(resolveSavedRowId(saved.certificates, nextRow.id));
     return nextRow;
   };
@@ -1056,8 +1048,8 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.education.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerSchools(selectedEngineer.summary.id, nextRecords as any);
-    replaceProfile(saved as any, "education");
+    const saved = await saveEngineerSchools(selectedEngineer.summary.id, nextRecords);
+    replaceProfile(saved, "education");
     setSelectedEducationRowId(resolveSavedRowId(saved.education, nextRow.id));
     return nextRow;
   };
@@ -1078,8 +1070,8 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.awards.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerPrizes(selectedEngineer.summary.id, nextRecords as any);
-    replaceProfile(saved as any, "award");
+    const saved = await saveEngineerPrizes(selectedEngineer.summary.id, nextRecords);
+    replaceProfile(saved, "award");
     setSelectedAwardRowId(resolveSavedRowId(saved.awards, nextRow.id));
     return nextRow;
   };
@@ -1101,8 +1093,8 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.trainings.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerEducations(selectedEngineer.summary.id, nextRecords as any);
-    replaceProfile(saved as any, "training");
+    const saved = await saveEngineerEducations(selectedEngineer.summary.id, nextRecords);
+    replaceProfile(saved, "training");
     setSelectedTrainingRowId(resolveSavedRowId(saved.trainings, nextRow.id));
     return nextRow;
   };
@@ -1182,7 +1174,7 @@ export function EngineerPersonalInfoPage() {
 
     const saved = await deleteEngineerCareer(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
+      current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
     setSelectedCareerRowId(getNextSelectedId(saved.career, recordId));
   };
@@ -1203,7 +1195,7 @@ export function EngineerPersonalInfoPage() {
 
     const saved = await deleteEngineerLicense(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
+      current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
     setSelectedCertificateRowId(getNextSelectedId(saved.certificates, recordId));
   };
@@ -1224,7 +1216,7 @@ export function EngineerPersonalInfoPage() {
 
     const saved = await deleteEngineerSchool(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
+      current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
     setSelectedEducationRowId(getNextSelectedId(saved.education, recordId));
   };
@@ -1245,7 +1237,7 @@ export function EngineerPersonalInfoPage() {
 
     const saved = await deleteEngineerPrize(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
+      current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
     setSelectedAwardRowId(getNextSelectedId(saved.awards, recordId));
   };
@@ -1266,7 +1258,7 @@ export function EngineerPersonalInfoPage() {
 
     const saved = await deleteEngineerEducation(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
-      current.map((profile) => (profile.summary.id === saved.summary.id ? (saved as any) : profile)),
+      current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
     setSelectedTrainingRowId(getNextSelectedId(saved.trainings, recordId));
   };

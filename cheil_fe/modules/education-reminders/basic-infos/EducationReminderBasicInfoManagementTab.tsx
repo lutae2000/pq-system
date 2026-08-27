@@ -22,6 +22,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
@@ -88,11 +89,12 @@ function normalizeEditingRecord(record: EducationReminderBasicInfoRequest): Educ
 }
 export function EducationReminderBasicInfoManagementTab() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const canEdit = canCreate || canUpdate;
-  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
-  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
+  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
+  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const [filters, setFilters] = useState<FilterState>(() => emptyFilterState());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatingNew, setCreatingNew] = useState(false);
@@ -106,7 +108,7 @@ export function EducationReminderBasicInfoManagementTab() {
   const basicInfosQuery = useQuery({
     queryKey: ["education-reminders", "basic-infos"],
     queryFn: listEducationReminderBasicInfos,
-    enabled: canRead,
+    enabled: tabQueryEnabled,
   });
 
   const basicInfos = useMemo(() => basicInfosQuery.data ?? [], [basicInfosQuery.data]);
@@ -140,7 +142,7 @@ export function EducationReminderBasicInfoManagementTab() {
   const assignedEngineersQuery = useQuery({
     queryKey: ["education-reminders", "basic-infos", selectedRecord?.code, "engineers"],
     queryFn: () => listEducationReminderBasicInfoEngineers(selectedRecord!.code),
-    enabled: canRead && Boolean(selectedRecord?.code),
+    enabled: tabQueryEnabled && Boolean(selectedRecord?.code),
   });
 
   const assignedEngineers = useMemo(() => assignedEngineersQuery.data ?? [], [assignedEngineersQuery.data]);

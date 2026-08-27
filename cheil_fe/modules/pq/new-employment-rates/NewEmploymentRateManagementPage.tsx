@@ -168,7 +168,7 @@ const buildMonthlyStatusPivotGrid = (
   const rows: MonthlyStatusPivotRow[] = metrics.map((metric) => ({
     average:
       metric.valueByMonth.length > 0
-        ? metric.valueByMonth.reduce((sum, value) => sum + Number(value ?? 0), 0) / metric.valueByMonth.length
+        ? metric.valueByMonth.reduce<number>((sum: number, value) => sum + Number(value ?? 0), 0) / metric.valueByMonth.length
         : null,
     id: metric.id,
     label: metric.label,
@@ -208,7 +208,10 @@ const calculateEmploymentRate = (grid: MonthlyStatusPivotGrid) => {
   const employeeCountRow = grid.rows.find((row) => row.label === "고용인원");
   const newHireCountRow = grid.rows.find((row) => row.label === "신규 고용현황");
   const averageEmployeeCount = employeeCountRow?.average ?? 0;
-  const totalNewHireCount = (newHireCountRow?.months ?? []).reduce((sum, value) => sum + Number(value ?? 0), 0);
+  const totalNewHireCount = (newHireCountRow?.months ?? []).reduce<number>(
+    (sum: number, value) => sum + Number(value ?? 0),
+    0,
+  );
 
   if (averageEmployeeCount <= 0) {
     return "-";
@@ -785,7 +788,9 @@ export function NewEmploymentRateManagementPage() {
         loading={monthlyStatusSaveMutation.isPending || monthlyStatusDeleteMutation.isPending}
         onClose={() => setMonthlyStatusDialogOpen(false)}
         onDeleteRequest={(record) => setDeleteMonthlyStatusTarget(record)}
-        onSave={(record) => monthlyStatusSaveMutation.mutateAsync(record)}
+        onSave={async (record) => {
+          await monthlyStatusSaveMutation.mutateAsync(record);
+        }}
         open={monthlyStatusDialogOpen}
         record={monthlyStatusDraft}
       />
