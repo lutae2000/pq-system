@@ -464,6 +464,7 @@ export function EducationReminderBasicInfoManagementTab() {
 
       <EducationReminderBasicInfoEngineerSelectDialog
         assignedEngineerIds={assignedEngineers.map((row) => row.engineerId)}
+        educationName={selectedRecord?.name ?? ""}
         open={assignDialogOpen}
         onClose={() => setAssignDialogOpen(false)}
         onSave={(engineerIds) => {

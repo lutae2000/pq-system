@@ -665,7 +665,7 @@
       },
       "targets": [
         {
-          "expr": "topk(5, histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\"}[$__rate_interval]))))",
+          "expr": "topk(5, (histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[$__rate_interval]))) == histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[$__rate_interval])))))",
           "format": "table",
           "instant": true,
           "refId": "A"

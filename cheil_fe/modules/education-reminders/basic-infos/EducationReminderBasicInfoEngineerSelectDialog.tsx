@@ -29,6 +29,7 @@ import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInf
 
 type EducationReminderBasicInfoEngineerSelectDialogProps = {
   assignedEngineerIds: string[];
+  educationName: string;
   open: boolean;
   onClose: () => void;
   onSave: (engineerIds: string[]) => void;
@@ -92,6 +93,7 @@ const matchesKeyword = (row: EngineerRow, keyword: string) => {
 
 export function EducationReminderBasicInfoEngineerSelectDialog({
   assignedEngineerIds,
+  educationName,
   open,
   onClose,
   onSave,
@@ -171,7 +173,7 @@ export function EducationReminderBasicInfoEngineerSelectDialog({
     () => [
       { field: "engineerId", headerName: "기술인ID", width: 120 },
       { field: "name", headerName: "성명", width: 110 },
-      { field: "department", headerName: "부서", minWidth: 150, flex: 1 },
+      { field: "department", headerName: "부서", width: 120 },
       { field: "position", headerName: "직위", width: 100 },
       {
         field: "jobField",
@@ -210,11 +212,14 @@ export function EducationReminderBasicInfoEngineerSelectDialog({
   );
 
   return (
-    <Dialog fullWidth maxWidth="xl" onClose={onClose} open={open}>
+    <Dialog fullWidth maxWidth="lg" onClose={onClose} open={open}>
       <DialogTitle sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1 }}>
         <Box>
           <Typography sx={{ fontWeight: 800 }} variant="h6">
-            교육 알림 할당 기술인 선택
+            <Box component="span" sx={{ color: "primary.main" }}>
+              {educationName}
+            </Box>{" "}
+            대상자
           </Typography>
         </Box>
       </DialogTitle>
