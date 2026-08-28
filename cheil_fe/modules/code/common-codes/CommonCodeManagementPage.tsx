@@ -155,14 +155,18 @@ export function CommonCodeManagementPage() {
   const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
 
   const commonCodesQuery = useQuery({
-    queryKey: ["common-codes", appliedFilters],
+    queryKey: ["common-codes-management", appliedFilters],
     queryFn: () =>
       listCommonCodes({
         codeLevel: appliedFilters.codeLevel,
         keyword: appliedFilters.keyword,
         useYn: appliedFilters.useYn,
+        bypassCache: true,
       }),
     enabled: tabQueryEnabled,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
   });
 
   const records = useMemo(() => sortCommonCodes(commonCodesQuery.data ?? []), [commonCodesQuery.data]);
@@ -338,9 +342,10 @@ export function CommonCodeManagementPage() {
       setIsCreating(false);
       setDraft(toDraft(saved));
       queryClient.invalidateQueries({ queryKey: ["common-codes"] });
+      queryClient.invalidateQueries({ queryKey: ["common-codes-management"] });
       queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
       setSnackbar({
-        message: "공통코드를 저장했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 새 공통코드를 조회합니다.",
+        message: "공통코드를 추가하거나 수정했습니다. 변경된 내용은 현재 화면에 바로 반영되며, 다른 화면에는 잠시 후 반영될 수 있습니다.",
         severity: "success",
       });
     },
@@ -353,6 +358,7 @@ export function CommonCodeManagementPage() {
     mutationFn: deleteCommonCode,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["common-codes"] });
+      queryClient.invalidateQueries({ queryKey: ["common-codes-management"] });
       queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
       setSelectedCodeId(null);
       setIsCreating(false);

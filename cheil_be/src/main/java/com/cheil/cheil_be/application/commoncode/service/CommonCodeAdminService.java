@@ -48,7 +48,9 @@ public class CommonCodeAdminService {
         String level3Code = trimNullable(condition.level3Code());
         String refValue1Contains = StringValues.normalize(condition.refValue1Contains());
         String sort = StringValues.normalize(condition.sort());
-        List<CommonCode> commonCodes = findCachedCommonCodes(codeLevel, level1Code, useYn);
+        List<CommonCode> commonCodes = condition.bypassCache()
+                ? findDirectCommonCodes(codeLevel, level1Code, useYn)
+                : findCachedCommonCodes(codeLevel, level1Code, useYn);
 
         return commonCodes.stream()
                 .filter(item -> matchesKeyword(item, keyword))
@@ -81,6 +83,18 @@ public class CommonCodeAdminService {
         }
 
         return commonCodeCacheService.getOrLoadAll(commonCodeRepository::findAll);
+    }
+
+    private List<CommonCode> findDirectCommonCodes(Integer codeLevel, String level1Code, Boolean useYn) {
+        if (level1Code != null && !level1Code.isBlank()) {
+            return commonCodeRepository.findAllByLevel1Code(level1Code, useYn);
+        }
+
+        if (codeLevel != null) {
+            return commonCodeRepository.findAllByCodeLevel(codeLevel, useYn);
+        }
+
+        return commonCodeRepository.findAll();
     }
 
     @Transactional(readOnly = true)

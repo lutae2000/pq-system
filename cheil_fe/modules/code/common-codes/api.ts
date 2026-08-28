@@ -31,6 +31,7 @@ export type CommonCodeSearchParams = {
   sort?: "default" | "level3Code";
   keyword?: string;
   useYn?: "All" | "Y" | "N";
+  bypassCache?: boolean;
 };
 
 export type CommonCodeUpsertRequest = {
@@ -70,6 +71,7 @@ export async function listCommonCodes(params: CommonCodeSearchParams = {}): Prom
         sort: params.sort === "level3Code" ? params.sort : undefined,
         keyword: normalizeQueryValue(params.keyword?.trim()),
         useYn: params.useYn && params.useYn !== "All" ? params.useYn === "Y" : undefined,
+        bypassCache: params.bypassCache || undefined,
       },
     }),
     "공통코드 목록을 불러오지 못했습니다.",

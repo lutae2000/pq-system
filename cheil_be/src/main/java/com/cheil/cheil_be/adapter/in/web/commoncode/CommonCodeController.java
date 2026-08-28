@@ -38,7 +38,8 @@ public class CommonCodeController {
             @RequestParam(required = false) String level2CodePrefix,
             @RequestParam(required = false) String level3Code,
             @RequestParam(required = false) String refValue1Contains,
-            @RequestParam(required = false) String sort
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "false") boolean bypassCache
     ) {
         return ResponseEntity.ok(commonCodeAdminService.findAll(new CommonCodeSearchCondition(
                         keyword,
@@ -49,7 +50,8 @@ public class CommonCodeController {
                         level2CodePrefix,
                         level3Code,
                         refValue1Contains,
-                        sort
+                        sort,
+                        bypassCache
                 ))
                 .stream()
                 .map(CommonCodeResponse::from)

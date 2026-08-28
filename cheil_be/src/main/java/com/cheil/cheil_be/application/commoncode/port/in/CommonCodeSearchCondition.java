@@ -9,6 +9,7 @@ public record CommonCodeSearchCondition(
         String level2CodePrefix,
         String level3Code,
         String refValue1Contains,
-        String sort
+        String sort,
+        boolean bypassCache
 ) {
 }
