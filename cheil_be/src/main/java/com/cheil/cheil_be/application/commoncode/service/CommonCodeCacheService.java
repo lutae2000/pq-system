@@ -84,8 +84,7 @@ public class CommonCodeCacheService {
      * 가능하면 쓰지 않고, 조건이 없는 특수 케이스에서만 사용한다.
      */
     public List<CommonCode> getOrLoadAll(Supplier<List<CommonCode>> dbLoader) {
-        String cacheKey = CacheKeys.commonCodes();
-        return readCachedCommonCodeList(cacheKey).orElseGet(() -> loadAndCache(cacheKey, dbLoader));
+        return dbLoader.get();
     }
 
     public List<CommonCode> getOrLoadLevel2Codes(Supplier<List<CommonCode>> dbLoader) {
@@ -95,7 +94,6 @@ public class CommonCodeCacheService {
     public void evictAfterCommit(CommonCode... commonCodes) {
         cacheAfterCompletion(() -> {
             // 전체 목록 캐시를 먼저 비우고, 영향받는 세부 캐시를 추가로 제거한다.
-            evictQuietly(CacheKeys.commonCodes());
             if (commonCodes == null) {
                 return;
             }

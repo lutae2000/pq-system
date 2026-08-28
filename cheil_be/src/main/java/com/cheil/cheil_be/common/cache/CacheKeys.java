@@ -25,10 +25,6 @@ public class CacheKeys {
         return "cache:system:notices";
     }
 
-    public String commonCodes() {
-        return "cache:common-codes";
-    }
-
     public String commonCodeById(Long codeId) {
         if (codeId == null) {
             throw new IllegalArgumentException("codeId must not be null");

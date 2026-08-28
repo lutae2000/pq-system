@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { appTheme } from "@/lib/theme";
 import { AppSnackbarProvider } from "@/lib/providers/AppSnackbarProvider";
+import { ReferenceQueryCacheProvider } from "@/modules/common/reference/ReferenceQueryCacheProvider";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -26,7 +27,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <ThemeProvider theme={appTheme}>
         <CssBaseline />
         <QueryClientProvider client={queryClient}>
-          <AppSnackbarProvider>{children}</AppSnackbarProvider>
+          <ReferenceQueryCacheProvider>
+            <AppSnackbarProvider>{children}</AppSnackbarProvider>
+          </ReferenceQueryCacheProvider>
         </QueryClientProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>

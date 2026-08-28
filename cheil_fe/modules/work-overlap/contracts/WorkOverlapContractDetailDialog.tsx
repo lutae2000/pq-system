@@ -999,7 +999,7 @@ export function WorkOverlapContractDetailDialog({
         headerName: "참여날짜",
         editable: true,
         renderEditCell: (params) => <YmdEditCell {...params} />,
-        width: 104,
+        width: 110,
         valueGetter: (_value, row) => formatDisplayDate(row.participationDate),
       },
       {
@@ -1679,6 +1679,7 @@ export function WorkOverlapContractDetailDialog({
                         >
                           <Button
                             disabled={
+                              saveDisabled ||
                               !canCreate ||
                               !contractNo ||
                               createEngineerMutation.isPending
@@ -1694,6 +1695,7 @@ export function WorkOverlapContractDetailDialog({
                           <Button
                             color="error"
                             disabled={
+                              saveDisabled ||
                               !canDelete ||
                               !contractNo ||
                               !selectedEngineer ||
@@ -1738,7 +1740,8 @@ export function WorkOverlapContractDetailDialog({
                         }
                         hideFooterSelectedRowCount
                         isCellEditable={(params) =>
-                          params.row.isNew ? canCreate : canUpdate
+                          !saveDisabled &&
+                          (params.row.isNew ? canCreate : canUpdate)
                         }
                         loading={
                           engineersQuery.isLoading ||
@@ -1755,6 +1758,11 @@ export function WorkOverlapContractDetailDialog({
                           );
                         }}
                         onNewRowEditCancel={handleNewEngineerRowEditCancel}
+                        onRowEditStart={(params, event) => {
+                          if (params.reason === "cellDoubleClick") {
+                            event.defaultMuiPrevented = true;
+                          }
+                        }}
                         onRowClick={(
                           params: GridRowParams<WorkOverlapContractEngineerRecord>,
                         ) => {
@@ -1770,6 +1778,7 @@ export function WorkOverlapContractDetailDialog({
                           params: GridRowParams<WorkOverlapContractEngineerRecord>,
                         ) => {
                           if (
+                            saveDisabled ||
                             !canUpdate ||
                             params.row.isNew ||
                             updateEngineerMutation.isPending

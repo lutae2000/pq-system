@@ -7,6 +7,201 @@
   "graphTooltip": 0,
   "panels": [
     {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 32,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "direction": "backward",
+          "editorMode": "code",
+          "expr": "{app=\"cheil-be\"} |= \"api_error\" | regexp `api_error method=(?P<method>\\S+) uri=(?P<uri>\\S+) uri_pattern=(?P<uri_pattern>\\S+) status=(?P<status>\\d+) error_type=(?P<error_type>\\S+) error_message=\"(?P<error_message>[^\"]*)\" root_cause_type=(?P<root_cause_type>\\S+) root_cause_message=\"(?P<root_cause_message>[^\"]*)\" trace_id=(?P<trace_id>\\w+)` | error_type != \"\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "format": "json",
+            "source": "labels",
+            "replace": true,
+            "keepTime": true,
+            "jsonPaths": []
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Line": true,
+              "app": true,
+              "error_message": true,
+              "error_type": true,
+              "filename": true,
+              "id": true,
+              "job": true,
+              "labels": true,
+              "source": true,
+              "status": true,
+              "tsNs": true,
+              "uri": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "trace_id": 1,
+              "method": 2,
+              "uri_pattern": 3,
+              "root_cause_type": 4,
+              "root_cause_message": 5
+            },
+            "renameByName": {
+              "Time": "발생 시간",
+              "trace_id": "Trace ID",
+              "method": "Method",
+              "uri_pattern": "URI",
+              "root_cause_type": "원인 예외",
+              "root_cause_message": "상세 오류"
+            }
+          }
+        }
+      ],
+      "title": "API 5xx Error Logs (Loki)",
+      "type": "table",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "발생 시간"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 125
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Method"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "URI"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 220
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Loki에서 오류 원문 보기",
+                    "targetBlank": true,
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "loki",
+                      "datasourceName": "Loki",
+                      "query": {
+                        "expr": "{app=\"cheil-be\"} |= \"api_error\" |= \"method=${__data.fields.Method}\" |= \"uri_pattern=${__value.raw}\"",
+                        "queryType": "range",
+                        "refId": "A"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "원인 예외"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 240
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "상세 오류"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 420
+              },
+              {
+                "id": "custom.wrapText",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Trace ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Tempo에서 Trace 보기",
+                    "targetBlank": true,
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql",
+                        "limit": 20,
+                        "tableType": "traces"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 4,
@@ -49,7 +244,7 @@
           },
           "gridPos": {
             "h": 4,
-            "w": 3,
+            "w": 4,
             "x": 0,
             "y": 0
           },
@@ -61,7 +256,7 @@
               "refId": "A"
             }
           ],
-          "title": "Error Ratio",
+          "title": "5xx Error Rate",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -111,8 +306,8 @@
           },
           "gridPos": {
             "h": 4,
-            "w": 3,
-            "x": 3,
+            "w": 4,
+            "x": 4,
             "y": 0
           },
           "id": 13,
@@ -123,7 +318,7 @@
               "refId": "A"
             }
           ],
-          "title": "PostgreSQL Availability",
+          "title": "PostgreSQL Up",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -173,8 +368,8 @@
           },
           "gridPos": {
             "h": 4,
-            "w": 3,
-            "x": 6,
+            "w": 4,
+            "x": 8,
             "y": 0
           },
           "id": 31,
@@ -185,7 +380,7 @@
               "refId": "A"
             }
           ],
-          "title": "PostgreSQL Container CPU Usage",
+          "title": "PostgreSQL CPU",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -236,7 +431,7 @@
           "gridPos": {
             "h": 4,
             "w": 3,
-            "x": 9,
+            "x": 12,
             "y": 0
           },
           "id": 28,
@@ -247,68 +442,7 @@
               "refId": "A"
             }
           ],
-          "title": "PostgreSQL Locks",
-          "type": "stat",
-          "options": {
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "center",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          }
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "orange",
-                    "value": 1
-                  },
-                  {
-                    "color": "red",
-                    "value": 5
-                  }
-                ]
-              }
-            }
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 3,
-            "x": 12,
-            "y": 0
-          },
-          "id": 15,
-          "targets": [
-            {
-              "expr": "min(redis_up{instance=~\"$redis_instance\"})",
-              "refId": "A"
-            }
-          ],
-          "title": "Redis Availability",
+          "title": "PG Locks",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -362,6 +496,67 @@
             "x": 15,
             "y": 0
           },
+          "id": 15,
+          "targets": [
+            {
+              "expr": "min(redis_up{instance=~\"$redis_instance\"})",
+              "refId": "A"
+            }
+          ],
+          "title": "Redis Up",
+          "type": "stat",
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          }
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "orange",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 18,
+            "y": 0
+          },
           "id": 16,
           "targets": [
             {
@@ -369,7 +564,7 @@
               "refId": "A"
             }
           ],
-          "title": "Redis Connected Clients",
+          "title": "Redis Clients",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -420,7 +615,7 @@
           "gridPos": {
             "h": 4,
             "w": 3,
-            "x": 18,
+            "x": 21,
             "y": 0
           },
           "id": 17,
@@ -431,7 +626,7 @@
               "refId": "A"
             }
           ],
-          "title": "Redis Container Memory Usage %",
+          "title": "Redis Memory %",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -538,7 +733,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 13
+        "y": 5
       },
       "id": 5,
       "targets": [
@@ -569,8 +764,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 21
+        "x": 12,
+        "y": 13
       },
       "id": 6,
       "targets": [
@@ -596,7 +791,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 21
       },
       "id": 7,
@@ -633,8 +828,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 29
+        "x": 12,
+        "y": 21
       },
       "id": 8,
       "targets": [
@@ -655,7 +850,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 29
       },
       "id": 9,
@@ -665,18 +860,68 @@
       },
       "targets": [
         {
-          "expr": "topk(5, (histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[$__rate_interval]))) == histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[$__rate_interval])))))",
+          "expr": "topk(10, (histogram_quantile(0.95, sum by (le, uri, method) (increase(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[1h]))) == histogram_quantile(0.95, sum by (le, uri, method) (increase(http_server_requests_seconds_bucket{application=~\"$application\",environment=~\"$environment\",uri!=\"/actuator/prometheus\",uri!=\"/api/actuator/prometheus\"}[1h])))))",
           "format": "table",
           "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Top 5 Slow Endpoints (p95)",
+      "title": "Top 10 Slow Endpoints (p95)",
       "type": "table",
       "fieldConfig": {
         "defaults": {
           "unit": "s"
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "uri"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 350
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "method"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -805,12 +1050,39 @@
       "id": 27,
       "targets": [
         {
-          "expr": "100 * sum by (instance) (pg_stat_activity_count{instance=~\"$db_instance\"}) / clamp_min(sum by (instance) (pg_settings_max_connections{instance=~\"$db_instance\"}), 1)",
-          "legendFormat": "{{instance}}",
+          "expr": "100 * sum by (name) (rate(container_cpu_usage_seconds_total{name=~\".*-postgres-1$\"}[$__rate_interval]))",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
-      "title": "DB Connection Utilization",
+      "title": "DB CPU Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 55
+      },
+      "id": 34,
+      "targets": [
+        {
+          "expr": "100 * max by (name) (container_memory_working_set_bytes{name=~\".*-postgres-1$\"}) / scalar(max(machine_memory_bytes))",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "DB Memory Usage",
       "type": "timeseries"
     },
     {
@@ -826,8 +1098,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 55
+        "x": 0,
+        "y": 63
       },
       "id": 28,
       "targets": [
@@ -853,7 +1125,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 63
       },
       "id": 29,
@@ -880,8 +1152,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 63
+        "x": 0,
+        "y": 71
       },
       "id": 30,
       "targets": [
@@ -900,7 +1172,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+      "y": 79
       },
       "id": 25,
       "panels": [],
@@ -921,7 +1193,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 72
+        "y": 80
       },
       "id": 18,
       "targets": [
@@ -948,7 +1220,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 72
+        "y": 80
       },
       "id": 19,
       "targets": [
@@ -975,7 +1247,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 80
+        "y": 88
       },
       "id": 20,
       "targets": [
@@ -1007,7 +1279,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 80
+        "y": 88
       },
       "id": 21,
       "targets": [

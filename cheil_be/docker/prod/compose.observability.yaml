@@ -73,16 +73,19 @@ services:
       - '9121:9121'
     restart: unless-stopped
 
-  promtail:
-    image: 'grafana/promtail:2.9.8'
+  alloy:
+    image: 'grafana/alloy:latest'
     command:
-      - '-config.file=/etc/promtail/promtail-docker.yml'
+      - 'run'
+      - '--server.http.listen-addr=0.0.0.0:12345'
+      - '--storage.path=/var/lib/alloy'
+      - '/etc/alloy/config.alloy'
     depends_on:
       - loki
     volumes:
-      - '../../docker/observability/promtail-docker.yml:/etc/promtail/promtail-docker.yml:ro'
+      - '../../docker/observability/alloy-docker.alloy:/etc/alloy/config.alloy:ro'
       - 'app-logs:/var/log/cheil-be:ro'
-      - 'promtail-positions:/tmp'
+      - 'alloy-data:/var/lib/alloy'
     restart: unless-stopped
 
   grafana:
@@ -114,5 +117,5 @@ volumes:
   grafana-data:
   loki-data:
   tempo-data:
-  promtail-positions:
+  alloy-data:
   app-logs:

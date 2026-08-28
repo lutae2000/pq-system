@@ -16,7 +16,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { MenuSearchPopper, type SearchMenuItem } from "@/components/layout/MenuSearchPopper";
 import { MyAccountDialog } from "@/components/layout/MyAccountDialog";
@@ -24,6 +24,7 @@ import { OpenTabs } from "@/components/layout/OpenTabs";
 import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
 import { AUTH_SESSION_STORAGE_KEY, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
 import { logoutSession } from "@/lib/http/apiClient";
+import { clearReferenceQueryCacheStorage } from "@/modules/common/reference/ReferenceQueryCacheProvider";
 import { getMenuItems, type MenuItemDto } from "@/shared/navigation/menu";
 
 type TopHeaderProps = {
@@ -91,6 +92,7 @@ export function TopHeader({
   onSidebarToggle,
   sidebarCollapsed = false,
 }: TopHeaderProps) {
+  const queryClient = useQueryClient();
   const [myAccountOpen, setMyAccountOpen] = useState(false);
   const menuQuery = useQuery({
     queryKey: ["menu"],
@@ -118,6 +120,8 @@ export function TopHeader({
 
   const handleLogout = async () => {
     await logoutSession();
+    queryClient.clear();
+    clearReferenceQueryCacheStorage();
     redirectToLogin("/login");
   };
 

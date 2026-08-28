@@ -25,6 +25,8 @@ spring:
       port: ${REDIS_PORT:6379}
 
 logging:
+  file:
+    name: ${LOGGING_FILE_NAME:${user.home}/cheil-be/logs/application.log}
   level:
     SQL_COMPLETED: DEBUG
     p6spy: OFF

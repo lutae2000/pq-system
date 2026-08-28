@@ -365,7 +365,7 @@ export function WorkOverlapContractManagementPage() {
     {
       field: "status",
       headerName: "상태",
-      width: 96,
+      width: 70,
       align: "center",
       headerAlign: "center",
       renderCell: ({ row }: GridRenderCellParams<WorkOverlapContractRecord>) => renderStatusChip(row),
@@ -376,7 +376,7 @@ export function WorkOverlapContractManagementPage() {
     {
       field: "publicContractYn",
       headerName: "공개계약",
-      width: 105,
+      width: 75,
       align: "center",
       headerAlign: "center",
       renderCell: ({ row }: GridRenderCellParams<WorkOverlapContractRecord>) => (

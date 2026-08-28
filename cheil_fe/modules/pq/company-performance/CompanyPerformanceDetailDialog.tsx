@@ -88,13 +88,13 @@ const toContractDateValue = (value: string) => {
 const isStoppedStatus = (value: string | null | undefined) => text(value).trim().toUpperCase() === "N";
 const showCodeLabel = process.env.NEXT_PUBLIC_APP_PROFILE !== "prod";
 
-function Panel({ children, title }: { children: ReactNode; title: string }) {
+function Panel({ children, fillHeight = false, title }: { children: ReactNode; fillHeight?: boolean; title: string }) {
   return (
-    <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0, overflow: "hidden" }}>
+    <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, display: fillHeight ? "flex" : undefined, flexDirection: fillHeight ? "column" : undefined, height: fillHeight ? "100%" : undefined, minWidth: 0, overflow: "hidden" }}>
       <Box sx={{ bgcolor: "#eef4fb", borderBottom: "1px solid", borderColor: "divider", px: 1.5, py: 1 }}>
         <Typography sx={{ color: "#0f172a", fontSize: 13, fontWeight: 800 }}>{title}</Typography>
       </Box>
-      <Box sx={{ p: 1.25 }}>{children}</Box>
+      <Box sx={{ display: fillHeight ? "flex" : undefined, flex: fillHeight ? 1 : undefined, flexDirection: fillHeight ? "column" : undefined, minHeight: fillHeight ? 0 : undefined, p: 1.25 }}>{children}</Box>
     </Box>
   );
 }
@@ -368,17 +368,18 @@ export function CompanyPerformanceDetailDialog({
             </Box>
           </Panel>
 
-          <Panel title="공사개요">
+          <Panel fillHeight title="공사개요">
             <TextField
               fullWidth
               multiline
               onChange={(event) => onFieldChange("summary", event.target.value)}
-              rows={23}
               sx={{
                 ...standardFieldSx,
+                flex: 1,
+                minHeight: 0,
                 "& .MuiInputBase-root": {
                   alignItems: "flex-start",
-                  height: 540,
+                  height: "100%",
                 },
                 "& textarea": {
                   height: "100% !important",

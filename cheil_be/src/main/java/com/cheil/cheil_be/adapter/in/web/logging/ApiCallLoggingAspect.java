@@ -15,6 +15,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.tracing.Span;
@@ -28,6 +29,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.HandlerMapping;
 
 import com.cheil.cheil_be.application.apilog.port.out.ApiCallLogRecorder;
 import com.cheil.cheil_be.common.logging.SensitiveValueMasker;
@@ -45,9 +47,11 @@ import tools.jackson.databind.ObjectMapper;
 @Aspect
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ApiCallLoggingAspect {
 
     private static final int MAX_PAYLOAD_LENGTH = 20_000;
+    private static final int MAX_ERROR_MESSAGE_LENGTH = 4_000;
 
     private final ApiCallLogRecorder apiCallLogRecorder;
     private final ObjectMapper objectMapper;
@@ -91,7 +95,26 @@ public class ApiCallLoggingAspect {
         String programCode = header(request, SecurityHeaders.PROGRAM_CODE);
         String clientIp = ClientIpResolver.resolve(request);
         String traceId = currentTraceId();
+        String uriPattern = uriPattern(request);
         addTraceAttributes(serviceId, loginId, programCode, clientIp);
+
+        if (thrown != null && statusCode != null && statusCode >= 500) {
+            Throwable rootCause = rootCause(thrown);
+            log.error(
+                    "api_error method={} uri={} uri_pattern={} status={} error_type={} error_message=\"{}\" "
+                            + "root_cause_type={} root_cause_message=\"{}\" trace_id={}",
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    uriPattern,
+                    statusCode,
+                    thrown.getClass().getName(),
+                    errorMessage(thrown),
+                    rootCause.getClass().getName(),
+                    errorMessage(rootCause),
+                    traceId,
+                    thrown
+            );
+        }
 
         apiCallLogRecorder.record(new ApiCallLogRecord(
                 UUID.randomUUID(),
@@ -109,9 +132,40 @@ public class ApiCallLoggingAspect {
                 serializeResponse(result),
                 statusCode,
                 thrown == null && statusCode != null && statusCode < 400,
-                thrown == null ? null : truncate(thrown.getMessage()),
+                thrown == null ? null : truncate(errorMessage(rootCause(thrown))),
                 Duration.ofNanos(System.nanoTime() - startedAt).toMillis()
         ));
+    }
+
+    private static Throwable rootCause(Throwable throwable) {
+        Throwable current = throwable;
+        for (int depth = 0; depth < 32; depth++) {
+            Throwable cause = current.getCause();
+            if (cause == null || cause == current) {
+                break;
+            }
+            current = cause;
+        }
+        return current;
+    }
+
+    private static String errorMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            return "(no message)";
+        }
+        String sanitized = SensitiveValueMasker.mask(message)
+                .replace('\r', ' ')
+                .replace('\n', ' ')
+                .replace('"', '\'');
+        return sanitized.length() <= MAX_ERROR_MESSAGE_LENGTH
+                ? sanitized
+                : sanitized.substring(0, MAX_ERROR_MESSAGE_LENGTH);
+    }
+
+    private static String uriPattern(HttpServletRequest request) {
+        Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        return pattern == null ? request.getRequestURI() : String.valueOf(pattern);
     }
 
     private String currentTraceId() {

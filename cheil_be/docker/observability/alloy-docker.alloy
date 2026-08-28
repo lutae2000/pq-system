@@ -1,0 +1,29 @@
+local.file_match "cheil_be_logs" {
+  path_targets = [{
+    __path__ = "/var/log/cheil-be/*.log",
+    job      = "cheil-be",
+    app      = "cheil-be",
+    source   = "docker",
+  }]
+  sync_period = "10s"
+}
+
+loki.process "cheil_be_logs" {
+  stage.multiline {
+    firstline     = `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}`
+    max_wait_time = "3s"
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.source.file "cheil_be_logs" {
+  targets    = local.file_match.cheil_be_logs.targets
+  forward_to = [loki.process.cheil_be_logs.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

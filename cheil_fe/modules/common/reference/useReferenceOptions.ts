@@ -3,6 +3,7 @@
 import { useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
 
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
+import { useReferenceQueryCacheHydrated } from "@/modules/common/reference/ReferenceQueryCacheProvider";
 import {
   getClientReferences,
   getCommonCodeLevel1References,
@@ -24,11 +25,12 @@ import type { DepartmentRecord, DepartmentSearchParams } from "@/modules/code/de
 import type { SystemRoleRecord, SystemRoleSearchParams } from "@/modules/system/roles/api";
 import type { AuthUserAccount } from "@/types/user";
 
-export const REFERENCE_STALE_TIME = 5 * 60 * 1000;
+export const REFERENCE_STALE_TIME = 10 * 60 * 1000;
+export const REFERENCE_CACHE_TIME = 60 * 60 * 1000;
 
 type ReferenceQueryOptions<TItem> = Omit<
   UseQueryOptions<ReferenceQueryResult<TItem>, Error, ReferenceQueryResult<TItem>, QueryKey>,
-  "queryFn" | "queryKey" | "staleTime"
+  "queryFn" | "queryKey" | "staleTime" | "gcTime"
 >;
 
 const emptyReferenceResult = <TItem>(): ReferenceQueryResult<TItem> => ({
@@ -41,11 +43,15 @@ function useReferenceQuery<TItem>(
   queryKey: QueryKey,
   queryFn: () => Promise<ReferenceQueryResult<TItem>>,
   options?: ReferenceQueryOptions<TItem>,
+  persistInSession = false,
 ) {
   const enabledOption = options?.enabled;
-  const enabled = useTabQueryEnabled(typeof enabledOption === "boolean" ? enabledOption : true);
+  const cacheHydrated = useReferenceQueryCacheHydrated();
+  const tabQueryEnabled = useTabQueryEnabled(typeof enabledOption === "boolean" ? enabledOption : true);
+  const enabled = (persistInSession ? cacheHydrated : true) && tabQueryEnabled;
   const query = useQuery({
     staleTime: REFERENCE_STALE_TIME,
+    gcTime: persistInSession ? REFERENCE_CACHE_TIME : undefined,
     ...options,
     enabled,
     queryKey,
@@ -85,7 +91,7 @@ export function useCommonCodeLevel1Options(
   params: CommonCodeSearchParams = { useYn: "Y" },
   options?: ReferenceQueryOptions<CommonCodeRecord>,
 ) {
-  return useReferenceQuery(["references", "common-codes", "level1", params], () => getCommonCodeLevel1References(params), options);
+  return useReferenceQuery(["references", "common-codes", "level1", params], () => getCommonCodeLevel1References(params), options, true);
 }
 
 export function useCommonCodeLevel2Options(
@@ -98,6 +104,7 @@ export function useCommonCodeLevel2Options(
     ["references", "common-codes", "level2", level1Code, params, sort],
     () => getCommonCodeLevel2References(level1Code, params, sort),
     { enabled: Boolean(level1Code), ...options },
+    true,
   );
 }
 
@@ -112,5 +119,6 @@ export function useCommonCodeLevel3Options(
     ["references", "common-codes", "level3", level1Code, level2Code, params, sort],
     () => getCommonCodeLevel3References(level1Code, level2Code, params, sort),
     { enabled: Boolean(level1Code && level2Code), ...options },
+    true,
   );
 }

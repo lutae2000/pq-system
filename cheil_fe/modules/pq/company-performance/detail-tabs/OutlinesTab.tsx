@@ -198,13 +198,6 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
       const baseRowCount = retainedRows.length + (outlinesQuery.data?.length ?? 0);
       const generatedRows = createOutlineRowsFromCodes(categoryCode, detailCodes, baseRowCount);
       setNewRows([...generatedRows, ...retainedRows]);
-      setRowModesModel((current) => {
-        const next = { ...current };
-        generatedRows.forEach((row) => {
-          next[row.id] = { mode: GridRowModes.Edit, fieldToFocus: "outlineContent" };
-        });
-        return next;
-      });
     },
     [createOutlineRowsFromCodes, newRows, outlinesQuery.data],
   );
@@ -309,7 +302,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
         headerName: "공사종류번호",
         width: 110,
         align: "right",
-        editable: true,
+        editable: false,
         headerAlign: "right",
         renderCell: (params) => (shouldShowGroupSeq(params.row) ? display(params.row.outlineGroupSeq) : ""),
         type: "number",
@@ -449,7 +442,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, gap: 1, alignItems: "center" }}>
         <TextField
           disabled={readOnly || !canCreate || !record.seq || outlineCategoryReferences.isLoading || outlineDetailCodesMutation.isPending}
-          label="공사종류"
+          label="공사 추가 템플릿"
           onChange={(event) => handleOutlineCategoryChange(event.target.value)}
           select
           size="small"

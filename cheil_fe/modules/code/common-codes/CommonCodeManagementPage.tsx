@@ -338,7 +338,11 @@ export function CommonCodeManagementPage() {
       setIsCreating(false);
       setDraft(toDraft(saved));
       queryClient.invalidateQueries({ queryKey: ["common-codes"] });
-      setSnackbar({ message: "공통코드를 저장했습니다.", severity: "success" });
+      queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
+      setSnackbar({
+        message: "공통코드를 저장했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 새 공통코드를 조회합니다.",
+        severity: "success",
+      });
     },
     onError: (error) => {
       setSnackbar({ message: error instanceof Error ? error.message : "공통코드 저장에 실패했습니다.", severity: "error" });
@@ -349,11 +353,15 @@ export function CommonCodeManagementPage() {
     mutationFn: deleteCommonCode,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["common-codes"] });
+      queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
       setSelectedCodeId(null);
       setIsCreating(false);
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      setSnackbar({ message: "공통코드를 삭제했습니다.", severity: "success" });
+      setSnackbar({
+        message: "공통코드를 삭제했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 변경 내용을 조회합니다.",
+        severity: "success",
+      });
     },
     onError: (error) => {
       setSnackbar({ message: error instanceof Error ? error.message : "공통코드 삭제에 실패했습니다.", severity: "error" });

@@ -11,6 +11,8 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.tracing.Tracer;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +39,8 @@ class ApiCallLoggingAspectTest {
             records::add,
             new ObjectMapper(),
             new SingleObjectProvider<>(request),
+            new SingleObjectProvider<ObservationRegistry>(null),
+            new SingleObjectProvider<Tracer>(null),
             Clock.fixed(Instant.parse("2026-06-18T00:00:00Z"), ZoneOffset.UTC)
     );
 

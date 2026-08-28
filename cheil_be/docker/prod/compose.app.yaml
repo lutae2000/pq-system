@@ -19,7 +19,7 @@ services:
       REDIS_PORT: 6379
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       APP_FILE_STORAGE_ROOT: /data/cheil-be/files/prod
-      APP_LOG_FILE_NAME: /var/log/cheil-be/app-1.log
+      LOGGING_FILE_NAME: /var/log/cheil-be/app-1.log
     expose:
       - '8080'
     volumes:
@@ -46,7 +46,7 @@ services:
       REDIS_PORT: 6379
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       APP_FILE_STORAGE_ROOT: /data/cheil-be/files/prod
-      APP_LOG_FILE_NAME: /var/log/cheil-be/app-2.log
+      LOGGING_FILE_NAME: /var/log/cheil-be/app-2.log
     expose:
       - '8080'
     volumes:
