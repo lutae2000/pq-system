@@ -1,5 +1,20 @@
 import type { EducationReminderChannel, EducationReminderNotificationTargetRecord, EducationReminderTemplateRecord } from "../types";
 
+export const getClosestEducationDeadline = (values: string[]) => {
+  const today = new Date();
+  const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const dates = values
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value));
+
+  return dates.sort((left, right) => {
+    const leftTime = Date.parse(`${left}T00:00:00`);
+    const rightTime = Date.parse(`${right}T00:00:00`);
+    return Math.abs(leftTime - todayTime) - Math.abs(rightTime - todayTime) || left.localeCompare(right);
+  })[0] ?? "";
+};
+
 export type EducationReminderSendRequest = {
   manualChannel?: EducationReminderChannel;
   manualContent?: string;
@@ -52,7 +67,7 @@ export type EducationReminderSendRetryResponse = {
 
 export type EducationReminderSendDialogTarget = Pick<
   EducationReminderNotificationTargetRecord,
-  "department" | "engineerId" | "grade" | "highlightTone" | "name" | "phoneNo" | "rowKey" | "targetEducationNames"
+  "department" | "engineerId" | "grade" | "highlightTone" | "name" | "phoneNo" | "rowKey" | "targetEducationNames" | "deadline"
 > & {
   scheduledEducation1: string;
   scheduledEducation2: string;

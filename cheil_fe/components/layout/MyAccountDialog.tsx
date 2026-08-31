@@ -12,7 +12,7 @@ import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { readAuthSession, writeAuthSession } from "@/lib/auth/authSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { getMyAccount, updateMyAccount, type MyAccountUpdateRequest } from "@/modules/auth/authApi";
-import { useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
+import { useDepartmentOptions, useRoleOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type MyAccountDialogProps = {
   onClose: () => void;
@@ -34,6 +34,12 @@ const emptyForm: FormState = {
 
 const accountSectionTitleSx = { fontWeight: 700, mb: 1.25 } as const;
 
+const formatDate = (value: string | null | undefined) => {
+  const text = value?.trim() ?? "";
+  const match = text.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : text;
+};
+
 export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
   const queryClient = useQueryClient();
   const { showError, showSuccess } = useAppSnackbar();
@@ -43,6 +49,7 @@ export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: open });
+  const roleOptions = useRoleOptions({ useYn: true }, { enabled: open });
 
   const accountQuery = useQuery({
     queryKey: ["auth", "me"],
@@ -203,8 +210,8 @@ export function MyAccountDialog({ onClose, open }: MyAccountDialogProps) {
                 renderInput={(params) => <TextField {...params} label="부서" placeholder="부서 검색" size="small" />}
               />
               <TextField label="이메일" onChange={(event) => updateForm("email", event.target.value)} type="email" value={form.email} />
-              <TextField disabled label="역할코드" value={accountQuery.data?.groupCode ?? ""} />
-              <TextField disabled label="패스워드 초기화 날짜" value={accountQuery.data?.passwordResetDt ?? ""} />
+              <TextField disabled label="역할" value={roleOptions.labelByValue[accountQuery.data?.groupCode ?? ""] ?? ""} />
+              <TextField disabled label="패스워드 초기화 날짜" value={formatDate(accountQuery.data?.passwordResetDt)} />
             </Box>
           </Box>
         </DialogContent>

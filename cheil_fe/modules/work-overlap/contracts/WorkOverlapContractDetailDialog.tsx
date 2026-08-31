@@ -448,11 +448,9 @@ const Section = ({
 
 const SubHeader = ({
   action,
-  title,
   tooltip,
 }: {
   action?: ReactNode;
-  title: string;
   tooltip?: string;
 }) => (
   <Box
@@ -469,12 +467,11 @@ const SubHeader = ({
         sx={{ fontSize: 13, fontWeight: 800, minWidth: 0 }}
         variant="subtitle2"
       >
-        {title}
       </Typography>
       {tooltip ? (
         <Tooltip arrow title={tooltip}>
           <IconButton
-            aria-label={`${title} 안내`}
+            aria-label={`안내`}
             size="small"
             sx={{ color: "text.secondary", flexShrink: 0, p: 0.25 }}
           >
@@ -1578,7 +1575,6 @@ export function WorkOverlapContractDetailDialog({
                   <Section dense title="기간 정보 변경 이력">
                     <Stack spacing={1} sx={{ minWidth: 0 }}>
                       <SubHeader
-                        title="기간 정보 변경 이력"
                         action={
                           <Button
                             color="error"
@@ -1822,7 +1818,6 @@ export function WorkOverlapContractDetailDialog({
                 <Section title="기술인 변경 이력">
                   <Stack spacing={1} sx={{ minWidth: 0 }}>
                     <SubHeader
-                      title="기술인 변경 이력"
                       action={
                         <Button
                           color="error"

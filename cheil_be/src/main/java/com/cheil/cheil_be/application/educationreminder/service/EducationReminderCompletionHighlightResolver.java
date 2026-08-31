@@ -17,8 +17,7 @@ class EducationReminderCompletionHighlightResolver {
         }
 
         LocalDate today = LocalDate.now();
-        if (isAfterTodayWithinWindow(scheduledEducation1, today, UPCOMING_WARNING_DAYS)
-                || isAfterTodayWithinWindow(scheduledEducation2, today, UPCOMING_WARNING_DAYS)) {
+        if (isBeforeToday(scheduledEducation1, today) || isBeforeToday(scheduledEducation2, today)) {
             return EducationReminderHighlightTone.OVERDUE;
         }
         if (isUpcomingWithinWindow(scheduledEducation1, today, UPCOMING_WARNING_DAYS)
@@ -28,13 +27,13 @@ class EducationReminderCompletionHighlightResolver {
         return EducationReminderHighlightTone.NONE;
     }
 
-    private boolean isAfterTodayWithinWindow(String value, LocalDate today, int days) {
+    private boolean isBeforeToday(String value, LocalDate today) {
         LocalDate date = EducationReminderDateUtils.parseResponseDate(value);
-        return date != null && date.isAfter(today) && !date.isAfter(today.plusDays(days));
+        return date != null && date.isBefore(today);
     }
 
     private boolean isUpcomingWithinWindow(String value, LocalDate today, int days) {
         LocalDate date = EducationReminderDateUtils.parseResponseDate(value);
-        return date != null && !date.isBefore(today.minusDays(days)) && !date.isAfter(today);
+        return date != null && !date.isBefore(today) && !date.isAfter(today.plusDays(days));
     }
 }

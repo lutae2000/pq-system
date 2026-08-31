@@ -76,6 +76,7 @@ public class EducationReminderCompletionService {
         private final String phoneNo;
         private final Set<String> targetEducationNames = new TreeSet<>();
         private EducationReminderHighlightTone highlightTone = EducationReminderHighlightTone.NONE;
+        private LocalDate deadline;
 
         private NotificationTargetAggregate(EducationReminderCompletionResponse row, String phoneNo) {
             this.engineerId = row.engineerId();
@@ -93,11 +94,25 @@ public class EducationReminderCompletionService {
             if (StringUtils.hasText(row.educationName())) {
                 targetEducationNames.add(row.educationName().trim());
             }
+            updateDeadline(row.scheduledEducation1());
+            updateDeadline(row.scheduledEducation2());
             if (row.highlightTone() == EducationReminderHighlightTone.OVERDUE) {
                 highlightTone = EducationReminderHighlightTone.OVERDUE;
             } else if (row.highlightTone() == EducationReminderHighlightTone.UPCOMING && highlightTone == EducationReminderHighlightTone.NONE) {
                 highlightTone = EducationReminderHighlightTone.UPCOMING;
             }
+        }
+
+        private void updateDeadline(String value) {
+            LocalDate candidate = EducationReminderDateUtils.parseResponseDate(value);
+            if (candidate == null || deadline != null && distanceFromToday(candidate) >= distanceFromToday(deadline)) {
+                return;
+            }
+            deadline = candidate;
+        }
+
+        private long distanceFromToday(LocalDate date) {
+            return Math.abs(java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), date));
         }
 
         private EducationReminderNotificationTargetResponse toResponse() {
@@ -112,6 +127,7 @@ public class EducationReminderCompletionService {
                     hasProfessionalCert,
                     professionalCertNames,
                     String.join(", ", targetEducationNames),
+                    deadline == null ? "" : deadline.toString(),
                     phoneNo,
                     highlightTone
             );

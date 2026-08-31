@@ -102,8 +102,8 @@ public class HwpxDocumentGenerationService {
         Map<String, String> globalValues = new LinkedHashMap<>();
         Map<String, String> mappingValues = mappings == null ? Map.of() : mappings;
         for (Map.Entry<String, String> mapping : mappingValues.entrySet()) {
-            if (!StringUtils.hasText(mapping.getValue()) || mapping.getValue().startsWith("row.")) continue;
-            globalValues.put(mapping.getKey(), resolve(mapping.getValue(), profile, bidNotice, null));
+            if (!StringUtils.hasText(mapping.getValue()) || isRepeatablePath(mapping.getValue())) continue;
+            globalValues.put(mapping.getKey(), resolve(mapping.getValue(), profile, bidNotice, null, null, null, mapping.getKey()));
         }
 
         try {
@@ -209,32 +209,8 @@ public class HwpxDocumentGenerationService {
             }
         }
 
-        if (!reviews.isEmpty()) {
-            List<Element> rows = elements(document.getElementsByTagNameNS(HWP_NS, "tr"));
-            for (Element row : rows) {
-                Set<String> rowFields = namedCells(row);
-                boolean repeatable = mappings.entrySet().stream()
-                        .anyMatch(mapping -> mapping.getValue() != null && mapping.getValue().startsWith("row.") && rowFields.contains(mapping.getKey()));
-                if (!repeatable || row.getParentNode() == null) continue;
-
-                Node parent = row.getParentNode();
-                if (parent instanceof Element table && "tbl".equals(table.getLocalName())) {
-                    increaseTableHeight(table, row, reviews.size() - 1);
-                }
-                for (EngineerProjectHistoryReviewResponse review : reviews) {
-                    Element clone = (Element) row.cloneNode(true);
-                    NodeList cloneCells = clone.getElementsByTagNameNS(HWP_NS, "tc");
-                    for (int index = 0; index < cloneCells.getLength(); index++) {
-                        Element cell = (Element) cloneCells.item(index);
-                        String name = cell.getAttribute("name");
-                        String path = mappings.get(name);
-                        if (path != null && path.startsWith("row.")) setCellText(cell, resolve(path, profile, bidNotice, review));
-                    }
-                    parent.insertBefore(clone, row);
-                }
-                parent.removeChild(row);
-            }
-        }
+        renderCareerRows(document, mappings, profile, bidNotice, reviews);
+        renderHistoryRows(document, mappings, profile, bidNotice);
         normalizeTables(document);
 
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -247,14 +223,113 @@ public class HwpxDocumentGenerationService {
         return output.toByteArray();
     }
 
-    private String resolve(
-            String path,
+    private void renderCareerRows(
+            Document document,
+            Map<String, String> mappings,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            List<EngineerProjectHistoryReviewResponse> reviews
+    ) {
+        if (reviews.isEmpty()) return;
+
+        List<Element> rows = elements(document.getElementsByTagNameNS(HWP_NS, "tr"));
+        for (Element row : rows) {
+            Set<String> rowFields = namedCells(row);
+            boolean repeatable = mappings.entrySet().stream()
+                    .anyMatch(mapping -> mapping.getValue() != null
+                            && mapping.getValue().startsWith("row.")
+                            && rowFields.contains(mapping.getKey()));
+            if (!repeatable || row.getParentNode() == null) continue;
+
+            Node parent = row.getParentNode();
+            increaseTableHeight(parent, row, reviews.size() - 1);
+            for (EngineerProjectHistoryReviewResponse review : reviews) {
+                Element clone = (Element) row.cloneNode(true);
+                fillCareerRow(clone, mappings, profile, bidNotice, review);
+                parent.insertBefore(clone, row);
+            }
+            parent.removeChild(row);
+        }
+    }
+
+    private void fillCareerRow(
+            Element row,
+            Map<String, String> mappings,
             EngineerDtos.Profile profile,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             EngineerProjectHistoryReviewResponse review
     ) {
+        NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
+        for (int index = 0; index < cells.getLength(); index++) {
+            Element cell = (Element) cells.item(index);
+            String name = cell.getAttribute("name");
+            String path = mappings.get(name);
+            if (path != null && path.startsWith("row.")) {
+                setCellText(cell, resolve(path, profile, bidNotice, review, null, null, name));
+            }
+        }
+    }
+
+    private void renderHistoryRows(
+            Document document,
+            Map<String, String> mappings,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice
+    ) {
+        List<EngineerDtos.Career> histories = profile.careers() == null ? List.of() : profile.careers();
+        if (histories.isEmpty()) return;
+
+        List<Element> rows = elements(document.getElementsByTagNameNS(HWP_NS, "tr"));
+        for (Element row : rows) {
+            Set<String> rowFields = namedCells(row);
+            boolean repeatable = mappings.entrySet().stream()
+                    .anyMatch(mapping -> mapping.getValue() != null
+                            && mapping.getValue().startsWith("history.")
+                            && rowFields.contains(mapping.getKey()));
+            if (!repeatable || row.getParentNode() == null) continue;
+
+            Node parent = row.getParentNode();
+            increaseTableHeight(parent, row, histories.size() - 1);
+            for (int historyIndex = 0; historyIndex < histories.size(); historyIndex++) {
+                Element clone = (Element) row.cloneNode(true);
+                fillHistoryRow(clone, mappings, profile, bidNotice, histories.get(historyIndex), historyIndex + 1);
+                parent.insertBefore(clone, row);
+            }
+            parent.removeChild(row);
+        }
+    }
+
+    private void fillHistoryRow(
+            Element row,
+            Map<String, String> mappings,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            EngineerDtos.Career history,
+            int sequence
+    ) {
+        NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
+        for (int index = 0; index < cells.getLength(); index++) {
+            Element cell = (Element) cells.item(index);
+            String name = cell.getAttribute("name");
+            String path = mappings.get(name);
+            if (path != null && path.startsWith("history.")) {
+                setCellText(cell, resolve(path, profile, bidNotice, null, history, sequence, name));
+            }
+        }
+    }
+
+    private String resolve(
+            String path,
+            EngineerDtos.Profile profile,
+            com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
+            EngineerProjectHistoryReviewResponse review,
+            EngineerDtos.Career history,
+            Integer historySequence,
+            String fieldName
+    ) {
         if (path == null) return "";
-        if (path.startsWith("row.")) return reviewValue(path.substring(4), review);
+        if (path.startsWith("row.")) return reviewValue(path.substring(4), review, fieldName);
+        if (path.startsWith("history.")) return historyValue(path.substring(8), history, historySequence, fieldName);
         return switch (path) {
             case "summary.name" -> profile.basic().nameKor();
             case "summary.id" -> profile.basic().engrId();
@@ -268,8 +343,26 @@ public class HwpxDocumentGenerationService {
         };
     }
 
-    private String reviewValue(String field, EngineerProjectHistoryReviewResponse review) {
+    private String historyValue(String field, EngineerDtos.Career history, Integer sequence, String fieldName) {
+        if (history == null) return "";
+        String formattedValue = HwpxFieldFormatter.format(fieldName, history);
+        if (formattedValue != null) return formattedValue;
+        return switch (field) {
+            case "seq" -> sequence == null ? "" : String.format("%03d", sequence);
+            case "compName" -> history.compName();
+            case "entryDate" -> history.entryDt();
+            case "retireDate" -> history.retireDt();
+            case "deptName" -> history.deptName();
+            case "grade" -> history.grade();
+            case "duty" -> history.duty();
+            default -> "";
+        };
+    }
+
+    private String reviewValue(String field, EngineerProjectHistoryReviewResponse review, String fieldName) {
         if (review == null) return "";
+        String formattedValue = HwpxFieldFormatter.format(fieldName, review);
+        if (formattedValue != null) return formattedValue;
         return switch (field) {
             case "seq" -> string(review.seq());
             case "jobName" -> review.jobName();
@@ -319,14 +412,18 @@ public class HwpxDocumentGenerationService {
             }
             return mappings.entrySet().stream()
                     .anyMatch(mapping -> mapping.getValue() != null
-                            && mapping.getValue().startsWith("row.")
+                            && isRepeatablePath(mapping.getValue())
                             && namedCells(element).contains(mapping.getKey()));
         }
         return false;
     }
 
-    private void increaseTableHeight(Element table, Element templateRow, int addedRowCount) {
-        if (addedRowCount <= 0) return;
+    private boolean isRepeatablePath(String path) {
+        return path.startsWith("row.") || path.startsWith("history.");
+    }
+
+    private void increaseTableHeight(Node parent, Element templateRow, int addedRowCount) {
+        if (!(parent instanceof Element table) || !"tbl".equals(table.getLocalName()) || addedRowCount <= 0) return;
         long rowHeight = directChildren(templateRow, "tc").stream()
                 .mapToLong(cell -> firstLongAttribute(cell, "cellSz", "height"))
                 .max()

@@ -18,7 +18,7 @@ import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 
-import type { EducationReminderSendDialogTarget, EducationReminderSendTemplate } from "./types";
+import { getClosestEducationDeadline, type EducationReminderSendDialogTarget, type EducationReminderSendTemplate } from "./types";
 
 type EducationReminderSendDialogProps = {
   loading?: boolean;
@@ -72,6 +72,7 @@ const renderPreviewMessage = (templateContent: string, target: EducationReminder
     .replaceAll("{부서명}", target.department || "")
     .replaceAll("{교육명}", educationName)
     .replaceAll("{교육이름}", educationName)
+    .replaceAll("{마감일}", target.deadline || getClosestEducationDeadline([target.scheduledEducation1, target.scheduledEducation2]))
     .replaceAll("{전화번호}", target.phoneNo || "")
     .trim();
 };

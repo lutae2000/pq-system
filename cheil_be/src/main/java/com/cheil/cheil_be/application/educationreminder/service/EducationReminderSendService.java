@@ -801,6 +801,7 @@ public class EducationReminderSendService {
                 .replace("{부서명}", nullToEmpty(target.department()))
                 .replace("{교육명}", nullToEmpty(target.targetEducationNames()))
                 .replace("{교육이름}", nullToEmpty(target.targetEducationNames()))
+                .replace("{마감일}", nullToEmpty(target.deadline()))
                 .replace("{전화번호}", nullToEmpty(target.phoneNo()))
                 .replace("{채널}", nullToEmpty(target.highlightTone() == null ? "" : target.highlightTone().name()))
                 .trim();

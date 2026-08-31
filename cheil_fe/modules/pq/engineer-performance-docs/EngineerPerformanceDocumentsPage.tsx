@@ -582,7 +582,7 @@ export function EngineerPerformanceDocumentsPage() {
       {
         field: "displayOrder",
         headerName: "순번",
-        width: 70,
+        width: 75,
         ...center,
         editable: canUpdate,
         sortComparator: (left, right) => Number(left ?? Number.MAX_SAFE_INTEGER) - Number(right ?? Number.MAX_SAFE_INTEGER),
@@ -1223,7 +1223,7 @@ export function EngineerPerformanceDocumentsPage() {
                 </Box>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                   <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "hwpx" ? null : "hwpx"))} variant={outputTestPanel === "hwpx" ? "contained" : "outlined"}>
-                    1. HWPX 업로드 (AI개발)
+                    1. HWPX 업로드
                   </Button>
                   <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "webhwp" ? null : "webhwp"))} variant={outputTestPanel === "webhwp" ? "contained" : "outlined"}>
                     2. 한컴 웹 기안기

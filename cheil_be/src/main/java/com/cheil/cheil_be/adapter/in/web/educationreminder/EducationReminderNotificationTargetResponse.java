@@ -11,6 +11,7 @@ public record EducationReminderNotificationTargetResponse(
         String hasProfessionalCert,
         String professionalCertNames,
         String targetEducationNames,
+        String deadline,
         String phoneNo,
         EducationReminderHighlightTone highlightTone
 ) {

@@ -43,7 +43,7 @@ import {
 import { listEducationReminderBasicInfos } from "../basic-infos/api";
 import { createEducationReminderSend } from "../send/api";
 import { EducationReminderSendDialog } from "../send/EducationReminderSendDialog";
-import type { EducationReminderSendDialogTarget } from "../send/types";
+import { getClosestEducationDeadline, type EducationReminderSendDialogTarget } from "../send/types";
 import { listEducationReminderTemplates } from "../templates/api";
 import {
   formatDateText,
@@ -372,6 +372,7 @@ function EducationReminderCompletionManagementContent() {
 
         return {
           department: notificationTarget?.department ?? firstRow.department,
+          deadline: notificationTarget?.deadline ?? getClosestEducationDeadline([scheduledEducation1, scheduledEducation2]),
           engineerId,
           grade: notificationTarget?.grade ?? firstRow.grade,
           highlightTone: notificationTarget?.highlightTone ?? getCompletionHighlightTone(firstRow),

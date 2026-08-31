@@ -70,6 +70,7 @@ export type EducationReminderNotificationTargetRecord = {
   rowKey: string;
   specialtyField: string;
   targetEducationNames: string;
+  deadline: string;
 };
 
 export type EducationReminderCompletionSearchParams = {

@@ -700,6 +700,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     isCellEditable: userIsCellEditable,
     paginationModel: userPaginationModel,
     paginationMode: userPaginationMode,
+    onPaginationModelChange: userOnPaginationModelChange,
     processRowUpdate: userProcessRowUpdate,
     rowCount: userRowCount,
     rowModesModel: userRowModesModel,
@@ -1449,6 +1450,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
         onCellKeyDown={readOnly ? undefined : handleCellKeyDown}
         onCellEditStop={readOnly ? undefined : handleCellEditStop}
         onCellModesModelChange={readOnly ? undefined : userOnCellModesModelChange}
+        onPaginationModelChange={userOnPaginationModelChange}
         onRowClick={handleRowClick}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : handleRowModesModelChange}
