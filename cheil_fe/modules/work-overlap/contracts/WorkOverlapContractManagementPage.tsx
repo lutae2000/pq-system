@@ -370,7 +370,7 @@ export function WorkOverlapContractManagementPage() {
       headerAlign: "center",
       renderCell: ({ row }: GridRenderCellParams<WorkOverlapContractRecord>) => renderStatusChip(row),
     },
-    { field: "contractNo", headerName: "계약번호", width: 100, valueGetter: (_value, row) => displayText(row.contractNo) },
+    { field: "contractNo", headerName: "관리번호", width: 100, valueGetter: (_value, row) => displayText(row.contractNo) },
     { field: "serviceType", headerName: "구분", width: 50, valueGetter: (_value, row) => displayText(row.serviceType) },
     { field: "clientName", headerName: "발주처", minWidth: 170, flex: 0.8, valueGetter: (_value, row) => displayText(row.clientName) },
     {

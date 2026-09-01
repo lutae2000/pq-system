@@ -1,8 +1,9 @@
 "use client";
 
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
@@ -25,9 +26,28 @@ type CommonCodeGridRow = { codeDetailName: string; id: number };
 
 const defaultMappings: Record<string, string> = {
   nameKor: "summary.name",
+  "기본_성명": "summary.name",
+  "기본_연령(만)": "detail.age",
+  "기본_생년월일(yyyy.mm.dd)": "detail.birthDate",
   grade: "row.grade",
   jobName: "row.jobName",
   summary: "row.summary",
+  "경력_소속회사": "row.compName",
+  "경력_소속직위": "row.grade",
+  "경력_발주처명": "row.orderClient",
+  "경력_담당업무명": "row.duty",
+  "경력_용역개요": "row.summary",
+  "경력_용역명": "row.jobName",
+  "경력_순번": "row.seq",
+  "경력_직무분야명": "row.jobPart",
+  "경력_전문분야명": "row.proPart",
+  "경력_총계약금액(백만)(당사금액)": "row.ownAmt",
+  "경력_당사금액(백만)(총계약금액)": "row.ownAmt",
+  "경력_PQ당사지분율(0.00%)": "row.divisionRate",
+  "경력_PQ당사지분율(100.00%)": "row.divisionRate",
+  "이력_직위": "history.grade",
+  "이력_부서명": "history.deptName",
+  "이력_근무처명": "history.compName",
   contractAmt: "row.contractAmt",
   ownAmt: "row.ownAmt",
   contractTerm: "row.contractTerm",
@@ -97,20 +117,27 @@ const careerFieldPathsByCode: Record<string, string> = {
   "57": "row.contractAmt",
   "58": "row.jobPart",
   "59": "row.proPart",
+  "61": "row.divisionRate",
+  "62": "row.divisionRate",
   "63": "row.remark",
 };
 
 const careerFieldPathByLabel = (label: string) => {
-  if (label.startsWith("당사금액")) return "row.ownAmt";
-  if (label.startsWith("총계약금액")) return "row.contractAmt";
-  if (label.startsWith("용역시작일")) return "row.contractFromDate";
-  if (label.startsWith("용역종료일")) return "row.contractToDate";
-  if (label.startsWith("용역기간")) return "row.contractTerm";
-  if (label.startsWith("참여시작일")) return "row.startDate";
-  if (label.startsWith("참여종료일")) return "row.endDate";
-  if (label.startsWith("참여기간")) return "row.workTerm";
-  if (label.startsWith("선택기간")) return "row.selectDay";
-  if (label.startsWith("분야기간")) return "row.partDay";
+  const normalizedLabel = label.startsWith("경력_") ? label.slice("경력_".length) : label;
+  if (normalizedLabel.startsWith("PQ당사지분율")) return "row.divisionRate";
+  if (normalizedLabel.startsWith("직무분야명")) return "row.jobPart";
+  if (normalizedLabel.startsWith("전문분야명")) return "row.proPart";
+  if (normalizedLabel.startsWith("총계약금액") && normalizedLabel.includes("당사금액")) return "row.ownAmt";
+  if (normalizedLabel.startsWith("당사금액")) return "row.ownAmt";
+  if (normalizedLabel.startsWith("총계약금액")) return "row.contractAmt";
+  if (normalizedLabel.startsWith("용역시작일")) return "row.contractFromDate";
+  if (normalizedLabel.startsWith("용역종료일")) return "row.contractToDate";
+  if (normalizedLabel.startsWith("용역기간")) return "row.contractTerm";
+  if (normalizedLabel.startsWith("참여시작일")) return "row.startDate";
+  if (normalizedLabel.startsWith("참여종료일")) return "row.endDate";
+  if (normalizedLabel.startsWith("참여기간")) return "row.workTerm";
+  if (normalizedLabel.startsWith("선택기간")) return "row.selectDay";
+  if (normalizedLabel.startsWith("분야기간")) return "row.partDay";
   return "";
 };
 
@@ -134,15 +161,73 @@ const historyFieldPathsByCode: Record<string, string> = {
 };
 
 const historyFieldPathByLabel = (label: string) => {
-  if (label.startsWith("입사일")) return "history.entryDate";
-  if (label.startsWith("퇴사일")) return "history.retireDate";
-  if (label.startsWith("근무기간")) return "history.workTerm";
+  const normalizedLabel = label.startsWith("이력_") ? label.slice("이력_".length) : label;
+  if (normalizedLabel.startsWith("순번")) return "history.seq";
+  if (normalizedLabel.startsWith("근무처명")) return "history.compName";
+  if (normalizedLabel.startsWith("입사일")) return "history.entryDate";
+  if (normalizedLabel.startsWith("퇴사일")) return "history.retireDate";
+  if (normalizedLabel.startsWith("근무기간")) return "history.workTerm";
+  if (normalizedLabel.startsWith("직위")) return "history.grade";
+  if (normalizedLabel.startsWith("담당업무")) return "history.duty";
+  if (normalizedLabel.startsWith("부서명")) return "history.deptName";
   return "";
 };
 
 const commonCodeGridColumns: GridColDef<CommonCodeGridRow>[] = [
   { field: "codeDetailName", flex: 1, headerName: "필드명", minWidth: 180 },
 ];
+
+function CommonCodeGridCard({ loading, order, rows, title }: { loading: boolean; order?: number; rows: CommonCodeGridRow[]; title: string }) {
+  const [keywordDraft, setKeywordDraft] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const filteredRows = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLocaleLowerCase();
+    if (!normalizedKeyword) return rows;
+    return rows.filter((row) => row.codeDetailName.toLocaleLowerCase().includes(normalizedKeyword));
+  }, [keyword, rows]);
+
+  return (
+    <Card sx={{ order }} variant="outlined">
+      <CardContent>
+        <Typography sx={{ mb: 1, fontWeight: 700 }} variant="body2">{title}</Typography>
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setKeyword(keywordDraft);
+          }}
+          sx={{ display: "flex", gap: 1, mb: 1 }}
+        >
+          <TextField
+            fullWidth
+            label="필드명"
+            onChange={(event) => setKeywordDraft(event.target.value)}
+            placeholder="검색할 필드명 입력"
+            size="small"
+            value={keywordDraft}
+          />
+          <Button aria-label="필드명 조회" disabled={loading} startIcon={<SearchOutlinedIcon />} type="submit" variant="contained" />
+        </Box>
+        <EnterpriseDataGrid<CommonCodeGridRow>
+          columns={commonCodeGridColumns}
+          disableColumnMenu
+          disableRowSelectionOnClick
+          hideFooter
+          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
+          loading={loading}
+          pageSizeOptions={[100]}
+          rowHeight={30}
+          rows={filteredRows}
+          showToolbar={false}
+          stateCacheKey={false}
+          sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", wordBreak: "break-word" }, "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 700 } }}
+          getRowId={(row) => row.id}
+          wrapperMinHeight={320}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -248,7 +333,11 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
       setTemplateName(file.name);
       setMappings(fields.map((field) => ({
         ...field,
-        path: defaultMappings[field.name] ?? careerFieldAliases[field.name] ?? historyFieldAliases[field.name] ?? "",
+        path: defaultMappings[field.name]
+          ?? careerFieldAliases[field.name]
+          ?? historyFieldAliases[field.name]
+          ?? (careerFieldPathByLabel(field.name) || historyFieldPathByLabel(field.name) || "")
+          ?? "",
       })));
       setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했습니다.` });
     } catch (error) {
@@ -282,86 +371,37 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
           <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between" }}>
             <Box>
               <Typography sx={{ fontWeight: 800 }} variant="h6">1. HWPX 업로드 → 필드 매핑 → 다운로드</Typography>
-              <Typography color="text.secondary" variant="body2">양식 분석과 기술인별 반복 행 생성은 백엔드에서 처리합니다.</Typography>
             </Box>
-            <Button disabled={careerFieldsQuery.isLoading || historyFieldsQuery.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
+            <Stack direction="row" spacing={1}>
+              <Button disabled={careerFieldsQuery.isLoading || historyFieldsQuery.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
+              <Button disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}</Button>
+            </Stack>
             <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
           </Box>
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
           {template ? <Chip label={`${templateName} · ${mappings.length}개 필드 · ${profiles.length}명 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : <Alert severity="info">HWPX 양식을 업로드해 셀 name 필드를 분석하세요.</Alert>}
           <Typography sx={{ fontWeight: 800 }} variant="subtitle1">화면 매핑 기준 항목</Typography>
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))", xs: "1fr" } }}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography sx={{ mb: 1, fontWeight: 700 }} variant="body2">기술인 기본항목 (PQ/HG)</Typography>
-                <EnterpriseDataGrid<CommonCodeGridRow>
-                  columns={commonCodeGridColumns}
-                  disableColumnMenu
-                  disableRowSelectionOnClick
-                  hideFooter
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
-                  pageSizeOptions={[100]}
-                  rowHeight={30}
-                  rows={basicFieldRows}
-                  showToolbar={false}
-                  stateCacheKey={false}
-                  sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", wordBreak: "break-word" }, "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 700 } }}
-                  getRowId={(row) => row.id}
-                  wrapperMinHeight={320}
-                />
-              </CardContent>
-            </Card>
-            <Card sx={{ order: 3 }} variant="outlined">
-              <CardContent>
-                <Typography sx={{ mb: 1, fontWeight: 700 }} variant="body2">기술인 경력항목 (PQ/HH)</Typography>
-                <EnterpriseDataGrid<CommonCodeGridRow>
-                  columns={commonCodeGridColumns}
-                  disableColumnMenu
-                  disableRowSelectionOnClick
-                  hideFooter
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
-                  pageSizeOptions={[100]}
-                  rowHeight={30}
-                  rows={careerFieldRows}
-                  showToolbar={false}
-                  stateCacheKey={false}
-                  sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", wordBreak: "break-word" }, "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 700 } }}
-                  getRowId={(row) => row.id}
-                  wrapperMinHeight={320}
-                />
-              </CardContent>
-            </Card>
-            <Card sx={{ order: 2 }} variant="outlined">
-              <CardContent>
-                <Typography sx={{ mb: 1, fontWeight: 700 }} variant="body2">기술자 이력항목 (PQ/HI)</Typography>
-                <EnterpriseDataGrid<CommonCodeGridRow>
-                  columns={commonCodeGridColumns}
-                  disableColumnMenu
-                  disableRowSelectionOnClick
-                  hideFooter
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
-                  pageSizeOptions={[100]}
-                  rowHeight={30}
-                  rows={historyFieldRows}
-                  showToolbar={false}
-                  stateCacheKey={false}
-                  sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", wordBreak: "break-word" }, "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 700 } }}
-                  getRowId={(row) => row.id}
-                  wrapperMinHeight={320}
-                />
-              </CardContent>
-            </Card>
+            <CommonCodeGridCard loading={basicFieldsQuery.isLoading} rows={basicFieldRows} title="기술인 기본항목 (PQ/HG)" />
+            <CommonCodeGridCard loading={careerFieldsQuery.isLoading} order={3} rows={careerFieldRows} title="기술인 경력항목 (PQ/HH)" />
+            <CommonCodeGridCard loading={historyFieldsQuery.isLoading} order={2} rows={historyFieldRows} title="기술자 이력항목 (PQ/HI)" />
           </Box>
           {mappings.length > 0 ? (
-            <Table size="small">
-              <TableHead><TableRow><TableCell>양식 셀 필드명</TableCell><TableCell>매핑 경로</TableCell><TableCell>샘플</TableCell></TableRow></TableHead>
-              <TableBody>{mappings.map((mapping, index) => {
+            <Box sx={{ display: "grid", gap: 1 }}>
+              <Box sx={{ color: "text.secondary", display: "grid", fontSize: "0.8125rem", fontWeight: 700, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, px: 1 }}>
+                <Box>양식 셀 필드명</Box>
+                <Box sx={{ display: { xs: "none", md: "block" } }}>매핑 경로</Box>
+              </Box>
+              {mappings.map((mapping, index) => {
                 const fieldLabel = careerFieldLabels[mapping.name] ?? historyFieldLabels[mapping.name];
-                return <TableRow key={mapping.name}><TableCell>{fieldLabel ? `${mapping.name} · ${fieldLabel}` : mapping.name}</TableCell><TableCell><TextField fullWidth onChange={(event) => setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, path: event.target.value } : item))} placeholder="row.jobName" size="small" value={mapping.path} /></TableCell><TableCell>{mapping.sampleValue || "-"}</TableCell></TableRow>;
-              })}</TableBody>
-            </Table>
+                const displayFieldName = fieldLabel && !mapping.name.endsWith(fieldLabel) ? `${mapping.name} · ${fieldLabel}` : mapping.name;
+                return <Box key={mapping.name} sx={{ alignItems: "center", borderBottom: "1px solid", borderColor: "divider", display: "grid", gap: 1, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, pb: 1 }}>
+                  <Box sx={{ overflowWrap: "anywhere" }}>{displayFieldName}</Box>
+                  <TextField fullWidth onChange={(event) => setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, path: event.target.value } : item))} placeholder="row.jobName" size="small" value={mapping.path} />
+                </Box>;
+              })}
+            </Box>
           ) : null}
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}><Button disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}</Button></Box>
         </Stack>
       </CardContent>
     </Card>

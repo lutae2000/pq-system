@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -243,9 +247,10 @@ public class HwpxDocumentGenerationService {
 
             Node parent = row.getParentNode();
             increaseTableHeight(parent, row, reviews.size() - 1);
-            for (EngineerProjectHistoryReviewResponse review : reviews) {
+            for (int sequence = 0; sequence < reviews.size(); sequence++) {
+                EngineerProjectHistoryReviewResponse review = reviews.get(sequence);
                 Element clone = (Element) row.cloneNode(true);
-                fillCareerRow(clone, mappings, profile, bidNotice, review);
+                fillCareerRow(clone, mappings, profile, bidNotice, review, sequence + 1);
                 parent.insertBefore(clone, row);
             }
             parent.removeChild(row);
@@ -257,7 +262,8 @@ public class HwpxDocumentGenerationService {
             Map<String, String> mappings,
             EngineerDtos.Profile profile,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
-            EngineerProjectHistoryReviewResponse review
+            EngineerProjectHistoryReviewResponse review,
+            int sequence
     ) {
         NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
         for (int index = 0; index < cells.getLength(); index++) {
@@ -265,7 +271,10 @@ public class HwpxDocumentGenerationService {
             String name = cell.getAttribute("name");
             String path = mappings.get(name);
             if (path != null && path.startsWith("row.")) {
-                setCellText(cell, resolve(path, profile, bidNotice, review, null, null, name));
+                String value = "row.seq".equals(path)
+                        ? String.valueOf(sequence)
+                        : resolve(path, profile, bidNotice, review, null, null, name);
+                setCellText(cell, value);
             }
         }
     }
@@ -335,7 +344,8 @@ public class HwpxDocumentGenerationService {
             case "summary.id" -> profile.basic().engrId();
             case "summary.department" -> profile.basic().deptName();
             case "summary.position" -> profile.basic().dutyPart();
-            case "detail.birthDate" -> profile.basic().birthday();
+            case "detail.birthDate" -> HwpxFieldFormatter.formatBirthDate(fieldName, profile.basic().birthday());
+            case "detail.age" -> age(profile.basic().birthday());
             case "detail.qualificationGrade" -> profile.basic().grade();
             case "bidNotice.projectName" -> bidNotice.projectName();
             case "bidNotice.orderClientName", "bidNotice.orderClient" -> bidNotice.orderClient();
@@ -369,6 +379,7 @@ public class HwpxDocumentGenerationService {
             case "summary" -> review.summary();
             case "contractAmt" -> string(review.contractAmt());
             case "ownAmt" -> string(review.ownAmt());
+            case "divisionRate" -> string(review.divisionRate());
             case "contractTerm" -> review.contractTerm();
             case "workTerm" -> review.workTerm();
             case "contractFromDate" -> review.contractFromDate();
@@ -572,6 +583,19 @@ public class HwpxDocumentGenerationService {
 
     private boolean isSection(String name) { return name.startsWith(SECTION_PATTERN) && name.endsWith(".xml"); }
     private String string(Object value) { return value == null ? "" : String.valueOf(value); }
+
+    private String age(String birthday) {
+        if (!StringUtils.hasText(birthday)) return "";
+        LocalDate birthDate;
+        try {
+            birthDate = LocalDate.parse(birthday.replaceAll("\\D", ""), DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (DateTimeParseException exception) {
+            return "";
+        }
+        LocalDate today = LocalDate.now();
+        if (today.isBefore(birthDate)) return "";
+        return "만 " + Period.between(birthDate, today).getYears() + "세";
+    }
     private String safeFilename(String name, String fallback) { return (StringUtils.hasText(name) ? name : fallback).replaceAll("[\\\\/:*?\"<>|]", "_"); }
     private DocumentBuilderFactory documentBuilder() {
         try {

@@ -20,6 +20,7 @@ class HwpxFieldFormatterTest {
         assertEquals("2026.04.01", HwpxFieldFormatter.format("참여시작일(yyyy.mm.dd)", review));
         assertEquals("2026-05", HwpxFieldFormatter.format("참여종료일(yyyy-mm)", review));
         assertEquals("2026년04월", HwpxFieldFormatter.format("참여시작일(yyyy년mm월)", review));
+        assertEquals("1980.01.01", HwpxFieldFormatter.formatBirthDate("기본_생년월일(yyyy.mm.dd)", "19800101"));
     }
 
     @Test
@@ -29,12 +30,16 @@ class HwpxFieldFormatterTest {
                 HwpxFieldFormatter.format("용역기간(yyyy-mm-dd)", review)
         );
         assertEquals(
-                "2026-01-01 ~ 2026-03-02 (60일)",
+                "2026-01-01 ~ 2026-03-02 (61일)",
                 HwpxFieldFormatter.format("용역기간(yyyy-mm-dd)(일)", review)
         );
         assertEquals(
                 "2026.04.01 ~ 2026.05.31 (2개월)",
                 HwpxFieldFormatter.format("경력_참여기간(yyyy.mm.dd)(월)", review)
+        );
+        assertEquals(
+                "26.04.01 ~ 26.05.31 (0.17년)",
+                HwpxFieldFormatter.format("경력_참여기간(yy.mm.dd)(년)", review)
         );
     }
 
@@ -44,7 +49,15 @@ class HwpxFieldFormatterTest {
         assertEquals("123,456", HwpxFieldFormatter.format("총계약금액(천)", review));
         assertEquals("12,345", HwpxFieldFormatter.format("총계약금액(만)", review));
         assertEquals("123", HwpxFieldFormatter.format("경력_총계약금액(백만)", review));
-        assertEquals("1", HwpxFieldFormatter.format("총계약금액(억)", review));
+        assertEquals("1", HwpxFieldFormatter.format("경력_총계약금액(억)", review));
+        assertEquals("98,765,432", HwpxFieldFormatter.format("경력_당사금액(원)", review));
+        assertEquals("98,765", HwpxFieldFormatter.format("경력_당사금액(천)", review));
+        assertEquals("9,876", HwpxFieldFormatter.format("경력_당사금액(만)", review));
+        assertEquals("98", HwpxFieldFormatter.format("경력_당사금액(백만)", review));
+        assertEquals("0", HwpxFieldFormatter.format("경력_당사금액(억)", review));
+        assertEquals("123\n(98)", HwpxFieldFormatter.format("경력_총계약금액(백만)(당사금액)", review));
+        assertEquals("123,456,789\n(98,765,432)", HwpxFieldFormatter.format("경력_총계약금액(원)(당사금액)", review));
+        assertEquals("98\n(123)", HwpxFieldFormatter.format("경력_당사금액(백만)(총계약금액)", review));
         assertEquals("98,765", HwpxFieldFormatter.format("당사금액(천)", review));
     }
 

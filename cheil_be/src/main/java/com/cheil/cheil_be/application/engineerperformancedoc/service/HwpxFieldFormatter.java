@@ -30,6 +30,14 @@ final class HwpxFieldFormatter {
         }
 
         String label = normalizeFieldName(fieldName);
+        boolean hasContractAmount = label.contains("총계약금액");
+        boolean hasOwnAmount = label.contains("당사금액");
+        if (hasContractAmount && hasOwnAmount) {
+            boolean ownAmountFirst = label.startsWith("당사금액");
+            BigDecimal primaryAmount = ownAmountFirst ? review.ownAmt() : review.contractAmt();
+            BigDecimal secondaryAmount = ownAmountFirst ? review.contractAmt() : review.ownAmt();
+            return formatAmount(primaryAmount, label) + "\n(" + formatAmount(secondaryAmount, label) + ")";
+        }
         if (label.startsWith("총계약금액")) {
             return formatAmount(review.contractAmt(), label);
         }
@@ -49,10 +57,10 @@ final class HwpxFieldFormatter {
             return formatDate(review.endDate(), label);
         }
         if (label.startsWith("용역기간")) {
-            return formatPeriod(review.contractFromDate(), review.contractToDate(), label);
+            return formatPeriod(review.contractFromDate(), review.contractToDate(), label, true);
         }
         if (label.startsWith("참여기간")) {
-            return formatPeriod(review.startDate(), review.endDate(), label);
+            return formatPeriod(review.startDate(), review.endDate(), label, true);
         }
         if (label.startsWith("선택기간")) {
             return formatDayCount(review.selectDay(), label);
@@ -76,9 +84,17 @@ final class HwpxFieldFormatter {
             return formatDate(history.retireDt(), label);
         }
         if (label.startsWith("근무기간")) {
-            return formatPeriod(history.entryDt(), history.retireDt(), label);
+            return formatPeriod(history.entryDt(), history.retireDt(), label, false);
         }
         return null;
+    }
+
+    static String formatBirthDate(String fieldName, String birthday) {
+        if (!StringUtils.hasText(fieldName) || !StringUtils.hasText(birthday)) {
+            return "";
+        }
+        String label = normalizeFieldName(fieldName);
+        return label.startsWith("생년월일") ? formatDate(birthday, label) : birthday;
     }
 
     private static String normalizeFieldName(String fieldName) {
@@ -86,7 +102,8 @@ final class HwpxFieldFormatter {
         if (label.startsWith("경력_")) {
             return label.substring("경력_".length());
         }
-        return label.startsWith("이력_") ? label.substring("이력_".length()) : label;
+        if (label.startsWith("이력_")) return label.substring("이력_".length());
+        return label.startsWith("기본_") ? label.substring("기본_".length()) : label;
     }
 
     private static String formatAmount(BigDecimal amount, String label) {
@@ -117,14 +134,14 @@ final class HwpxFieldFormatter {
         return date.format(dateFormatter(label));
     }
 
-    private static String formatPeriod(String fromValue, String toValue, String label) {
+    private static String formatPeriod(String fromValue, String toValue, String label, boolean inclusive) {
         LocalDate from = parseDate(fromValue);
         LocalDate to = parseDate(toValue);
         if (from == null || to == null) {
             return "";
         }
 
-        long days = ChronoUnit.DAYS.between(from, to);
+        long days = ChronoUnit.DAYS.between(from, to) + (inclusive ? 1 : 0);
         boolean includesDateFormat = hasDateFormat(label);
         String duration = formatDuration(days, label);
         if (!includesDateFormat) {
@@ -149,8 +166,8 @@ final class HwpxFieldFormatter {
             return formatNumber(months) + (hasDateFormat(label) ? "개월" : "");
         }
         if (label.endsWith("(년)")) {
-            long years = days / 365L;
-            return formatNumber(years) + (hasDateFormat(label) ? "년" : "");
+            BigDecimal years = BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365L), 2, RoundingMode.HALF_UP);
+            return years.toPlainString() + (hasDateFormat(label) ? "년" : "");
         }
         if (label.endsWith("(년월)")) {
             long years = days / 365L;
