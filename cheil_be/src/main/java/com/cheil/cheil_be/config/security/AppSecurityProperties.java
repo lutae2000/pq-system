@@ -20,7 +20,7 @@ public record AppSecurityProperties(
         token = token == null ? Token.defaults() : token;
         userSession = userSession == null ? UserSession.defaults() : userSession;
         integrations = integrations == null ? Map.of() : Map.copyOf(integrations);
-        filter = filter == null ? new Filter(null, null) : filter;
+        filter = filter == null ? new Filter(null, null, null) : filter;
         cors = cors == null ? Cors.defaults() : cors;
     }
 
@@ -54,11 +54,12 @@ public record AppSecurityProperties(
         }
     }
 
-    public record Filter(List<String> excludedPaths, List<String> loginExcludedPaths) {
+    public record Filter(List<String> excludedPaths, List<String> loginExcludedPaths, List<String> authenticatedOnlyPaths) {
 
         public Filter {
             excludedPaths = excludedPaths == null ? List.of() : List.copyOf(excludedPaths);
             loginExcludedPaths = loginExcludedPaths == null ? List.of() : List.copyOf(loginExcludedPaths);
+            authenticatedOnlyPaths = authenticatedOnlyPaths == null ? List.of() : List.copyOf(authenticatedOnlyPaths);
         }
     }
 

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
@@ -29,6 +30,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -55,6 +57,7 @@ public class HwpxDocumentGenerationService {
     private final EngineerAdminService engineerAdminService;
     private final BidNoticeAdminService bidNoticeAdminService;
     private final EngineerPerformanceDocumentService performanceDocumentService;
+    private final JdbcClient jdbcClient;
 
     public List<HwpxTemplateFieldResponse> inspect(MultipartFile template) {
         return collectFields(readZip(template)).stream()
@@ -70,9 +73,10 @@ public class HwpxDocumentGenerationService {
 
         for (String engineerId : request.engineerIds()) {
             EngineerDtos.Profile profile = engineerAdminService.findByEngrId(engineerId);
+            BasicDocumentValues basicValues = findBasicDocumentValues(request.bidSeq(), engineerId, profile);
             List<EngineerProjectHistoryReviewResponse> reviews = performanceDocumentService.findReviewResults(
                     request.bidSeq(), engineerId, request.relatedProjectHistoryConditions());
-            byte[] output = render(templateBytes, profile, bidNotice, reviews, request.mappings());
+            byte[] output = render(templateBytes, profile, basicValues, bidNotice, reviews, request.mappings());
             String filename = safeFilename(profile.basic().nameKor(), engineerId) + "_기술인실적.hwpx";
             outputs.put(filename, output);
         }
@@ -99,6 +103,7 @@ public class HwpxDocumentGenerationService {
     private byte[] render(
             byte[] templateBytes,
             EngineerDtos.Profile profile,
+            BasicDocumentValues basicValues,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             List<EngineerProjectHistoryReviewResponse> reviews,
             Map<String, String> mappings
@@ -107,7 +112,7 @@ public class HwpxDocumentGenerationService {
         Map<String, String> mappingValues = mappings == null ? Map.of() : mappings;
         for (Map.Entry<String, String> mapping : mappingValues.entrySet()) {
             if (!StringUtils.hasText(mapping.getValue()) || isRepeatablePath(mapping.getValue())) continue;
-            globalValues.put(mapping.getKey(), resolve(mapping.getValue(), profile, bidNotice, null, null, null, mapping.getKey()));
+            globalValues.put(mapping.getKey(), resolve(mapping.getValue(), profile, basicValues, bidNotice, null, null, null, mapping.getKey()));
         }
 
         try {
@@ -119,7 +124,7 @@ public class HwpxDocumentGenerationService {
                 while ((entry = input.getNextEntry()) != null) {
                     byte[] content = input.readAllBytes();
                     if (isSection(entry.getName())) {
-                        content = renderSection(content, globalValues, mappingValues, profile, bidNotice, reviews);
+                        content = renderSection(content, globalValues, mappingValues, profile, basicValues, bidNotice, reviews);
                     }
                     entries.put(entry.getName(), content);
                 }
@@ -198,6 +203,7 @@ public class HwpxDocumentGenerationService {
             Map<String, String> globalValues,
             Map<String, String> mappings,
             EngineerDtos.Profile profile,
+            BasicDocumentValues basicValues,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             List<EngineerProjectHistoryReviewResponse> reviews
     ) throws Exception {
@@ -207,7 +213,7 @@ public class HwpxDocumentGenerationService {
             Element cell = (Element) cells.item(index);
             String name = cell.getAttribute("name");
             if (globalValues.containsKey(name)) {
-                setCellText(cell, globalValues.get(name));
+                setMappedCellText(cell, name, globalValues.get(name));
             } else if ("row.grade".equals(mappings.get(name)) && !isInsideRepeatableRow(cell, mappings)) {
                 setCellText(cell, profile.basic().grade());
             }
@@ -273,8 +279,8 @@ public class HwpxDocumentGenerationService {
             if (path != null && path.startsWith("row.")) {
                 String value = "row.seq".equals(path)
                         ? String.valueOf(sequence)
-                        : resolve(path, profile, bidNotice, review, null, null, name);
-                setCellText(cell, value);
+                        : resolve(path, profile, null, bidNotice, review, null, null, name);
+                setMappedCellText(cell, name, value);
             }
         }
     }
@@ -322,7 +328,7 @@ public class HwpxDocumentGenerationService {
             String name = cell.getAttribute("name");
             String path = mappings.get(name);
             if (path != null && path.startsWith("history.")) {
-                setCellText(cell, resolve(path, profile, bidNotice, null, history, sequence, name));
+                setMappedCellText(cell, name, resolve(path, profile, null, bidNotice, null, history, sequence, name));
             }
         }
     }
@@ -330,6 +336,7 @@ public class HwpxDocumentGenerationService {
     private String resolve(
             String path,
             EngineerDtos.Profile profile,
+            BasicDocumentValues basicValues,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             EngineerProjectHistoryReviewResponse review,
             EngineerDtos.Career history,
@@ -340,6 +347,22 @@ public class HwpxDocumentGenerationService {
         if (path.startsWith("row.")) return reviewValue(path.substring(4), review, fieldName);
         if (path.startsWith("history.")) return historyValue(path.substring(8), history, historySequence, fieldName);
         return switch (path) {
+            case "basic.school" -> basicValues.school();
+            case "basic.degree" -> basicValues.degree();
+            case "basic.major" -> basicValues.major();
+            case "basic.graduationDate" -> HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy-MM-dd");
+            case "basic.graduationDateDot" -> HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy.mm.dd");
+            case "basic.graduationMonth" -> HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy-MM");
+            case "basic.graduationDateKorean" -> HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy년MM월");
+            case "basic.licenseName" -> basicValues.licenseName();
+            case "basic.licenseIssueDate" -> HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy-MM-dd");
+            case "basic.licenseIssueDateDot" -> HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy.mm.dd");
+            case "basic.licenseIssueDateShort" -> HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yy.mm.dd");
+            case "basic.licenseIssueDateMonth" -> HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy-mm");
+            case "basic.licenseIssueDateKorean" -> HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy년MM월");
+            case "basic.licenseGrade" -> basicValues.licenseGrade();
+            case "basic.licenseNo" -> basicValues.licenseNo();
+            case "basic.licenseCareer" -> basicValues.licenseCareer();
             case "summary.name" -> profile.basic().nameKor();
             case "summary.id" -> profile.basic().engrId();
             case "summary.department" -> profile.basic().deptName();
@@ -351,6 +374,78 @@ public class HwpxDocumentGenerationService {
             case "bidNotice.orderClientName", "bidNotice.orderClient" -> bidNotice.orderClient();
             default -> "";
         };
+    }
+
+    private BasicDocumentValues findBasicDocumentValues(Long bidSeq, String engineerId, EngineerDtos.Profile profile) {
+        return jdbcClient.sql("""
+                SELECT s.graduation_date, s.schname, s.major,
+                       COALESCE(
+                           fn_common_code_name('ED', CAST(s.career AS VARCHAR), NULL),
+                           fn_common_code_name('ED', LPAD(CAST(s.career AS VARCHAR), 3, '0'), NULL),
+                           fn_common_code_name('ED', LPAD(CAST(s.career * 10 AS VARCHAR), 3, '0'), NULL),
+                           CAST(s.career AS VARCHAR)
+                       ) AS degree_label,
+                       l.date_of_issue,
+                       COALESCE((SELECT c.cert_name FROM certifications c WHERE c.cert_code = l.license_code AND c.use_yn = TRUE), l.license_code) AS license_name,
+                       l.license_no
+                FROM pq_engineer_document_value_settings v
+                LEFT JOIN pq_engineer_school s ON s.id = v.selected_education_id AND s.engr_id = v.engineer_id
+                LEFT JOIN pq_engineer_license l ON l.id = v.selected_license_id AND l.engr_id = v.engineer_id
+                WHERE v.bid_seq = :bidSeq AND v.engineer_id = :engineerId
+                """)
+                .params(Map.of("bidSeq", bidSeq, "engineerId", engineerId))
+                .query((rs, rowNum) -> new BasicDocumentValues(
+                        rs.getString("schname"), rs.getString("degree_label"), rs.getString("major"),
+                        rs.getString("graduation_date"), rs.getString("license_name"), rs.getString("date_of_issue"),
+                        profile.basic().grade(), rs.getString("license_no"), formatLicenseCareer(rs.getString("date_of_issue"))))
+                .optional()
+                .orElseGet(() -> new BasicDocumentValues("", "", "", "", "", "", profile.basic().grade(), "", ""));
+    }
+
+    private String formatLicenseCareer(String issueDate) {
+        LocalDate issue = parseDate(issueDate);
+        if (issue == null || issue.isAfter(LocalDate.now())) return "";
+        Period period = Period.between(issue, LocalDate.now());
+        return period.getYears() + "년" + period.getMonths() + "개월";
+    }
+
+    private LocalDate parseDate(String value) {
+        if (!StringUtils.hasText(value)) return null;
+        String digits = value.replaceAll("\\D", "");
+        if (digits.length() != 8) return null;
+        try {
+            return LocalDate.parse(digits, DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (DateTimeParseException exception) {
+            return null;
+        }
+    }
+
+    private String normalizeMappedValue(String fieldName, String value) {
+        if (value == null || fieldName == null || !fieldName.toLowerCase(Locale.ROOT).contains("xx")) {
+            return value;
+        }
+        return value.replaceAll("\\R", "").replace(" ", "\u00A0");
+    }
+
+    private void setMappedCellText(Element cell, String fieldName, String value) {
+        setCellText(cell, normalizeMappedValue(fieldName, value));
+        if (fieldName == null || !fieldName.toLowerCase(Locale.ROOT).contains("xx")) {
+            return;
+        }
+
+        NodeList lineBreaks = cell.getElementsByTagNameNS(HWP_NS, "lineBreak");
+        List<Node> removableLineBreaks = new ArrayList<>();
+        for (int index = 0; index < lineBreaks.getLength(); index++) {
+            removableLineBreaks.add(lineBreaks.item(index));
+        }
+        removableLineBreaks.forEach((lineBreak) -> lineBreak.getParentNode().removeChild(lineBreak));
+    }
+
+    private record BasicDocumentValues(
+            String school, String degree, String major, String graduationDate,
+            String licenseName, String licenseIssueDate, String licenseGrade,
+            String licenseNo, String licenseCareer
+    ) {
     }
 
     private String historyValue(String field, EngineerDtos.Career history, Integer sequence, String fieldName) {

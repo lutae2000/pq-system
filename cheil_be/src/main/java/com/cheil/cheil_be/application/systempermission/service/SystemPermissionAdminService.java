@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,21 +25,12 @@ import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class SystemPermissionAdminService {
 
     private final JpaSystemMenuRepository systemMenuRepository;
     private final JpaSystemRoleRepository systemRoleRepository;
     private final JpaRolePermissionRepository rolePermissionRepository;
-
-    public SystemPermissionAdminService(
-            JpaSystemMenuRepository systemMenuRepository,
-            JpaSystemRoleRepository systemRoleRepository,
-            JpaRolePermissionRepository rolePermissionRepository
-    ) {
-        this.systemMenuRepository = systemMenuRepository;
-        this.systemRoleRepository = systemRoleRepository;
-        this.rolePermissionRepository = rolePermissionRepository;
-    }
 
     @Transactional(readOnly = true)
     public List<SystemMenuEntity> findMenus() {

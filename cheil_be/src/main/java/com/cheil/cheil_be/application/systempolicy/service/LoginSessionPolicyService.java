@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
 import com.cheil.cheil_be.adapter.out.persistence.systempolicy.JpaSystemPolicyRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempolicy.SystemPolicyEntity;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
 
 @Service
@@ -21,6 +20,7 @@ public class LoginSessionPolicyService {
 
     private final AppSecurityProperties securityProperties;
     private final JpaSystemPolicyRepository systemPolicyRepository;
+    private final SystemPolicyCacheService systemPolicyCacheService;
 
     public Duration sessionTimeout() {
         return securityProperties.userSession().ttl();
@@ -39,7 +39,7 @@ public class LoginSessionPolicyService {
             return true;
         }
 
-        Optional<SystemPolicyEntity> policy = enabledPolicy("PASSWORD_CHANGE_PERIOD_DAYS");
+        Optional<SystemPolicyCacheService.CachedPolicy> policy = enabledPolicy("PASSWORD_CHANGE_PERIOD_DAYS");
         if (policy.isEmpty()) {
             return false;
         }
@@ -75,19 +75,24 @@ public class LoginSessionPolicyService {
                 .orElse(false);
     }
 
+    /**
+     * Policy values are read during authentication on every API request.
+     * Clear the in-memory values after an administrator changes a policy.
+     */
     private boolean enabled(String policyKey) {
         return enabledPolicy(policyKey).isPresent();
     }
 
-    private Optional<SystemPolicyEntity> enabledPolicy(String policyKey) {
-        return systemPolicyRepository == null
-                ? Optional.empty()
-                : systemPolicyRepository.findById(policyKey).filter(SystemPolicyEntity::isUseYn);
+    private Optional<SystemPolicyCacheService.CachedPolicy> enabledPolicy(String policyKey) {
+        if (systemPolicyRepository == null) {
+            return Optional.empty();
+        }
+        return systemPolicyCacheService.getOrLoad(policyKey, () -> systemPolicyRepository.findById(policyKey));
     }
 
-    private static int numberValue(SystemPolicyEntity policy, int fallback) {
+    private static int numberValue(SystemPolicyCacheService.CachedPolicy policy, int fallback) {
         try {
-            return Integer.parseInt(policy.getPolicyValue().trim());
+            return Integer.parseInt(policy.value().trim());
         } catch (RuntimeException exception) {
             return fallback;
         }

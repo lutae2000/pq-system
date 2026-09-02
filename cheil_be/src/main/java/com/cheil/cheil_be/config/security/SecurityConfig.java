@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.config.security;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,12 +28,13 @@ public class SecurityConfig {
 
     private final ServiceHeaderAuthenticationFilter serviceHeaderAuthenticationFilter;
     private final LoginJwtAuthenticationFilter loginJwtAuthenticationFilter;
+    private final ObjectProvider<MenuPermissionAuthorizationFilter> menuPermissionAuthorizationFilterProvider;
     private final AppSecurityProperties appSecurityProperties;
 
     @Bean
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         String[] excludedPaths = appSecurityProperties.filter().excludedPaths().toArray(String[]::new);
-        return http
+        var security = http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -41,8 +43,12 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(serviceHeaderAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(loginJwtAuthenticationFilter, ServiceHeaderAuthenticationFilter.class)
-                .build();
+                .addFilterAfter(loginJwtAuthenticationFilter, ServiceHeaderAuthenticationFilter.class);
+        MenuPermissionAuthorizationFilter menuPermissionAuthorizationFilter = menuPermissionAuthorizationFilterProvider.getIfAvailable();
+        if (menuPermissionAuthorizationFilter != null) {
+            security.addFilterAfter(menuPermissionAuthorizationFilter, LoginJwtAuthenticationFilter.class);
+        }
+        return security.build();
     }
 
     @Bean

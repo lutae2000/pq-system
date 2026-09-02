@@ -20,7 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { type GridColDef, type GridRenderEditCellParams, type GridRowParams } from "@mui/x-data-grid";
+import { type GridColDef, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
@@ -42,14 +42,18 @@ import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer
 import {
   createEngineerProjectHistoryReviewResults,
   deleteEngineerProjectHistoryReviewResult,
+  listEngineerDocumentValueSettings,
   listEngineerProjectHistories,
   listEngineerProjectHistoryReviewResults,
   syncEngineerProjectHistoryReviewResults,
+  saveEngineerDocumentValueSetting,
   updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
 import { listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
+import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import type { EngineerDocumentValueSetting } from "@/modules/pq/engineer-performance-docs/EngineerDocumentValueSettingDialog";
 
 const BidNoticeSelectDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
@@ -71,6 +75,10 @@ const HwpxTemplateGenerationPanel = dynamic(
   () => import("@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel").then((module) => module.HwpxTemplateGenerationPanel),
   { ssr: false },
 );
+const EngineerDocumentValueSettingDialog = dynamic(
+  () => import("@/modules/pq/engineer-performance-docs/EngineerDocumentValueSettingDialog").then((module) => module.EngineerDocumentValueSettingDialog),
+  { ssr: false },
+);
 
 type EngineerDocumentRow = {
   birthDate: string;
@@ -82,6 +90,7 @@ type EngineerDocumentRow = {
   specialtyField: string;
   selectedCount: number;
   status: string;
+  documentValueConfigured: boolean;
 };
 
 type PerformanceHistoryRow = EngineerProjectHistoryReviewRecord & {
@@ -169,14 +178,18 @@ export function EngineerPerformanceDocumentsPage() {
   const [keyword, setKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
+  const [documentValueSettingOpen, setDocumentValueSettingOpen] = useState(false);
+  const [documentValueSetting, setDocumentValueSetting] = useState<EngineerDocumentValueSetting | null>(null);
   const [outputTestPanel, setOutputTestPanel] = useState<"hwpx" | "webhwp" | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
+  const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
   const [historySelectionAnchorId, setHistorySelectionAnchorId] = useState<string | null>(null);
   const [reviewSelectionAnchorId, setReviewSelectionAnchorId] = useState<string | null>(null);
   const [addConfirmOpen, setAddConfirmOpen] = useState(false);
   const [pendingBulkDeleteReviewIds, setPendingBulkDeleteReviewIds] = useState<string[] | null>(null);
+  const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
   const [isExcelDownloading, setIsExcelDownloading] = useState(false);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
   const selectorResizeStartXRef = useRef(0);
@@ -200,7 +213,17 @@ export function EngineerPerformanceDocumentsPage() {
     enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
   });
 
+  const documentValueSettingsQuery = useQuery({
+    queryKey: ["engineer-performance-docs", "document-value-settings", selectedBidNotice?.bidSeq ?? "none"],
+    queryFn: () => listEngineerDocumentValueSettings(selectedBidNotice?.bidSeq ?? 0),
+    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
+  });
+
   const profiles = useMemo(() => engineersQuery.data ?? [], [engineersQuery.data]);
+  const documentValueSettingsByEngineerId = useMemo(
+    () => new Map((documentValueSettingsQuery.data ?? []).map((setting) => [setting.engineerId, setting])),
+    [documentValueSettingsQuery.data],
+  );
   const engineerRows = useMemo<EngineerDocumentRow[]>(
     () =>
       profiles.map((profile) => ({
@@ -213,8 +236,11 @@ export function EngineerPerformanceDocumentsPage() {
         specialtyField: profile.detail.specialtyField,
         selectedCount: profile.careerDetails.length,
         status: profile.summary.status,
+        documentValueConfigured:
+          (profile.education.length <= 1 || documentValueSettingsByEngineerId.get(profile.summary.id)?.educationId != null) &&
+          (profile.certificates.length <= 1 || documentValueSettingsByEngineerId.get(profile.summary.id)?.licenseId != null),
       })),
-    [profiles],
+    [documentValueSettingsByEngineerId, profiles],
   );
 
   const activeEngineerProfile = useMemo(
@@ -223,6 +249,27 @@ export function EngineerPerformanceDocumentsPage() {
   );
 
   const selectedBidSeq = selectedBidNotice?.bidSeq ?? null;
+
+  const saveDocumentValueSettingMutation = useMutation({
+    mutationFn: (value: EngineerDocumentValueSetting) => {
+      if (!selectedBidSeq || !activeEngineerProfile) {
+        throw new Error("공고와 기술인을 먼저 선택하세요.");
+      }
+      return saveEngineerDocumentValueSetting({
+        bidSeq: selectedBidSeq,
+        engineerId: activeEngineerProfile.summary.id,
+        educationId: value.education?.id ? Number(value.education.id) : null,
+        licenseId: value.certificate?.id ? Number(value.certificate.id) : null,
+      });
+    },
+    onSuccess: async (_saved, value) => {
+      setDocumentValueSetting(value);
+      setDocumentValueSettingOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "document-value-settings", selectedBidSeq ?? "none"] });
+      showSuccess("기술인 문서 작성값이 저장되었습니다.");
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "기술인 문서 작성값을 저장하지 못했습니다."),
+  });
 
   const projectHistoryRowsQuery = useQuery({
     queryKey: ["engineer-performance-docs", "project-histories", activeEngineerId || "none"],
@@ -747,6 +794,38 @@ export function EngineerPerformanceDocumentsPage() {
     },
   });
 
+  const deleteEngineerMutation = useMutation({
+    mutationFn: async () => {
+      if (!canDelete || !selectedBidSeq || !pendingBulkDeleteEngineerIds?.length) {
+        throw new Error("삭제할 기술인이 없습니다.");
+      }
+
+      const participatingEngineers = await listPqParticipatingEngineers({ bidSeq: selectedBidSeq });
+      const targetEngineerIds = new Set(pendingBulkDeleteEngineerIds);
+      const targetRows = participatingEngineers.filter((row) => targetEngineerIds.has(row.engrId));
+
+      if (targetRows.length === 0) {
+        throw new Error("삭제할 기술인이 없습니다.");
+      }
+
+      await Promise.all(
+        targetRows.map((row) => deletePqParticipatingEngineer(row.bidSeq, row.workDutyId, row.engrId)),
+      );
+    },
+    onSuccess: async () => {
+      const deletedEngineerIds = pendingBulkDeleteEngineerIds ?? [];
+      setPendingBulkDeleteEngineerIds(null);
+      setSelectedEngineerIds([]);
+      if (deletedEngineerIds.includes(activeEngineerId)) {
+        setActiveEngineerId("");
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidSeq ?? "none"],
+      });
+      showSuccess("선택한 기술인을 삭제했습니다.");
+    },
+  });
+
   const processReviewRowUpdate = useCallback(
     async (updatedRow: EngineerProjectHistoryReviewRecord, originalRow: EngineerProjectHistoryReviewRecord) => {
       if (!canUpdate || updatedRow.reviewId == null) {
@@ -820,8 +899,16 @@ export function EngineerPerformanceDocumentsPage() {
     setPendingBulkDeleteReviewIds(selectedReviewIds);
   }
 
+  function openEngineerDeleteConfirm() {
+    if (selectedEngineerIds.length === 0) {
+      return;
+    }
+    setPendingBulkDeleteEngineerIds(selectedEngineerIds);
+  }
+
   return (
-    <Box>
+    <>
+      <Box>
       <PageHeader
         title="기술인실적 문서생성"
       />
@@ -948,6 +1035,16 @@ export function EngineerPerformanceDocumentsPage() {
                   <Box sx={{ alignItems: "center", display: "flex", gap: 0.5 }}>
                     <Chip label={`${engineerRows.length}명`} size="small" variant="outlined" />
                     <IconButton
+                      aria-label="선택한 기술인 삭제"
+                      color="error"
+                      disabled={!canDelete || selectedEngineerIds.length === 0 || deleteEngineerMutation.isPending}
+                      onClick={openEngineerDeleteConfirm}
+                      size="small"
+                      title="선택한 기술인 삭제"
+                    >
+                      <DeleteOutlineOutlinedIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
                       aria-label="기술인별 검토결과 엑셀로 내보내기"
                       disabled={!selectedBidNotice || profiles.length === 0 || engineersQuery.isFetching || isExcelDownloading}
                       onClick={() => void handleExcelDownload()}
@@ -959,13 +1056,17 @@ export function EngineerPerformanceDocumentsPage() {
                   </Box>
                 </Box>
                 <EnterpriseDataGrid<EngineerDocumentRow>
+                  checkboxSelection
                   columns={engineerColumns}
+                  disableRowSelectionOnClick
                   getRowId={(row) => row.engineerId}
                   hideFooter
                   hideFooterSelectedRowCount
                   loading={engineersQuery.isLoading || engineersQuery.isFetching}
                   onRowClick={(params: GridRowParams<EngineerDocumentRow>) => {
                     setActiveEngineerId(params.row.engineerId);
+                    setDocumentValueSettingOpen(false);
+                    setDocumentValueSetting(null);
                     setSelectedHistoryIds([]);
                     setHistorySelectionAnchorId(null);
                     setSelectedReviewIds([]);
@@ -973,9 +1074,30 @@ export function EngineerPerformanceDocumentsPage() {
                     setPendingBulkDeleteReviewIds(null);
                     setPerformanceDetailSeq(null);
                   }}
+                  onRowDoubleClick={(params: GridRowParams<EngineerDocumentRow>) => {
+                    const profile = profiles.find((item) => item.summary.id === params.row.engineerId) ?? null;
+                    if (profile) {
+                      const saved = documentValueSettingsByEngineerId.get(params.row.engineerId);
+                      setActiveEngineerId(params.row.engineerId);
+                      setDocumentValueSetting(
+                        saved
+                          ? {
+                              certificate: profile.certificates.find((item) => String(item.id) === String(saved.licenseId)) ?? null,
+                              education: profile.education.find((item) => String(item.id) === String(saved.educationId)) ?? null,
+                            }
+                          : null,
+                      );
+                      setDocumentValueSettingOpen(true);
+                    }
+                  }}
+                  getRowClassName={(params) => (params.row.documentValueConfigured ? "" : "document-value-setting-required")}
+                  onRowSelectionModelChange={(model: GridRowSelectionModel) => {
+                    setSelectedEngineerIds(Array.from(model.ids, String));
+                  }}
                   paginationMode="server"
                   rowCount={engineerRows.length}
                   rows={engineerRows}
+                  rowSelectionModel={{ ids: new Set(selectedEngineerIds), type: "include" }}
                   columnHeaderHeight={36}
                   rowHeight={30}
                   showToolbar={false}
@@ -988,6 +1110,9 @@ export function EngineerPerformanceDocumentsPage() {
                     "& .MuiDataGrid-virtualScroller": {
                       overflowY: "auto",
                       overscrollBehavior: "contain",
+                    },
+                    "& .document-value-setting-required": {
+                      bgcolor: "#fff8d6",
                     },
                   }}
                 />
@@ -1252,6 +1377,8 @@ export function EngineerPerformanceDocumentsPage() {
             setBidNoticeDialogOpen(false);
             setKeyword("");
             setActiveEngineerId("");
+            setDocumentValueSettingOpen(false);
+            setDocumentValueSetting(null);
             setPerformanceDetailSeq(null);
             setSelectedHistoryIds([]);
             setHistorySelectionAnchorId(null);
@@ -1291,9 +1418,27 @@ export function EngineerPerformanceDocumentsPage() {
         open={Boolean(pendingBulkDeleteReviewIds?.length)}
         targetLabel={pendingBulkDeleteReviewIds?.length ? `${pendingBulkDeleteReviewIds.length}건` : undefined}
       />
+      <ConfirmDeleteDialog
+        loading={deleteEngineerMutation.isPending}
+        onClose={() => {
+          setPendingBulkDeleteEngineerIds(null);
+        }}
+        onConfirm={() => void deleteEngineerMutation.mutateAsync()}
+        open={Boolean(pendingBulkDeleteEngineerIds?.length)}
+        targetLabel={pendingBulkDeleteEngineerIds?.length ? `${pendingBulkDeleteEngineerIds.length}명` : undefined}
+      />
       {performanceDetailSeq ? (
         <CompanyPerformanceDetailPopup onClose={() => setPerformanceDetailSeq(null)} open seq={performanceDetailSeq} />
       ) : null}
-    </Box>
-  );
+      </Box>
+      <EngineerDocumentValueSettingDialog
+        engineer={activeEngineerProfile}
+        onClose={() => setDocumentValueSettingOpen(false)}
+        onConfirm={(value) => void saveDocumentValueSettingMutation.mutateAsync(value)}
+        open={documentValueSettingOpen}
+        projectName={selectedBidNotice?.projectName ?? ""}
+        value={documentValueSetting}
+      />
+    </>
+    );
 }

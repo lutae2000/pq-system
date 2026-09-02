@@ -52,9 +52,24 @@ public class EngineerPerformanceDocumentController {
 
     @GetMapping("/project-histories")
     public ResponseEntity<List<EngineerProjectHistoryReviewResponse>> listProjectHistories(
-            @RequestParam String engineerId
+            @RequestParam String engineerId,
+            @RequestParam(required = false) String relatedProjectHistoryConditions
     ) {
-        return ResponseEntity.ok(engineerPerformanceDocumentService.findProjectHistories(engineerId));
+        return ResponseEntity.ok(
+                engineerPerformanceDocumentService.findProjectHistories(engineerId, relatedProjectHistoryConditions)
+        );
+    }
+
+    @GetMapping("/document-value-settings")
+    public ResponseEntity<List<EngineerDocumentValueSettingResponse>> listDocumentValueSettings(@RequestParam Long bidSeq) {
+        return ResponseEntity.ok(engineerPerformanceDocumentService.findDocumentValueSettings(bidSeq));
+    }
+
+    @PutMapping("/document-value-settings")
+    public ResponseEntity<EngineerDocumentValueSettingResponse> saveDocumentValueSetting(
+            @RequestBody EngineerDocumentValueSettingRequest request
+    ) {
+        return ResponseEntity.ok(engineerPerformanceDocumentService.saveDocumentValueSetting(request));
     }
 
     /**

@@ -1,6 +1,6 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosInstance } from "axios";
 
-import { clearAuthSession, readAuthSessionSnapshot, redirectToLogin, writeAuthNotice } from "@/lib/auth/authSession";
+import { clearAuthSession, readAuthSessionSnapshot, redirectToLogin, writeAuthNotice, type MenuPermission } from "@/lib/auth/authSession";
 import { apiTimeoutMs } from "@/lib/config/timeouts";
 
 type ApiErrorBody = {
@@ -17,6 +17,16 @@ const buildDefaultHeaders = () => ({
   "Content-Type": "application/json",
 });
 
+const resolveCurrentMenuCode = (pathname: string, permissions: MenuPermission[] | undefined) => {
+  if (!permissions) {
+    return "";
+  }
+
+  return permissions
+    .filter((permission) => permission.menuPath && (pathname === permission.menuPath || pathname.startsWith(`${permission.menuPath}/`)))
+    .sort((left, right) => (right.menuPath?.length ?? 0) - (left.menuPath?.length ?? 0))[0]?.menuCode ?? "";
+};
+
 const buildLoginHeaders = () => {
   const session = readAuthSessionSnapshot();
 
@@ -27,6 +37,7 @@ const buildLoginHeaders = () => {
   return {
     "Authorization": `Bearer ${session.accessToken}`,
     "x-login-id": session.loginId,
+    "x-program-code": resolveCurrentMenuCode(window.location.pathname, session.permissions),
   };
 };
 
@@ -40,6 +51,7 @@ apiClient.interceptors.request.use((config) => {
   const defaultHeaders = buildDefaultHeaders();
   const explicitAuthorization = headers.get("Authorization");
   const explicitLoginId = headers.get("x-login-id");
+  const explicitProgramCode = headers.get("x-program-code");
   headers.set("Accept", defaultHeaders.Accept);
   if (config.data instanceof FormData) {
     headers.delete("Content-Type");
@@ -58,6 +70,12 @@ apiClient.interceptors.request.use((config) => {
     headers.set("x-login-id", loginHeaders["x-login-id"]);
   } else if (!explicitLoginId) {
     headers.delete("x-login-id");
+  }
+
+  if (loginHeaders["x-program-code"]) {
+    headers.set("x-program-code", loginHeaders["x-program-code"]);
+  } else if (!explicitProgramCode) {
+    headers.delete("x-program-code");
   }
 
   config.headers = headers;

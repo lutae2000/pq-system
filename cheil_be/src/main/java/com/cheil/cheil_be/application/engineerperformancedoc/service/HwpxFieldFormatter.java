@@ -126,7 +126,7 @@ final class HwpxFieldFormatter {
         return NumberFormat.getIntegerInstance(Locale.KOREA).format(converted);
     }
 
-    private static String formatDate(String value, String label) {
+    static String formatDate(String value, String label) {
         LocalDate date = parseDate(value);
         if (date == null) {
             return "";
@@ -190,6 +190,9 @@ final class HwpxFieldFormatter {
     }
 
     private static DateTimeFormatter dateFormatter(String label) {
+        if (label.contains("yyyy\uB144MM\uC6D4")) {
+            return DateTimeFormatter.ofPattern("yyyy'\uB144'MM'\uC6D4'");
+        }
         if (label.contains("yyyy년mm월")) {
             return DateTimeFormatter.ofPattern("yyyy년MM월");
         }

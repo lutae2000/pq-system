@@ -15,6 +15,7 @@ type ResizableCardProps = Omit<CardProps, "children"> & {
   minHeight?: number;
   minWidth?: number;
   onHeightChange?: (nextHeight: number) => void;
+  onResizeHandleClick?: (edge: ResizableCardEdge) => void;
   onWidthChange?: (nextWidth: number) => void;
   resizeEdges?: ResizableCardEdge[];
   width?: number;
@@ -148,6 +149,7 @@ export function ResizableCard({
   minHeight,
   minWidth,
   onHeightChange,
+  onResizeHandleClick,
   onWidthChange,
   resizeEdges = ["right"],
   sx,
@@ -196,6 +198,7 @@ export function ResizableCard({
             minHeight,
             maxHeight,
           )}
+          onClick={() => onResizeHandleClick?.("left")}
           sx={[{ display: { xs: "none", lg: "flex" }, left: -14, right: "auto" }, ...(Array.isArray(handleSx) ? handleSx : handleSx ? [handleSx] : [])]}
         />
       ) : null}
@@ -226,6 +229,7 @@ export function ResizableCard({
             minHeight,
             maxHeight,
           )}
+          onClick={() => onResizeHandleClick?.("right")}
           sx={[{ display: { xs: "none", lg: "flex" } }, ...(Array.isArray(handleSx) ? handleSx : handleSx ? [handleSx] : [])]}
         />
       ) : null}
@@ -256,6 +260,7 @@ export function ResizableCard({
             minHeight,
             maxHeight,
           )}
+          onClick={() => onResizeHandleClick?.("bottom")}
           sx={[{ display: { xs: "none", lg: "flex" } }, ...(Array.isArray(handleSx) ? handleSx : handleSx ? [handleSx] : [])]}
         />
       ) : null}

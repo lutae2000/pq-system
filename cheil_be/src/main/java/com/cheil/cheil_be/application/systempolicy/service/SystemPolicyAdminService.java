@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.systempolicy.service;
 import java.util.List;
 import java.util.Optional;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,13 +15,11 @@ import com.cheil.cheil_be.adapter.out.persistence.systempolicy.SystemPolicyEntit
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class SystemPolicyAdminService {
 
     private final JpaSystemPolicyRepository systemPolicyRepository;
-
-    public SystemPolicyAdminService(JpaSystemPolicyRepository systemPolicyRepository) {
-        this.systemPolicyRepository = systemPolicyRepository;
-    }
+    private final SystemPolicyCacheService systemPolicyCacheService;
 
     @Transactional(readOnly = true)
     public List<SystemPolicyEntity> findPolicies() {
@@ -64,6 +63,9 @@ public class SystemPolicyAdminService {
                             .build()));
         }
 
+        policies.stream()
+                .filter(policy -> policy != null && StringUtils.hasText(policy.getPolicyKey()))
+                .forEach(policy -> systemPolicyCacheService.refresh(policy.getPolicyKey().trim(), policy));
         return findPolicies();
     }
 
@@ -77,7 +79,9 @@ public class SystemPolicyAdminService {
         policy.setPolicyName(requireText(policy.getPolicyName(), "policyName"));
         policy.setPolicyValue(requireText(policy.getPolicyValue(), "policyValue"));
         policy.setValueType(requireText(policy.getValueType(), "valueType"));
-        return systemPolicyRepository.save(policy);
+        SystemPolicyEntity saved = systemPolicyRepository.save(policy);
+        systemPolicyCacheService.refresh(policyKey, saved);
+        return saved;
     }
 
     public SystemPolicyEntity updatePolicy(String policyKey, SystemPolicyEntity policy) {
@@ -91,6 +95,7 @@ public class SystemPolicyAdminService {
         existing.setSortSeq(policy.getSortSeq());
         existing.setUseYn(policy.isUseYn());
         existing.setDescription(trimToNull(policy.getDescription()));
+        systemPolicyCacheService.refresh(normalizedKey, existing);
         return existing;
     }
 

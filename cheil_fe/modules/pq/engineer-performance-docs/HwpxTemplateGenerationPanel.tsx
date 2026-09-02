@@ -25,6 +25,19 @@ type Mapping = HwpxTemplateFieldResponse & { path: string };
 type CommonCodeGridRow = { codeDetailName: string; id: number };
 
 const defaultMappings: Record<string, string> = {
+  "기본_학교": "basic.school",
+  "기본_학위": "basic.degree",
+  "기본_전공": "basic.major",
+  "기본_졸업일(yyyy-mm-dd)": "basic.graduationDate",
+  "기본_졸업일(yyyy.mm.dd)": "basic.graduationDateDot",
+  "기본_졸업일(yyyy-mm)": "basic.graduationMonth",
+  "기본_졸업일(yyyy년mm월)": "basic.graduationDateKorean",
+  "기본_자격증명칭": "basic.licenseName",
+  "기본_자격증취득일(yyyy-mm-dd)": "basic.licenseIssueDate",
+  "기본_자격증취득일(yyyy.mm.dd)": "basic.licenseIssueDateDot",
+  "기본_자격증등급": "basic.licenseGrade",
+  "기본_자격증번호": "basic.licenseNo",
+  "기본_자격취득후경력(년개월)": "basic.licenseCareer",
   nameKor: "summary.name",
   "기본_성명": "summary.name",
   "기본_연령(만)": "detail.age",
@@ -60,6 +73,35 @@ const defaultMappings: Record<string, string> = {
   orderClient: "row.orderClient",
   duty: "row.duty",
   proPart: "row.proPart",
+};
+
+const basicFieldPathsByCode: Record<string, string> = {
+  "01": "summary.id",
+  "04": "summary.department",
+  "05": "summary.position",
+  "06": "summary.name",
+  "08": "detail.birthDate",
+  "09": "detail.birthDate",
+  "10": "detail.birthDate",
+  "11": "detail.birthDate",
+  "12": "basic.school",
+  "13": "basic.degree",
+  "14": "basic.major",
+  "15": "basic.graduationDate",
+  "16": "basic.graduationDateDot",
+  "17": "basic.graduationMonth",
+  "18": "basic.graduationDateKorean",
+  "19": "detail.qualificationGrade",
+  "20": "basic.licenseName",
+  "21": "basic.licenseGrade",
+  "22": "basic.licenseIssueDate",
+  "23": "basic.licenseIssueDateDot",
+  "24": "basic.licenseIssueDateShort",
+  "25": "basic.licenseIssueDateMonth",
+  "26": "basic.licenseIssueDateKorean",
+  "27": "basic.licenseNo",
+  "30": "basic.licenseCareer",
+  "49": "detail.age",
 };
 
 const careerFieldPathsByCode: Record<string, string> = {
@@ -252,6 +294,34 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
     () => basicFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId })),
     [basicFieldsQuery.items],
   );
+  const basicFieldAliases = useMemo(() => {
+    const aliases: Record<string, string> = {};
+    basicFieldsQuery.items.forEach((item) => {
+      const label = item.codeDetailName || item.codeName;
+      const path = basicFieldPathsByCode[item.level3Code];
+      if (!path) return;
+      aliases[item.level3Code] = path;
+      aliases[`HG${item.level3Code}`] = path;
+      aliases[`기본_${item.level3Code}`] = path;
+      aliases[`기본_HG${item.level3Code}`] = path;
+      aliases[label] = path;
+      aliases[`기본_${label}`] = path;
+    });
+    return aliases;
+  }, [basicFieldsQuery.items]);
+  const basicFieldLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    basicFieldsQuery.items.forEach((item) => {
+      const label = item.codeDetailName || item.codeName;
+      labels[item.level3Code] = label;
+      labels[`HG${item.level3Code}`] = label;
+      labels[`기본_${item.level3Code}`] = label;
+      labels[`기본_HG${item.level3Code}`] = label;
+      labels[label] = label;
+      labels[`기본_${label}`] = label;
+    });
+    return labels;
+  }, [basicFieldsQuery.items]);
   const careerFieldRows = useMemo<CommonCodeGridRow[]>(
     () => careerFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId })),
     [careerFieldsQuery.items],
@@ -334,6 +404,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
       setMappings(fields.map((field) => ({
         ...field,
         path: defaultMappings[field.name]
+          ?? basicFieldAliases[field.name]
           ?? careerFieldAliases[field.name]
           ?? historyFieldAliases[field.name]
           ?? (careerFieldPathByLabel(field.name) || historyFieldPathByLabel(field.name) || "")
@@ -373,7 +444,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
               <Typography sx={{ fontWeight: 800 }} variant="h6">1. HWPX 업로드 → 필드 매핑 → 다운로드</Typography>
             </Box>
             <Stack direction="row" spacing={1}>
-              <Button disabled={careerFieldsQuery.isLoading || historyFieldsQuery.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
+              <Button disabled={basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
               <Button disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}</Button>
             </Stack>
             <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
@@ -381,6 +452,9 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
           {template ? <Chip label={`${templateName} · ${mappings.length}개 필드 · ${profiles.length}명 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : <Alert severity="info">HWPX 양식을 업로드해 셀 name 필드를 분석하세요.</Alert>}
           <Typography sx={{ fontWeight: 800 }} variant="subtitle1">화면 매핑 기준 항목</Typography>
+          <Alert severity="info" variant="outlined">
+            필드명에 <strong>xx</strong>가 포함되면 매핑된 값의 줄바꿈이 제거됩니다.
+          </Alert>
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))", xs: "1fr" } }}>
             <CommonCodeGridCard loading={basicFieldsQuery.isLoading} rows={basicFieldRows} title="기술인 기본항목 (PQ/HG)" />
             <CommonCodeGridCard loading={careerFieldsQuery.isLoading} order={3} rows={careerFieldRows} title="기술인 경력항목 (PQ/HH)" />
@@ -393,7 +467,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
                 <Box sx={{ display: { xs: "none", md: "block" } }}>매핑 경로</Box>
               </Box>
               {mappings.map((mapping, index) => {
-                const fieldLabel = careerFieldLabels[mapping.name] ?? historyFieldLabels[mapping.name];
+                const fieldLabel = basicFieldLabels[mapping.name] ?? careerFieldLabels[mapping.name] ?? historyFieldLabels[mapping.name];
                 const displayFieldName = fieldLabel && !mapping.name.endsWith(fieldLabel) ? `${mapping.name} · ${fieldLabel}` : mapping.name;
                 return <Box key={mapping.name} sx={{ alignItems: "center", borderBottom: "1px solid", borderColor: "divider", display: "grid", gap: 1, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, pb: 1 }}>
                   <Box sx={{ overflowWrap: "anywhere" }}>{displayFieldName}</Box>

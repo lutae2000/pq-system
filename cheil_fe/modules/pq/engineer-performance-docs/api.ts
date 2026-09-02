@@ -30,6 +30,7 @@ export type EngineerProjectHistoryReviewRecord = CareerDetailRecord & {
 export type EngineerProjectHistoryReviewListParams = {
   bidSeq: number;
   engineerId: string;
+  relatedProjectHistoryConditions?: RelatedProjectHistoryCondition[];
 };
 
 export type EngineerProjectHistoryReviewSaveRequest = {
@@ -52,6 +53,34 @@ export type EngineerProjectHistoryReviewSyncRequest = {
   relatedProjectHistoryConditions?: RelatedProjectHistoryCondition[];
 };
 
+export type EngineerDocumentValueSettingRecord = {
+  bidSeq: number;
+  engineerId: string;
+  educationId: number | null;
+  licenseId: number | null;
+};
+
+export type EngineerDocumentValueSettingRequest = {
+  bidSeq: number;
+  engineerId: string;
+  educationId: number | null;
+  licenseId: number | null;
+};
+
+export async function listEngineerDocumentValueSettings(bidSeq: number): Promise<EngineerDocumentValueSettingRecord[]> {
+  return apiRequest(
+    apiClient.get<EngineerDocumentValueSettingRecord[]>(`${ENGINEER_PERFORMANCE_DOCS_API}/document-value-settings`, { params: { bidSeq } }),
+    "기술인 문서 작성값 설정을 불러오지 못했습니다.",
+  );
+}
+
+export async function saveEngineerDocumentValueSetting(request: EngineerDocumentValueSettingRequest): Promise<EngineerDocumentValueSettingRecord> {
+  return apiRequest(
+    apiClient.put<EngineerDocumentValueSettingRecord>(`${ENGINEER_PERFORMANCE_DOCS_API}/document-value-settings`, request),
+    "기술인 문서 작성값 설정을 저장하지 못했습니다.",
+  );
+}
+
 export async function listEngineerProjectHistoryReviewResults(
   params: EngineerProjectHistoryReviewListParams,
 ): Promise<EngineerProjectHistoryReviewRecord[]> {
@@ -66,10 +95,17 @@ export async function listEngineerProjectHistoryReviewResults(
   );
 }
 
-export async function listEngineerProjectHistories(engineerId: string): Promise<EngineerProjectHistoryReviewRecord[]> {
+export async function listEngineerProjectHistories(
+  params: string | { engineerId: string; relatedProjectHistoryConditions?: RelatedProjectHistoryCondition[] },
+): Promise<EngineerProjectHistoryReviewRecord[]> {
+  const engineerId = typeof params === "string" ? params : params.engineerId;
+  const conditions = typeof params === "string" ? undefined : params.relatedProjectHistoryConditions;
   return apiRequest(
     apiClient.get<EngineerProjectHistoryReviewRecord[]>(`${ENGINEER_PERFORMANCE_DOCS_API}/project-histories`, {
-      params: { engineerId },
+      params: {
+        engineerId,
+        relatedProjectHistoryConditions: conditions?.length ? JSON.stringify(conditions) : undefined,
+      },
     }),
     "선택한 기술인의 프로젝트 이력을 불러오지 못했습니다.",
   );

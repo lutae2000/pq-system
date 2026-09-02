@@ -2,24 +2,46 @@
 
 import { Box, type SxProps, type Theme } from "@mui/material";
 import type { KeyboardEvent, PointerEvent } from "react";
+import { useRef } from "react";
 
 type ResizeHandleProps = {
   ariaLabel: string;
   orientation: "horizontal" | "vertical";
   onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
+  onClick?: () => void;
   onPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
   sx?: SxProps<Theme>;
 };
 
-export function ResizeHandle({ ariaLabel, orientation, onKeyDown, onPointerDown, sx }: ResizeHandleProps) {
+export function ResizeHandle({ ariaLabel, orientation, onClick, onKeyDown, onPointerDown, sx }: ResizeHandleProps) {
   const vertical = orientation === "vertical";
+  const movedRef = useRef(false);
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    movedRef.current = false;
+    const handlePointerMove = () => {
+      movedRef.current = true;
+    };
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+    window.addEventListener("pointermove", handlePointerMove, { once: false });
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+    onPointerDown(event);
+  };
 
   return (
     <Box
       aria-label={ariaLabel}
       aria-orientation={orientation}
       onKeyDown={onKeyDown}
-      onPointerDown={onPointerDown}
+      onClick={() => {
+        if (!movedRef.current) {
+          onClick?.();
+        }
+      }}
+      onPointerDown={handlePointerDown}
       role="separator"
       sx={[
         {

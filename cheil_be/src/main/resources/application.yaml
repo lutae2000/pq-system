@@ -114,6 +114,9 @@ app:
   department-cache:
     ttl: ${APP_DEPARTMENT_CACHE_TTL:1d}
     read-timeout: ${APP_DEPARTMENT_CACHE_READ_TIMEOUT:1s}
+  system-policy-cache:
+    ttl: ${APP_SYSTEM_POLICY_CACHE_TTL:1d}
+    read-timeout: ${APP_SYSTEM_POLICY_CACHE_READ_TIMEOUT:1s}
   file:
     storage-root: ${APP_FILE_STORAGE_ROOT:${java.io.tmpdir}/cheil-be/files}
     download-path: /files
@@ -170,6 +173,14 @@ app:
       login-excluded-paths:
         - /token
         - /api/token
+      # JWT 로그인은 필요하지만 특정 화면 메뉴 권한에 귀속되지 않는 API 목록.
+      # 대시보드·내 계정·현재 사용자 메뉴 권한 조회처럼 공통 인증 기능을 등록한다.
+      authenticated-only-paths:
+        - /dashboard/**
+        - /system/notices/**
+        - /auth/menu-permissions
+        - /auth/me
+        - /auth/password
     cors:
       allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:*}
       allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}

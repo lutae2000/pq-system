@@ -22,11 +22,13 @@ import {
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
+import { ResizableCard } from "@/components/common/ResizableCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
@@ -38,7 +40,6 @@ import { formatReferenceLabel, toSelectOptions, type SelectOption } from "@/modu
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
-import { EngineerHistoryReadonlyCard } from "@/modules/pq/engineers/history-tabs/EngineerHistoryReadonlyCard";
 import type { EngineerStatus } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import {
   listPqParticipatingEngineerCandidates,
@@ -49,6 +50,11 @@ import {
 } from "@/modules/pq/pq-participating-engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 
+const PqEngineerPerformanceTabs = dynamic(
+  () => import("@/modules/pq/pq-participating-engineers/PqEngineerPerformanceTabs").then((module) => module.PqEngineerPerformanceTabs),
+  { ssr: false },
+);
+
 type CodeOption = SelectOption;
 
 type CandidateFilters = {
@@ -57,8 +63,12 @@ type CandidateFilters = {
   designGrade: string;
   jobField: string;
   keyword: string;
+  referenceDate: string;
+  remainingDays: string;
   relatedProjectHistoryConditions: RelatedProjectHistoryCondition[];
   specialtyField: string;
+  taskPeriodUnit: "일" | "개월";
+  taskPeriodValue: string;
   status: EngineerStatus | "전체";
 };
 
@@ -97,8 +107,12 @@ const emptyFilters = (): CandidateFilters => ({
   designGrade: "",
   jobField: "",
   keyword: "",
+  referenceDate: todayInputValue(),
+  remainingDays: "90",
   relatedProjectHistoryConditions: [],
   specialtyField: "",
+  taskPeriodUnit: "일",
+  taskPeriodValue: "365",
   status: "재직",
 });
 
@@ -123,18 +137,10 @@ const certificationFilterSx = {
   minWidth: 190,
 } as const;
 
-const statusFilterSx = {
-  ...standardFieldSx,
-  flex: "0 1 110px",
-  maxWidth: 120,
-  minWidth: 100,
-  width: "auto",
-} as const;
-
 const companyPerformanceRowSx = {
-  flex: "1 0 100%",
-  flexBasis: "100%",
-  maxWidth: "100%",
+  flex: "0 0 100% !important",
+  flexBasis: "100% !important",
+  maxWidth: "100% !important",
   minWidth: 0,
   width: "100%",
 } as const;
@@ -148,10 +154,25 @@ const companyPerformanceFilterSx = {
 } as const;
 
 const panelScrollHeight = { xs: 420, lg: "clamp(620px, calc(100vh - 300px), 800px)" } as const;
+const todayInputValue = () => {
+  const current = new Date();
+  return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
+};
 const SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT = 320;
 const SELECTED_ENGINEER_CARD_MIN_HEIGHT = 240;
 const SELECTED_ENGINEER_CARD_MAX_HEIGHT = 560;
 const SELECTED_ENGINEER_CARD_GRID_OFFSET = 104;
+const CANDIDATE_CARD_DEFAULT_WIDTH = 520;
+const CANDIDATE_CARD_MIN_WIDTH = 360;
+const CANDIDATE_CARD_MAX_WIDTH = 760;
+const CANDIDATE_CARD_DEFAULT_HEIGHT = 820;
+const CANDIDATE_CARD_MIN_HEIGHT = 420;
+const CANDIDATE_CARD_MAX_HEIGHT = 1000;
+const CANDIDATE_CARD_GRID_OFFSET = 104;
+const PERFORMANCE_CARD_DEFAULT_HEIGHT = 520;
+const PERFORMANCE_CARD_EXPANDED_HEIGHT = 920;
+const PERFORMANCE_CARD_MIN_HEIGHT = 360;
+const PERFORMANCE_CARD_MAX_HEIGHT = 1300;
 const selectedEngineerActionButtonSx = { minWidth: 128 } as const;
 
 const gridSx = {
@@ -222,9 +243,13 @@ export function PqParticipatingEngineersPage() {
   const [appliedFilters, setAppliedFilters] = useState<CandidateFilters>(() => emptyFilters());
   const [candidatePage, setCandidatePage] = useState(0);
   const [candidatePageSize, setCandidatePageSize] = useState(100);
+  const [candidateSearchRevision, setCandidateSearchRevision] = useState(0);
   const [historyEngineerId, setHistoryEngineerId] = useState("");
   const [selectedCompanyPerformance, setSelectedCompanyPerformance] = useState<BidNoticeRecord | null>(null);
   const [companyPerformanceDialogOpen, setCompanyPerformanceDialogOpen] = useState(false);
+  const [candidateCardWidth, setCandidateCardWidth] = useState(CANDIDATE_CARD_DEFAULT_WIDTH);
+  const [candidateCardHeight, setCandidateCardHeight] = useState(CANDIDATE_CARD_DEFAULT_HEIGHT);
+  const [performanceCardHeight, setPerformanceCardHeight] = useState(PERFORMANCE_CARD_DEFAULT_HEIGHT);
   const [selectedEngineerCardHeight, setSelectedEngineerCardHeight] = useState(SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT);
   const [selectedEngineers, setSelectedEngineers] = useState<SelectedPqEngineer[]>([]);
   const [selectedEngineerSnapshot, setSelectedEngineerSnapshot] = useState("");
@@ -242,6 +267,7 @@ export function PqParticipatingEngineersPage() {
   const certificationsQuery = useQuery({
     queryKey: ["code-certifications"],
     queryFn: listCertifications,
+    enabled: tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq),
   });
 
   const candidateQueryFilters = useMemo(
@@ -263,9 +289,9 @@ export function PqParticipatingEngineersPage() {
   );
 
   const candidatesQuery = useQuery({
-    queryKey: ["pq-participating-engineer-candidates", candidateQueryFilters],
+    queryKey: ["pq-participating-engineer-candidates", candidateQueryFilters, candidateSearchRevision],
     queryFn: () => listPqParticipatingEngineerCandidates(candidateQueryFilters),
-    enabled: tabQueryEnabled,
+    enabled: tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq),
     placeholderData: keepPreviousData,
   });
 
@@ -608,6 +634,7 @@ export function PqParticipatingEngineersPage() {
     setCandidatePage(0);
     setSelectedCandidateIds([]);
     setCandidateSelectionAnchorId(null);
+    setCandidateSearchRevision((revision) => revision + 1);
     setAppliedFilters({ ...filters, keyword });
   };
 
@@ -773,6 +800,7 @@ export function PqParticipatingEngineersPage() {
     140,
     selectedEngineerCardHeight - SELECTED_ENGINEER_CARD_GRID_OFFSET,
   );
+  const candidateGridHeight = Math.max(180, candidateCardHeight - CANDIDATE_CARD_GRID_OFFSET);
   const handleSelectedEngineerResizeStart = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -839,20 +867,6 @@ export function PqParticipatingEngineersPage() {
             </Button>
           </Stack>
         </Stack>
-        <TextField
-          label="재직상태"
-          select
-          size="small"
-          sx={statusFilterSx}
-          value={filters.status}
-          onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as CandidateFilters["status"] }))}
-        >
-          {(["전체", "재직", "퇴직"] as const).map((status) => (
-            <MenuItem key={status} value={status}>
-              {status}
-            </MenuItem>
-          ))}
-        </TextField>
         <Autocomplete
           options={certificationOptions}
           getOptionLabel={(option) => option.label}
@@ -891,6 +905,51 @@ export function PqParticipatingEngineersPage() {
         />
 
         <Box sx={companyPerformanceRowSx}>
+          <Box sx={{ display: "grid", gap: 0.75, width: "100%" }}>
+            <Typography color="text.secondary" sx={{ fontSize: 13, fontWeight: 700 }}>
+              업무중복도 조회조건
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: "100%" }}>
+            <TextField
+              label="기준일"
+              size="small"
+              type="date"
+              value={filters.referenceDate}
+              onChange={(event) => setFilters((current) => ({ ...current, referenceDate: event.target.value }))}
+              sx={{ ...standardFieldSx, width: { xs: "100%", sm: 170 } }}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="과업기간"
+              size="small"
+              value={filters.taskPeriodValue}
+              onChange={(event) => setFilters((current) => ({ ...current, taskPeriodValue: event.target.value.replace(/\D/g, "") }))}
+              sx={{ ...standardFieldSx, width: { xs: "100%", sm: 120 } }}
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            />
+            <TextField
+              select
+              label="단위"
+              size="small"
+              value={filters.taskPeriodUnit}
+              onChange={(event) => setFilters((current) => ({ ...current, taskPeriodUnit: event.target.value as CandidateFilters["taskPeriodUnit"] }))}
+              sx={{ ...standardFieldSx, width: { xs: "100%", sm: 100 } }}
+            >
+              <MenuItem value="일">일</MenuItem>
+              <MenuItem value="개월">개월</MenuItem>
+            </TextField>
+            <TextField
+              label="잔여일"
+              size="small"
+              value={filters.remainingDays}
+              onChange={(event) => setFilters((current) => ({ ...current, remainingDays: event.target.value.replace(/\D/g, "") }))}
+              sx={{ ...standardFieldSx, width: { xs: "100%", sm: 100 } }}
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            />
+            </Stack>
+          </Box>
+        </Box>
+        <Box sx={companyPerformanceRowSx}>
           <RelatedProjectHistoryConditionsPanel
             bidSeq={selectedCompanyPerformance?.bidSeq ?? null}
             disabled={!canRead}
@@ -904,9 +963,32 @@ export function PqParticipatingEngineersPage() {
         <Alert severity="warning">PQ참여 기술인를 조회할 권한이 없습니다.</Alert>
       ) : (
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, lg: 5 }}>
-            <Card>
-              <CardContent sx={{ p: 2 }}>
+          <Grid
+            size={{ xs: 12, lg: "auto" }}
+            sx={{
+              flex: { lg: `0 0 ${candidateCardWidth}px !important` },
+              flexBasis: { lg: `${candidateCardWidth}px !important` },
+              flexShrink: { lg: "0 !important" },
+              maxWidth: { lg: `${candidateCardWidth}px !important` },
+              overflow: "visible",
+              position: "relative",
+              width: { lg: `${candidateCardWidth}px !important` },
+              zIndex: 2,
+            }}
+          >
+            <ResizableCard
+              height={candidateCardHeight}
+              maxHeight={CANDIDATE_CARD_MAX_HEIGHT}
+              maxWidth={CANDIDATE_CARD_MAX_WIDTH}
+              minHeight={CANDIDATE_CARD_MIN_HEIGHT}
+              minWidth={CANDIDATE_CARD_MIN_WIDTH}
+              onHeightChange={setCandidateCardHeight}
+              onWidthChange={setCandidateCardWidth}
+              resizeEdges={["right", "bottom"]}
+              handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
+              sx={{ boxSizing: "border-box", height: { xs: "auto", lg: candidateCardHeight }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
+            >
+              <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
                     <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -947,9 +1029,10 @@ export function PqParticipatingEngineersPage() {
                   rowCount={candidateRowCount}
                   rows={candidates}
                   getRowClassName={({ row }) => (selectedCandidateIdSet.has(row.engrId) ? "candidate-row-selected" : "")}
-                  wrapperMinHeight={panelScrollHeight}
+                  wrapperMinHeight={candidateGridHeight}
                   sx={{
                     ...gridSx,
+                    height: { xs: 420, lg: candidateGridHeight },
                     "& .MuiDataGrid-row:hover": { cursor: "pointer" },
                     "& .MuiDataGrid-row.candidate-row-selected": {
                       backgroundColor: "rgba(25, 118, 210, 0.10)",
@@ -957,16 +1040,16 @@ export function PqParticipatingEngineersPage() {
                   }}
                 />
               </CardContent>
-            </Card>
+            </ResizableCard>
           </Grid>
 
-          <Grid size={{ xs: 12, lg: 7 }}>
+          <Grid size={{ xs: 12, lg: 7 }} sx={{ flex: { lg: "1 1 0" }, flexBasis: { lg: 0 }, minWidth: 0, width: { lg: 0 } }}>
             <Box
               sx={{
                 display: "grid",
                 gap: 2,
-                gridTemplateRows: { xs: "auto auto", lg: `${selectedEngineerCardHeight}px minmax(0, 1fr)` },
-                height: { xs: "auto", lg: panelScrollHeight },
+                gridTemplateRows: { xs: "auto auto", lg: `${selectedEngineerCardHeight}px ${performanceCardHeight}px` },
+                height: { xs: "auto", lg: `${selectedEngineerCardHeight + performanceCardHeight + 16}px` },
                 minHeight: 0,
               }}
             >
@@ -1056,9 +1139,27 @@ export function PqParticipatingEngineersPage() {
                 />
               </Card>
 
-              <Card sx={{ minHeight: 0, minWidth: 0 }}>
-                <CardContent
-                  sx={{
+              <ResizableCard
+                height={performanceCardHeight}
+                maxHeight={PERFORMANCE_CARD_MAX_HEIGHT}
+                minHeight={PERFORMANCE_CARD_MIN_HEIGHT}
+                onHeightChange={setPerformanceCardHeight}
+                onResizeHandleClick={(edge) => {
+                  if (edge !== "bottom") {
+                    return;
+                  }
+                  setPerformanceCardHeight((currentHeight) =>
+                    currentHeight >= PERFORMANCE_CARD_EXPANDED_HEIGHT
+                      ? PERFORMANCE_CARD_DEFAULT_HEIGHT
+                      : PERFORMANCE_CARD_EXPANDED_HEIGHT,
+                  );
+                }}
+                resizeEdges={["bottom"]}
+                handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
+                sx={{ height: { xs: "auto", lg: performanceCardHeight }, minHeight: 0, minWidth: 0 }}
+              >
+                  <CardContent
+                    sx={{
                     height: { xs: panelScrollHeight, lg: "100%" },
                     minHeight: 0,
                     overflowY: "auto",
@@ -1066,9 +1167,18 @@ export function PqParticipatingEngineersPage() {
                     p: 2,
                   }}
                 >
-                  <EngineerHistoryReadonlyCard canRead={canRead} engineerId={historyEngineerId} />
+                  <PqEngineerPerformanceTabs
+                    canRead={canRead}
+                    engineerId={historyEngineerId}
+                    relatedProjectHistoryConditions={appliedFilters.relatedProjectHistoryConditions}
+                    referenceDate={appliedFilters.referenceDate}
+                    remainingDays={appliedFilters.remainingDays}
+                    taskPeriodUnit={appliedFilters.taskPeriodUnit}
+                    taskPeriodValue={appliedFilters.taskPeriodValue}
+                    cardHeight={performanceCardHeight}
+                  />
                 </CardContent>
-              </Card>
+              </ResizableCard>
             </Box>
           </Grid>
         </Grid>
@@ -1114,5 +1224,3 @@ export function PqParticipatingEngineersPage() {
     </Box>
   );
 }
-
-

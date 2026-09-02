@@ -19,6 +19,7 @@ export function OpenTabs() {
   const tabsRailRef = useRef<HTMLDivElement | null>(null);
   const lastAllowedPathRef = useRef("/dashboard");
   const isClosingAllRef = useRef(false);
+  const closingTabHrefRef = useRef<string | null>(null);
   const tabs = useLayoutStore((state) => state.tabs);
   const openTab = useLayoutStore((state) => state.openTab);
   const closeTab = useLayoutStore((state) => state.closeTab);
@@ -38,6 +39,14 @@ export function OpenTabs() {
   useEffect(() => {
     if (pathname === "/login") {
       return;
+    }
+
+    if (closingTabHrefRef.current === pathname) {
+      return;
+    }
+
+    if (closingTabHrefRef.current) {
+      closingTabHrefRef.current = null;
     }
 
     if (isClosingAllRef.current) {
@@ -67,6 +76,9 @@ export function OpenTabs() {
     const isActive = pathname === href;
     const fallbackHref = tabs[activeIndex - 1]?.href ?? tabs[activeIndex + 1]?.href ?? "/dashboard";
 
+    if (isActive) {
+      closingTabHrefRef.current = href;
+    }
     closeTab(href);
 
     if (isActive) {
