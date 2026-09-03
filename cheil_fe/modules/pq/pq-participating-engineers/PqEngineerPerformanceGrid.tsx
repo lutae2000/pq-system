@@ -41,7 +41,6 @@ export function createEngineerHistoryPerformanceColumns(
 export function PqEngineerPerformanceGrid({ columns, defaultPageSize, loading, rows, gridHeight }: Props) {
   const [detailSeq, setDetailSeq] = useState<number | null>(null);
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: defaultPageSize });
-  const resolvedPaginationModel = paginationModel.pageSize === defaultPageSize ? paginationModel : { page: 0, pageSize: defaultPageSize };
   if (loading && rows.length === 0) return <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box>;
   if (!loading && rows.length === 0) return <Alert severity="info">조회된 실적이 없습니다.</Alert>;
   return (
@@ -52,9 +51,11 @@ export function PqEngineerPerformanceGrid({ columns, defaultPageSize, loading, r
         loading={loading}
         onPaginationModelChange={setPaginationModel}
         onRowDoubleClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>) => setDetailSeq(params.row.seq || null)}
-        paginationModel={resolvedPaginationModel}
+        paginationMode="client"
+        paginationModel={paginationModel}
         pageSizeOptions={[10, 25, 50, 100]}
         rows={rows}
+        rowCount={rows.length}
         stateCacheKey={false}
         showPageNumbers
         wrapperMinHeight={gridHeight}

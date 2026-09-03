@@ -83,6 +83,7 @@ type CandidateFilters = {
 };
 
 type SelectedPqEngineer = {
+  birthDate: string;
   department: string;
   engineerId: string;
   jobField: string;
@@ -168,6 +169,13 @@ const todayInputValue = () => {
   const current = new Date();
   return `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}-${String(current.getDate()).padStart(2, "0")}`;
 };
+const formatBirthDate = (value: string | null | undefined) => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits.length !== 8) {
+    return value ?? "";
+  }
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+};
 const SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT = 320;
 const SELECTED_ENGINEER_CARD_MIN_HEIGHT = 240;
 const SELECTED_ENGINEER_CARD_MAX_HEIGHT = 560;
@@ -175,8 +183,7 @@ const SELECTED_ENGINEER_CARD_GRID_OFFSET = 104;
 const CANDIDATE_CARD_DEFAULT_WIDTH = 420;
 const CANDIDATE_CARD_MIN_WIDTH = 320;
 const CANDIDATE_CARD_MAX_WIDTH = 760;
-const CANDIDATE_CARD_HEIGHT = 820;
-const CANDIDATE_CARD_GRID_HEIGHT = 716;
+const CANDIDATE_CARD_GRID_OFFSET = 104;
 const PERFORMANCE_CARD_DEFAULT_HEIGHT = 520;
 const PERFORMANCE_CARD_EXPANDED_HEIGHT = 920;
 const PERFORMANCE_CARD_MIN_HEIGHT = 360;
@@ -206,6 +213,7 @@ function toEngineerStatus(retireYn: "Y" | "N" | null | undefined): EngineerStatu
 
 function toSelectedEngineer(candidate: PqParticipatingEngineerCandidate, nextPriority: number): SelectedPqEngineer {
   return {
+    birthDate: candidate.birthDate ?? "",
     department: candidate.department ?? "",
     engineerId: candidate.engrId,
     jobField: candidate.jobField ?? "",
@@ -221,6 +229,7 @@ function toSelectedEngineer(candidate: PqParticipatingEngineerCandidate, nextPri
 
 function toSelectedEngineerFromRecord(record: PqParticipatingEngineerRecord, index: number): SelectedPqEngineer {
   return {
+    birthDate: record.birthDate ?? "",
     department: record.department ?? "",
     engineerId: record.engrId,
     jobField: record.jobField ?? "",
@@ -678,6 +687,29 @@ export function PqParticipatingEngineersPage() {
     saveSelectedEngineersMutation.mutate();
   };
 
+  const allCandidatesSelected = candidates.length > 0 && candidates.every((candidate) => selectedCandidateIdSet.has(candidate.engrId));
+  const someCandidatesSelected = candidates.some((candidate) => selectedCandidateIdSet.has(candidate.engrId));
+  const toggleAllCandidates = useCallback(
+    (checked: boolean) => {
+      setSelectedCandidateIds((current) => {
+        if (checked) {
+          return Array.from(new Set([...current, ...candidateRowIds]));
+        }
+        return current.filter((id) => !candidateRowIds.includes(id));
+      });
+    },
+    [candidateRowIds],
+  );
+  const allSelectedEngineersSelected = selectedEngineers.length > 0 && selectedEngineers.every((engineer) => selectedEngineerIdSet.has(engineer.engineerId));
+  const someSelectedEngineersSelected = selectedEngineers.some((engineer) => selectedEngineerIdSet.has(engineer.engineerId));
+  const toggleAllSelectedEngineers = useCallback(
+    (checked: boolean) => {
+      setSelectedEngineerIds(checked ? selectedEngineerRowIds : []);
+      setSelectedEngineerSelectionAnchorId(null);
+    },
+    [selectedEngineerRowIds],
+  );
+
   const candidateColumns = useMemo<GridColDef<PqParticipatingEngineerCandidate>[]>(
     () => [
       {
@@ -689,6 +721,16 @@ export function PqParticipatingEngineersPage() {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
+        renderHeader: () => (
+          <Checkbox
+            checked={allCandidatesSelected}
+            disabled={candidates.length === 0}
+            indeterminate={!allCandidatesSelected && someCandidatesSelected}
+            onChange={(event) => toggleAllCandidates(event.target.checked)}
+            size="small"
+            sx={{ p: 0, "& .MuiSvgIcon-root": { fontSize: 18 } }}
+          />
+        ),
         renderCell: (params) => (
           <Checkbox
             checked={selectedCandidateIdSet.has(params.row.engrId)}
@@ -737,7 +779,7 @@ export function PqParticipatingEngineersPage() {
         valueFormatter: (value) => formatReferenceLabel(labelByGrade, value),
       },
     ],
-    [handleCandidateSelection, labelByGrade, labelByJobField, labelBySpecialtyField, selectedCandidateIdSet],
+    [allCandidatesSelected, candidates.length, handleCandidateSelection, labelByGrade, labelByJobField, labelBySpecialtyField, selectedCandidateIdSet, someCandidatesSelected, toggleAllCandidates],
   );
 
   const selectedColumns = useMemo<GridColDef<SelectedPqEngineer>[]>(
@@ -751,6 +793,16 @@ export function PqParticipatingEngineersPage() {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
+        renderHeader: () => (
+          <Checkbox
+            checked={allSelectedEngineersSelected}
+            disabled={selectedEngineers.length === 0}
+            indeterminate={!allSelectedEngineersSelected && someSelectedEngineersSelected}
+            onChange={(event) => toggleAllSelectedEngineers(event.target.checked)}
+            size="small"
+            sx={{ p: 0, "& .MuiSvgIcon-root": { fontSize: 18 } }}
+          />
+        ),
         renderCell: (params) => (
           <Checkbox
             checked={selectedEngineerIdSet.has(params.row.engineerId)}
@@ -770,6 +822,7 @@ export function PqParticipatingEngineersPage() {
       },
       { field: "priority", headerName: "순번", width: 70, align: "center", headerAlign: "center" },
       { field: "name", headerName: "성명", width: 100, align: "center", headerAlign: "center" },
+      { field: "birthDate", headerName: "생년월일", width: 120, align: "center", headerAlign: "center", valueGetter: (_value, row) => formatBirthDate(row.birthDate) },
       { field: "department", headerName: "부서", minWidth: 100, flex: 0.8, align: "center", headerAlign: "center" },
       { field: "title", headerName: "직위", width: 90, align: "center", headerAlign: "center" },
       {
@@ -797,7 +850,7 @@ export function PqParticipatingEngineersPage() {
         renderCell: (params) => formatStatusChip(params.value as EngineerStatus),
       },
     ],
-    [handleSelectedEngineerSelection, labelByJobField, labelBySpecialtyField, selectedEngineerIdSet],
+    [allSelectedEngineersSelected, handleSelectedEngineerSelection, labelByJobField, labelBySpecialtyField, selectedEngineerIdSet, selectedEngineers.length, someSelectedEngineersSelected, toggleAllSelectedEngineers],
   );
 
   const candidatePaginationModel = useMemo<GridPaginationModel>(
@@ -808,6 +861,8 @@ export function PqParticipatingEngineersPage() {
     140,
     (performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight) - SELECTED_ENGINEER_CARD_GRID_OFFSET,
   );
+  const candidateCardHeight = selectedEngineerCardHeight + performanceCardHeight + 16;
+  const candidateGridHeight = Math.max(180, candidateCardHeight - CANDIDATE_CARD_GRID_OFFSET);
   const handleSelectedEngineerResizeStart = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -1106,7 +1161,7 @@ export function PqParticipatingEngineersPage() {
               resizeEdges={["right"]}
               handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
               width={candidateCardWidth}
-              sx={{ boxSizing: "border-box", height: { xs: "auto", lg: CANDIDATE_CARD_HEIGHT }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
+              sx={{ boxSizing: "border-box", height: { xs: "auto", lg: candidateCardHeight }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
             >
               <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
@@ -1151,10 +1206,10 @@ export function PqParticipatingEngineersPage() {
                   rowCount={candidateRowCount}
                   rows={candidates}
                   getRowClassName={({ row }) => (selectedCandidateIdSet.has(row.engrId) ? "candidate-row-selected" : "")}
-                  wrapperMinHeight={CANDIDATE_CARD_GRID_HEIGHT}
+                  wrapperMinHeight={candidateGridHeight}
                   sx={{
                     ...gridSx,
-                    height: { xs: 420, lg: CANDIDATE_CARD_GRID_HEIGHT },
+                    height: { xs: 420, lg: candidateGridHeight },
                     "& .MuiDataGrid-row:hover": { cursor: "pointer" },
                     "& .MuiDataGrid-row.candidate-row-selected": {
                       backgroundColor: "rgba(25, 118, 210, 0.10)",
@@ -1308,7 +1363,7 @@ export function PqParticipatingEngineersPage() {
                   {historyEngineerId ? <PqEngineerPerformanceTabs
                     canRead={canRead}
                     engineerId={historyEngineerId}
-                    relatedProjectHistoryConditions={appliedFilters.relatedProjectHistoryConditions}
+                    relatedProjectHistoryConditions={filters.relatedProjectHistoryConditions}
                     referenceDate={appliedFilters.referenceDate}
                     remainingDays={appliedFilters.remainingDays}
                     taskPeriodUnit={appliedFilters.taskPeriodUnit}

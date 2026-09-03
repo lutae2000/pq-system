@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
+import java.util.Set;
 
 import org.springframework.util.StringUtils;
 
@@ -15,6 +16,15 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectH
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 
 final class HwpxFieldFormatter {
+
+    private static final Set<String> PLAIN_PERIOD_FIELD_NAMES = Set.of(
+            "근무기간(일)",
+            "근무기간(월)",
+            "근무기간(년월)",
+            "참여기간(일)",
+            "참여기간(월)",
+            "참여기간(년)"
+    );
 
     private static final BigDecimal THOUSAND = BigDecimal.valueOf(1_000L);
     private static final BigDecimal TEN_THOUSAND = BigDecimal.valueOf(10_000L);
@@ -148,7 +158,7 @@ final class HwpxFieldFormatter {
         boolean includesDateFormat = hasDateFormat(label);
         String duration = formatDuration(days, label);
         if (!includesDateFormat) {
-            return duration.isEmpty() ? "" : "(" + duration + ")";
+            return PLAIN_PERIOD_FIELD_NAMES.contains(label) ? duration : duration.isEmpty() ? "" : "(" + duration + ")";
         }
 
         DateTimeFormatter formatter = dateFormatter(label);

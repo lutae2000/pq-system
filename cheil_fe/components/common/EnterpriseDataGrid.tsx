@@ -700,6 +700,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     editMode: userEditMode,
     onCellKeyDown: userOnCellKeyDown,
     onCellClick: userOnCellClick,
+    onColumnWidthChange: userOnColumnWidthChange,
     isCellEditable: userIsCellEditable,
     paginationModel: userPaginationModel,
     paginationMode: userPaginationMode,
@@ -746,6 +747,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   const selectionLeadRef = useRef<CellCoordinate | null>(null);
   const rowSelectionAnchorRef = useRef<GridRowId | null>(null);
   const rowCheckboxSelectionIntentRef = useRef<RowCheckboxSelectionIntent | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const applyRowSelectionRef = useRef<(rowId: GridRowId, selected: boolean, append: boolean, range: boolean) => void>(() => undefined);
   const isDraggingRef = useRef(false);
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set());
@@ -796,8 +798,20 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     ? { csvExport: true, clipboardExport: true }
     : restProps.ignoreValueFormatterDuringExport;
   const resolvedColumns = useMemo(
-    () => (readOnly ? columns.map((column) => ({ ...column, editable: false })) : columns),
-    [columns, readOnly],
+    () =>
+      columns.map((column) => {
+        const rememberedWidth = columnWidths[column.field];
+        const resolvedColumn = rememberedWidth ? { ...column, width: rememberedWidth, flex: undefined } : column;
+        return readOnly ? { ...resolvedColumn, editable: false } : resolvedColumn;
+      }),
+    [columns, columnWidths, readOnly],
+  );
+  const handleColumnWidthChange = useCallback<NonNullable<DataGridProps<Row>["onColumnWidthChange"]>>(
+    (params, event, details) => {
+      setColumnWidths((current) => (current[params.colDef.field] === params.width ? current : { ...current, [params.colDef.field]: params.width }));
+      userOnColumnWidthChange?.(params, event, details);
+    },
+    [userOnColumnWidthChange],
   );
   const resolvedPageSizeOptions = useMemo(() => {
     const options = pageSizeOptions ?? [10, 20, 40];
@@ -1477,6 +1491,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
         getRowClassName={getRowClassName}
         onCellKeyDown={readOnly ? undefined : handleCellKeyDown}
         onCellClick={handleCellClick}
+        onColumnWidthChange={handleColumnWidthChange}
         onCellEditStop={readOnly ? undefined : handleCellEditStop}
         onCellModesModelChange={readOnly ? undefined : userOnCellModesModelChange}
         onPaginationModelChange={userOnPaginationModelChange}

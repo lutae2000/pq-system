@@ -124,7 +124,7 @@ public class EngineerPerformanceDocumentService {
         if (!Set.of("pq_engineer_school", "pq_engineer_license").contains(tableName)) {
             throw new IllegalArgumentException("Unsupported engineer detail table");
         }
-        boolean exists = jdbcClient.sql("SELECT EXISTS (SELECT 1 FROM " + tableName + " WHERE id = :detailId AND engr_id = :engineerId)")
+        boolean exists = jdbcClient.sql("SELECT COUNT(*) > 0 FROM " + tableName + " WHERE id = :detailId AND engr_id = :engineerId")
                 .params(Map.of("detailId", detailId, "engineerId", engineerId))
                 .query(Boolean.class).single();
         if (!exists) {
@@ -302,6 +302,7 @@ public class EngineerPerformanceDocumentService {
                         )
                         ON CONFLICT (bid_seq, engineer_id, source_seq)
                         DO UPDATE SET
+                            display_order = EXCLUDED.display_order,
                             last_changed_at = CURRENT_TIMESTAMP,
                             last_changed_id = EXCLUDED.last_changed_id
                         RETURNING review_id
@@ -333,12 +334,11 @@ public class EngineerPerformanceDocumentService {
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE h.engr_id = :engineerId
-                  AND NOT EXISTS (
-                      SELECT 1
+                  AND h.id NOT IN (
+                      SELECT existing.source_seq
                       FROM pq_engineer_project_history_review_results existing
                       WHERE existing.bid_seq = :bidSeq
                         AND existing.engineer_id = :engineerId
-                        AND existing.source_seq = h.id
                   )
                 """ + conditionSql + """
                 ORDER BY h.id
@@ -599,23 +599,17 @@ public class EngineerPerformanceDocumentService {
         params.put(level1Param, level1Code);
         params.put(level2Param, normalize(condition.level2Code()));
         params.put(level3Param, normalize(condition.level3Code()));
-        String historyAlias = "h" + index;
         String kindAlias = "k" + index;
         return """
-                EXISTS (
-                    SELECT 1
-                    FROM pq_engineer_project_history %s
-                    WHERE %s.engr_id = :engineerId
-                      AND %s.seq IN (
-                          SELECT %s.seq
-                          FROM company_performance_construction_kinds %s
-                          WHERE %s.level1_code = :%s
-                            AND (:%s IS NULL OR %s.level2_code = :%s)
-                            AND (:%s IS NULL OR %s.level3_code = :%s)
-                      )
+                h.seq IN (
+                    SELECT %s.seq
+                    FROM company_performance_construction_kinds %s
+                    WHERE %s.level1_code = :%s
+                      AND (:%s IS NULL OR %s.level2_code = :%s)
+                      AND (:%s IS NULL OR %s.level3_code = :%s)
                 )
-                """.formatted(historyAlias, historyAlias, historyAlias, kindAlias, kindAlias, kindAlias,
-                level1Param, level2Param, kindAlias, level2Param, level3Param, kindAlias, level3Param);
+                """.formatted(kindAlias, kindAlias, kindAlias, level1Param, level2Param, kindAlias, level2Param,
+                level3Param, kindAlias, level3Param);
     }
 
     private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
@@ -632,23 +626,20 @@ public class EngineerPerformanceDocumentService {
         }
         if (column.startsWith("h.")) {
             return """
-                    EXISTS (
-                        SELECT 1
+                    h.seq IN (
+                        SELECT %s.seq
                         FROM pq_engineer_project_history %s
-                        WHERE %s.engr_id = :engineerId
-                          AND %s
+                        WHERE %s
                     )
                     """.formatted(historyAlias, historyAlias, predicate);
         }
         return """
-                EXISTS (
-                    SELECT 1
-                    FROM pq_engineer_project_history %s
-                    JOIN company_performances %s ON %s.seq = %s.seq
-                    WHERE %s.engr_id = :engineerId
-                      AND %s
+                h.seq IN (
+                    SELECT %s.seq
+                    FROM company_performances %s
+                    WHERE %s
                 )
-                """.formatted(historyAlias, performanceAlias, performanceAlias, historyAlias, historyAlias, predicate);
+                """.formatted(performanceAlias, performanceAlias, predicate);
     }
 
     private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
@@ -658,7 +649,6 @@ public class EngineerPerformanceDocumentService {
             return "";
         }
 
-        String historyAlias = "h" + index;
         String outlineAlias = "o" + index;
         List<String> outlineConditions = new ArrayList<>();
         if (StringUtils.hasText(categoryCode)) {
@@ -677,15 +667,12 @@ public class EngineerPerformanceDocumentService {
         }
 
         return """
-                EXISTS (
-                    SELECT 1
-                    FROM pq_engineer_project_history %s
-                    JOIN company_performance_outlines %s ON %s.seq = %s.seq
-                    WHERE %s.engr_id = :engineerId
-                      AND %s
+                h.seq IN (
+                    SELECT %s.seq
+                    FROM company_performance_outlines %s
+                    WHERE %s
                 )
-                """.formatted(historyAlias, outlineAlias, outlineAlias, historyAlias, historyAlias,
-                String.join("\nAND ", outlineConditions));
+                """.formatted(outlineAlias, outlineAlias, String.join("\nAND ", outlineConditions));
     }
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {

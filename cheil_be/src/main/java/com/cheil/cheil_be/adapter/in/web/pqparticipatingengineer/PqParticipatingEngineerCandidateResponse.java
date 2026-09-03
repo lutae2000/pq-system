@@ -3,6 +3,7 @@ package com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer;
 public record PqParticipatingEngineerCandidateResponse(
         String engrId,
         String name,
+        String birthDate,
         String department,
         String position,
         String jobField,

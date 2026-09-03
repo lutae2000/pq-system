@@ -115,7 +115,17 @@ const createConditionId = () => {
 const defaultOperator = (valueType: PqParticipatingEngineerProjectHistoryConditionValueType) =>
   valueType === "number" || valueType === "date" ? ">=" : "=";
 
-const generalConditionValueType = (label: string): PqParticipatingEngineerProjectHistoryConditionValueType => {
+const DATE_GENERAL_CONDITION_CODES = new Set(["C0104C1", "C0105C1", "C0120C1"]);
+const NUMBER_GENERAL_CONDITION_CODES = new Set(["C0107C1", "C0108C1_AMT"]);
+
+const generalConditionValueType = (code: string, label = ""): PqParticipatingEngineerProjectHistoryConditionValueType => {
+  if (DATE_GENERAL_CONDITION_CODES.has(code)) {
+    return "date";
+  }
+  if (NUMBER_GENERAL_CONDITION_CODES.has(code)) {
+    return "number";
+  }
+  // Keep a fallback for legacy conditions whose code is not mapped yet.
   if (label.includes("일")) {
     return "date";
   }
@@ -125,10 +135,19 @@ const generalConditionValueType = (label: string): PqParticipatingEngineerProjec
   return "text";
 };
 
-const normalizeCondition = (condition: RelatedProjectHistoryCondition): RelatedProjectHistoryCondition => {
+const normalizeLogicalOperator = (operator: string | undefined, index: number): "AND" | "OR" => {
+  // The first item has no previous condition to join with. Keeping it as AND
+  // prevents a stale OR value from being sent after conditions are removed.
+  if (index === 0) {
+    return "AND";
+  }
+  return operator === "OR" ? "OR" : "AND";
+};
+
+const normalizeCondition = (condition: RelatedProjectHistoryCondition, index: number): RelatedProjectHistoryCondition => {
   const valueType =
     condition.conditionType === "general" && condition.label
-      ? generalConditionValueType(condition.label)
+      ? generalConditionValueType(condition.generalCode ?? "", condition.label)
       : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
   const availableOperators = operatorsByValueType[valueType];
   const candidateOperator = condition.operator;
@@ -136,6 +155,7 @@ const normalizeCondition = (condition: RelatedProjectHistoryCondition): RelatedP
 
   return {
     ...condition,
+    logicalOperator: normalizeLogicalOperator(condition.logicalOperator, index),
     operator,
     valueTo: operator === "BETWEEN" ? condition.valueTo : "",
     valueType,
@@ -361,7 +381,7 @@ export function RelatedProjectHistoryConditionDialog({
   };
 
   const handleApply = () => {
-    onApply(draft.map(normalizeCondition));
+    onApply(draft.map((condition, index) => normalizeCondition(condition, index)));
   };
 
   const constructionColumns = useMemo<GridColDef<ConstructionKindRow>[]>(
@@ -492,9 +512,9 @@ export function RelatedProjectHistoryConditionDialog({
                       id: createConditionId(),
                       label: `${params.row.code} - ${params.row.label}`,
                       logicalOperator: "AND",
-                      operator: defaultOperator(generalConditionValueType(params.row.label)),
+                      operator: defaultOperator(generalConditionValueType(params.row.code, params.row.label)),
                       value: "",
-                      valueType: generalConditionValueType(params.row.label),
+                      valueType: generalConditionValueType(params.row.code, params.row.label),
                     })
                   }
                   pageSizeOptions={[20, 40, 100]}
@@ -580,7 +600,7 @@ export function RelatedProjectHistoryConditionDialog({
                   draft.map((condition, index) => {
                     const valueType =
                       condition.conditionType === "general" && condition.label
-                        ? generalConditionValueType(condition.label)
+                        ? generalConditionValueType(condition.generalCode ?? "", condition.label)
                         : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
                     const availableOperators = operatorsByValueType[valueType];
                     const configuredOperator = condition.operator ?? defaultOperator(valueType);

@@ -8,6 +8,7 @@ public record PqParticipatingEngineerResponse(
         String role,
         String memo,
         String name,
+        String birthDate,
         String department,
         String position,
         String jobField,

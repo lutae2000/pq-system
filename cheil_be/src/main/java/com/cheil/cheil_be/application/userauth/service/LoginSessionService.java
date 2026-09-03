@@ -24,7 +24,7 @@ public class LoginSessionService implements ValidateLoginSessionUseCase {
         }
         var currentSessionId = loginSessionStore.currentSessionId(command.loginId());
         if (currentSessionId.isPresent() && !currentSessionId.get().equals(command.sessionId())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "다른 기기에서 로그인하여 현재 세션이 종료되었습니다.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "다른 기기에서 로그인되어 세션 로그아웃 되었습니다.");
         }
 
         if (!loginSessionStore.isCurrent(command.loginId(), command.sessionId())) {

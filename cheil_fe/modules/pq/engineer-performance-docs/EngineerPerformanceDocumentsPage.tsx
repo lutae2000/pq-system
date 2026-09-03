@@ -3,6 +3,8 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
+import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -18,6 +20,7 @@ import {
   IconButton,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { type GridColDef, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
@@ -65,10 +68,6 @@ const BidNoticeDetailPopup = dynamic(
 );
 const CompanyPerformanceDetailPopup = dynamic(
   () => import("@/modules/pq/company-performance/CompanyPerformanceDetailPopup").then((module) => module.CompanyPerformanceDetailPopup),
-  { ssr: false },
-);
-const HancomWebHwpPanel = dynamic(
-  () => import("@/modules/pq/engineer-performance-docs/HancomWebHwpPanel").then((module) => module.HancomWebHwpPanel),
   { ssr: false },
 );
 const HwpxTemplateGenerationPanel = dynamic(
@@ -160,6 +159,15 @@ const formatDateYmd = (value: string | number | null | undefined) => {
   return raw;
 };
 
+const dateSortValue = (value: string | number | null | undefined) => {
+  const digits = text(value).replace(/\D/g, "").slice(0, 8);
+  return digits.length === 8 ? Number(digits) : Number.MAX_SAFE_INTEGER;
+};
+
+const compareHistoryRowsForDisplayOrder = (left: PerformanceHistoryRow, right: PerformanceHistoryRow) =>
+  dateSortValue(left.contractFromDate) - dateSortValue(right.contractFromDate) ||
+  dateSortValue(left.startDate) - dateSortValue(right.startDate);
+
 const clampHistoryCardHeight = (height: number) =>
   Math.min(Math.max(Math.round(height), HISTORY_CARD_MIN_HEIGHT), HISTORY_CARD_MAX_HEIGHT);
 
@@ -170,7 +178,6 @@ export function EngineerPerformanceDocumentsPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const canGenerate = canCreate || canUpdate;
   const queryClient = useQueryClient();
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
@@ -180,7 +187,6 @@ export function EngineerPerformanceDocumentsPage() {
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
   const [documentValueSettingOpen, setDocumentValueSettingOpen] = useState(false);
   const [documentValueSetting, setDocumentValueSetting] = useState<EngineerDocumentValueSetting | null>(null);
-  const [outputTestPanel, setOutputTestPanel] = useState<"hwpx" | "webhwp" | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
@@ -192,6 +198,7 @@ export function EngineerPerformanceDocumentsPage() {
   const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
   const [isExcelDownloading, setIsExcelDownloading] = useState(false);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
+  const [selectorPanelCollapsed, setSelectorPanelCollapsed] = useState(false);
   const selectorResizeStartXRef = useRef(0);
   const selectorResizeStartWidthRef = useRef(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [historyCardHeight, setHistoryCardHeight] = useState(DEFAULT_HISTORY_CARD_HEIGHT);
@@ -484,16 +491,6 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "birthDate", headerName: "생년월일", width: 105, ...center },
       { field: "position", headerName: "직위", width: 90, ...center },
       {
-        field: "status",
-        headerName: "퇴직여부",
-        width: 92,
-        ...center,
-        renderCell: ({ value }) => {
-          const label = String(value ?? "");
-          return <Chip color={label === "재직" ? "success" : "default"} label={label} size="small" variant={label === "재직" ? "filled" : "outlined"} />;
-        },
-      },
-      {
         field: "jobField",
         headerName: "직무분야",
         width: 110,
@@ -641,6 +638,10 @@ export function EngineerPerformanceDocumentsPage() {
               const digitsOnly = event.target.value.replace(/\D/g, "");
               void params.api.setEditCellValue({ field: params.field, id: params.id, value: digitsOnly });
             }}
+            onFocus={(event) => {
+              // 순번을 편집할 때 기존 값을 전체 선택해 바로 입력한 값으로 대체할 수 있도록 한다.
+              event.currentTarget.select();
+            }}
             onClick={(event) => event.stopPropagation()}
             size="small"
             slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
@@ -673,6 +674,53 @@ export function EngineerPerformanceDocumentsPage() {
     ],
     [canUpdate, handleReviewSelection, handleToggleAllReviewSelection, labelByEngLevel, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
   );
+  const orderedHistoryColumns = useMemo(() => {
+    const order = [
+      "__select__",
+      "jobName",
+      "orderClient",
+      "contractAmt",
+      "ownAmt",
+      "contractFromDate",
+      "contractToDate",
+      "startDate",
+      "endDate",
+      "compName",
+      "grade",
+      "duty",
+      "divisionRate",
+      "proPart",
+      "returnYn",
+    ];
+    const orderByField = new Map(order.map((field, index) => [field, index]));
+    return historyColumns
+      .filter((column) => orderByField.has(column.field))
+      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!);
+  }, [historyColumns]);
+  const orderedReviewColumns = useMemo(() => {
+    const order = [
+      "__select__",
+      "displayOrder",
+      "jobName",
+      "orderClient",
+      "contractAmt",
+      "ownAmt",
+      "contractFromDate",
+      "contractToDate",
+      "startDate",
+      "endDate",
+      "compName",
+      "grade",
+      "duty",
+      "divisionRate",
+      "proPart",
+      "returnYn",
+    ];
+    const orderByField = new Map(order.map((field, index) => [field, index]));
+    return reviewColumns
+      .filter((column) => orderByField.has(column.field))
+      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!);
+  }, [reviewColumns]);
 
   const handleLoad = () => {
     if (!canRead || !selectedBidNotice) {
@@ -741,12 +789,13 @@ export function EngineerPerformanceDocumentsPage() {
 
       const bidSeq = selectedBidNotice.bidSeq;
       const uniqueRowsBySourceHistoryId = Array.from(new Map(selectedHistoryRows.map((row) => [text(row.id), row])).values());
+      const orderedRows = [...uniqueRowsBySourceHistoryId].sort(compareHistoryRowsForDisplayOrder);
       const nextDisplayOrder = Math.max(0, ...reviewRows.map((row) => row.displayOrder ?? 0)) + 1;
-      const requestBodies = uniqueRowsBySourceHistoryId.map((row) => ({
+      const requestBodies = orderedRows.map((row, index) => ({
         bidSeq,
         engineerId: activeEngineerProfile.summary.id,
         sourceSeq: Number(row.id),
-        displayOrder: nextDisplayOrder + uniqueRowsBySourceHistoryId.indexOf(row),
+        displayOrder: nextDisplayOrder + index,
         sourceRow: row,
       }));
 
@@ -1018,14 +1067,14 @@ export function EngineerPerformanceDocumentsPage() {
           </Card>
           <Box
             sx={{
-              alignItems: "start",
+              alignItems: { xs: "start", xl: "stretch" },
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: `${selectorPanelWidth}px minmax(0, 1fr)` },
+              gridTemplateColumns: { xs: "1fr", xl: selectorPanelCollapsed ? "minmax(0, 1fr)" : `${selectorPanelWidth}px minmax(0, 1fr)` },
             }}
           >
-            <Card sx={{ minWidth: 0, position: "relative" }} variant="outlined">
-              <CardContent>
+            {!selectorPanelCollapsed ? <Card sx={{ display: "flex", flexDirection: "column", height: { xs: "auto", xl: "100%" }, minWidth: 0, position: "relative" }} variant="outlined">
+              <CardContent sx={{ display: "flex", flex: 1, flexDirection: "column", minHeight: 0 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
                     <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -1055,6 +1104,7 @@ export function EngineerPerformanceDocumentsPage() {
                     </IconButton>
                   </Box>
                 </Box>
+                <Box sx={{ flex: { xs: "0 0 auto", xl: 1 }, minHeight: 0 }}>
                 <EnterpriseDataGrid<EngineerDocumentRow>
                   checkboxSelection
                   columns={engineerColumns}
@@ -1101,10 +1151,10 @@ export function EngineerPerformanceDocumentsPage() {
                   columnHeaderHeight={36}
                   rowHeight={30}
                   showToolbar={false}
-                  wrapperMinHeight={selectorGridHeight}
+                  wrapperMinHeight={{ ...selectorGridHeight, xl: "100%" }}
                   sx={{
                     border: 0,
-                    height: selectorGridHeight,
+                    height: { ...selectorGridHeight, xl: "100%" },
                     "& .MuiDataGrid-row:hover": { cursor: "pointer" },
                     "& .MuiDataGrid-main": { overflow: "hidden" },
                     "& .MuiDataGrid-virtualScroller": {
@@ -1116,6 +1166,7 @@ export function EngineerPerformanceDocumentsPage() {
                     },
                   }}
                 />
+                </Box>
               </CardContent>
               <ResizeHandle
                 ariaLabel="선택 기술인 목록 너비 조절"
@@ -1132,7 +1183,7 @@ export function EngineerPerformanceDocumentsPage() {
                 }}
                 onPointerDown={handleSelectorResizePointerDown}
               />
-            </Card>
+            </Card> : null}
 
             <Box
               sx={{
@@ -1165,6 +1216,16 @@ export function EngineerPerformanceDocumentsPage() {
                     </Box>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                       <Chip label={`${availableHistoryRows.length}건`} size="small" variant="outlined" />
+                      <Tooltip title={selectorPanelCollapsed ? "선택 기술인 목록 펼치기" : "선택 기술인 목록 접기"}>
+                        <IconButton
+                          aria-label={selectorPanelCollapsed ? "선택 기술인 목록 펼치기" : "선택 기술인 목록 접기"}
+                          color="primary"
+                          onClick={() => setSelectorPanelCollapsed((collapsed) => !collapsed)}
+                          size="small"
+                        >
+                          {selectorPanelCollapsed ? <KeyboardDoubleArrowRightOutlinedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftOutlinedIcon fontSize="small" />}
+                        </IconButton>
+                      </Tooltip>
                       <Button
                         disabled={!canCreate || selectedHistoryRows.length === 0}
                         onClick={() => setAddConfirmOpen(true)}
@@ -1178,7 +1239,7 @@ export function EngineerPerformanceDocumentsPage() {
                   </Box>
                   <Box sx={{ minHeight: 0 }}>
                     <EnterpriseDataGrid<PerformanceHistoryRow>
-                      columns={historyColumns}
+                      columns={orderedHistoryColumns}
                       getRowId={(row) => historySelectionKey(row)}
                       hideFooter
                       hideFooterSelectedRowCount
@@ -1279,7 +1340,7 @@ export function EngineerPerformanceDocumentsPage() {
                     </Box>
                   </Box>
                   <EnterpriseDataGrid<EngineerProjectHistoryReviewRecord>
-                    columns={reviewColumns}
+                    columns={orderedReviewColumns}
                     getRowId={(row) => row.reviewId ?? row.id}
                     hideFooter
                     hideFooterSelectedRowCount
@@ -1335,35 +1396,7 @@ export function EngineerPerformanceDocumentsPage() {
               </Card>
             </Box>
           </Box>
-          <Card variant="outlined">
-            <CardContent>
-              <Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "space-between" }}>
-                <Box>
-                  <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
-                    산출물 생성 방식 테스트
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    HWPX 양식 업로드 매핑 또는 한컴 웹 기안기 연동을 선택해 테스트합니다.
-                  </Typography>
-                </Box>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "hwpx" ? null : "hwpx"))} variant={outputTestPanel === "hwpx" ? "contained" : "outlined"}>
-                    1. HWPX 업로드
-                  </Button>
-                  <Button disabled={!canGenerate} onClick={() => setOutputTestPanel((current) => (current === "webhwp" ? null : "webhwp"))} variant={outputTestPanel === "webhwp" ? "contained" : "outlined"}>
-                    2. 한컴 웹 기안기
-                  </Button>
-                  <Button disabled variant="outlined">
-                    3. HWPX 업로드 (한글로젠)
-                  </Button>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
-          {outputTestPanel === "hwpx" ? (
-            <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
-          ) : null}
-          {outputTestPanel === "webhwp" ? <HancomWebHwpPanel bidNotice={selectedBidNotice} open profiles={profiles} /> : null}
+          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
         </Stack>
       )}
 

@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionCommand;
@@ -30,7 +31,7 @@ import tools.jackson.databind.ObjectMapper;
 public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
-    private static final String UNAUTHORIZED_MESSAGE = "Bearer Token 값이 유효하지 않습니다.";
+    private static final String UNAUTHORIZED_MESSAGE = "로그인 세션이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.";
 
     private final LoginAccessTokenService loginAccessTokenService;
     private final ValidateLoginSessionUseCase validateLoginSessionUseCase;
@@ -65,17 +66,24 @@ public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
             request.setAttribute("loginId", token.loginId());
             request.setAttribute("loginSessionId", token.sessionId());
             filterChain.doFilter(request, response);
+        } catch (ResponseStatusException ex) {
+            String message = StringUtils.hasText(ex.getReason()) ? ex.getReason() : UNAUTHORIZED_MESSAGE;
+            writeUnauthorized(response, request.getRequestURI(), message);
         } catch (RuntimeException ex) {
-            writeUnauthorized(response, request.getRequestURI());
+            writeUnauthorized(response, request.getRequestURI(), UNAUTHORIZED_MESSAGE);
         }
     }
 
     private void writeUnauthorized(HttpServletResponse response, String path) throws IOException {
+        writeUnauthorized(response, path, UNAUTHORIZED_MESSAGE);
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String path, String message) throws IOException {
         var body = new ApiErrorResponse(
                 Instant.now(clock),
                 HttpServletResponse.SC_UNAUTHORIZED,
                 "Unauthorized",
-                UNAUTHORIZED_MESSAGE,
+                message,
                 path
         );
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

@@ -12,5 +12,5 @@ export function PqEngineerPerformanceAllTab({ canRead, defaultPageSize, engineer
   const grade = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: canRead });
   const query = useQuery({ queryKey: ["pq-engineer-performance", "all", engineerId], queryFn: () => listEngineerProjectHistories(engineerId), enabled: canRead });
   const columns = useMemo(() => createEngineerHistoryPerformanceColumns(jobClass.labelByValue, grade.labelByValue), [grade.labelByValue, jobClass.labelByValue]);
-  return <PqEngineerPerformanceGrid columns={columns} defaultPageSize={defaultPageSize} gridHeight={gridHeight} loading={query.isFetching} rows={query.data ?? []} />;
+  return <PqEngineerPerformanceGrid key={`${engineerId}:${defaultPageSize}`} columns={columns} defaultPageSize={defaultPageSize} gridHeight={gridHeight} loading={query.isFetching} rows={query.data ?? []} />;
 }

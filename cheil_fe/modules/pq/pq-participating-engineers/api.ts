@@ -27,6 +27,7 @@ export type PqParticipatingEngineerProjectHistoryCondition = {
 export type PqParticipatingEngineerCandidate = {
   engrId: string;
   name: string | null;
+  birthDate: string | null;
   department: string | null;
   position: string | null;
   jobField: string | null;
@@ -69,6 +70,7 @@ export type PqParticipatingEngineerRecord = {
   role: string | null;
   memo: string | null;
   name?: string | null;
+  birthDate?: string | null;
   department?: string | null;
   position?: string | null;
   jobField?: string | null;

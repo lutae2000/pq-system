@@ -215,6 +215,15 @@ const historyFieldPathByLabel = (label: string) => {
   return "";
 };
 
+const fieldNamesWithoutAdditionalLabel = new Set([
+  "이력_근무기간(일)",
+  "이력_근무기간(월)",
+  "이력_근무기간(년월)",
+  "경력_참여기간(일)",
+  "경력_참여기간(월)",
+  "경력_참여기간(년)",
+]);
+
 const commonCodeGridColumns: GridColDef<CommonCodeGridRow>[] = [
   { field: "codeDetailName", flex: 1, headerName: "필드명", minWidth: 180 },
 ];
@@ -289,6 +298,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
   const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
+  const [showMappings, setShowMappings] = useState(false);
   const basicFieldsQuery = useCommonCodeLevel3Options("PQ", "HG", { useYn: "Y" }, { enabled: open }, "level3Code");
   const careerFieldsQuery = useCommonCodeLevel3Options("PQ", "HH", { useYn: "Y" }, { enabled: open }, "level3Code");
   const historyFieldsQuery = useCommonCodeLevel3Options("PQ", "HI", { useYn: "Y" }, { enabled: open }, "level3Code");
@@ -412,6 +422,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
           ?? (careerFieldPathByLabel(field.name) || historyFieldPathByLabel(field.name) || "")
           ?? "",
       })));
+      setShowMappings(false);
       setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했습니다.` });
     } catch (error) {
       setMessage({ severity: "error", text: error instanceof Error ? error.message : "HWPX 양식을 읽지 못했습니다." });
@@ -441,46 +452,113 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
     <Card variant="outlined">
       <CardContent>
         <Stack spacing={1.5}>
-          <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between" }}>
-            <Box>
-              <Typography sx={{ fontWeight: 800 }} variant="h6">1. HWPX 업로드 → 필드 매핑 → 다운로드</Typography>
+          <Box
+            sx={{
+              alignItems: { xs: "stretch", md: "center" },
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              display: "grid",
+              gap: 1.5,
+              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" },
+              pb: 1.5,
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 800 }} variant="h6">PQ문서 생성</Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
+                HWPX 양식을 업로드하고 필드를 매핑한 뒤, 선택한 기술인의 문서를 생성합니다.
+              </Typography>
             </Box>
-            <Stack direction="row" spacing={1}>
-              <Button disabled={basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
-              <Button disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}</Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+              <Button
+                disabled={basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading}
+                fullWidth
+                onClick={() => inputRef.current?.click()}
+                startIcon={<UploadFileOutlinedIcon />}
+                sx={{ minWidth: 190, whiteSpace: "nowrap" }}
+                variant="outlined"
+              >
+                한글양식(HWPX) 업로드
+              </Button>
+              <Button
+                disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating}
+                fullWidth
+                onClick={() => void handleGenerate()}
+                startIcon={<DownloadOutlinedIcon />}
+                sx={{ minWidth: 190, whiteSpace: "nowrap" }}
+                variant="contained"
+              >
+                {generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}
+              </Button>
             </Stack>
             <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
           </Box>
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
-          {template ? <Chip label={`${templateName} · ${mappings.length}개 필드 · ${profiles.length}명 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : <Alert severity="info">HWPX 양식을 업로드해 셀 name 필드를 분석하세요.</Alert>}
+          {template ? <Chip label={`${templateName} · ${mappings.length}개 필드 · ${profiles.length}명 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
           <Typography sx={{ fontWeight: 800 }} variant="subtitle1">화면 매핑 기준 항목</Typography>
-          <Alert severity="info" variant="outlined">
-            필드명에 <strong>xx</strong>가 포함되면 매핑된 값의 줄바꿈이 제거됩니다.
-          </Alert>
-          <FormControlLabel
-            control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
-            label="셀 클릭 시 자동복사 (Ctrl+C)"
-          />
+          <Box sx={{ alignItems: { xs: "flex-start", sm: "center" }, display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "space-between" }}>
+            <Stack spacing={0.75}>
+              <Alert
+                severity="info"
+                sx={{
+                  alignItems: "center",
+                  display: "inline-flex",
+                  fontSize: "0.8125rem",
+                  lineHeight: 1.5,
+                  py: 0.5,
+                  width: "fit-content",
+                }}
+              >
+                필드명에 <strong>xx</strong>가 포함되면 매핑된 값의 줄바꿈이 제거됩니다.
+              </Alert>
+              <Alert
+                severity="info"
+                sx={{
+                  alignItems: "center",
+                  display: "inline-flex",
+                  fontSize: "0.8125rem",
+                  lineHeight: 1.5,
+                  py: 0.5,
+                  width: "fit-content",
+                }}
+              >
+                HWPX 파일만 업로드할 수 있으며, HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.
+              </Alert>
+            </Stack>
+            <FormControlLabel
+              control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
+              label="셀 클릭 시 자동복사 (Ctrl+C)"
+              sx={{ ml: "auto", mr: 0 }}
+            />
+          </Box>
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))", xs: "1fr" } }}>
             <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={basicFieldsQuery.isLoading} rows={basicFieldRows} title="기술인 기본항목 (PQ/HG)" />
             <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={careerFieldsQuery.isLoading} order={3} rows={careerFieldRows} title="기술인 경력항목 (PQ/HH)" />
             <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={historyFieldsQuery.isLoading} order={2} rows={historyFieldRows} title="기술자 이력항목 (PQ/HI)" />
           </Box>
           {mappings.length > 0 ? (
-            <Box sx={{ display: "grid", gap: 1 }}>
-              <Box sx={{ color: "text.secondary", display: "grid", fontSize: "0.8125rem", fontWeight: 700, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, px: 1 }}>
-                <Box>양식 셀 필드명</Box>
-                <Box sx={{ display: { xs: "none", md: "block" } }}>매핑 경로</Box>
+            <Stack spacing={1}>
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button onClick={() => setShowMappings((current) => !current)} size="small" sx={{ minWidth: 0, px: 1 }} variant="text">
+                  {showMappings ? "필드 매핑 숨기기" : "필드 매핑 확인"}
+                </Button>
               </Box>
-              {mappings.map((mapping, index) => {
-                const fieldLabel = basicFieldLabels[mapping.name] ?? careerFieldLabels[mapping.name] ?? historyFieldLabels[mapping.name];
-                const displayFieldName = fieldLabel && !mapping.name.endsWith(fieldLabel) ? `${mapping.name} · ${fieldLabel}` : mapping.name;
-                return <Box key={mapping.name} sx={{ alignItems: "center", borderBottom: "1px solid", borderColor: "divider", display: "grid", gap: 1, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, pb: 1 }}>
-                  <Box sx={{ overflowWrap: "anywhere" }}>{displayFieldName}</Box>
-                  <TextField fullWidth onChange={(event) => setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, path: event.target.value } : item))} placeholder="row.jobName" size="small" value={mapping.path} />
-                </Box>;
-              })}
-            </Box>
+              {showMappings ? (
+                <Box sx={{ display: "grid", gap: 1 }}>
+                  {mappings.map((mapping, index) => {
+                    const fieldLabel = basicFieldLabels[mapping.name] ?? careerFieldLabels[mapping.name] ?? historyFieldLabels[mapping.name];
+                    const displayFieldName =
+                      fieldNamesWithoutAdditionalLabel.has(mapping.name) || !fieldLabel || mapping.name.endsWith(fieldLabel)
+                        ? mapping.name
+                        : `${mapping.name} · ${fieldLabel}`;
+                    return <Box key={mapping.name} sx={{ alignItems: "center", borderBottom: "1px solid", borderColor: "divider", display: "grid", gap: 1, gridTemplateColumns: { md: "minmax(220px, 0.8fr) minmax(0, 1.5fr)", xs: "1fr" }, pb: 1 }}>
+                      <Box sx={{ overflowWrap: "anywhere" }}>{displayFieldName}</Box>
+                      <TextField fullWidth onChange={(event) => setMappings((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, path: event.target.value } : item))} placeholder="row.jobName" size="small" value={mapping.path} />
+                    </Box>;
+                  })}
+                </Box>
+              ) : null}
+            </Stack>
           ) : null}
         </Stack>
       </CardContent>

@@ -12,22 +12,22 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
 @Profile({ "local", "dev", "prod" })
-public class ProdJdbcObservationDataSourcePostProcessor implements BeanPostProcessor {
+public class JdbcObservationDataSourcePostProcessor implements BeanPostProcessor {
 
     private final ObjectProvider<ObservationRegistry> observationRegistryProvider;
 
     @Value("${app.observability.jdbc.include-parameter-values:false}")
     private boolean includeParameterValues;
 
-    public ProdJdbcObservationDataSourcePostProcessor(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+    public JdbcObservationDataSourcePostProcessor(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
         this.observationRegistryProvider = observationRegistryProvider;
     }
 

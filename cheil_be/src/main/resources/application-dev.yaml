@@ -46,6 +46,9 @@ server:
     include-stacktrace: on_param
 
 app:
+  observability:
+    jdbc:
+      include-parameter-values: ${APP_OBSERVABILITY_JDBC_INCLUDE_PARAMETER_VALUES:true}
   security:
     aes256-secret: ${APP_AES256_SECRET:cheil-dev-aes256-secret}
   file:

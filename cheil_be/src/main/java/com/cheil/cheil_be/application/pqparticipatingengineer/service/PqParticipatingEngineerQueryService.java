@@ -88,6 +88,7 @@ public class PqParticipatingEngineerQueryService {
                 SELECT
                     m.engr_id,
                     m.namekor,
+                    m.birthday,
                     m.deptname,
                     m.grade,
                     m.dutypart,
@@ -109,6 +110,7 @@ public class PqParticipatingEngineerQueryService {
                 .query((rs, rowNum) -> new PqParticipatingEngineerCandidateResponse(
                         rs.getString("engr_id"),
                         rs.getString("namekor"),
+                        rs.getString("birthday"),
                         rs.getString("deptname"),
                         rs.getString("grade"),
                         rs.getString("dutypart"),
@@ -140,6 +142,7 @@ public class PqParticipatingEngineerQueryService {
                     s.engr_id,
                     ROW_NUMBER() OVER (ORDER BY m.namekor NULLS LAST, s.engr_id) AS priority,
                     m.namekor,
+                    m.birthday,
                     m.deptname,
                     m.grade,
                     m.dutypart,
@@ -160,7 +163,7 @@ public class PqParticipatingEngineerQueryService {
         return jdbcClient.sql(sql.toString())
                 .params(params)
                 .query((rs, rowNum) -> toSelectedResponse(rs.getLong("bid_seq"), rs.getString("work_duty_id"), rs.getString("engr_id"), rs.getInt("priority"),
-                        rs.getString("namekor"), rs.getString("deptname"), rs.getString("grade"), rs.getString("dutypart"), rs.getString("propart"), rs.getString("retireyn")))
+                        rs.getString("namekor"), rs.getString("birthday"), rs.getString("deptname"), rs.getString("grade"), rs.getString("dutypart"), rs.getString("propart"), rs.getString("retireyn")))
                 .list();
     }
 
@@ -306,11 +309,10 @@ public class PqParticipatingEngineerQueryService {
 
         if (StringUtils.hasText(certificationName)) {
             conditions.add("""
-                    EXISTS (
-                        SELECT 1
+                    m.engr_id IN (
+                        SELECT l.engr_id
                         FROM pq_engineer_license l
-                        WHERE l.engr_id = m.engr_id
-                          AND LOWER(l.license_code) LIKE :certificationName
+                        WHERE LOWER(l.license_code) LIKE :certificationName
                     )
                     """);
             params.put("certificationName", "%" + certificationName.trim().toLowerCase(Locale.ROOT) + "%");
@@ -318,11 +320,10 @@ public class PqParticipatingEngineerQueryService {
 
         if (bidSeq != null) {
             conditions.add("""
-                    NOT EXISTS (
-                        SELECT 1
+                    m.engr_id NOT IN (
+                        SELECT s.engr_id
                         FROM pq_find_engr_info s
                         WHERE s.bid_seq = :excludeBidSeq
-                          AND s.engr_id = m.engr_id
                           AND (:excludeWorkDutyId IS NULL OR s.work_duty_id = :excludeWorkDutyId)
                     )
                     """);
@@ -378,17 +379,16 @@ public class PqParticipatingEngineerQueryService {
         String historyAlias = "h" + index;
         String kindAlias = "k" + index;
         return """
-                EXISTS (
-                    SELECT 1
+                m.engr_id IN (
+                    SELECT %s.engr_id
                     FROM pq_engineer_project_history %s
-                    WHERE %s.engr_id = m.engr_id
-                      AND %s.seq IN (
-                          SELECT %s.seq
-                          FROM company_performance_construction_kinds %s
-                          WHERE %s.level1_code = :%s
-                            AND (:%s IS NULL OR %s.level2_code = :%s)
-                            AND (:%s IS NULL OR %s.level3_code = :%s)
-                      )
+                    WHERE %s.seq IN (
+                        SELECT %s.seq
+                        FROM company_performance_construction_kinds %s
+                        WHERE %s.level1_code = :%s
+                          AND (:%s IS NULL OR %s.level2_code = :%s)
+                          AND (:%s IS NULL OR %s.level3_code = :%s)
+                    )
                 )
                 """.formatted(historyAlias, historyAlias, historyAlias, kindAlias, kindAlias, kindAlias,
                 level1Param, level2Param, kindAlias, level2Param, level3Param, kindAlias, level3Param);
@@ -408,23 +408,21 @@ public class PqParticipatingEngineerQueryService {
         }
         if (column.startsWith("h.")) {
             return """
-                    EXISTS (
-                        SELECT 1
+                    m.engr_id IN (
+                        SELECT %s.engr_id
                         FROM pq_engineer_project_history %s
-                        WHERE %s.engr_id = m.engr_id
-                          AND %s
+                        WHERE %s
                     )
                     """.formatted(historyAlias, historyAlias, predicate);
         }
         return """
-                EXISTS (
-                    SELECT 1
+                m.engr_id IN (
+                    SELECT %s.engr_id
                     FROM pq_engineer_project_history %s
                     JOIN company_performances %s ON %s.seq = %s.seq
-                    WHERE %s.engr_id = m.engr_id
-                      AND %s
+                    WHERE %s
                 )
-                """.formatted(historyAlias, performanceAlias, performanceAlias, historyAlias, historyAlias, predicate);
+                """.formatted(historyAlias, historyAlias, performanceAlias, performanceAlias, historyAlias, predicate);
     }
 
     private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
@@ -453,14 +451,13 @@ public class PqParticipatingEngineerQueryService {
         }
 
         return """
-                EXISTS (
-                    SELECT 1
+                m.engr_id IN (
+                    SELECT %s.engr_id
                     FROM pq_engineer_project_history %s
                     JOIN company_performance_outlines %s ON %s.seq = %s.seq
-                    WHERE %s.engr_id = m.engr_id
-                      AND %s
+                    WHERE %s
                 )
-                """.formatted(historyAlias, outlineAlias, outlineAlias, historyAlias, historyAlias,
+                """.formatted(historyAlias, historyAlias, outlineAlias, outlineAlias, historyAlias,
                 String.join("\nAND ", outlineConditions));
     }
 
@@ -538,6 +535,7 @@ public class PqParticipatingEngineerQueryService {
             String engrId,
             Integer priority,
             String name,
+            String birthDate,
             String department,
             String position,
             String jobField,
@@ -552,6 +550,7 @@ public class PqParticipatingEngineerQueryService {
                 null,
                 null,
                 name,
+                birthDate,
                 department,
                 position,
                 jobField,

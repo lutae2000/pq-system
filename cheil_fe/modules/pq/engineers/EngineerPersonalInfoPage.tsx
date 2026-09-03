@@ -28,7 +28,7 @@ import {
   type GridRowParams,
   useGridApiRef,
 } from "@mui/x-data-grid";
-import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
@@ -616,6 +616,24 @@ export function EngineerPersonalInfoPage() {
   });
   const [summaryPanelWidth, setSummaryPanelWidth] = useState(DEFAULT_SUMMARY_PANEL_WIDTH);
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(DEFAULT_SUMMARY_PANEL_HEIGHT);
+  const historyCardRef = useRef<HTMLDivElement | null>(null);
+  const [historyCardHeight, setHistoryCardHeight] = useState(0);
+
+  useEffect(() => {
+    const historyCard = historyCardRef.current;
+    if (!historyCard) {
+      return;
+    }
+
+    const updateHistoryCardHeight = () => {
+      setHistoryCardHeight(Math.ceil(historyCard.getBoundingClientRect().height));
+    };
+
+    updateHistoryCardHeight();
+    const resizeObserver = new ResizeObserver(updateHistoryCardHeight);
+    resizeObserver.observe(historyCard);
+    return () => resizeObserver.disconnect();
+  }, []);
   const searchSpecialtyFieldOptions = useMemo<CodeOption[]>(
     () => {
       const options = [...specialtyFieldOptions];
@@ -1793,7 +1811,7 @@ export function EngineerPersonalInfoPage() {
           display: "grid",
           gap: 2,
           gridTemplateColumns: { xs: "1fr", lg: `${summaryPanelWidth}px minmax(0, 1fr)` },
-          alignItems: "start",
+          alignItems: { xs: "start", lg: "stretch" },
         }}
       >
         <ResizableCard
@@ -1805,7 +1823,7 @@ export function EngineerPersonalInfoPage() {
           onHeightChange={(nextHeight) => setSummaryPanelHeight(clampSummaryPanelHeight(nextHeight))}
           onWidthChange={(nextWidth) => setSummaryPanelWidth(clampSummaryPanelWidth(nextWidth))}
           resizeEdges={["right", "bottom"]}
-          sx={{ alignSelf: "start" }}
+          sx={{ alignSelf: "stretch", height: { xs: summaryPanelHeight, lg: historyCardHeight || "auto" }, minHeight: { xs: SUMMARY_PANEL_MIN_HEIGHT, lg: 0 } }}
           width={summaryPanelWidth}
         >
           <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -2014,6 +2032,7 @@ export function EngineerPersonalInfoPage() {
 
             {confirmationDialog}
 
+            <Box ref={historyCardRef}>
             <EngineerHistoryTabs
               awardGridApiRef={awardGridApiRef}
               awardGridColumns={awardGridColumns}
@@ -2075,6 +2094,7 @@ export function EngineerPersonalInfoPage() {
               trainingGridApiRef={trainingGridApiRef}
               trainingGridColumns={trainingGridColumns}
             />
+            </Box>
           </Stack>
         </Box>
       </Box>
