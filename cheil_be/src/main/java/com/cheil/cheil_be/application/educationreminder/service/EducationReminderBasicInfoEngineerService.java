@@ -21,6 +21,7 @@ import com.cheil.cheil_be.application.engineer.EngineerMasterRepository;
 import com.cheil.cheil_be.common.crypto.Aes256CryptoService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
+/** 교육 알림 기초정보에 기술인을 배정하거나 배정 목록을 조회하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class EducationReminderBasicInfoEngineerService {

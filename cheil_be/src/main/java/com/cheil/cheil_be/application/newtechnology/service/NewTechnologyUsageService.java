@@ -29,6 +29,7 @@ import com.cheil.cheil_be.common.file.FileAttachmentService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 신기술 사용실적 목록과 상세 정보를 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class NewTechnologyUsageService {

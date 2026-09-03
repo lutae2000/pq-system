@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -36,15 +37,24 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
 
     private static final Logger log = LoggerFactory.getLogger("SQL_COMPLETED");
     private final ObjectProvider<ObservationRegistry> observationRegistryProvider;
+    private final AppCompletedQueryLoggingProperties properties;
 
-    public CompletedQueryLoggingDataSourcePostProcessor(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+    public CompletedQueryLoggingDataSourcePostProcessor(
+            ObjectProvider<ObservationRegistry> observationRegistryProvider,
+            AppCompletedQueryLoggingProperties properties
+    ) {
         this.observationRegistryProvider = observationRegistryProvider;
+        this.properties = properties;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (bean instanceof DataSource dataSource && !Proxy.isProxyClass(bean.getClass())) {
-            return JdbcLoggingProxy.wrap(dataSource, observationRegistryProvider.getIfAvailable());
+            return JdbcLoggingProxy.wrap(
+                    dataSource,
+                    observationRegistryProvider.getIfAvailable(),
+                    properties.excludedSqlPatterns()
+            );
         }
         return bean;
     }
@@ -52,6 +62,7 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
     private static final class JdbcLoggingProxy {
 
         private static ObservationRegistry observationRegistry;
+        private static List<String> excludedSqlPatterns;
 
         private static final Set<String> STATEMENT_SQL_METHODS = Set.of(
                 "execute",
@@ -72,8 +83,13 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
         private JdbcLoggingProxy() {
         }
 
-        static DataSource wrap(DataSource target, ObservationRegistry registry) {
+        static DataSource wrap(DataSource target, ObservationRegistry registry, List<String> sqlPatternsToExclude) {
             observationRegistry = registry;
+            excludedSqlPatterns = sqlPatternsToExclude.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(pattern -> pattern.toLowerCase(java.util.Locale.ROOT))
+                    .filter(pattern -> !pattern.isBlank())
+                    .toList();
             return (DataSource) Proxy.newProxyInstance(
                     DataSource.class.getClassLoader(),
                     new Class<?>[] { DataSource.class },
@@ -138,7 +154,8 @@ public class CompletedQueryLoggingDataSourcePostProcessor implements BeanPostPro
         }
 
         private static boolean shouldLog(String sql) {
-            return !sql.toLowerCase(java.util.Locale.ROOT).contains("api_call_logs");
+            String normalizedSql = sql.toLowerCase(java.util.Locale.ROOT);
+            return excludedSqlPatterns.stream().noneMatch(normalizedSql::contains);
         }
 
         private static String formatSql(String sql) {

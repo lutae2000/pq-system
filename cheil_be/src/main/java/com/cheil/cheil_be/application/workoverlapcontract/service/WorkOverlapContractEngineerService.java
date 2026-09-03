@@ -17,6 +17,7 @@ import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContract
 import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
+/** 업무중복도 계약에 참여하는 기술인과 경력 이력을 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class WorkOverlapContractEngineerService {

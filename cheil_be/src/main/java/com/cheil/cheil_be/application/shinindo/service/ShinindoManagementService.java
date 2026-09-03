@@ -28,6 +28,7 @@ import com.cheil.cheil_be.adapter.in.web.shinindo.ShinindoManagementResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 신인도 평가 자료를 조회하고 등록·수정·삭제하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class ShinindoManagementService {

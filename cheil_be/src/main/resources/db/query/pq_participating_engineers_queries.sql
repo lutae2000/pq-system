@@ -1,9 +1,9 @@
 /*
-  PQ참여 기술자 관리 API 구현 참고 SQL
+  PQ 참여 기술자 관리 API 구현 참고 SQL
 
-  전제:
-  - 실제 백엔드에서는 projectHistoryConditions JSON을 파싱한 뒤 조건별 EXISTS 절을 동적으로 조립한다.
-  - SQL 문자열 결합 시 operator, logicalOperator는 허용 목록 검증 후 사용한다.
+  참고:
+  - 백엔드에서는 projectHistoryConditions JSON을 파싱하여 조건별 EXISTS 절을 동적으로 조립한다.
+  - SQL 문자열 결합 전 operator, logicalOperator 허용 목록을 검증한다.
   - value, valueTo, code 값은 반드시 bind parameter로 전달한다.
 */
 
@@ -47,7 +47,7 @@ EXISTS (
     AND (:level3_code IS NULL OR kind.level3_code = :level3_code)
 );
 
-/* 일반조건 EXISTS 예시: 용역명 포함 */
+/* 일반 조건 EXISTS 예시: 용역명 포함 */
 EXISTS (
   SELECT 1
   FROM pq_engineer_project_history eph
@@ -57,7 +57,7 @@ EXISTS (
     AND cp.job_name LIKE '%' || :value || '%'
 );
 
-/* 일반조건 EXISTS 예시: 계약종료일 이상 */
+/* 일반 조건 EXISTS 예시: 계약 종료일 이후 */
 EXISTS (
   SELECT 1
   FROM pq_engineer_project_history eph
@@ -67,7 +67,7 @@ EXISTS (
     AND cp.contract_to_date >= :value
 );
 
-/* 상세조건 EXISTS 예시: 도로 연장 1000m 이상 */
+/* 상세 조건 EXISTS 예시: 프로젝트 연장 1000m 이상 */
 EXISTS (
   SELECT 1
   FROM pq_engineer_project_history eph
@@ -79,7 +79,7 @@ EXISTS (
     AND TO_NUMBER(NULLIF(REGEXP_REPLACE(outline.outline_content, '[^0-9.-]', ''), '')) >= :value
 );
 
-/* 상세조건 EXISTS 예시: 숫자 범위 */
+/* 상세 조건 EXISTS 예시: 숫자 범위 */
 EXISTS (
   SELECT 1
   FROM pq_engineer_project_history eph
@@ -126,7 +126,8 @@ WHERE bid_seq = :bid_seq
   AND work_duty_id = :work_duty_id
   AND engr_id = :engr_id;
 
-/* 일괄 반영: 먼저 삭제 후 요청 engineers 배열을 반복 insert */
+/* 일괄 반영: 기존 선정 삭제 후 요청 engineers 배열을 반복 insert */
 DELETE FROM pq_find_engr_info
 WHERE bid_seq = :bid_seq
   AND work_duty_id = :work_duty_id;
+

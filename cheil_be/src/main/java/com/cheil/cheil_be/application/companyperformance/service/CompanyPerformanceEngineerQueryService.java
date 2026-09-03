@@ -16,6 +16,7 @@ import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceEn
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceEngineerResponse;
 import com.cheil.cheil_be.application.engineer.EngineerMasterRepository;
 
+/** 회사실적에 참여한 기술인과 후보 기술인을 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class CompanyPerformanceEngineerQueryService {

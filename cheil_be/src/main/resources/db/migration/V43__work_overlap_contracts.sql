@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS work_overlap_contracts (
     performance_certification bool,
     participate_list_document bool,
     cems_confirm VARCHAR(30),
+    supervising_department_code VARCHAR(20),
+    public_contract_yn BOOLEAN NOT NULL DEFAULT TRUE,
     remark TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
@@ -46,6 +48,8 @@ COMMENT ON COLUMN work_overlap_contracts.share_amount IS '지분금액';
 COMMENT ON COLUMN work_overlap_contracts.performance_certification IS '실적증명';
 COMMENT ON COLUMN work_overlap_contracts.participate_list_document IS '참여명단문서';
 COMMENT ON COLUMN work_overlap_contracts.cems_confirm IS 'CEMS 확인';
+COMMENT ON COLUMN work_overlap_contracts.supervising_department_code IS '주관부서 코드';
+COMMENT ON COLUMN work_overlap_contracts.public_contract_yn IS '공개계약 여부';
 COMMENT ON COLUMN work_overlap_contracts.remark IS '비고';
 
 INSERT INTO system_menus (

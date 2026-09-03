@@ -138,7 +138,13 @@ CREATE TABLE system_policies (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_changed_id VARCHAR(100)
+    last_changed_id VARCHAR(100),
+    CONSTRAINT ck_system_policies_value_type
+        CHECK (value_type IN ('BOOLEAN', 'NUMBER', 'TEXT')),
+    CONSTRAINT ck_system_policies_active_value
+        CHECK (NOT use_yn OR LENGTH(BTRIM(policy_value)) > 0),
+    CONSTRAINT ck_system_policies_number_value
+        CHECK (value_type <> 'NUMBER' OR policy_value ~ '^[0-9]{1,3}$')
 );
 
 

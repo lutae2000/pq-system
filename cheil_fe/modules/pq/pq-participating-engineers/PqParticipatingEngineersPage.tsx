@@ -2,6 +2,8 @@
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
+import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import {
@@ -14,10 +16,12 @@ import {
   Chip,
   Checkbox,
   Grid,
+  IconButton,
   MenuItem,
   Snackbar,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
@@ -25,7 +29,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import { ResizableCard } from "@/components/common/ResizableCard";
@@ -38,7 +41,6 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { listCertifications } from "@/modules/code/certifications/api";
 import { formatReferenceLabel, toSelectOptions, type SelectOption } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import { BidNoticeSelectDialog } from "@/modules/pq/bid-notice/BidNoticeSelectDialog";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerStatus } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import {
@@ -52,6 +54,14 @@ import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participati
 
 const PqEngineerPerformanceTabs = dynamic(
   () => import("@/modules/pq/pq-participating-engineers/PqEngineerPerformanceTabs").then((module) => module.PqEngineerPerformanceTabs),
+  { loading: () => <Box sx={{ minHeight: 240 }} />, ssr: false },
+);
+const BidNoticeSelectDialog = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
+  { ssr: false },
+);
+const ConfirmActionDialog = dynamic(
+  () => import("@/components/common/ConfirmActionDialog").then((module) => module.ConfirmActionDialog),
   { ssr: false },
 );
 
@@ -162,13 +172,11 @@ const SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT = 320;
 const SELECTED_ENGINEER_CARD_MIN_HEIGHT = 240;
 const SELECTED_ENGINEER_CARD_MAX_HEIGHT = 560;
 const SELECTED_ENGINEER_CARD_GRID_OFFSET = 104;
-const CANDIDATE_CARD_DEFAULT_WIDTH = 520;
-const CANDIDATE_CARD_MIN_WIDTH = 360;
+const CANDIDATE_CARD_DEFAULT_WIDTH = 420;
+const CANDIDATE_CARD_MIN_WIDTH = 320;
 const CANDIDATE_CARD_MAX_WIDTH = 760;
-const CANDIDATE_CARD_DEFAULT_HEIGHT = 820;
-const CANDIDATE_CARD_MIN_HEIGHT = 420;
-const CANDIDATE_CARD_MAX_HEIGHT = 1000;
-const CANDIDATE_CARD_GRID_OFFSET = 104;
+const CANDIDATE_CARD_HEIGHT = 820;
+const CANDIDATE_CARD_GRID_HEIGHT = 716;
 const PERFORMANCE_CARD_DEFAULT_HEIGHT = 520;
 const PERFORMANCE_CARD_EXPANDED_HEIGHT = 920;
 const PERFORMANCE_CARD_MIN_HEIGHT = 360;
@@ -244,11 +252,11 @@ export function PqParticipatingEngineersPage() {
   const [candidatePage, setCandidatePage] = useState(0);
   const [candidatePageSize, setCandidatePageSize] = useState(100);
   const [candidateSearchRevision, setCandidateSearchRevision] = useState(0);
+  const [candidateCardWidth, setCandidateCardWidth] = useState(CANDIDATE_CARD_DEFAULT_WIDTH);
   const [historyEngineerId, setHistoryEngineerId] = useState("");
   const [selectedCompanyPerformance, setSelectedCompanyPerformance] = useState<BidNoticeRecord | null>(null);
   const [companyPerformanceDialogOpen, setCompanyPerformanceDialogOpen] = useState(false);
-  const [candidateCardWidth, setCandidateCardWidth] = useState(CANDIDATE_CARD_DEFAULT_WIDTH);
-  const [candidateCardHeight, setCandidateCardHeight] = useState(CANDIDATE_CARD_DEFAULT_HEIGHT);
+  const [performanceFocusMode, setPerformanceFocusMode] = useState(false);
   const [performanceCardHeight, setPerformanceCardHeight] = useState(PERFORMANCE_CARD_DEFAULT_HEIGHT);
   const [selectedEngineerCardHeight, setSelectedEngineerCardHeight] = useState(SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT);
   const [selectedEngineers, setSelectedEngineers] = useState<SelectedPqEngineer[]>([]);
@@ -798,9 +806,8 @@ export function PqParticipatingEngineersPage() {
   );
   const selectedEngineerGridHeight = Math.max(
     140,
-    selectedEngineerCardHeight - SELECTED_ENGINEER_CARD_GRID_OFFSET,
+    (performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight) - SELECTED_ENGINEER_CARD_GRID_OFFSET,
   );
-  const candidateGridHeight = Math.max(180, candidateCardHeight - CANDIDATE_CARD_GRID_OFFSET);
   const handleSelectedEngineerResizeStart = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -823,6 +830,122 @@ export function PqParticipatingEngineersPage() {
       window.addEventListener("pointerup", handlePointerUp);
     },
     [selectedEngineerCardHeight],
+  );
+
+  const renderSelectedEngineerCard = () => (
+    <ResizableCard
+      height={performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight}
+      maxWidth={CANDIDATE_CARD_MAX_WIDTH}
+      minWidth={CANDIDATE_CARD_MIN_WIDTH}
+      onWidthChange={setCandidateCardWidth}
+      resizeEdges={performanceFocusMode ? ["right"] : []}
+      handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
+      width={performanceFocusMode ? candidateCardWidth : undefined}
+      sx={{ height: { lg: performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative", width: { xs: "100%", lg: performanceFocusMode ? candidateCardWidth : "100%" } }}
+    >
+      <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", pb: 2.5 }}>
+        <Box
+          sx={{
+            alignItems: performanceFocusMode ? "stretch" : "center",
+            display: "flex",
+            flexDirection: performanceFocusMode ? "column" : "row",
+            gap: 1,
+            mb: 1.5,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 800 }} variant="h6">
+              {"선정 기술인"}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: performanceFocusMode ? "flex-end" : "initial", width: performanceFocusMode ? "100%" : "auto" }}>
+            <Chip label={`선택 ${selectedEngineerIds.length}명`} size="small" variant={selectedEngineerIds.length > 0 ? "filled" : "outlined"} />
+            {hasUnsavedSelectedEngineerChanges ? <Chip color="warning" label="저장 필요" size="small" variant="outlined" /> : null}
+            <Button
+              color="error"
+              disabled={!canDelete || selectedEngineerIds.length === 0}
+              onClick={removeSelectedEngineers}
+              startIcon={<DeleteOutlineOutlinedIcon />}
+              size="small"
+              sx={selectedEngineerActionButtonSx}
+              variant="outlined"
+            >
+              {"선택 삭제"}
+            </Button>
+            <Button
+              disabled={(!canCreate && !canUpdate) || saveSelectedEngineersMutation.isPending || !hasUnsavedSelectedEngineerChanges}
+              onClick={handleSave}
+              size="small"
+              startIcon={<SaveOutlinedIcon />}
+              sx={selectedEngineerActionButtonSx}
+              variant="contained"
+            >
+              {"선정 목록 저장"}
+            </Button>
+            <Tooltip title={performanceFocusMode ? "기본 배치로 보기" : "선정 기술인 기준으로 보기"}>
+              <IconButton
+                aria-label={performanceFocusMode ? "기본 배치로 보기" : "선정 기술인 기준으로 보기"}
+                color="primary"
+                onClick={() => setPerformanceFocusMode((focused) => !focused)}
+                size="small"
+                sx={{ mt: -0.25 }}
+              >
+                {performanceFocusMode ? <KeyboardDoubleArrowRightOutlinedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Box>
+        <EnterpriseDataGrid<SelectedPqEngineer>
+          columns={selectedColumns}
+          getRowId={(row) => row.engineerId}
+          hideFooter
+          hideFooterSelectedRowCount
+          onRowClick={(params: GridRowParams<SelectedPqEngineer>, event) => {
+            setHistoryEngineerId(params.row.engineerId);
+            handleSelectedEngineerSelection(params.row.engineerId, event);
+          }}
+          paginationMode="server"
+          rowCount={selectedEngineers.length}
+          rows={selectedEngineers}
+          getRowClassName={({ row }) => (selectedEngineerIdSet.has(row.engineerId) ? "engineer-row-selected" : "")}
+          wrapperMinHeight={selectedEngineerGridHeight}
+          sx={{
+            ...gridSx,
+            height: selectedEngineerGridHeight,
+            "& .MuiDataGrid-row.engineer-row-selected": {
+              backgroundColor: "rgba(25, 118, 210, 0.10)",
+            },
+          }}
+        />
+      </CardContent>
+      <Box
+        aria-label="선정 기술인 영역 높이 조정"
+        onPointerDown={handleSelectedEngineerResizeStart}
+        role="separator"
+        sx={{
+          alignItems: "center",
+          bottom: 0,
+          cursor: "row-resize",
+          display: { xs: "none", lg: performanceFocusMode ? "none" : "flex" },
+          height: 14,
+          justifyContent: "center",
+          left: 0,
+          position: "absolute",
+          right: 0,
+          touchAction: "none",
+          "&::before": {
+            bgcolor: "divider",
+            borderRadius: 1,
+            content: '""',
+            height: 3,
+            width: 48,
+          },
+          "&:hover::before": {
+            bgcolor: "primary.main",
+          },
+        }}
+      />
+    </ResizableCard>
   );
 
   return (
@@ -976,24 +1099,23 @@ export function PqParticipatingEngineersPage() {
               zIndex: 2,
             }}
           >
-            <ResizableCard
-              height={candidateCardHeight}
-              maxHeight={CANDIDATE_CARD_MAX_HEIGHT}
+            {!performanceFocusMode ? <ResizableCard
               maxWidth={CANDIDATE_CARD_MAX_WIDTH}
-              minHeight={CANDIDATE_CARD_MIN_HEIGHT}
               minWidth={CANDIDATE_CARD_MIN_WIDTH}
-              onHeightChange={setCandidateCardHeight}
               onWidthChange={setCandidateCardWidth}
-              resizeEdges={["right", "bottom"]}
+              resizeEdges={["right"]}
               handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
-              sx={{ boxSizing: "border-box", height: { xs: "auto", lg: candidateCardHeight }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
+              width={candidateCardWidth}
+              sx={{ boxSizing: "border-box", height: { xs: "auto", lg: CANDIDATE_CARD_HEIGHT }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
             >
               <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", p: 2 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
+                <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
-                    <Typography sx={{ fontWeight: 800 }} variant="h6">
-                      {"후보 기술인"}
-                    </Typography>
+                    <Box sx={{ alignItems: "center", display: "flex", gap: 0.5 }}>
+                      <Typography sx={{ fontWeight: 800 }} variant="h6">
+                        {"후보 기술인"}
+                      </Typography>
+                    </Box>
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                     <Chip label={`선택 ${selectedCandidateRows.length}명`} size="small" variant={selectedCandidateRows.length > 0 ? "filled" : "outlined"} />
@@ -1029,10 +1151,10 @@ export function PqParticipatingEngineersPage() {
                   rowCount={candidateRowCount}
                   rows={candidates}
                   getRowClassName={({ row }) => (selectedCandidateIdSet.has(row.engrId) ? "candidate-row-selected" : "")}
-                  wrapperMinHeight={candidateGridHeight}
+                  wrapperMinHeight={CANDIDATE_CARD_GRID_HEIGHT}
                   sx={{
                     ...gridSx,
-                    height: { xs: 420, lg: candidateGridHeight },
+                    height: { xs: 420, lg: CANDIDATE_CARD_GRID_HEIGHT },
                     "& .MuiDataGrid-row:hover": { cursor: "pointer" },
                     "& .MuiDataGrid-row.candidate-row-selected": {
                       backgroundColor: "rgba(25, 118, 210, 0.10)",
@@ -1041,6 +1163,7 @@ export function PqParticipatingEngineersPage() {
                 />
               </CardContent>
             </ResizableCard>
+            : renderSelectedEngineerCard()}
           </Grid>
 
           <Grid size={{ xs: 12, lg: 7 }} sx={{ flex: { lg: "1 1 0" }, flexBasis: { lg: 0 }, minWidth: 0, width: { lg: 0 } }}>
@@ -1048,12 +1171,16 @@ export function PqParticipatingEngineersPage() {
               sx={{
                 display: "grid",
                 gap: 2,
-                gridTemplateRows: { xs: "auto auto", lg: `${selectedEngineerCardHeight}px ${performanceCardHeight}px` },
-                height: { xs: "auto", lg: `${selectedEngineerCardHeight + performanceCardHeight + 16}px` },
+                gridTemplateRows: performanceFocusMode
+                  ? { xs: "auto", lg: "1fr" }
+                  : { xs: "auto auto", lg: `${selectedEngineerCardHeight}px ${performanceCardHeight}px` },
+                height: performanceFocusMode
+                  ? { xs: "auto", lg: `${performanceCardHeight}px` }
+                  : { xs: "auto", lg: `${selectedEngineerCardHeight + performanceCardHeight + 16}px` },
                 minHeight: 0,
               }}
             >
-              <Card sx={{ height: { lg: selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative" }}>
+              {!performanceFocusMode ? <Card sx={{ height: { lg: selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative" }}>
                 <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", pb: 2.5 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                     <Box>
@@ -1085,6 +1212,17 @@ export function PqParticipatingEngineersPage() {
                       >
                         {"선정 목록 저장"}
                       </Button>
+                      <Tooltip title={performanceFocusMode ? "기본 배치로 보기" : "선정 기술인 기준으로 보기"}>
+                        <IconButton
+                          aria-label={performanceFocusMode ? "기본 배치로 보기" : "선정 기술인 기준으로 보기"}
+                          color="primary"
+                          onClick={() => setPerformanceFocusMode((focused) => !focused)}
+                          size="small"
+                          sx={{ mt: -0.25 }}
+                        >
+                          {performanceFocusMode ? <KeyboardDoubleArrowRightOutlinedIcon fontSize="small" /> : <KeyboardDoubleArrowLeftOutlinedIcon fontSize="small" />}
+                        </IconButton>
+                      </Tooltip>
                     </Stack>
                   </Box>
                   <EnterpriseDataGrid<SelectedPqEngineer>
@@ -1137,7 +1275,7 @@ export function PqParticipatingEngineersPage() {
                     },
                   }}
                 />
-              </Card>
+              </Card> : null}
 
               <ResizableCard
                 height={performanceCardHeight}
@@ -1156,7 +1294,7 @@ export function PqParticipatingEngineersPage() {
                 }}
                 resizeEdges={["bottom"]}
                 handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
-                sx={{ height: { xs: "auto", lg: performanceCardHeight }, minHeight: 0, minWidth: 0 }}
+                sx={{ height: { xs: "auto", lg: performanceFocusMode ? "100%" : performanceCardHeight }, minHeight: 0, minWidth: 0 }}
               >
                   <CardContent
                     sx={{
@@ -1167,7 +1305,7 @@ export function PqParticipatingEngineersPage() {
                     p: 2,
                   }}
                 >
-                  <PqEngineerPerformanceTabs
+                  {historyEngineerId ? <PqEngineerPerformanceTabs
                     canRead={canRead}
                     engineerId={historyEngineerId}
                     relatedProjectHistoryConditions={appliedFilters.relatedProjectHistoryConditions}
@@ -1176,7 +1314,14 @@ export function PqParticipatingEngineersPage() {
                     taskPeriodUnit={appliedFilters.taskPeriodUnit}
                     taskPeriodValue={appliedFilters.taskPeriodValue}
                     cardHeight={performanceCardHeight}
-                  />
+                    defaultPageSize={performanceFocusMode ? 25 : 10}
+                  /> : (
+                    <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: 240 }}>
+                      <Typography color="text.secondary" variant="body2">
+                        기술인을 선택하면 실적이 표시됩니다.
+                      </Typography>
+                    </Box>
+                  )}
                 </CardContent>
               </ResizableCard>
             </Box>
@@ -1184,18 +1329,20 @@ export function PqParticipatingEngineersPage() {
         </Grid>
       )}
 
-      <ConfirmActionDialog
+      {pendingBulkDeleteEngineerIds?.length ? (
+        <ConfirmActionDialog
         confirmColor="error"
         confirmLabel="제외"
         enableKeyboardActions
         loading={false}
         message={`선택된 ${pendingBulkDeleteEngineerIds?.length ?? 0}명의 선정 기술인를 목록에서 제외합니다.`}
-        open={Boolean(pendingBulkDeleteEngineerIds?.length)}
+        open
         targetLabel="선정 기술인"
         title="선택 제외 확인"
         onClose={cancelRemoveSelectedEngineers}
         onConfirm={confirmRemoveSelectedEngineers}
-      />
+        />
+      ) : null}
 
       <Snackbar
         autoHideDuration={2500}
@@ -1204,7 +1351,8 @@ export function PqParticipatingEngineersPage() {
         open={Boolean(snackbar)}
       />
 
-      <BidNoticeSelectDialog
+      {companyPerformanceDialogOpen ? (
+        <BidNoticeSelectDialog
         onClose={() => setCompanyPerformanceDialogOpen(false)}
         onSelect={(record) => {
           setSelectedCompanyPerformance(record);
@@ -1219,8 +1367,9 @@ export function PqParticipatingEngineersPage() {
           setHistoryEngineerId("");
           setCompanyPerformanceDialogOpen(false);
         }}
-        open={companyPerformanceDialogOpen}
-      />
+        open
+        />
+      ) : null}
     </Box>
   );
 }

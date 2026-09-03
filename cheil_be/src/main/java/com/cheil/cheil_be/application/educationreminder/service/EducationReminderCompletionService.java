@@ -30,6 +30,7 @@ import com.cheil.cheil_be.common.crypto.Aes256CryptoService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 교육 대상자의 이수 현황과 알림용 연락처를 조회·관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class EducationReminderCompletionService {

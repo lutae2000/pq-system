@@ -175,9 +175,6 @@ CREATE TABLE pq_engineer_project_history (
     duty VARCHAR(100),
     returnyn CHAR(1),
     joinyn CHAR(1),
-    join_day INTEGER,
-    part_day INTEGER,
-    select_day INTEGER,
     remark TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
@@ -205,9 +202,6 @@ COMMENT ON COLUMN pq_engineer_project_history.grade IS '직급';
 COMMENT ON COLUMN pq_engineer_project_history.duty IS '업무';
 COMMENT ON COLUMN pq_engineer_project_history.returnyn IS '복귀 여부';
 COMMENT ON COLUMN pq_engineer_project_history.joinyn IS '참여 여부';
-COMMENT ON COLUMN pq_engineer_project_history.join_day IS '참여 일수';
-COMMENT ON COLUMN pq_engineer_project_history.part_day IS '투입 일수';
-COMMENT ON COLUMN pq_engineer_project_history.select_day IS '선정 일수';
 COMMENT ON COLUMN pq_engineer_project_history.remark IS '비고';
 COMMENT ON COLUMN pq_engineer_project_history.created_at IS '생성 시각';
 COMMENT ON COLUMN pq_engineer_project_history.created_id IS '생성자';

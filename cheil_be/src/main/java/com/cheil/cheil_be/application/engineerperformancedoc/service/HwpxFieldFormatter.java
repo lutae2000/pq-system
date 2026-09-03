@@ -99,6 +99,9 @@ final class HwpxFieldFormatter {
 
     private static String normalizeFieldName(String fieldName) {
         String label = fieldName.trim();
+        if (label.toLowerCase(Locale.ROOT).endsWith("xx")) {
+            label = label.substring(0, label.length() - 2).trim();
+        }
         if (label.startsWith("경력_")) {
             return label.substring("경력_".length());
         }
@@ -145,7 +148,7 @@ final class HwpxFieldFormatter {
         boolean includesDateFormat = hasDateFormat(label);
         String duration = formatDuration(days, label);
         if (!includesDateFormat) {
-            return duration;
+            return duration.isEmpty() ? "" : "(" + duration + ")";
         }
 
         DateTimeFormatter formatter = dateFormatter(label);
@@ -162,8 +165,10 @@ final class HwpxFieldFormatter {
             return formatNumber(days) + (hasDateFormat(label) ? "일" : "");
         }
         if (label.endsWith("(월)")) {
-            long months = days / 30L;
-            return formatNumber(months) + (hasDateFormat(label) ? "개월" : "");
+            BigDecimal months = BigDecimal.valueOf(days)
+                    .divide(BigDecimal.valueOf(30L), 2, RoundingMode.HALF_UP)
+                    .stripTrailingZeros();
+            return months.toPlainString() + (hasDateFormat(label) ? "개월" : "");
         }
         if (label.endsWith("(년)")) {
             BigDecimal years = BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365L), 2, RoundingMode.HALF_UP);

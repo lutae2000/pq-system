@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS education_management (
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
-    CONSTRAINT uq_education_management_engineer_code UNIQUE (engr_id, education_code),
     CONSTRAINT fk_education_management_engineer
         FOREIGN KEY (engr_id) REFERENCES pq_engineer_master (engr_id) ON DELETE CASCADE,
     CONSTRAINT fk_education_management_basic_info
@@ -39,6 +38,8 @@ CREATE TABLE IF NOT EXISTS education_management (
 
 CREATE INDEX IF NOT EXISTS ix_education_management_education_code
     ON education_management (education_code);
+CREATE INDEX IF NOT EXISTS ix_education_management_engineer_code
+    ON education_management (engr_id, education_code);
 
 COMMENT ON TABLE education_management IS '교육 이수 관리';
 COMMENT ON COLUMN education_management.id IS '교육 이수 관리 ID';
@@ -129,16 +130,24 @@ FROM auth_roles
 WHERE role_code = 'ADMIN'
 ON CONFLICT (role_code, menu_code) DO NOTHING;
 
-CREATE TABLE IF NOT EXISTS education_reminder_phone_numbers (
+CREATE TABLE IF NOT EXISTS engineer_contacts (
     engr_id VARCHAR(20) PRIMARY KEY,
     phone_no VARCHAR(50) NOT NULL,
-    CONSTRAINT fk_education_reminder_phone_numbers_engineer
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_id VARCHAR(100),
+    last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_changed_id VARCHAR(100),
+    CONSTRAINT fk_engineer_contacts_engineer
         FOREIGN KEY (engr_id) REFERENCES pq_engineer_master (engr_id) ON DELETE CASCADE
 );
 
-COMMENT ON TABLE education_reminder_phone_numbers IS '교육 알림 발송 전화번호';
-COMMENT ON COLUMN education_reminder_phone_numbers.engr_id IS '기술인 ID';
-COMMENT ON COLUMN education_reminder_phone_numbers.phone_no IS '전화번호';
+COMMENT ON TABLE engineer_contacts IS '기술인 연락처';
+COMMENT ON COLUMN engineer_contacts.engr_id IS '기술인 ID';
+COMMENT ON COLUMN engineer_contacts.phone_no IS '전화번호';
+COMMENT ON COLUMN engineer_contacts.created_at IS '생성 시각';
+COMMENT ON COLUMN engineer_contacts.created_id IS '생성자 ID';
+COMMENT ON COLUMN engineer_contacts.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN engineer_contacts.last_changed_id IS '최종 변경자 ID';
 
 CREATE TABLE IF NOT EXISTS education_reminder_basic_info_engineers (
     basic_info_code VARCHAR(50) NOT NULL,

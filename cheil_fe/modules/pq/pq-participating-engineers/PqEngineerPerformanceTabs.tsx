@@ -24,9 +24,10 @@ type Props = {
   taskPeriodUnit: "일" | "개월";
   taskPeriodValue: string;
   cardHeight: number;
+  defaultPageSize: number;
 };
 
-export function PqEngineerPerformanceTabs({ canRead, engineerId, relatedProjectHistoryConditions, referenceDate, remainingDays, taskPeriodUnit, taskPeriodValue, cardHeight }: Props) {
+export function PqEngineerPerformanceTabs({ canRead, engineerId, relatedProjectHistoryConditions, referenceDate, remainingDays, taskPeriodUnit, taskPeriodValue, cardHeight, defaultPageSize }: Props) {
   const [tab, setTab] = useState("search");
   const enabled = useTabQueryEnabled(canRead && Boolean(engineerId));
 
@@ -37,8 +38,8 @@ export function PqEngineerPerformanceTabs({ canRead, engineerId, relatedProjectH
         <Tab label="실적 전체" value="all" />
         <Tab label="업무중복도" value="overlap" />
       </Tabs>
-      {tab === "search" ? <SearchTab canRead={enabled} engineerId={engineerId} conditions={relatedProjectHistoryConditions} gridHeight={Math.max(400, cardHeight - PERFORMANCE_TAB_HEADER_HEIGHT)} /> : null}
-      {tab === "all" ? <AllTab canRead={enabled} engineerId={engineerId} gridHeight={Math.max(400, cardHeight - PERFORMANCE_TAB_HEADER_HEIGHT)} /> : null}
+      {tab === "search" ? <SearchTab canRead={enabled} defaultPageSize={defaultPageSize} engineerId={engineerId} conditions={relatedProjectHistoryConditions} gridHeight={Math.max(400, cardHeight - PERFORMANCE_TAB_HEADER_HEIGHT)} /> : null}
+      {tab === "all" ? <AllTab canRead={enabled} defaultPageSize={defaultPageSize} engineerId={engineerId} gridHeight={Math.max(400, cardHeight - PERFORMANCE_TAB_HEADER_HEIGHT)} /> : null}
       {tab === "overlap" ? <WorkOverlapTab canRead={enabled} engineerId={engineerId} referenceDate={referenceDate} remainingDays={remainingDays} taskPeriodUnit={taskPeriodUnit} taskPeriodValue={taskPeriodValue} gridHeight={Math.max(WORK_OVERLAP_MIN_GRID_HEIGHT, cardHeight - PERFORMANCE_TAB_HEADER_HEIGHT - WORK_OVERLAP_SUMMARY_HEIGHT)} /> : null}
     </Box>
   );

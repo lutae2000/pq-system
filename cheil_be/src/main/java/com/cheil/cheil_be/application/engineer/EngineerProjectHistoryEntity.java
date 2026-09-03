@@ -55,12 +55,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     String returnYn;
     @Column(name = "joinyn")
     String joinYn;
-    @Column(name = "join_day")
-    Integer joinDay;
-    @Column(name = "part_day")
-    Integer partDay;
-    @Column(name = "select_day")
-    Integer selectDay;
     @Column(name = "remark")
     String remark;
 
@@ -84,9 +78,9 @@ class EngineerProjectHistoryEntity extends AuditEntity {
                 duty,
                 returnYn,
                 joinYn,
-                joinDay,
-                partDay,
-                selectDay,
+                null,
+                null,
+                null,
                 remark
         );
     }

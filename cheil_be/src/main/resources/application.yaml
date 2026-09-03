@@ -108,6 +108,11 @@ logging:
     console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5level) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%thread]){faint} %clr(%replace(%X{traceId}){'^(.+)$','trace_id=$1 '}){yellow}%clr(%logger{39}){cyan} %clr(:){faint} %msg%n%wEx"
 
 app:
+  completed-query-logging:
+    # 개발/로컬 SQL 완료 로그에서 제외할 SQL 문자열 조각 목록.
+    excluded-sql-patterns:
+      - api_call_logs
+      - fn_user_menu_permissions
   common-code-cache:
     ttl: ${APP_COMMON_CODE_CACHE_TTL:1d}
     read-timeout: ${APP_COMMON_CODE_CACHE_READ_TIMEOUT:1s}
@@ -181,6 +186,10 @@ app:
         - /auth/menu-permissions
         - /auth/me
         - /auth/password
+        # Dashboard read-only data that is not owned by the dashboard menu.
+        - /pq/bid-notice/*
+        - /auth/users
+        - /file-attachments
     cors:
       allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:*}
       allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,PATCH,DELETE,OPTIONS}

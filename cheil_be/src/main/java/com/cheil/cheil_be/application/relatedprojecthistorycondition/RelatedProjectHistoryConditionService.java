@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.relatedprojecthistorycondition.RelatedProjectHistoryConditionResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
+/** PQ 공고에 연결된 관련 프로젝트 이력 조회 조건을 저장하고 조회하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class RelatedProjectHistoryConditionService {

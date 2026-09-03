@@ -25,6 +25,7 @@ import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyInvestmentRe
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 신기술 투자실적 목록과 상세 정보를 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class NewTechnologyInvestmentService {

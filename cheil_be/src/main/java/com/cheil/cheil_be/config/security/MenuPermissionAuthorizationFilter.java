@@ -35,6 +35,11 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>대시보드처럼 특정 메뉴에 귀속되지 않는 API는 application.yaml의
  * authenticated-only-paths에 등록하며, 이 경우 JWT 로그인 여부만 확인합니다.</p>
+ *
+ * <p>이 필터는 JWT 인증 필터 다음에 실행됩니다. 따라서 여기서는 사용자 계정을 다시
+ * 조회해 로그인 여부를 확인하지 않고, 인증 필터가 request attribute에 넣은 loginId로
+ * 실효 권한만 조회합니다. 계정 조회를 다시 수행하면 동일 요청에서 auth_users를 중복
+ * 조회하게 되고, 사용자 전체 컬럼까지 읽을 수 있으므로 권한 검증 목적에 맞지 않습니다.</p>
  */
 @Component
 @ConditionalOnBean(MenuPermissionQueryUseCase.class)
@@ -71,12 +76,14 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
         }
 
         String path = request.getRequestURI();
-        if (isAuthenticatedOnlyPath(path)) {
+        if (isAuthenticatedOnlyRequest(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String menuCode = request.getHeader(SecurityHeaders.PROGRAM_CODE);
+        // 요청 헤더의 메뉴 코드는 어떤 권한을 검사할지 지정할 뿐이다.
+        // 허용 여부는 DB 함수가 계산한 역할 권한과 사용자별 예외 권한으로 판단한다.
         MenuPermissionResult permission = StringUtils.hasText(menuCode)
                 ? menuPermissionQueryUseCase.findEffectivePermissions(loginId).stream()
                 .filter(item -> menuCode.trim().equals(item.menuCode()))
@@ -85,6 +92,8 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
                 : null;
 
         if (permission == null || !permission.useYn() || !hasPermission(permission, request.getMethod())) {
+            // 메뉴가 없거나 비활성화되었거나 HTTP method에 해당하는 권한이 없으면
+            // 리소스 핸들러에 진입시키지 않고 즉시 403을 반환한다.
             writeForbidden(response, path);
             return;
         }
@@ -103,6 +112,11 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
         return appSecurityProperties.filter().authenticatedOnlyPaths().stream()
                 .anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath)
                         || PATH_MATCHER.match(pattern, normalizedRequestPath));
+    }
+
+    private boolean isAuthenticatedOnlyRequest(HttpServletRequest request) {
+        return (HttpMethod.GET.matches(request.getMethod()) || HttpMethod.HEAD.matches(request.getMethod()))
+                && isAuthenticatedOnlyPath(request.getRequestURI());
     }
 
     private static boolean hasPermission(MenuPermissionResult permission, String method) {

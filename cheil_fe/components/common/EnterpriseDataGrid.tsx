@@ -40,6 +40,7 @@ type EnterpriseDataGridHeight = ResponsiveStyleValue<AllSystemCSSProperties["hei
 export type EnterpriseDataGridProps<Row extends GridValidRowModel> = DataGridProps<Row> & {
   exportFileNamePrefix?: string;
   enableCellSelection?: boolean;
+  autoCopyOnCellClick?: boolean;
   enableEditTabNavigation?: boolean;
   enableRowClickCheckboxSelection?: boolean;
   clipboardCopyCellDelimiter?: string;
@@ -692,11 +693,13 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     getCellClassName: userGetCellClassName,
     getRowClassName: userGetRowClassName,
     enableCellSelection,
+    autoCopyOnCellClick = false,
     enableEditTabNavigation = true,
     initialState,
     columns,
     editMode: userEditMode,
     onCellKeyDown: userOnCellKeyDown,
+    onCellClick: userOnCellClick,
     isCellEditable: userIsCellEditable,
     paginationModel: userPaginationModel,
     paginationMode: userPaginationMode,
@@ -1389,6 +1392,31 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     apiRef.current?.publishEvent("clipboardCopy", payload.plainText);
   };
 
+  const handleCellClick: GridEventListener<"cellClick"> = (params, event, details) => {
+    userOnCellClick?.(params, event, details);
+
+    if (!autoCopyOnCellClick || event.defaultMuiPrevented) {
+      return;
+    }
+
+    const column = apiRef.current?.getColumn(params.field);
+    if (!column || !isPrintableGridColumn(params.field, column.type, column.disableExport)) {
+      return;
+    }
+
+    const payload = buildSelectedCellClipboardPayload(
+      apiRef,
+      new Set([cellKey(params.id, params.field)]),
+      clipboardCopyCellDelimiter ?? "\t",
+    );
+    if (!payload) {
+      return;
+    }
+
+    copyToClipboard(payload);
+    apiRef.current?.publishEvent("clipboardCopy", payload.plainText);
+  };
+
   const handleRowClick: NonNullable<DataGridProps<Row>["onRowClick"]> = (params, event, details) => {
     userOnRowClick?.(params, event, details);
 
@@ -1448,6 +1476,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
         getRowSpacing={() => ({ top: 0, bottom: 1 })}
         getRowClassName={getRowClassName}
         onCellKeyDown={readOnly ? undefined : handleCellKeyDown}
+        onCellClick={handleCellClick}
         onCellEditStop={readOnly ? undefined : handleCellEditStop}
         onCellModesModelChange={readOnly ? undefined : userOnCellModesModelChange}
         onPaginationModelChange={userOnPaginationModelChange}

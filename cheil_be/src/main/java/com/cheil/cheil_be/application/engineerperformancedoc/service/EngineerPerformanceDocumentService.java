@@ -28,6 +28,7 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocument
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocumentValueSettingResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
+/** 기술인 실적 문서에 필요한 프로젝트 이력, 검토 결과, 문서 값 설정을 조회·관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class EngineerPerformanceDocumentService {
@@ -186,9 +187,9 @@ public class EngineerPerformanceDocumentService {
                             h.duty,
                             h.returnyn,
                             h.joinyn,
-                            h.join_day,
-                            h.part_day,
-                            h.select_day,
+                            NULL::INTEGER AS join_day,
+                            NULL::INTEGER AS part_day,
+                            NULL::INTEGER AS select_day,
                             h.remark,
                             NULL::TIMESTAMP AS created_at,
                             NULL::VARCHAR AS created_id,
@@ -258,9 +259,9 @@ public class EngineerPerformanceDocumentService {
                     h.duty,
                     h.returnyn,
                     h.joinyn,
-                    h.join_day,
-                    h.part_day,
-                    h.select_day,
+                    NULL::INTEGER AS join_day,
+                    NULL::INTEGER AS part_day,
+                    NULL::INTEGER AS select_day,
                     h.remark,
                     r.created_at,
                     r.created_id,
@@ -465,9 +466,9 @@ public class EngineerPerformanceDocumentService {
                             h.duty,
                             h.returnyn,
                             h.joinyn,
-                            h.join_day,
-                            h.part_day,
-                            h.select_day,
+                            NULL::INTEGER AS join_day,
+                            NULL::INTEGER AS part_day,
+                            NULL::INTEGER AS select_day,
                             h.remark,
                             r.created_at,
                             r.created_id,
@@ -583,9 +584,7 @@ public class EngineerPerformanceDocumentService {
             return "";
         }
         return """
-                AND (
-                %s
-                )
+                AND (%s)
                 """.formatted(String.join("", fragments));
     }
 
@@ -600,15 +599,23 @@ public class EngineerPerformanceDocumentService {
         params.put(level1Param, level1Code);
         params.put(level2Param, normalize(condition.level2Code()));
         params.put(level3Param, normalize(condition.level3Code()));
+        String historyAlias = "h" + index;
+        String kindAlias = "k" + index;
         return """
-                h.seq IN (
-                    SELECT k.seq
-                    FROM company_performance_construction_kinds k
-                    WHERE k.level1_code = :%s
-                      AND (:%s IS NULL OR k.level2_code = :%s)
-                      AND (:%s IS NULL OR k.level3_code = :%s)
+                EXISTS (
+                    SELECT 1
+                    FROM pq_engineer_project_history %s
+                    WHERE %s.engr_id = :engineerId
+                      AND %s.seq IN (
+                          SELECT %s.seq
+                          FROM company_performance_construction_kinds %s
+                          WHERE %s.level1_code = :%s
+                            AND (:%s IS NULL OR %s.level2_code = :%s)
+                            AND (:%s IS NULL OR %s.level3_code = :%s)
+                      )
                 )
-                """.formatted(level1Param, level2Param, level2Param, level3Param, level3Param);
+                """.formatted(historyAlias, historyAlias, historyAlias, kindAlias, kindAlias, kindAlias,
+                level1Param, level2Param, kindAlias, level2Param, level3Param, kindAlias, level3Param);
     }
 
     private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
@@ -616,20 +623,32 @@ public class EngineerPerformanceDocumentService {
         if (!StringUtils.hasText(column)) {
             return "";
         }
-        String predicate = comparisonPredicate(column, condition, params, index);
+        String historyAlias = "h" + index;
+        String performanceAlias = "cp" + index;
+        String qualifiedColumn = column.replace("h.", historyAlias + ".").replace("cp.", performanceAlias + ".");
+        String predicate = comparisonPredicate(qualifiedColumn, condition, params, index);
         if (!StringUtils.hasText(predicate)) {
             return "";
         }
         if (column.startsWith("h.")) {
-            return predicate;
+            return """
+                    EXISTS (
+                        SELECT 1
+                        FROM pq_engineer_project_history %s
+                        WHERE %s.engr_id = :engineerId
+                          AND %s
+                    )
+                    """.formatted(historyAlias, historyAlias, predicate);
         }
         return """
-                h.seq IN (
-                    SELECT cp.seq
-                    FROM company_performances cp
-                    WHERE %s
+                EXISTS (
+                    SELECT 1
+                    FROM pq_engineer_project_history %s
+                    JOIN company_performances %s ON %s.seq = %s.seq
+                    WHERE %s.engr_id = :engineerId
+                      AND %s
                 )
-                """.formatted(predicate);
+                """.formatted(historyAlias, performanceAlias, performanceAlias, historyAlias, historyAlias, predicate);
     }
 
     private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
@@ -639,29 +658,34 @@ public class EngineerPerformanceDocumentService {
             return "";
         }
 
+        String historyAlias = "h" + index;
+        String outlineAlias = "o" + index;
         List<String> outlineConditions = new ArrayList<>();
         if (StringUtils.hasText(categoryCode)) {
             String paramName = "outlineCategoryCode" + index;
-            outlineConditions.add("o.cate_code = :" + paramName);
+            outlineConditions.add(outlineAlias + ".cate_code = :" + paramName);
             params.put(paramName, categoryCode);
         }
         if (StringUtils.hasText(subcategoryCode)) {
             String paramName = "outlineSubcategoryCode" + index;
-            outlineConditions.add("o.subcate_code = :" + paramName);
+            outlineConditions.add(outlineAlias + ".subcate_code = :" + paramName);
             params.put(paramName, subcategoryCode);
         }
-        String predicate = comparisonPredicate("o.otln_cont", condition, params, index);
+        String predicate = comparisonPredicate(outlineAlias + ".otln_cont", condition, params, index);
         if (StringUtils.hasText(predicate)) {
             outlineConditions.add(predicate);
         }
 
         return """
-                h.seq IN (
-                    SELECT o.seq
-                    FROM company_performance_outlines o
-                    WHERE %s
+                EXISTS (
+                    SELECT 1
+                    FROM pq_engineer_project_history %s
+                    JOIN company_performance_outlines %s ON %s.seq = %s.seq
+                    WHERE %s.engr_id = :engineerId
+                      AND %s
                 )
-                """.formatted(String.join("\nAND ", outlineConditions));
+                """.formatted(historyAlias, outlineAlias, outlineAlias, historyAlias, historyAlias,
+                String.join("\nAND ", outlineConditions));
     }
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {

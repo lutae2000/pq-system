@@ -55,7 +55,7 @@ WHERE (:selected_year_month IS NULL OR hire.base_year_month = :selected_year_mon
   AND (:employee_name IS NULL OR hire.employee_name LIKE '%' || :employee_name || '%')
 ORDER BY hire.hire_date DESC, hire.employee_name;
 
-/* 월별 고용현황: monthly_employee_count는 인사 마스터 또는 월별 스냅샷 테이블로 대체 */
+/* 월별 고용 현황: 월별 고용인원 기준 신규 고용률 */
 SELECT
   months.base_year_month,
   COALESCE(monthly_employee_count.employee_count, 0) AS employee_count,
@@ -77,7 +77,7 @@ WHERE monthly_employee_count.base_year_month BETWEEN
 GROUP BY months.base_year_month, monthly_employee_count.employee_count
 ORDER BY months.base_year_month;
 
-/* 더미 데이터 예시: 2024-08 ~ 2026-07, 4개 부서 기준 */
+/* 월별 고용인원 예시 데이터: 2024-08 ~ 2026-07, 4개 부서 기준 */
 INSERT INTO pq_new_employment_monthly_counts (
   base_year_month,
   department_code,
@@ -129,7 +129,7 @@ SELECT
   to_char(date '2024-08-01' + make_interval(months => months.month_index, days => dept.department_index), 'YYYYMMDD') AS hire_date,
   dept.department_code,
   job_categories[((months.month_index + dept.department_index) % array_length(job_categories, 1)) + 1] AS job_category,
-  format('%s월 %s 신입사원', months.base_year_month, dept.department_code) AS remark,
+  format('%s??%s ?좎엯?ъ썝', months.base_year_month, dept.department_code) AS remark,
   'SYSTEM',
   'SYSTEM'
 FROM (
@@ -148,16 +148,18 @@ CROSS JOIN (
 ) dept(department_index, department_code)
 CROSS JOIN (
   SELECT ARRAY[
-    '홍길동', '김철수', '이영희', '박민수', '최지은', '정수빈',
-    '강호준', '한지민', '오세훈', '윤가은', '서민우', '조현아',
-    '배준호', '문지아', '손태현', '임수아', '장도윤', '남지우',
-    '허서윤', '고예준', '문수진', '안태호', '백하늘', '차민재'
+    '?띻만??, '源泥좎닔', '?댁쁺??, '諛뺣???, '理쒖??', '?뺤닔鍮?,
+    '媛뺥샇以', '?쒖?誘?, '?ㅼ꽭??, '?ㅺ??', '?쒕???, '議고쁽??,
+    '諛곗???, '臾몄???, '?먰깭??, '?꾩닔??, '?λ룄??, '?⑥???,
+    '?덉꽌??, '怨좎삁以', '臾몄닔吏?, '?덊깭??, '諛깊븯??, '李⑤???
   ] AS names,
   ARRAY[
-    '토목', '건축', '기계', '전기', '품질', '안전', '공무', '관리'
+    '?좊ぉ', '嫄댁텞', '湲곌퀎', '?꾧린', '?덉쭏', '?덉쟾', '怨듬Т', '愿由?
   ] AS job_categories
 ) lookup
 WHERE NOT EXISTS (
   SELECT 1
   FROM pq_new_employment_employees
 );
+
+

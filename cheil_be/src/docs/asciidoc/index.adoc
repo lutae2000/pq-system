@@ -68,3 +68,269 @@ include::{snippets}/auth-token-issue-server-bypass/http-request.adoc[]
 include::{snippets}/auth-token-issue-server-bypass/request-headers.adoc[]
 include::{snippets}/auth-token-issue-server-bypass/http-response.adoc[]
 include::{snippets}/auth-token-issue-server-bypass/response-fields.adoc[]
+
+== Common Code and Basic Information APIs
+
+=== Service Types
+
+include::{snippets}/pq-service-types-list/http-request.adoc[]
+include::{snippets}/pq-service-types-list/http-response.adoc[]
+include::{snippets}/pq-service-types-list/response-fields.adoc[]
+
+==== Get Service Type
+
+include::{snippets}/pq-service-types-get/http-request.adoc[]
+include::{snippets}/pq-service-types-get/path-parameters.adoc[]
+include::{snippets}/pq-service-types-get/http-response.adoc[]
+include::{snippets}/pq-service-types-get/response-fields.adoc[]
+
+==== Create Service Type
+
+include::{snippets}/pq-service-types-create/http-request.adoc[]
+include::{snippets}/pq-service-types-create/request-fields.adoc[]
+include::{snippets}/pq-service-types-create/http-response.adoc[]
+include::{snippets}/pq-service-types-create/response-fields.adoc[]
+
+==== Update Service Type
+
+include::{snippets}/pq-service-types-update/http-request.adoc[]
+include::{snippets}/pq-service-types-update/path-parameters.adoc[]
+include::{snippets}/pq-service-types-update/request-fields.adoc[]
+include::{snippets}/pq-service-types-update/http-response.adoc[]
+include::{snippets}/pq-service-types-update/response-fields.adoc[]
+
+==== Delete Service Type
+
+include::{snippets}/pq-service-types-delete/http-request.adoc[]
+include::{snippets}/pq-service-types-delete/path-parameters.adoc[]
+
+=== Common Codes
+
+include::{snippets}/code-common-codes-list/http-request.adoc[]
+include::{snippets}/code-common-codes-list/query-parameters.adoc[]
+include::{snippets}/code-common-codes-list/http-response.adoc[]
+include::{snippets}/code-common-codes-list/response-fields.adoc[]
+
+=== Construction Types
+
+include::{snippets}/code-construction-types-list/http-request.adoc[]
+include::{snippets}/code-construction-types-list/query-parameters.adoc[]
+include::{snippets}/code-construction-types-list/http-response.adoc[]
+include::{snippets}/code-construction-types-list/response-fields.adoc[]
+
+=== Certifications
+
+include::{snippets}/code-certifications-list/http-request.adoc[]
+include::{snippets}/code-certifications-list/query-parameters.adoc[]
+include::{snippets}/code-certifications-list/http-response.adoc[]
+include::{snippets}/code-certifications-list/response-fields.adoc[]
+
+=== Departments
+
+include::{snippets}/code-departments-list/http-request.adoc[]
+include::{snippets}/code-departments-list/query-parameters.adoc[]
+include::{snippets}/code-departments-list/http-response.adoc[]
+include::{snippets}/code-departments-list/response-fields.adoc[]
+
+=== Clients
+
+include::{snippets}/code-client-codes-list/http-request.adoc[]
+include::{snippets}/code-client-codes-list/query-parameters.adoc[]
+include::{snippets}/code-client-codes-list/http-response.adoc[]
+include::{snippets}/code-client-codes-list/response-fields.adoc[]
+
+== PQ Participating Engineers APIs
+
+=== Candidate Engineers
+
+include::{snippets}/pq-participating-engineers-candidates/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-candidates/query-parameters.adoc[]
+include::{snippets}/pq-participating-engineers-candidates/http-response.adoc[]
+include::{snippets}/pq-participating-engineers-candidates/response-fields.adoc[]
+
+=== Selected Profiles
+
+include::{snippets}/pq-participating-engineers-profiles/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-profiles/query-parameters.adoc[]
+include::{snippets}/pq-participating-engineers-profiles/http-response.adoc[]
+include::{snippets}/pq-participating-engineers-profiles/response-fields.adoc[]
+
+=== Selected Engineers
+
+include::{snippets}/pq-participating-engineers-list/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-list/query-parameters.adoc[]
+include::{snippets}/pq-participating-engineers-list/http-response.adoc[]
+include::{snippets}/pq-participating-engineers-list/response-fields.adoc[]
+
+include::{snippets}/pq-participating-engineers-create/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-create/request-fields.adoc[]
+include::{snippets}/pq-participating-engineers-create/http-response.adoc[]
+
+include::{snippets}/pq-participating-engineers-update/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-update/path-parameters.adoc[]
+include::{snippets}/pq-participating-engineers-update/request-fields.adoc[]
+include::{snippets}/pq-participating-engineers-update/http-response.adoc[]
+
+include::{snippets}/pq-participating-engineers-delete/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-delete/path-parameters.adoc[]
+
+include::{snippets}/pq-participating-engineers-replace/http-request.adoc[]
+include::{snippets}/pq-participating-engineers-replace/request-fields.adoc[]
+include::{snippets}/pq-participating-engineers-replace/http-response.adoc[]
+
+== Engineer Profile APIs
+
+=== Engineer List and Detail
+
+include::{snippets}/pq-engineers-list/http-request.adoc[]
+include::{snippets}/pq-engineers-list/query-parameters.adoc[]
+include::{snippets}/pq-engineers-list/http-response.adoc[]
+include::{snippets}/pq-engineers-list/response-fields.adoc[]
+
+include::{snippets}/pq-engineers-get/http-request.adoc[]
+include::{snippets}/pq-engineers-get/path-parameters.adoc[]
+include::{snippets}/pq-engineers-get/http-response.adoc[]
+include::{snippets}/pq-engineers-get/response-fields.adoc[]
+
+=== Engineer Profile Save
+
+include::{snippets}/pq-engineers-create/http-request.adoc[]
+include::{snippets}/pq-engineers-create/request-fields.adoc[]
+include::{snippets}/pq-engineers-create/http-response.adoc[]
+
+include::{snippets}/pq-engineers-update/http-request.adoc[]
+include::{snippets}/pq-engineers-update/path-parameters.adoc[]
+include::{snippets}/pq-engineers-update/request-fields.adoc[]
+include::{snippets}/pq-engineers-update/http-response.adoc[]
+
+include::{snippets}/pq-engineers-master-save/http-request.adoc[]
+include::{snippets}/pq-engineers-master-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-master-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-master-save/http-response.adoc[]
+
+=== Engineer Profile Sections
+
+include::{snippets}/pq-engineers-licenses-save/http-request.adoc[]
+include::{snippets}/pq-engineers-licenses-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-licenses-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-licenses-save/http-response.adoc[]
+
+include::{snippets}/pq-engineers-careers-save/http-request.adoc[]
+include::{snippets}/pq-engineers-careers-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-careers-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-careers-save/http-response.adoc[]
+
+include::{snippets}/pq-engineers-prizes-save/http-request.adoc[]
+include::{snippets}/pq-engineers-prizes-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-prizes-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-prizes-save/http-response.adoc[]
+
+include::{snippets}/pq-engineers-educations-save/http-request.adoc[]
+include::{snippets}/pq-engineers-educations-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-educations-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-educations-save/http-response.adoc[]
+
+include::{snippets}/pq-engineers-career-details-save/http-request.adoc[]
+include::{snippets}/pq-engineers-career-details-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-career-details-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-career-details-save/http-response.adoc[]
+
+include::{snippets}/pq-engineers-schools-save/http-request.adoc[]
+include::{snippets}/pq-engineers-schools-save/path-parameters.adoc[]
+include::{snippets}/pq-engineers-schools-save/request-fields.adoc[]
+include::{snippets}/pq-engineers-schools-save/http-response.adoc[]
+
+=== Engineer Profile Deletion
+
+include::{snippets}/pq-engineers-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-delete/path-parameters.adoc[]
+
+include::{snippets}/pq-engineers-licenses-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-licenses-delete/path-parameters.adoc[]
+include::{snippets}/pq-engineers-careers-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-careers-delete/path-parameters.adoc[]
+include::{snippets}/pq-engineers-prizes-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-prizes-delete/path-parameters.adoc[]
+include::{snippets}/pq-engineers-educations-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-educations-delete/path-parameters.adoc[]
+include::{snippets}/pq-engineers-career-details-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-career-details-delete/path-parameters.adoc[]
+include::{snippets}/pq-engineers-schools-delete/http-request.adoc[]
+include::{snippets}/pq-engineers-schools-delete/path-parameters.adoc[]
+
+== Engineer Performance Documents APIs
+
+=== HWPX Template Inspection
+
+include::{snippets}/pq-engineer-performance-docs-hwpx-inspect/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-hwpx-inspect/request-parts.adoc[]
+include::{snippets}/pq-engineer-performance-docs-hwpx-inspect/http-response.adoc[]
+include::{snippets}/pq-engineer-performance-docs-hwpx-inspect/response-fields.adoc[]
+
+=== HWPX Document Generation
+
+include::{snippets}/pq-engineer-performance-docs-hwpx-generate/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-hwpx-generate/request-parts.adoc[]
+include::{snippets}/pq-engineer-performance-docs-hwpx-generate/http-response.adoc[]
+
+=== Project Histories
+
+include::{snippets}/pq-engineer-performance-docs-project-histories/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-project-histories/query-parameters.adoc[]
+include::{snippets}/pq-engineer-performance-docs-project-histories/http-response.adoc[]
+include::{snippets}/pq-engineer-performance-docs-project-histories/response-fields.adoc[]
+
+=== Document Value Settings
+
+include::{snippets}/pq-engineer-performance-docs-value-settings-list/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-list/query-parameters.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-list/http-response.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-list/response-fields.adoc[]
+
+include::{snippets}/pq-engineer-performance-docs-value-settings-save/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-save/request-fields.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-save/http-response.adoc[]
+include::{snippets}/pq-engineer-performance-docs-value-settings-save/response-fields.adoc[]
+
+=== Review Results
+
+include::{snippets}/pq-engineer-performance-docs-review-results-list/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-results-list/query-parameters.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-results-list/http-response.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-results-list/response-fields.adoc[]
+
+include::{snippets}/pq-engineer-performance-docs-review-result-create/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-create/request-fields.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-create/http-response.adoc[]
+
+include::{snippets}/pq-engineer-performance-docs-review-results-sync/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-results-sync/request-fields.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-results-sync/http-response.adoc[]
+
+include::{snippets}/pq-engineer-performance-docs-review-result-update/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-update/path-parameters.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-update/request-fields.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-update/http-response.adoc[]
+
+include::{snippets}/pq-engineer-performance-docs-review-result-delete/http-request.adoc[]
+include::{snippets}/pq-engineer-performance-docs-review-result-delete/path-parameters.adoc[]
+
+== Dashboard and Reference APIs
+
+=== Get Bid Notice Detail
+
+The dashboard may retrieve a bid notice detail by sequence for an authenticated user.
+
+include::{snippets}/pq-bid-notice-detail/http-request.adoc[]
+include::{snippets}/pq-bid-notice-detail/path-parameters.adoc[]
+include::{snippets}/pq-bid-notice-detail/http-response.adoc[]
+include::{snippets}/pq-bid-notice-detail/response-fields.adoc[]
+
+=== List Users for References
+
+The authenticated user may retrieve the user list used by dashboard and form reference controls.
+
+include::{snippets}/auth-users-list/http-request.adoc[]
+include::{snippets}/auth-users-list/query-parameters.adoc[]
+include::{snippets}/auth-users-list/http-response.adoc[]
+include::{snippets}/auth-users-list/response-fields.adoc[]

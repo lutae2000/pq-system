@@ -1,6 +1,6 @@
 /*
 
-  API ??:
+  API 경로:
   - GET    /api/pq/service-performance-management
   - GET    /api/pq/service-performance-management/{id}
   - POST   /api/pq/service-performance-management
@@ -26,7 +26,7 @@ CREATE TABLE service_performances (
 
 COMMENT ON TABLE service_performances IS '용역 수행성과 관리';
 COMMENT ON COLUMN service_performances.id IS '고유 식별자';
-COMMENT ON COLUMN service_performances.client_code IS '발주청 코드';
+COMMENT ON COLUMN service_performances.client_code IS '발주처 코드';
 COMMENT ON COLUMN service_performances.field_name IS '분야';
 COMMENT ON COLUMN service_performances.site_name IS '현장명';
 COMMENT ON COLUMN service_performances.evaluation_date IS '평가일자';
@@ -44,7 +44,7 @@ CREATE INDEX ix_service_performances_01
 CREATE INDEX ix_service_performances_02
   ON service_performances (site_name);
 
-/* ?? */
+/* 목록 조회 */
 SELECT
   p.id,
   p.client_code,
@@ -82,7 +82,7 @@ WHERE (:client_code IS NULL OR p.client_code = :client_code)
   )
 ORDER BY p.evaluation_date DESC, p.id DESC;
 
-/* ?? */
+/* 상세 조회 */
 SELECT
   p.id,
   p.client_code,
@@ -101,7 +101,7 @@ SELECT
 FROM service_performances p
 WHERE p.id = :id;
 
-/* ?? */
+/* 등록 */
 INSERT INTO service_performances (
   client_code,
   field_name,
@@ -124,7 +124,7 @@ INSERT INTO service_performances (
   :last_changed_id
 );
 
-/* ?? */
+/* 수정 */
 UPDATE service_performances
 SET
   client_code = :client_code,
@@ -138,6 +138,7 @@ SET
   last_changed_id = :last_changed_id
 WHERE id = :id;
 
-/* ?? */
+/* 삭제 */
 DELETE FROM service_performances
 WHERE id = :id;
+

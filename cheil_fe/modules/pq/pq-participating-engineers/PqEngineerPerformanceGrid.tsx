@@ -8,7 +8,7 @@ import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-p
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 
-type Props = { columns: GridColDef<EngineerProjectHistoryReviewRecord>[]; loading: boolean; rows: EngineerProjectHistoryReviewRecord[]; gridHeight: number };
+type Props = { columns: GridColDef<EngineerProjectHistoryReviewRecord>[]; defaultPageSize: number; loading: boolean; rows: EngineerProjectHistoryReviewRecord[]; gridHeight: number };
 
 export function createEngineerHistoryPerformanceColumns(
   jobClassLabelByCode: Record<string, string>,
@@ -38,8 +38,10 @@ export function createEngineerHistoryPerformanceColumns(
   ];
 }
 
-export function PqEngineerPerformanceGrid({ columns, loading, rows, gridHeight }: Props) {
+export function PqEngineerPerformanceGrid({ columns, defaultPageSize, loading, rows, gridHeight }: Props) {
   const [detailSeq, setDetailSeq] = useState<number | null>(null);
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: defaultPageSize });
+  const resolvedPaginationModel = paginationModel.pageSize === defaultPageSize ? paginationModel : { page: 0, pageSize: defaultPageSize };
   if (loading && rows.length === 0) return <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}><CircularProgress /></Box>;
   if (!loading && rows.length === 0) return <Alert severity="info">조회된 실적이 없습니다.</Alert>;
   return (
@@ -48,8 +50,12 @@ export function PqEngineerPerformanceGrid({ columns, loading, rows, gridHeight }
         columns={columns}
         getRowId={(row) => `${row.sourceSeq}-${row.id}`}
         loading={loading}
+        onPaginationModelChange={setPaginationModel}
         onRowDoubleClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>) => setDetailSeq(params.row.seq || null)}
+        paginationModel={resolvedPaginationModel}
+        pageSizeOptions={[10, 25, 50, 100]}
         rows={rows}
+        stateCacheKey={false}
         showPageNumbers
         wrapperMinHeight={gridHeight}
         rowHeight={30}

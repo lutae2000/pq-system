@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceConstructionKindRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceConstructionKindResponse;
 
+/** 회사실적에 연결된 공사종류를 조회하고 실적별 분류 정보를 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class CompanyPerformanceConstructionKindQueryService {

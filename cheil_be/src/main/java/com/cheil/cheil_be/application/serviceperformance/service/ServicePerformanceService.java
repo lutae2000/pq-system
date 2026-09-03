@@ -27,6 +27,7 @@ import com.cheil.cheil_be.adapter.in.web.serviceperformance.ServicePerformanceRe
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 용역 수행성과의 목록, 상세, 참여 기술인 정보를 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class ServicePerformanceService {

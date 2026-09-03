@@ -28,6 +28,7 @@ import com.cheil.cheil_be.adapter.in.web.newemployment.NewEmploymentMonthlyStatu
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 신규 고용률 목록과 상세 데이터를 조회하고 등록·수정·삭제하는 업무 서비스. */
 @Service
 @RequiredArgsConstructor
 public class NewEmploymentRateService {

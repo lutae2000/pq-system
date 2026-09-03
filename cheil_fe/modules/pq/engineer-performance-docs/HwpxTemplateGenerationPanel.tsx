@@ -3,7 +3,7 @@
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
@@ -219,7 +219,7 @@ const commonCodeGridColumns: GridColDef<CommonCodeGridRow>[] = [
   { field: "codeDetailName", flex: 1, headerName: "필드명", minWidth: 180 },
 ];
 
-function CommonCodeGridCard({ loading, order, rows, title }: { loading: boolean; order?: number; rows: CommonCodeGridRow[]; title: string }) {
+function CommonCodeGridCard({ autoCopyOnCellClick, loading, order, rows, title }: { autoCopyOnCellClick: boolean; loading: boolean; order?: number; rows: CommonCodeGridRow[]; title: string }) {
   const [keywordDraft, setKeywordDraft] = useState("");
   const [keyword, setKeyword] = useState("");
   const filteredRows = useMemo(() => {
@@ -251,6 +251,7 @@ function CommonCodeGridCard({ loading, order, rows, title }: { loading: boolean;
           <Button aria-label="필드명 조회" disabled={loading} startIcon={<SearchOutlinedIcon />} type="submit" variant="contained" />
         </Box>
         <EnterpriseDataGrid<CommonCodeGridRow>
+          autoCopyOnCellClick={autoCopyOnCellClick}
           columns={commonCodeGridColumns}
           disableColumnMenu
           disableRowSelectionOnClick
@@ -287,6 +288,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
   const basicFieldsQuery = useCommonCodeLevel3Options("PQ", "HG", { useYn: "Y" }, { enabled: open }, "level3Code");
   const careerFieldsQuery = useCommonCodeLevel3Options("PQ", "HH", { useYn: "Y" }, { enabled: open }, "level3Code");
   const historyFieldsQuery = useCommonCodeLevel3Options("PQ", "HI", { useYn: "Y" }, { enabled: open }, "level3Code");
@@ -455,10 +457,14 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
           <Alert severity="info" variant="outlined">
             필드명에 <strong>xx</strong>가 포함되면 매핑된 값의 줄바꿈이 제거됩니다.
           </Alert>
+          <FormControlLabel
+            control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
+            label="셀 클릭 시 자동복사 (Ctrl+C)"
+          />
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { md: "repeat(2, minmax(0, 1fr))", xl: "repeat(3, minmax(0, 1fr))", xs: "1fr" } }}>
-            <CommonCodeGridCard loading={basicFieldsQuery.isLoading} rows={basicFieldRows} title="기술인 기본항목 (PQ/HG)" />
-            <CommonCodeGridCard loading={careerFieldsQuery.isLoading} order={3} rows={careerFieldRows} title="기술인 경력항목 (PQ/HH)" />
-            <CommonCodeGridCard loading={historyFieldsQuery.isLoading} order={2} rows={historyFieldRows} title="기술자 이력항목 (PQ/HI)" />
+            <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={basicFieldsQuery.isLoading} rows={basicFieldRows} title="기술인 기본항목 (PQ/HG)" />
+            <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={careerFieldsQuery.isLoading} order={3} rows={careerFieldRows} title="기술인 경력항목 (PQ/HH)" />
+            <CommonCodeGridCard autoCopyOnCellClick={autoCopyOnCellClick} loading={historyFieldsQuery.isLoading} order={2} rows={historyFieldRows} title="기술자 이력항목 (PQ/HI)" />
           </Box>
           {mappings.length > 0 ? (
             <Box sx={{ display: "grid", gap: 1 }}>

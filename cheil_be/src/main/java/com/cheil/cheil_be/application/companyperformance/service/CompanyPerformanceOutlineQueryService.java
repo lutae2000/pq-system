@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceOutlineRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceOutlineResponse;
 
+/** 회사실적의 개요 행을 조회하고 실적에 종속된 개요를 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class CompanyPerformanceOutlineQueryService {

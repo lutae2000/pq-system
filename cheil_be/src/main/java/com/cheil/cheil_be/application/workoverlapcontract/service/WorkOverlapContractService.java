@@ -32,6 +32,7 @@ import com.cheil.cheil_be.adapter.out.persistence.workoverlapcontract.WorkOverla
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
+/** 업무중복도 계약의 본문과 계약별 요약·기간 이력을 조회하고 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class WorkOverlapContractService {

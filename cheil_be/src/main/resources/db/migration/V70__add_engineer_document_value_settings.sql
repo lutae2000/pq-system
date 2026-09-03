@@ -8,8 +8,8 @@ CREATE TABLE pq_engineer_document_value_settings (
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
     CONSTRAINT pk_pq_engineer_document_value_settings PRIMARY KEY (bid_seq, engineer_id),
-    CONSTRAINT fk_pq_document_value_setting_education
-        FOREIGN KEY (selected_education_id) REFERENCES pq_engineer_education (id) ON DELETE SET NULL,
+    CONSTRAINT fk_pq_document_value_setting_school
+        FOREIGN KEY (selected_education_id) REFERENCES pq_engineer_school (id) ON DELETE SET NULL,
     CONSTRAINT fk_pq_document_value_setting_license
         FOREIGN KEY (selected_license_id) REFERENCES pq_engineer_license (id) ON DELETE SET NULL
 );

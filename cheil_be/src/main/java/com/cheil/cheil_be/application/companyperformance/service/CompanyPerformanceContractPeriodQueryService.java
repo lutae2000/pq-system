@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceContractPeriodRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceContractPeriodResponse;
 
+/** 회사실적의 계약기간을 조회하고 기간별 참여 정보를 관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class CompanyPerformanceContractPeriodQueryService {

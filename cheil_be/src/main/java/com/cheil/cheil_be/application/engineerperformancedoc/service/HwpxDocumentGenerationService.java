@@ -47,6 +47,7 @@ import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 
+/** HWPX 템플릿을 분석하고 기술인별 데이터로 산출물을 생성하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class HwpxDocumentGenerationService {
