@@ -32,6 +32,8 @@ const defaultMappings: Record<string, string> = {
   "기본_졸업일(yyyy.mm.dd)": "basic.graduationDateDot",
   "기본_졸업일(yyyy-mm)": "basic.graduationMonth",
   "기본_졸업일(yyyy년mm월)": "basic.graduationDateKorean",
+  "기본_생년월일(yyyy-mm-dd)(만나이)": "detail.birthDate",
+  "기본_생년월일(yy.mm.dd)(만나이)": "detail.birthDate",
   "기본_자격증명칭": "basic.licenseName",
   "기본_자격증취득일(yyyy-mm-dd)": "basic.licenseIssueDate",
   "기본_자격증취득일(yyyy.mm.dd)": "basic.licenseIssueDateDot",
@@ -41,7 +43,9 @@ const defaultMappings: Record<string, string> = {
   nameKor: "summary.name",
   "기본_성명": "summary.name",
   "기본_연령(만)": "detail.age",
+  "기본_연령(만나이)": "detail.age",
   "기본_생년월일(yyyy.mm.dd)": "detail.birthDate",
+  "기본_회사명": "basic.companyName",
   grade: "row.grade",
   jobName: "row.jobName",
   summary: "row.summary",
@@ -51,6 +55,12 @@ const defaultMappings: Record<string, string> = {
   "경력_담당업무명": "row.duty",
   "경력_용역개요": "row.summary",
   "경력_용역명": "row.jobName",
+  "경력_용역일수(일)": "row.contractTerm",
+  "경력_용역일수(월)": "row.contractTerm",
+  "경력_용역일수(년)": "row.contractTerm",
+  "경력_참여일수(일)": "row.workTerm",
+  "경력_참여일수(월)": "row.workTerm",
+  "경력_참여일수(년)": "row.workTerm",
   "경력_순번": "row.seq",
   "경력_직무분야명": "row.jobPart",
   "경력_전문분야명": "row.proPart",
@@ -58,6 +68,7 @@ const defaultMappings: Record<string, string> = {
   "경력_당사금액(백만)(총계약금액)": "row.ownAmt",
   "경력_PQ당사지분율(0.00%)": "row.divisionRate",
   "경력_PQ당사지분율(100.00%)": "row.divisionRate",
+  "경력_PQ공동지분내역": "row.jobRatio",
   "이력_직위": "history.grade",
   "이력_부서명": "history.deptName",
   "이력_근무처명": "history.compName",
@@ -166,20 +177,23 @@ const careerFieldPathsByCode: Record<string, string> = {
 
 const careerFieldPathByLabel = (label: string) => {
   const normalizedLabel = label.startsWith("경력_") ? label.slice("경력_".length) : label;
-  if (normalizedLabel.startsWith("PQ당사지분율")) return "row.divisionRate";
-  if (normalizedLabel.startsWith("직무분야명")) return "row.jobPart";
-  if (normalizedLabel.startsWith("전문분야명")) return "row.proPart";
-  if (normalizedLabel.startsWith("총계약금액") && normalizedLabel.includes("당사금액")) return "row.ownAmt";
-  if (normalizedLabel.startsWith("당사금액")) return "row.ownAmt";
-  if (normalizedLabel.startsWith("총계약금액")) return "row.contractAmt";
-  if (normalizedLabel.startsWith("용역시작일")) return "row.contractFromDate";
-  if (normalizedLabel.startsWith("용역종료일")) return "row.contractToDate";
-  if (normalizedLabel.startsWith("용역기간")) return "row.contractTerm";
-  if (normalizedLabel.startsWith("참여시작일")) return "row.startDate";
-  if (normalizedLabel.startsWith("참여종료일")) return "row.endDate";
-  if (normalizedLabel.startsWith("참여기간")) return "row.workTerm";
-  if (normalizedLabel.startsWith("선택기간")) return "row.selectDay";
-  if (normalizedLabel.startsWith("분야기간")) return "row.partDay";
+  if (normalizedLabel.includes("PQ당사지분율")) return "row.divisionRate";
+  if (normalizedLabel.includes("PQ공동지분내역")) return "row.jobRatio";
+  if (normalizedLabel.includes("직무분야명")) return "row.jobPart";
+  if (normalizedLabel.includes("전문분야명")) return "row.proPart";
+  if (normalizedLabel.includes("총계약금액") && normalizedLabel.includes("당사금액")) return "row.ownAmt";
+  if (normalizedLabel.includes("당사금액")) return "row.ownAmt";
+  if (normalizedLabel.includes("총계약금액")) return "row.contractAmt";
+  if (normalizedLabel.includes("용역시작일")) return "row.contractFromDate";
+  if (normalizedLabel.includes("용역종료일")) return "row.contractToDate";
+  if (normalizedLabel.includes("용역일수")) return "row.contractTerm";
+  if (normalizedLabel.includes("용역차수기간")) return "row.contractPeriods";
+  if (normalizedLabel.includes("참여차수기간")) return "row.participationPeriods";
+  if (normalizedLabel.includes("참여시작일")) return "row.startDate";
+  if (normalizedLabel.includes("참여종료일")) return "row.endDate";
+  if (normalizedLabel.includes("참여일수")) return "row.workTerm";
+  if (normalizedLabel.includes("선택기간")) return "row.selectDay";
+  if (normalizedLabel.includes("분야기간")) return "row.partDay";
   return "";
 };
 
@@ -204,24 +218,32 @@ const historyFieldPathsByCode: Record<string, string> = {
 
 const historyFieldPathByLabel = (label: string) => {
   const normalizedLabel = label.startsWith("이력_") ? label.slice("이력_".length) : label;
-  if (normalizedLabel.startsWith("순번")) return "history.seq";
-  if (normalizedLabel.startsWith("근무처명")) return "history.compName";
-  if (normalizedLabel.startsWith("입사일")) return "history.entryDate";
-  if (normalizedLabel.startsWith("퇴사일")) return "history.retireDate";
-  if (normalizedLabel.startsWith("근무기간")) return "history.workTerm";
-  if (normalizedLabel.startsWith("직위")) return "history.grade";
-  if (normalizedLabel.startsWith("담당업무")) return "history.duty";
-  if (normalizedLabel.startsWith("부서명")) return "history.deptName";
+  if (normalizedLabel.includes("순번")) return "history.seq";
+  if (normalizedLabel.includes("근무처명")) return "history.compName";
+  if (normalizedLabel.includes("입사일")) return "history.entryDate";
+  if (normalizedLabel.includes("퇴사일")) return "history.retireDate";
+  if (normalizedLabel.includes("근무일") || normalizedLabel.includes("근무기간")) return "history.workTerm";
+  if (normalizedLabel.includes("직위")) return "history.grade";
+  if (normalizedLabel.includes("담당업무")) return "history.duty";
+  if (normalizedLabel.includes("부서명")) return "history.deptName";
   return "";
 };
 
+const basicFieldPathByLabel = (label: string) => {
+  const normalizedLabel = label.startsWith("기본_") ? label.slice("기본_".length) : label;
+  return normalizedLabel.includes("생년월일") ? "detail.birthDate" : undefined;
+};
+
 const fieldNamesWithoutAdditionalLabel = new Set([
-  "이력_근무기간(일)",
-  "이력_근무기간(월)",
-  "이력_근무기간(년월)",
-  "경력_참여기간(일)",
-  "경력_참여기간(월)",
-  "경력_참여기간(년)",
+  "이력_근무일(일)",
+  "이력_근무일(월)",
+  "이력_근무일(년월)",
+  "경력_용역일수(일)",
+  "경력_용역일수(월)",
+  "경력_용역일수(년)",
+  "경력_참여일수(일)",
+  "경력_참여일수(월)",
+  "경력_참여일수(년)",
 ]);
 
 const commonCodeGridColumns: GridColDef<CommonCodeGridRow>[] = [
@@ -417,6 +439,7 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
         ...field,
         path: defaultMappings[field.name]
           ?? basicFieldAliases[field.name]
+          ?? basicFieldPathByLabel(field.name)
           ?? careerFieldAliases[field.name]
           ?? historyFieldAliases[field.name]
           ?? (careerFieldPathByLabel(field.name) || historyFieldPathByLabel(field.name) || "")

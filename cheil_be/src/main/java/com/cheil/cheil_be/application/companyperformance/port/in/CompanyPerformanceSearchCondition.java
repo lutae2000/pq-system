@@ -7,6 +7,7 @@ public record CompanyPerformanceSearchCondition(
         Boolean jobOwnYn,
         String jobFinishYn,
         String contractFromDate,
-        String contractToDate
+        String contractToDate,
+        Long excludeDocumentTargetBidSeq
 ) {
 }

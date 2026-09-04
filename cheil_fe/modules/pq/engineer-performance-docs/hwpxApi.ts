@@ -30,3 +30,19 @@ export function generateHwpxDocuments(template: File, request: HwpxGenerateReque
     "HWPX 산출물 생성에 실패했습니다.",
   );
 }
+
+export type CompanyPerformanceHwpxGenerateRequest = {
+  bidSeq: number;
+  companyPerformanceSeqs: number[];
+  mappings: Record<string, string>;
+};
+
+export function generateCompanyPerformanceHwpxDocuments(template: File, request: CompanyPerformanceHwpxGenerateRequest) {
+  const formData = new FormData();
+  formData.append("template", template);
+  formData.append("request", new Blob([JSON.stringify(request)], { type: "application/json" }));
+  return apiRequest(
+    apiClient.post<Blob>("/pq/company-performance-document-targets/hwpx/generate", formData, { responseType: "blob" }),
+    "회사실적 HWPX 산출물 생성에 실패했습니다.",
+  );
+}

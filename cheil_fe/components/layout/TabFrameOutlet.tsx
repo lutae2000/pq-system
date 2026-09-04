@@ -44,10 +44,10 @@ export function TabFrameOutlet({ children }: { children: ReactNode }) {
         const shouldUnmountWhenInactive = href === DASHBOARD_HREF || href.startsWith(`${DASHBOARD_HREF}/`);
         const page =
           pageCache.get(href) ??
-          (() => {
+          (active ? (() => {
             const RegisteredPage = pageRegistry[href as keyof typeof pageRegistry];
             return RegisteredPage ? <RegisteredPage /> : children;
-          })();
+          })() : null);
 
         return (
           <Box

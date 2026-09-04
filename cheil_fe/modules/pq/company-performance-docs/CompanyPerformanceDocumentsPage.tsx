@@ -1,421 +1,247 @@
 "use client";
 
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import PreviewOutlinedIcon from "@mui/icons-material/PreviewOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Divider,
-  Drawer,
-  Grid,
-  IconButton,
-  InputAdornment,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, TextField, Typography } from "@mui/material";
+import type { GridColDef, GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
+import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
+import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import {
+  COMPANY_PERFORMANCE_PAGE_SIZE,
+  addCompanyPerformanceDocumentTargets,
+  addCompanyPerformanceDocumentTargetsByConditions,
+  getCompanyPerformance,
+  listCompanyPerformances,
+  listCompanyPerformanceDocumentTargets,
+  type CompanyPerformanceRecord,
+  type CompanyPerformanceSearchParams,
+} from "@/modules/pq/company-performance/api";
+import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 
-type CompanyPerformanceStatus = "대기" | "작성중" | "완료";
+const BidNoticeSelectDialog = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
+  { ssr: false },
+);
+const BidNoticeDetailPopup = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeDetailPopup").then((module) => module.BidNoticeDetailPopup),
+  { ssr: false },
+);
+const CompanyPerformanceDetailDialog = dynamic(
+  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailDialog").then((module) => module.CompanyPerformanceDetailDialog),
+  { ssr: false },
+);
+const CompanyHwpxTemplateGenerationPanel = dynamic(
+  () => import("@/modules/pq/company-performance-docs/CompanyHwpxTemplateGenerationPanel").then((module) => module.CompanyHwpxTemplateGenerationPanel),
+  { ssr: false },
+);
 
-type CompanyPerformanceRecord = {
-  clientName: string;
-  documentStatus: CompanyPerformanceStatus;
-  endDate: string;
-  engineerCount: number;
-  id: string;
-  manager: string;
-  period: string;
-  projectName: string;
-  region: string;
-  startDate: string;
-  totalAmount: string;
-  workType: string;
+const text = (value: string | null | undefined) => value ?? "";
+const digits = (value: string | null | undefined) => text(value).replace(/\D/g, "");
+const display = (value: string | number | null | undefined) => (value === null || value === undefined || value === "" ? "-" : String(value));
+const displayMoney = (value: number | null | undefined) => value === null || value === undefined ? "-" : new Intl.NumberFormat("ko-KR").format(value);
+const displayDate = (value: string | null | undefined) => {
+  const normalized = digits(value);
+  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6)}` : display(value);
 };
+const displayRate = (value: number | null | undefined) => value === null || value === undefined ? "-" : String(value);
+const displayGeneralManagement = (value: boolean | null | undefined) => value ? "Y" : "N";
 
-const initialRecords: CompanyPerformanceRecord[] = [
-  {
-    id: "CP-2024-001",
-    projectName: "수도권 통합관제센터 구축",
-    workType: "정보통신",
-    clientName: "서울시청",
-    region: "서울",
-    period: "2024-01-01 ~ 2024-12-31",
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    totalAmount: "18,400,000,000",
-    engineerCount: 12,
-    manager: "김민수",
-    documentStatus: "완료",
-  },
-  {
-    id: "CP-2024-002",
-    projectName: "스마트물류센터 증축",
-    workType: "건축",
-    clientName: "한강물류",
-    region: "경기",
-    period: "2024-03-01 ~ 2025-02-28",
-    startDate: "2024-03-01",
-    endDate: "2025-02-28",
-    totalAmount: "9,200,000,000",
-    engineerCount: 7,
-    manager: "이서연",
-    documentStatus: "작성중",
-  },
-  {
-    id: "CP-2024-003",
-    projectName: "도시철도 연장구간 실시설계",
-    workType: "토목",
-    clientName: "국가철도공단",
-    region: "대전",
-    period: "2024-05-15 ~ 2025-04-30",
-    startDate: "2024-05-15",
-    endDate: "2025-04-30",
-    totalAmount: "25,800,000,000",
-    engineerCount: 15,
-    manager: "박준호",
-    documentStatus: "대기",
-  },
-];
-
-const columns: GridColDef<CompanyPerformanceRecord>[] = [
-  { field: "id", headerName: "문서번호", width: 120 },
-  { field: "projectName", headerName: "회사실적명", flex: 1.2, minWidth: 220 },
-  { field: "workType", headerName: "공종", width: 110 },
-  { field: "clientName", headerName: "발주처", width: 140 },
-  { field: "region", headerName: "지역", width: 90 },
-  { field: "period", headerName: "수행기간", width: 180 },
-  { field: "totalAmount", headerName: "계약금액", width: 140, align: "right", headerAlign: "right" },
-  { field: "engineerCount", headerName: "기술인", width: 90, align: "right", headerAlign: "right" },
-  {
-    field: "documentStatus",
-    headerName: "상태",
-    width: 100,
-    renderCell: (params) => {
-      const color = params.value === "완료" ? "success" : params.value === "작성중" ? "warning" : "default";
-      return <Chip color={color} label={params.value} size="small" />;
-    },
-  },
-];
-
-const drawerStyles = {
-  "& .MuiDrawer-paper": {
-    width: { xs: "100%", sm: 420, lg: 540 },
-  },
-} as const;
-
-const fieldStyles = {
-  "& .MuiInputBase-root": {
-    minHeight: 40,
-  },
-  "& .MuiInputBase-input": {
-    py: 1.1,
-  },
-} as const;
-
-const detailRows = [
-  { label: "문서번호", key: "id" },
-  { label: "실적명", key: "projectName" },
-  { label: "발주처", key: "clientName" },
-  { label: "공종", key: "workType" },
-  { label: "지역", key: "region" },
-  { label: "담당자", key: "manager" },
-  { label: "수행기간", key: "period" },
-  { label: "착수일", key: "startDate" },
-  { label: "준공일", key: "endDate" },
-  { label: "계약금액", key: "totalAmount" },
-  { label: "참여기술인 수", key: "engineerCount" },
-  { label: "문서상태", key: "documentStatus" },
-] as const;
-
-const overviewText = {
-  purpose:
-    "본 실적은 공공 발주처의 정보통신 기반 시설 구축 사업으로, 용역개요와 참여기술인 실적을 PQ 제출 기준에 맞게 정리한다.",
-  scope:
-    "수행 범위는 사업 기획, 설계 검토, 구축 지원, 준공 검토, 실적증명서 작성에 필요한 자료 정리까지 포함한다.",
-  notes:
-    "문서생성 전 발주처명, 수행기간, 참여기술인, 실적 범위가 일치하는지 반드시 확인한다.",
-  items: [
-    "발주처 요구사항 반영",
-    "참여기술인 실적 정합성 검토",
-    "실적증명서 출력 전 상태 확인",
-  ],
-  contact: "02-123-4567",
-} as const;
-
+// 조건 적용은 화면 페이지와 별개로 전체 대상의 식별자만 확인하므로 한 번의 서버 조회로 처리한다.
 export function CompanyPerformanceDocumentsPage() {
-  const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
-  const canGenerate = canCreate || canUpdate;
-  const [records] = useState(initialRecords);
+  const { canRead } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
+  const serviceTypeReferences = useCommonCodeLevel2Options("ST");
+  const columns = useMemo<GridColDef<CompanyPerformanceRecord>[]>(
+    () => [
+      { field: "jobName", headerName: "사업명", minWidth: 260, flex: 1.4, valueGetter: (_value, row) => display(row.jobName) },
+      { field: "orderClient", headerName: "발주처", minWidth: 160, flex: 1, valueGetter: (_value, row) => display(row.orderClient) },
+      { field: "contractFromDate", headerName: "계약시작일", width: 120, valueGetter: (_value, row) => displayDate(row.contractFromDate) },
+      { field: "contractToDate", headerName: "계약종료일", width: 120, valueGetter: (_value, row) => displayDate(row.contractToDate) },
+      { field: "contractAmt", headerName: "총계약금액", width: 130, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayMoney(row.contractAmt) },
+      { field: "ownAmt", headerName: "당사금액", width: 130, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayMoney(row.ownAmt) },
+      { field: "jobRatio", headerName: "공동도급내역", minWidth: 160, flex: 1, valueGetter: (_value, row) => display(row.jobRatio) },
+      { field: "divisionRate", headerName: "지분율", width: 90, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayRate(row.divisionRate) },
+      { field: "jobType", headerName: "용역구분", width: 120, valueGetter: (_value, row) => serviceTypeReferences.labelByValue[row.jobType ?? ""] ?? display(row.jobType) },
+      { field: "generalManagementYn", headerName: "총괄", width: 80, align: "center", headerAlign: "center", valueGetter: (_value, row) => displayGeneralManagement(row.generalManagementYn) },
+    ],
+    [serviceTypeReferences.labelByValue],
+  );
+  const [bidNotice, setBidNotice] = useState<BidNoticeApiRecord | null>(null);
+  const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
+  const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
+  const [conditions, setConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [keyword, setKeyword] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [selectedRecord, setSelectedRecord] = useState<CompanyPerformanceRecord | null>(initialRecords[0] ?? null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const filteredRecords = useMemo(() => {
-    const normalized = keyword.trim().toLowerCase();
-    if (!normalized) return records;
-
-    return records.filter((record) =>
-      [record.id, record.projectName, record.clientName, record.workType, record.manager, record.documentStatus].some((value) =>
-        value.toLowerCase().includes(normalized),
-      ),
-    );
-  }, [keyword, records]);
-
-  const handleSearch = () => {
-    setKeyword(searchInput.trim());
+  const [appliedKeyword, setAppliedKeyword] = useState("");
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: COMPANY_PERFORMANCE_PAGE_SIZE });
+  const [selectedCompanyPerformanceIds, setSelectedCompanyPerformanceIds] = useState<number[]>([]);
+  const [detailRecord, setDetailRecord] = useState<CompanyPerformanceRecord | null>(null);
+  const searchParams = useMemo<CompanyPerformanceSearchParams>(() => ({
+    keyword: appliedKeyword,
+    businessType: "",
+    clientKind: "",
+    jobOwnYn: "All",
+    jobFinishYn: "All",
+    contractFromDate: "",
+    contractToDate: "",
+    excludeDocumentTargetBidSeq: bidNotice?.bidSeq,
+    page: paginationModel.page,
+    size: paginationModel.pageSize,
+  }), [appliedKeyword, bidNotice?.bidSeq, paginationModel]);
+  const companyPerformancesQuery = useQuery({
+    queryKey: ["company-performance-documents", searchParams],
+    queryFn: () => listCompanyPerformances(searchParams),
+    enabled: tabQueryEnabled && Boolean(bidNotice?.bidSeq),
+    placeholderData: keepPreviousData,
+  });
+  const documentTargetsQuery = useQuery({
+    queryKey: ["company-performance-document-targets", bidNotice?.bidSeq],
+    queryFn: () => listCompanyPerformanceDocumentTargets(bidNotice!.bidSeq!),
+    enabled: tabQueryEnabled && Boolean(bidNotice?.bidSeq),
+  });
+  const detailMutation = useMutation({
+    mutationFn: getCompanyPerformance,
+    onSuccess: (record) => setDetailRecord(record),
+  });
+  const rows = useMemo(() => companyPerformancesQuery.data?.content ?? [], [companyPerformancesQuery.data?.content]);
+  const matchedRows = useMemo(() => {
+    return (documentTargetsQuery.data ?? [])
+      .map((target) => target.companyPerformance)
+      .filter((row): row is CompanyPerformanceRecord => row !== null);
+  }, [documentTargetsQuery.data]);
+  const addTargetMutation = useMutation({
+    mutationFn: (companyPerformanceSeqs: number[]) => addCompanyPerformanceDocumentTargets({ bidSeq: bidNotice!.bidSeq!, companyPerformanceSeqs }),
+    onSuccess: async () => {
+      setSelectedCompanyPerformanceIds([]);
+      await companyPerformancesQuery.refetch();
+      await documentTargetsQuery.refetch();
+    },
+  });
+  const handleAdd = () => {
+    if (!bidNotice?.bidSeq || selectedCompanyPerformanceIds.length === 0) return;
+    addTargetMutation.mutate(selectedCompanyPerformanceIds);
   };
+  const handleConditionsApply = async (nextConditions: RelatedProjectHistoryCondition[]) => {
+    setConditions(nextConditions);
+    if (!bidNotice?.bidSeq || nextConditions.length === 0) return;
 
-  const openDrawer = (record: CompanyPerformanceRecord) => {
-    setSelectedRecord(record);
-    setDrawerOpen(true);
+    await addCompanyPerformanceDocumentTargetsByConditions({ bidSeq: bidNotice.bidSeq, conditions: nextConditions });
+    await Promise.all([companyPerformancesQuery.refetch(), documentTargetsQuery.refetch()]);
   };
-
-  const handleRowDoubleClick = (params: GridRowParams<CompanyPerformanceRecord>) => {
-    openDrawer(params.row);
-  };
-
-  const handlePreview = () => {
-    if (selectedRecord) setDrawerOpen(true);
-  };
-
-  const handleGenerate = () => {
-    if (selectedRecord) setDrawerOpen(true);
+  const handleLoad = () => {
+    if (!bidNotice) return;
+    const nextKeyword = keyword.trim();
+    const shouldRefetch = nextKeyword === appliedKeyword;
+    setPaginationModel((current) => ({ ...current, page: 0 }));
+    setAppliedKeyword(nextKeyword);
+    if (shouldRefetch) void companyPerformancesQuery.refetch();
   };
 
   if (!canRead) {
-    return (
-      <Box>
-        <PageHeader title="회사실적 문서생성" description="회사실적 문서생성 화면입니다." />
-        <Alert severity="warning">회사실적 문서를 조회할 권한이 없습니다.</Alert>
-      </Box>
-    );
+    return <><PageHeader title="회사 실적문서 생성" description="회사실적 문서 생성 대상과 조건을 관리합니다." /><Alert severity="warning">조회 권한이 없습니다.</Alert></>;
   }
-
   return (
     <Box>
-      <PageHeader
-        title="회사실적 문서생성"
-        description="목록에서 실적을 선택한 후 더블클릭하면 우측 용역개요 팝업에서 문서 생성에 필요한 항목을 확인할 수 있습니다."
-        action={
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button disabled={!selectedRecord} onClick={handlePreview} startIcon={<PreviewOutlinedIcon />} variant="outlined">
-              미리보기
-            </Button>
-            <Button disabled={!canGenerate || !selectedRecord} onClick={handleGenerate} startIcon={<DescriptionOutlinedIcon />} variant="contained">
-              문서생성
-            </Button>
-          </Box>
-        }
-      />
-
-      <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ py: 1.5 }}>
-          <Box
-            component="form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleSearch();
-            }}
-            sx={{
-              alignItems: { xs: "stretch", md: "center" },
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: 1,
-              justifyContent: "space-between",
-            }}
-          >
-            <Box sx={{ display: "flex", gap: 1, flex: 1, minWidth: 0 }}>
-              <TextField
-                fullWidth
-                label="회사실적 검색"
-                placeholder="문서번호, 실적명, 발주처, 담당자, 상태"
-                size="small"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                sx={{ maxWidth: 480, ...fieldStyles }}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchOutlinedIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-              <Button disabled={!canRead} onClick={handleSearch} startIcon={<RefreshOutlinedIcon />} variant="contained">
-                조회
-              </Button>
+      <PageHeader title="회사 실적문서 생성" description="공고를 선택하고 회사실적 조건을 적용해 문서 생성 대상을 구성합니다." />
+      <Stack spacing={2}>
+        <Card variant="outlined"><CardContent><Stack spacing={1.5}>
+          <Grid container spacing={1.5}>
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Stack direction="row" spacing={1}>
+                <TextField fullWidth label="공고명" placeholder="공고문을 선택하세요" size="small" value={bidNotice?.projectName ?? ""} slotProps={{ input: { readOnly: true } }} />
+                <Button disabled={!canRead} onClick={() => setBidNoticeDialogOpen(true)} startIcon={<SearchOutlinedIcon />} sx={{ flex: "0 0 auto", minWidth: 88, whiteSpace: "nowrap" }} type="button" variant="outlined">선택</Button>
+                <Button disabled={!bidNotice || !canRead} onClick={() => setBidNoticeDetailOpen(true)} startIcon={<VisibilityOutlinedIcon />} sx={{ flex: "0 0 auto", minWidth: 112, whiteSpace: "nowrap" }} type="button" variant="outlined">상세보기</Button>
+              </Stack>
+            </Grid>
+            {bidNotice ? <>
+              <Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth label="발주처" size="small" value={text(bidNotice.orderClientName ?? bidNotice.orderClient)} slotProps={{ input: { readOnly: true } }} /></Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 1.5 }}><TextField fullWidth label="공고일" size="small" value={text(bidNotice.announceDate).slice(0, 10)} slotProps={{ input: { readOnly: true } }} /></Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 1.5 }}><TextField fullWidth label="입찰등록 마감" size="small" value={text(bidNotice.bidClosingDate).slice(0, 10)} slotProps={{ input: { readOnly: true } }} /></Grid>
+            </> : null}
+            <Grid size={{ xs: 12, md: 8 }}><TextField fullWidth label="회사실적 검색" onChange={(event) => setKeyword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); handleLoad(); } }} placeholder="용역명, 발주처 검색" size="small" value={keyword} /></Grid>
+            <Grid size={{ xs: 12, md: 4 }}><Box sx={{ display: "flex", gap: 1, justifyContent: { xs: "flex-start", md: "flex-end" }, flexWrap: "wrap" }}><Button disabled={!canRead || !bidNotice || companyPerformancesQuery.isFetching} onClick={handleLoad} startIcon={<SearchOutlinedIcon />} variant="contained">조회</Button><Button onClick={() => { setKeyword(""); setAppliedKeyword(""); }} startIcon={<RefreshOutlinedIcon />} variant="outlined">초기화</Button></Box></Grid>
+          </Grid>
+        </Stack></CardContent></Card>
+        <Card variant="outlined"><CardContent>
+          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1 }}>
+            <Typography sx={{ fontWeight: 800 }} variant="subtitle1">회사실적 목록</Typography>
+            <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
+              <Chip label={`${rows.length}건`} size="small" variant="outlined" />
+              <Button disabled={selectedCompanyPerformanceIds.length === 0 || addTargetMutation.isPending} onClick={handleAdd} size="small" startIcon={<AddOutlinedIcon />} variant="contained">추가</Button>
             </Box>
-            <Typography color="text.secondary" variant="body2" sx={{ alignSelf: "center" }}>
-              행을 더블클릭하면 우측 용역개요 팝업이 열립니다.
-            </Typography>
           </Box>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
-            <Box>
-              <Typography sx={{ fontWeight: 800 }} variant="h6">
-                회사실적 목록
-              </Typography>
-              <Typography color="text.secondary" variant="body2">
-                문서생성 대상이 되는 실적을 조회합니다.
-              </Typography>
-            </Box>
-            <Chip label={`${filteredRecords.length}건`} size="small" variant="outlined" />
-          </Box>
-          <EnterpriseDataGrid
+          <EnterpriseDataGrid<CompanyPerformanceRecord>
+            checkboxSelection
             columns={columns}
-            getRowId={(row) => row.id}
-            hideFooterSelectedRowCount
-            onRowDoubleClick={handleRowDoubleClick}
-            rows={filteredRecords}
-            sx={{
-              border: 0,
-              minHeight: 520,
-              "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
-              "& .MuiDataGrid-row:hover": {
-                cursor: "pointer",
-              },
+            disableRowSelectionOnClick
+            getRowId={(row) => row.seq}
+            loading={companyPerformancesQuery.isLoading || companyPerformancesQuery.isFetching}
+            onPaginationModelChange={setPaginationModel}
+            onRowSelectionModelChange={(model: GridRowSelectionModel) => {
+              const selectedIds = model.type === "exclude"
+                ? rows.filter((row) => !model.ids.has(row.seq)).map((row) => row.seq)
+                : Array.from(model.ids, Number);
+              setSelectedCompanyPerformanceIds(selectedIds);
             }}
+            onRowDoubleClick={(params) => detailMutation.mutate(params.row.seq)}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            pageSizeOptions={[25, 50, 100]}
+            rowCount={companyPerformancesQuery.data?.totalElements ?? 0}
+            rowHeight={30}
+            rows={rows}
+            rowSelectionModel={{ ids: new Set(selectedCompanyPerformanceIds), type: "include" }}
+            showPageNumbers
+            showToolbar={false}
+            wrapperMinHeight={520}
+            sx={{ border: 0, height: 520 }}
           />
-        </CardContent>
-      </Card>
-
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} sx={drawerStyles}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2.5, py: 2 }}>
-          <Box>
-            <Typography sx={{ fontWeight: 800 }} variant="h6">
-              용역개요
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              더블클릭한 회사실적의 문서 생성용 상세 내용을 확인합니다.
-            </Typography>
-          </Box>
-          <IconButton onClick={() => setDrawerOpen(false)}>
-            <CloseOutlinedIcon />
-          </IconButton>
-        </Box>
-        <Divider />
-
-        <Box sx={{ px: 2.5, py: 2.5 }}>
-          {selectedRecord ? (
-            <Stack spacing={2}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 800 }} variant="subtitle1">
-                        {selectedRecord.projectName}
-                      </Typography>
-                      <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-                        {selectedRecord.clientName} · {selectedRecord.workType} · {selectedRecord.region}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      color={
-                        selectedRecord.documentStatus === "완료"
-                          ? "success"
-                          : selectedRecord.documentStatus === "작성중"
-                            ? "warning"
-                            : "default"
-                      }
-                      label={selectedRecord.documentStatus}
-                      size="small"
-                    />
-                  </Box>
-                </CardContent>
-              </Card>
-
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography sx={{ fontWeight: 800, mb: 1.5 }} variant="subtitle2">
-                    기본 정보
-                  </Typography>
-                  <Grid container spacing={1.5}>
-                    {detailRows.map((item) => (
-                      <Grid key={item.key} size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          fullWidth
-                          label={item.label}
-                          size="small"
-                          value={String(selectedRecord[item.key])}
-                          sx={fieldStyles}
-                          slotProps={{ input: { readOnly: true } }}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography sx={{ fontWeight: 800, mb: 1.5 }} variant="subtitle2">
-                    용역개요
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    <TextField fullWidth label="용역목적" multiline minRows={3} value={overviewText.purpose} sx={fieldStyles} slotProps={{ input: { readOnly: true } }} />
-                    <TextField fullWidth label="용역범위" multiline minRows={3} value={overviewText.scope} sx={fieldStyles} slotProps={{ input: { readOnly: true } }} />
-                    <TextField fullWidth label="비고" multiline minRows={3} value={overviewText.notes} sx={fieldStyles} slotProps={{ input: { readOnly: true } }} />
-                  </Stack>
-                </CardContent>
-              </Card>
-
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography sx={{ fontWeight: 800, mb: 1.5 }} variant="subtitle2">
-                    확인 항목
-                  </Typography>
-                  <Stack spacing={0.75}>
-                    {overviewText.items.map((item) => (
-                      <Typography key={item} color="text.secondary" variant="body2">
-                        • {item}
-                      </Typography>
-                    ))}
-                  </Stack>
-                  <Divider sx={{ my: 1.5 }} />
-                  <TextField
-                    fullWidth
-                    label="발주처 연락처"
-                    size="small"
-                    value={overviewText.contact}
-                    sx={fieldStyles}
-                    slotProps={{ input: { readOnly: true } }}
-                  />
-                </CardContent>
-              </Card>
-
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Button disabled={!selectedRecord} fullWidth variant="outlined" startIcon={<PreviewOutlinedIcon />} onClick={handlePreview}>
-                  미리보기
-                </Button>
-                <Button disabled={!canGenerate || !selectedRecord} fullWidth variant="contained" startIcon={<DescriptionOutlinedIcon />} onClick={handleGenerate}>
-                  문서생성
-                </Button>
-              </Box>
-            </Stack>
-          ) : (
-            <Typography color="text.secondary">선택된 회사실적이 없습니다.</Typography>
-          )}
-        </Box>
-      </Drawer>
+        </CardContent></Card>
+        <Card variant="outlined"><CardContent>
+          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography><Typography color="text.secondary" variant="body2">조건에 맞는 실적은 설정 즉시 문서 생성 대상으로 저장됩니다.</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /></Box></Box>
+          <EnterpriseDataGrid<CompanyPerformanceRecord>
+            checkboxSelection
+            columns={columns}
+            disableRowSelectionOnClick
+            getRowId={(row) => row.seq}
+            loading={companyPerformancesQuery.isLoading || companyPerformancesQuery.isFetching}
+            onRowDoubleClick={(params) => detailMutation.mutate(params.row.seq)}
+            rowHeight={30}
+            rows={matchedRows}
+            showPageNumbers
+            showToolbar={false}
+            wrapperMinHeight={520}
+            sx={{ border: 0, height: 520 }}
+          />
+        </CardContent></Card>
+        <CompanyHwpxTemplateGenerationPanel bidNotice={bidNotice} open={Boolean(bidNotice)} targets={documentTargetsQuery.data ?? []} />
+      </Stack>
+      {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setConditions([]); setSelectedCompanyPerformanceIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}
+      {bidNoticeDetailOpen ? <BidNoticeDetailPopup bidSeq={bidNotice?.bidSeq ?? null} onClose={() => setBidNoticeDetailOpen(false)} open readOnly /> : null}
+      {detailRecord ? <CompanyPerformanceDetailDialog
+        businessTypeOptions={[]}
+        clientKindOptions={[]}
+        deleteDisabled
+        jobFinishOptions={[]}
+        onClose={() => setDetailRecord(null)}
+        onDelete={() => undefined}
+        onFieldChange={() => undefined}
+        onSave={() => undefined}
+        open
+        readOnly
+        record={detailRecord}
+        saveDisabled
+      /> : null}
     </Box>
   );
 }

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -43,7 +44,10 @@ import org.w3c.dom.NodeList;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxGenerateRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxTemplateFieldResponse;
+import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceHwpxGenerateRequest;
 import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
+import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceAdminService;
+import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 
@@ -58,6 +62,7 @@ public class HwpxDocumentGenerationService {
     private final EngineerAdminService engineerAdminService;
     private final BidNoticeAdminService bidNoticeAdminService;
     private final EngineerPerformanceDocumentService performanceDocumentService;
+    private final CompanyPerformanceAdminService companyPerformanceAdminService;
     private final JdbcClient jdbcClient;
 
     public List<HwpxTemplateFieldResponse> inspect(MultipartFile template) {
@@ -77,7 +82,12 @@ public class HwpxDocumentGenerationService {
             BasicDocumentValues basicValues = findBasicDocumentValues(request.bidSeq(), engineerId, profile);
             List<EngineerProjectHistoryReviewResponse> reviews = performanceDocumentService.findReviewResults(
                     request.bidSeq(), engineerId, request.relatedProjectHistoryConditions());
-            byte[] output = render(templateBytes, profile, basicValues, bidNotice, reviews, request.mappings());
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> contractPeriods = findContractPeriods(reviews);
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> participationPeriods =
+                    findParticipationPeriods(engineerId, reviews);
+            Map<Long, String> jobRatios = findJobRatios(reviews);
+            byte[] output = render(templateBytes, profile, basicValues, bidNotice, reviews, contractPeriods,
+                    participationPeriods, jobRatios, request.mappings());
             String filename = safeFilename(profile.basic().nameKor(), engineerId) + "_기술인실적.hwpx";
             outputs.put(filename, output);
         }
@@ -101,12 +111,98 @@ public class HwpxDocumentGenerationService {
         }
     }
 
+    /** 회사실적 대상별로 동일한 HWPX 양식에 회사실적 필드를 매핑해 ZIP으로 반환한다. */
+    public byte[] generateCompanyPerformances(MultipartFile template, CompanyPerformanceHwpxGenerateRequest request) {
+        if (template == null || template.isEmpty() || request == null || request.bidSeq() == null
+                || request.companyPerformanceSeqs() == null || request.companyPerformanceSeqs().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식과 회사실적 대상을 선택해 주세요.");
+        }
+        byte[] source = readBytes(template);
+        Map<String, byte[]> outputs = new LinkedHashMap<>();
+        for (Long seq : request.companyPerformanceSeqs().stream().distinct().toList()) {
+            CompanyPerformance performance = companyPerformanceAdminService.findById(seq);
+            outputs.put(safeFilename(performance.jobName(), String.valueOf(seq)) + "_회사실적.hwpx",
+                    renderCompany(source, performance, request.mappings()));
+        }
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+            outputs.forEach((filename, content) -> {
+                try { zip.putNextEntry(new ZipEntry(filename)); zip.write(content); zip.closeEntry(); }
+                catch (IOException exception) { throw new IllegalStateException("회사실적 HWPX ZIP 생성에 실패했습니다.", exception); }
+            });
+            zip.finish();
+            return bytes.toByteArray();
+        } catch (IOException exception) {
+            throw new IllegalStateException("회사실적 HWPX ZIP 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private byte[] renderCompany(byte[] source, CompanyPerformance performance, Map<String, String> mappings) {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
+                 ZipOutputStream output = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+                ZipEntry entry;
+                while ((entry = input.getNextEntry()) != null) {
+                    byte[] content = input.readAllBytes();
+                    if (isSection(entry.getName())) content = renderCompanySection(content, performance, mappings == null ? Map.of() : mappings);
+                    writeZipEntry(output, entry.getName(), content, "mimetype".equals(entry.getName()));
+                }
+            }
+            byte[] result = bytes.toByteArray();
+            validateGeneratedPackage(result);
+            return result;
+        } catch (Exception exception) {
+            throw new IllegalStateException("회사실적 HWPX 양식에 데이터를 입력하지 못했습니다.", exception);
+        }
+    }
+
+    private byte[] renderCompanySection(byte[] source, CompanyPerformance performance, Map<String, String> mappings) throws Exception {
+        Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
+        NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+        for (int index = 0; index < cells.getLength(); index++) {
+            Element cell = (Element) cells.item(index);
+            String field = cell.getAttribute("name");
+            String path = mappings.get(field);
+            if (StringUtils.hasText(path)) setMappedCellText(cell, field, companyValue(path, performance));
+        }
+        normalizeTables(document);
+        var transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        transformer.transform(new DOMSource(document), new StreamResult(output));
+        return output.toByteArray();
+    }
+
+    private String companyValue(String path, CompanyPerformance performance) {
+        if (!path.startsWith("row.")) return "";
+        return switch (path.substring(4)) {
+            case "seq" -> string(performance.seq());
+            case "jobName" -> string(performance.jobName());
+            case "orderClient" -> string(performance.orderClient());
+            case "contractFromDate" -> string(performance.contractFromDate());
+            case "contractToDate" -> string(performance.contractToDate());
+            case "contractAmt" -> string(performance.contractAmt());
+            case "ownAmt" -> string(performance.ownAmt());
+            case "jobRatio" -> string(performance.jobRatio());
+            case "divisionRate" -> string(performance.divisionRate());
+            case "jobType" -> string(performance.jobType());
+            case "summary" -> string(performance.summary());
+            case "generalManagementYn" -> "Y".equals(performance.generalManagement()) ? "Y" : "N";
+            default -> "";
+        };
+    }
+
     private byte[] render(
             byte[] templateBytes,
             EngineerDtos.Profile profile,
             BasicDocumentValues basicValues,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             List<EngineerProjectHistoryReviewResponse> reviews,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> contractPeriods,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> participationPeriods,
+            Map<Long, String> jobRatios,
             Map<String, String> mappings
     ) {
         Map<String, String> globalValues = new LinkedHashMap<>();
@@ -125,7 +221,8 @@ public class HwpxDocumentGenerationService {
                 while ((entry = input.getNextEntry()) != null) {
                     byte[] content = input.readAllBytes();
                     if (isSection(entry.getName())) {
-                        content = renderSection(content, globalValues, mappingValues, profile, basicValues, bidNotice, reviews);
+                        content = renderSection(content, globalValues, mappingValues, profile, basicValues, bidNotice,
+                                reviews, contractPeriods, participationPeriods, jobRatios);
                     }
                     entries.put(entry.getName(), content);
                 }
@@ -206,7 +303,10 @@ public class HwpxDocumentGenerationService {
             EngineerDtos.Profile profile,
             BasicDocumentValues basicValues,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
-            List<EngineerProjectHistoryReviewResponse> reviews
+            List<EngineerProjectHistoryReviewResponse> reviews,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> contractPeriods,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> participationPeriods,
+            Map<Long, String> jobRatios
     ) throws Exception {
         Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
         NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
@@ -220,7 +320,7 @@ public class HwpxDocumentGenerationService {
             }
         }
 
-        renderCareerRows(document, mappings, profile, bidNotice, reviews);
+        renderCareerRows(document, mappings, profile, bidNotice, reviews, contractPeriods, participationPeriods, jobRatios);
         renderHistoryRows(document, mappings, profile, bidNotice);
         normalizeTables(document);
 
@@ -239,7 +339,10 @@ public class HwpxDocumentGenerationService {
             Map<String, String> mappings,
             EngineerDtos.Profile profile,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
-            List<EngineerProjectHistoryReviewResponse> reviews
+            List<EngineerProjectHistoryReviewResponse> reviews,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> contractPeriods,
+            Map<Long, List<HwpxFieldFormatter.ContractPeriod>> participationPeriods,
+            Map<Long, String> jobRatios
     ) {
         if (reviews.isEmpty()) return;
 
@@ -257,7 +360,10 @@ public class HwpxDocumentGenerationService {
             for (int sequence = 0; sequence < reviews.size(); sequence++) {
                 EngineerProjectHistoryReviewResponse review = reviews.get(sequence);
                 Element clone = (Element) row.cloneNode(true);
-                fillCareerRow(clone, mappings, profile, bidNotice, review, sequence + 1);
+                fillCareerRow(clone, mappings, profile, bidNotice, review, sequence + 1,
+                        contractPeriods.getOrDefault(review.seq() == null ? null : review.seq().longValue(), List.of()),
+                        participationPeriods.getOrDefault(review.seq() == null ? null : review.seq().longValue(), List.of()),
+                        jobRatios.getOrDefault(review.seq() == null ? null : review.seq().longValue(), ""));
                 parent.insertBefore(clone, row);
             }
             parent.removeChild(row);
@@ -270,7 +376,10 @@ public class HwpxDocumentGenerationService {
             EngineerDtos.Profile profile,
             com.cheil.cheil_be.domain.bidnotice.BidNotice bidNotice,
             EngineerProjectHistoryReviewResponse review,
-            int sequence
+            int sequence,
+            List<HwpxFieldFormatter.ContractPeriod> contractPeriods,
+            List<HwpxFieldFormatter.ContractPeriod> participationPeriods,
+            String jobRatio
     ) {
         NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
         for (int index = 0; index < cells.getLength(); index++) {
@@ -280,10 +389,42 @@ public class HwpxDocumentGenerationService {
             if (path != null && path.startsWith("row.")) {
                 String value = "row.seq".equals(path)
                         ? String.valueOf(sequence)
-                        : resolve(path, profile, null, bidNotice, review, null, null, name);
+                        : "row.contractPeriods".equals(path)
+                                ? formatContractPeriods(name, contractPeriods, review)
+                                : "row.participationPeriods".equals(path)
+                                        ? formatParticipationPeriods(name, participationPeriods, review)
+                                : "row.jobRatio".equals(path)
+                                        ? formatJobRatio(jobRatio)
+                                : resolve(path, profile, null, bidNotice, review, null, null, name);
                 setMappedCellText(cell, name, value);
             }
         }
+    }
+
+    private String formatContractPeriods(
+            String fieldName,
+            List<HwpxFieldFormatter.ContractPeriod> periods,
+            EngineerProjectHistoryReviewResponse review
+    ) {
+        if (periods != null && !periods.isEmpty()) {
+            return HwpxFieldFormatter.formatContractPeriods(fieldName, periods);
+        }
+        return HwpxFieldFormatter.format(fieldName.replace("용역차수기간", "용역일수"), review);
+    }
+
+    private String formatParticipationPeriods(
+            String fieldName,
+            List<HwpxFieldFormatter.ContractPeriod> periods,
+            EngineerProjectHistoryReviewResponse review
+    ) {
+        if (periods != null && !periods.isEmpty()) {
+            return HwpxFieldFormatter.formatParticipationPeriods(fieldName, periods);
+        }
+        return HwpxFieldFormatter.format(fieldName.replace("참여차수기간", "참여일수"), review);
+    }
+
+    private String formatJobRatio(String jobRatio) {
+        return StringUtils.hasText(jobRatio) ? "※공동도급 " + jobRatio : "";
     }
 
     private void renderHistoryRows(
@@ -326,12 +467,29 @@ public class HwpxDocumentGenerationService {
         NodeList cells = row.getElementsByTagNameNS(HWP_NS, "tc");
         for (int index = 0; index < cells.getLength(); index++) {
             Element cell = (Element) cells.item(index);
-            String name = cell.getAttribute("name");
-            String path = mappings.get(name);
+                String name = cell.getAttribute("name");
+                String path = mappings.get(name);
             if (path != null && path.startsWith("history.")) {
-                setMappedCellText(cell, name, resolve(path, profile, null, bidNotice, null, history, sequence, name));
+                boolean currentCompanyCareer = isLatestCurrentCompanyCareer(history, profile, sequence);
+                String value = currentCompanyCareer && "history.workTerm".equals(path)
+                        ? HwpxFieldFormatter.formatCurrentEmploymentPeriod(name, history.entryDt())
+                        : currentCompanyCareer && ("history.deptName".equals(path) || "history.grade".equals(path))
+                                ? ("history.deptName".equals(path) ? profile.basic().deptName() : profile.basic().grade())
+                                : resolve(path, profile, null, bidNotice, null, history, sequence, name);
+                setMappedCellText(cell, name, value);
             }
         }
+    }
+
+    private boolean isLatestCurrentCompanyCareer(EngineerDtos.Career history, EngineerDtos.Profile profile, int sequence) {
+        List<EngineerDtos.Career> histories = profile.careers() == null ? List.of() : profile.careers();
+        return sequence == histories.size()
+                && history != null
+                && normalizeCompanyName(history.compName()).equals(normalizeCompanyName("(주)제일엔지니어링종합건축사사무소"));
+    }
+
+    private String normalizeCompanyName(String companyName) {
+        return companyName == null ? "" : companyName.replace("(주)", "").replaceAll("\\s+", "").trim();
     }
 
     private String resolve(
@@ -349,6 +507,7 @@ public class HwpxDocumentGenerationService {
         if (path.startsWith("history.")) return historyValue(path.substring(8), history, historySequence, fieldName);
         return switch (path) {
             case "basic.school" -> basicValues.school();
+            case "basic.companyName" -> "(주)제일엔지니어링\n종합건축사사무소";
             case "basic.degree" -> basicValues.degree();
             case "basic.major" -> basicValues.major();
             case "basic.graduationDate" -> HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy-MM-dd");
@@ -368,7 +527,8 @@ public class HwpxDocumentGenerationService {
             case "summary.id" -> profile.basic().engrId();
             case "summary.department" -> profile.basic().deptName();
             case "summary.position" -> profile.basic().dutyPart();
-            case "detail.birthDate" -> HwpxFieldFormatter.formatBirthDate(fieldName, profile.basic().birthday());
+            case "detail.birthDate" -> HwpxFieldFormatter.formatBirthDateWithAge(
+                    fieldName, profile.basic().birthday(), age(profile.basic().birthday()));
             case "detail.age" -> age(profile.basic().birthday());
             case "detail.qualificationGrade" -> profile.basic().grade();
             case "bidNotice.projectName" -> bidNotice.projectName();
@@ -403,6 +563,92 @@ public class HwpxDocumentGenerationService {
                 .orElseGet(() -> new BasicDocumentValues("", "", "", "", "", "", profile.basic().grade(), "", ""));
     }
 
+    private Map<Long, List<HwpxFieldFormatter.ContractPeriod>> findContractPeriods(
+            List<EngineerProjectHistoryReviewResponse> reviews
+    ) {
+        List<Long> seqs = reviews.stream()
+                .map(EngineerProjectHistoryReviewResponse::seq)
+                .filter(java.util.Objects::nonNull)
+                .map(Integer::longValue)
+                .distinct()
+                .toList();
+        if (seqs.isEmpty()) return Map.of();
+
+        Map<Long, List<HwpxFieldFormatter.ContractPeriod>> result = new HashMap<>();
+        jdbcClient.sql("""
+                        SELECT seq, contract_from_date, contract_to_date
+                        FROM company_performance_contract_periods
+                        WHERE seq IN (:seqs)
+                        ORDER BY seq, sort_seq NULLS LAST, contract_from_date NULLS LAST, id
+                        """)
+                .param("seqs", seqs)
+                .query((rs, rowNum) -> {
+                    Long seq = rs.getLong("seq");
+                    result.computeIfAbsent(seq, ignored -> new ArrayList<>())
+                            .add(new HwpxFieldFormatter.ContractPeriod(
+                                    rs.getString("contract_from_date"), rs.getString("contract_to_date")));
+                    return seq;
+                })
+                .list();
+        return result;
+    }
+
+    private Map<Long, List<HwpxFieldFormatter.ContractPeriod>> findParticipationPeriods(
+            String engineerId,
+            List<EngineerProjectHistoryReviewResponse> reviews
+    ) {
+        List<Long> seqs = reviews.stream()
+                .map(EngineerProjectHistoryReviewResponse::seq)
+                .filter(java.util.Objects::nonNull)
+                .map(Integer::longValue)
+                .distinct()
+                .toList();
+        if (seqs.isEmpty()) return Map.of();
+
+        Map<Long, List<HwpxFieldFormatter.ContractPeriod>> result = new HashMap<>();
+        jdbcClient.sql("""
+                        SELECT seq, startdt, enddt
+                        FROM pq_engineer_project_history
+                        WHERE engr_id = :engineerId
+                          AND seq IN (:seqs)
+                        ORDER BY seq, startdt ASC NULLS LAST, id
+                        """)
+                .params(Map.of("engineerId", engineerId, "seqs", seqs))
+                .query((rs, rowNum) -> {
+                    Long seq = rs.getLong("seq");
+                    result.computeIfAbsent(seq, ignored -> new ArrayList<>())
+                            .add(new HwpxFieldFormatter.ContractPeriod(
+                                    rs.getString("startdt"), rs.getString("enddt")));
+                    return seq;
+                })
+                .list();
+        return result;
+    }
+
+    private Map<Long, String> findJobRatios(List<EngineerProjectHistoryReviewResponse> reviews) {
+        List<Long> seqs = reviews.stream()
+                .map(EngineerProjectHistoryReviewResponse::seq)
+                .filter(java.util.Objects::nonNull)
+                .map(Integer::longValue)
+                .distinct()
+                .toList();
+        if (seqs.isEmpty()) return Map.of();
+
+        Map<Long, String> result = new HashMap<>();
+        jdbcClient.sql("""
+                        SELECT seq, job_ratio
+                        FROM company_performances
+                        WHERE seq IN (:seqs)
+                        """)
+                .param("seqs", seqs)
+                .query((rs, rowNum) -> {
+                    result.put(rs.getLong("seq"), rs.getString("job_ratio"));
+                    return rs.getLong("seq");
+                })
+                .list();
+        return result;
+    }
+
     private String formatLicenseCareer(String issueDate) {
         LocalDate issue = parseDate(issueDate);
         if (issue == null || issue.isAfter(LocalDate.now())) return "";
@@ -422,7 +668,7 @@ public class HwpxDocumentGenerationService {
     }
 
     private String normalizeMappedValue(String fieldName, String value) {
-        if (value == null || fieldName == null || !fieldName.toLowerCase(Locale.ROOT).contains("xx")) {
+        if (value == null || !isInlineFieldName(fieldName)) {
             return value;
         }
         return value.replaceAll("\\R", "").replace(" ", "\u00A0");
@@ -430,7 +676,7 @@ public class HwpxDocumentGenerationService {
 
     private void setMappedCellText(Element cell, String fieldName, String value) {
         setCellText(cell, normalizeMappedValue(fieldName, value));
-        if (fieldName == null || !fieldName.toLowerCase(Locale.ROOT).contains("xx")) {
+        if (!isInlineFieldName(fieldName)) {
             return;
         }
 
@@ -440,6 +686,11 @@ public class HwpxDocumentGenerationService {
             removableLineBreaks.add(lineBreaks.item(index));
         }
         removableLineBreaks.forEach((lineBreak) -> lineBreak.getParentNode().removeChild(lineBreak));
+    }
+
+    /** HWPX 필드명에 xx가 있으면 날짜·기간·금액·일반 텍스트 모두 한 줄로 출력한다. */
+    private boolean isInlineFieldName(String fieldName) {
+        return fieldName != null && fieldName.toLowerCase(Locale.ROOT).contains("xx");
     }
 
     private record BasicDocumentValues(

@@ -243,9 +243,7 @@ export function EngineerPerformanceDocumentsPage() {
         specialtyField: profile.detail.specialtyField,
         selectedCount: profile.careerDetails.length,
         status: profile.summary.status,
-        documentValueConfigured:
-          (profile.education.length <= 1 || documentValueSettingsByEngineerId.get(profile.summary.id)?.educationId != null) &&
-          (profile.certificates.length <= 1 || documentValueSettingsByEngineerId.get(profile.summary.id)?.licenseId != null),
+        documentValueConfigured: documentValueSettingsByEngineerId.has(profile.summary.id),
       })),
     [documentValueSettingsByEngineerId, profiles],
   );
@@ -1140,7 +1138,11 @@ export function EngineerPerformanceDocumentsPage() {
                       setDocumentValueSettingOpen(true);
                     }
                   }}
-                  getRowClassName={(params) => (params.row.documentValueConfigured ? "" : "document-value-setting-required")}
+                  getRowClassName={(params) =>
+                    documentValueSettingsQuery.isSuccess && !params.row.documentValueConfigured
+                      ? "document-value-setting-required"
+                      : ""
+                  }
                   onRowSelectionModelChange={(model: GridRowSelectionModel) => {
                     setSelectedEngineerIds(Array.from(model.ids, String));
                   }}
@@ -1161,8 +1163,11 @@ export function EngineerPerformanceDocumentsPage() {
                       overflowY: "auto",
                       overscrollBehavior: "contain",
                     },
-                    "& .document-value-setting-required": {
-                      bgcolor: "#fff8d6",
+                    "& .MuiDataGrid-row.document-value-setting-required": {
+                      backgroundColor: "#fff8d6 !important",
+                    },
+                    "& .MuiDataGrid-row.document-value-setting-required:hover": {
+                      backgroundColor: "#ffefad !important",
                     },
                   }}
                 />

@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.application.companyperformance.port.out;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,8 @@ public interface CompanyPerformanceRepository {
     Page<CompanyPerformance> findAll(CompanyPerformanceSearchCondition condition, Pageable pageable);
 
     Optional<CompanyPerformance> findById(Long seq);
+
+    List<CompanyPerformance> findByIds(List<Long> seqs);
 
     CompanyPerformance save(CompanyPerformance companyPerformance);
 

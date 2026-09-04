@@ -48,6 +48,7 @@ public class CompanyPerformanceController {
             @RequestParam(required = false) String jobFinishYn,
             @RequestParam(required = false) String contractFromDate,
             @RequestParam(required = false) String contractToDate,
+            @RequestParam(required = false) Long excludeDocumentTargetBidSeq,
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
@@ -59,11 +60,43 @@ public class CompanyPerformanceController {
                         jobOwnYn,
                         jobFinishYn,
                         contractFromDate,
-                        contractToDate
+                        contractToDate,
+                        excludeDocumentTargetBidSeq
                 ),
                 PageRequests.of(page, size)
         );
         return ResponseEntity.ok(PageResponse.from(result, CompanyPerformanceResponse::from));
+    }
+
+    /**
+     * 조건 적용용 전체 회사실적을 조회한다. 화면 페이지를 반복 호출하지 않도록
+     * 페이지 제한 없이 한 번에 조회하며, 결과는 프론트에서 조건 비교 후 대상 저장에 사용한다.
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<CompanyPerformanceResponse>> listAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String businessType,
+            @RequestParam(required = false) String clientKind,
+            @RequestParam(required = false) Boolean jobOwnYn,
+            @RequestParam(required = false) String jobFinishYn,
+            @RequestParam(required = false) String contractFromDate,
+            @RequestParam(required = false) String contractToDate,
+            @RequestParam(required = false) Long excludeDocumentTargetBidSeq
+    ) {
+        Page<CompanyPerformance> result = companyPerformanceAdminService.findAll(
+                new CompanyPerformanceSearchCondition(
+                        keyword,
+                        businessType,
+                        clientKind,
+                        jobOwnYn,
+                        jobFinishYn,
+                        contractFromDate,
+                        contractToDate,
+                        excludeDocumentTargetBidSeq
+                ),
+                org.springframework.data.domain.Pageable.unpaged()
+        );
+        return ResponseEntity.ok(result.getContent().stream().map(CompanyPerformanceResponse::from).toList());
     }
 
     /**

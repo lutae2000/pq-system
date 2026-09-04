@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.adapter.out.persistence.companyperformance;
 
 import static com.cheil.cheil_be.adapter.out.persistence.companyperformance.QCompanyPerformanceEntity.companyPerformanceEntity;
+import static com.cheil.cheil_be.adapter.out.persistence.companyperformance.QCompanyPerformanceDocumentTargetEntity.companyPerformanceDocumentTargetEntity;
 
 import java.util.List;
 import java.util.Locale;
@@ -59,6 +60,13 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
             if (StringUtils.hasText(condition.contractToDate())) {
                 where.and(companyPerformanceEntity.contractToDate.loe(toDateText(condition.contractToDate())));
             }
+            if (condition.excludeDocumentTargetBidSeq() != null) {
+                where.and(com.querydsl.jpa.JPAExpressions.selectOne()
+                        .from(companyPerformanceDocumentTargetEntity)
+                        .where(companyPerformanceDocumentTargetEntity.bidSeq.eq(condition.excludeDocumentTargetBidSeq())
+                                .and(companyPerformanceDocumentTargetEntity.companyPerformanceSeq.eq(companyPerformanceEntity.seq)))
+                        .notExists());
+            }
         }
 
         var query = queryFactory
@@ -90,6 +98,13 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
     @Override
     public Optional<CompanyPerformance> findById(Long seq) {
         return companyPerformanceJpaRepository.findById(seq).map(CompanyPerformanceEntity::toDomain);
+    }
+
+    @Override
+    public List<CompanyPerformance> findByIds(List<Long> seqs) {
+        return companyPerformanceJpaRepository.findAllById(seqs).stream()
+                .map(CompanyPerformanceEntity::toDomain)
+                .toList();
     }
 
     @Override

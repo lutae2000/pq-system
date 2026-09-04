@@ -911,7 +911,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
             mode: GridRowModes.View,
           },
         };
-        forceGridRowViewMode(apiRef, resolvedColumns, params.id);
+        forceGridRowViewMode(apiRef, resolvedColumns, params.id, true);
         userOnRowModesModelChange(nextRowModesModel, details);
       }
 

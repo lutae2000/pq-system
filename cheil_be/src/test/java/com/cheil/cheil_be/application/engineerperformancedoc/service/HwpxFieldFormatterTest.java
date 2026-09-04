@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.engineerperformancedoc.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +25,22 @@ class HwpxFieldFormatterTest {
     }
 
     @Test
+    void formatsBirthDateWithKoreanAgeAndRemovesLineBreakForXxFields() {
+        assertEquals(
+                "93.02.08\n(만 33세)",
+                HwpxFieldFormatter.formatBirthDateWithAge("기본_생년월일(yy.mm.dd)(만나이)", "19930208", "만 33세")
+        );
+        assertEquals(
+                "93.02.08(만 33세)",
+                HwpxFieldFormatter.formatBirthDateWithAge("기본_생년월일(yy.mm.dd)(만나이)xx", "19930208", "만 33세")
+        );
+        assertEquals(
+                "1993-02-08\n(만 33세)",
+                HwpxFieldFormatter.formatBirthDateWithAge("기본_생년월일(yyyy-mm-dd)(만나이)", "19930208", "만 33세")
+        );
+    }
+
+    @Test
     void formatsDateRangesAndCalculatedDurations() {
         assertEquals(
                 "2026-01-01 ~ 2026-03-02",
@@ -40,6 +57,37 @@ class HwpxFieldFormatterTest {
         assertEquals(
                 "26.04.01 ~ 26.05.31 (0.17년)",
                 HwpxFieldFormatter.format("경력_참여기간(yy.mm.dd)(년)", review)
+        );
+    }
+
+    @Test
+    void formatsContractPeriodsAndTheirTotalMonths() {
+        assertEquals(
+                "26.07.21\n~\n26.12.24\n(5.23개월)\n26.12.25\n~\n26.12.30\n(0.20개월)\n(총 5.43개월)",
+                HwpxFieldFormatter.formatContractPeriods(
+                        "경력_용역차수(yy.mm.dd)(월)",
+                        List.of(
+                                new HwpxFieldFormatter.ContractPeriod("20260721", "20261224"),
+                                new HwpxFieldFormatter.ContractPeriod("20261225", "20261230")
+                        )
+                )
+        );
+        assertEquals(
+                "26-07-21\n~\n26-12-24\n(5.23개월)\n26-12-25\n~\n26-12-30\n(0.20개월)\n(총 5.43개월)",
+                HwpxFieldFormatter.formatContractPeriods(
+                        "경력_용역차수(yy-mm-dd)(월)(총개월)",
+                        List.of(
+                                new HwpxFieldFormatter.ContractPeriod("20260721", "20261224"),
+                                new HwpxFieldFormatter.ContractPeriod("20261225", "20261230")
+                        )
+                )
+        );
+        assertEquals(
+                "26.07.21\n~\n26.12.24\n(5.23개월)\n(총 5.23개월)",
+                HwpxFieldFormatter.formatParticipationPeriods(
+                        "경력_참여차수(yy.mm.dd)(월)(총개월)",
+                        List.of(new HwpxFieldFormatter.ContractPeriod("20260721", "20261224"))
+                )
         );
     }
 

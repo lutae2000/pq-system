@@ -49,6 +49,7 @@ export type CompanyPerformanceSearchParams = {
   jobFinishYn: "All" | string;
   contractFromDate: string;
   contractToDate: string;
+  excludeDocumentTargetBidSeq?: number | null;
   page: number;
   size: number;
 };
@@ -156,11 +157,61 @@ export async function listCompanyPerformances(params: CompanyPerformanceSearchPa
         jobFinishYn: params.jobFinishYn === "All" ? undefined : params.jobFinishYn,
         contractFromDate: normalizeQueryValue(params.contractFromDate),
         contractToDate: normalizeQueryValue(params.contractToDate),
+        excludeDocumentTargetBidSeq: normalizeQueryValue(params.excludeDocumentTargetBidSeq),
         page: Math.max(0, Math.trunc(params.page)),
         size: Math.max(1, Math.trunc(params.size)),
       },
     }),
     "회사실적 목록을 불러오지 못했습니다.",
+  );
+}
+
+export async function listAllCompanyPerformances(params: CompanyPerformanceSearchParams): Promise<CompanyPerformanceRecord[]> {
+  return apiRequest(
+    apiClient.get<CompanyPerformanceRecord[]>(`${COMPANY_PERFORMANCES_API}/all`, {
+      params: {
+        keyword: normalizeQueryValue(params.keyword.trim()),
+        businessType: normalizeQueryValue(params.businessType.trim()),
+        clientKind: normalizeQueryValue(params.clientKind.trim()),
+        jobOwnYn: params.jobOwnYn === "All" ? undefined : params.jobOwnYn === "Y",
+        jobFinishYn: params.jobFinishYn === "All" ? undefined : params.jobFinishYn,
+        contractFromDate: normalizeQueryValue(params.contractFromDate),
+        contractToDate: normalizeQueryValue(params.contractToDate),
+        excludeDocumentTargetBidSeq: normalizeQueryValue(params.excludeDocumentTargetBidSeq),
+      },
+    }),
+    "조건 적용 회사실적을 불러오지 못했습니다.",
+  );
+}
+
+export type CompanyPerformanceDocumentTarget = {
+  targetId: number;
+  bidSeq: number;
+  companyPerformanceSeq: number;
+  companyPerformance: CompanyPerformanceRecord | null;
+};
+
+export async function listCompanyPerformanceDocumentTargets(bidSeq: number): Promise<CompanyPerformanceDocumentTarget[]> {
+  return apiRequest(
+    apiClient.get<CompanyPerformanceDocumentTarget[]>("/pq/company-performance-document-targets", { params: { bidSeq } }),
+    "조건 적용 회사실적을 불러오지 못했습니다.",
+  );
+}
+
+export async function addCompanyPerformanceDocumentTargets(request: { bidSeq: number; companyPerformanceSeqs: number[] }) {
+  return apiRequest(
+    apiClient.post<CompanyPerformanceDocumentTarget[]>("/pq/company-performance-document-targets", request),
+    "회사실적 문서 대상을 추가하지 못했습니다.",
+  );
+}
+
+export async function addCompanyPerformanceDocumentTargetsByConditions(request: {
+  bidSeq: number;
+  conditions: unknown[];
+}) {
+  return apiRequest(
+    apiClient.post<CompanyPerformanceDocumentTarget[]>("/pq/company-performance-document-targets/conditions", request),
+    "조건에 맞는 회사실적을 추가하지 못했습니다.",
   );
 }
 

@@ -228,6 +228,10 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
   const handleRowEditStop: NonNullable<DataGridProps<CompanyPerformanceContractPeriodRecord>["onRowEditStop"]> = (params, event) => {
     if (params.reason === GridRowEditStopReasons.rowFocusOut) {
       event.defaultMuiPrevented = true;
+      setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View, ignoreModifications: true } }));
+      if (params.row.isNew) {
+        setNewRows((current) => current.filter((row) => row.id !== params.id));
+      }
       return;
     }
 
