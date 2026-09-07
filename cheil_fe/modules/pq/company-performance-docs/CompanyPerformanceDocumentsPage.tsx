@@ -1,6 +1,7 @@
 "use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -11,16 +12,19 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import {
   COMPANY_PERFORMANCE_PAGE_SIZE,
   addCompanyPerformanceDocumentTargets,
   addCompanyPerformanceDocumentTargetsByConditions,
+  deleteCompanyPerformanceDocumentTarget,
   getCompanyPerformance,
   listCompanyPerformances,
   listCompanyPerformanceDocumentTargets,
@@ -28,6 +32,7 @@ import {
   type CompanyPerformanceSearchParams,
 } from "@/modules/pq/company-performance/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 
 const BidNoticeSelectDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
@@ -56,12 +61,24 @@ const displayDate = (value: string | null | undefined) => {
 };
 const displayRate = (value: number | null | undefined) => value === null || value === undefined ? "-" : String(value);
 const displayGeneralManagement = (value: boolean | null | undefined) => value ? "Y" : "N";
+const DOCUMENT_GRID_HEIGHT = 420;
 
 // 조건 적용은 화면 페이지와 별개로 전체 대상의 식별자만 확인하므로 한 번의 서버 조회로 처리한다.
 export function CompanyPerformanceDocumentsPage() {
-  const { canRead } = useCurrentMenuPermission();
+  const { canDelete, canRead } = useCurrentMenuPermission();
+  const { showSnackbar } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const serviceTypeReferences = useCommonCodeLevel2Options("ST");
+  const businessTypeReferences = useCommonCodeLevel2Options("CA", undefined, { enabled: canRead });
+  const clientKindReferences = useCommonCodeLevel3Options("PQ", "EA", { useYn: "Y" }, { enabled: canRead });
+  const businessTypeOptions = useMemo<CompanyPerformanceCodeOption[]>(
+    () => businessTypeReferences.options.map((option) => ({ label: option.label, value: option.value })),
+    [businessTypeReferences.options],
+  );
+  const clientKindOptions = useMemo<CompanyPerformanceCodeOption[]>(
+    () => clientKindReferences.options.map((option) => ({ label: option.label, value: option.value })),
+    [clientKindReferences.options],
+  );
   const columns = useMemo<GridColDef<CompanyPerformanceRecord>[]>(
     () => [
       { field: "jobName", headerName: "사업명", minWidth: 260, flex: 1.4, valueGetter: (_value, row) => display(row.jobName) },
@@ -85,6 +102,8 @@ export function CompanyPerformanceDocumentsPage() {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: COMPANY_PERFORMANCE_PAGE_SIZE });
   const [selectedCompanyPerformanceIds, setSelectedCompanyPerformanceIds] = useState<number[]>([]);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<number[]>([]);
+  const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
   const [detailRecord, setDetailRecord] = useState<CompanyPerformanceRecord | null>(null);
   const searchParams = useMemo<CompanyPerformanceSearchParams>(() => ({
     keyword: appliedKeyword,
@@ -125,6 +144,18 @@ export function CompanyPerformanceDocumentsPage() {
       setSelectedCompanyPerformanceIds([]);
       await companyPerformancesQuery.refetch();
       await documentTargetsQuery.refetch();
+    },
+  });
+  const deleteTargetMutation = useMutation({
+    mutationFn: async (targetIds: number[]) => {
+      if (!bidNotice?.bidSeq) return;
+      await Promise.all(targetIds.map((targetId) => deleteCompanyPerformanceDocumentTarget(bidNotice.bidSeq, targetId)));
+    },
+    onSuccess: async () => {
+      setSelectedTargetIds([]);
+      setDeleteTargetIds([]);
+      await documentTargetsQuery.refetch();
+      showSnackbar("선택항목이 삭제되었습니다.", "success");
     },
   });
   const handleAdd = () => {
@@ -203,34 +234,51 @@ export function CompanyPerformanceDocumentsPage() {
             rowSelectionModel={{ ids: new Set(selectedCompanyPerformanceIds), type: "include" }}
             showPageNumbers
             showToolbar={false}
-            wrapperMinHeight={520}
-            sx={{ border: 0, height: 520 }}
+            wrapperMinHeight={DOCUMENT_GRID_HEIGHT}
+            sx={{ border: 0, height: DOCUMENT_GRID_HEIGHT }}
           />
         </CardContent></Card>
         <Card variant="outlined"><CardContent>
-          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography><Typography color="text.secondary" variant="body2">조건에 맞는 실적은 설정 즉시 문서 생성 대상으로 저장됩니다.</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /></Box></Box>
+          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography><Typography color="text.secondary" variant="body2">조건에 맞는 실적은 설정 즉시 문서 생성 대상으로 저장됩니다.</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
           <EnterpriseDataGrid<CompanyPerformanceRecord>
             checkboxSelection
             columns={columns}
             disableRowSelectionOnClick
             getRowId={(row) => row.seq}
             loading={companyPerformancesQuery.isLoading || companyPerformancesQuery.isFetching}
+            onRowSelectionModelChange={(model: GridRowSelectionModel) => {
+              const selectedIds = model.type === "exclude"
+                ? (documentTargetsQuery.data ?? []).filter((target) => !model.ids.has(target.companyPerformanceSeq)).map((target) => target.targetId)
+                : (documentTargetsQuery.data ?? []).filter((target) => model.ids.has(target.companyPerformanceSeq)).map((target) => target.targetId);
+              setSelectedTargetIds(selectedIds);
+            }}
             onRowDoubleClick={(params) => detailMutation.mutate(params.row.seq)}
+            initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
+            pageSizeOptions={[25, 50, 100]}
+            rowCount={matchedRows.length}
+            rowSelectionModel={{
+              ids: new Set(
+                (documentTargetsQuery.data ?? [])
+                  .filter((target) => selectedTargetIds.includes(target.targetId))
+                  .map((target) => target.companyPerformanceSeq),
+              ),
+              type: "include",
+            }}
             rowHeight={30}
             rows={matchedRows}
             showPageNumbers
             showToolbar={false}
-            wrapperMinHeight={520}
-            sx={{ border: 0, height: 520 }}
+            wrapperMinHeight={DOCUMENT_GRID_HEIGHT}
+            sx={{ border: 0, height: DOCUMENT_GRID_HEIGHT }}
           />
         </CardContent></Card>
         <CompanyHwpxTemplateGenerationPanel bidNotice={bidNotice} open={Boolean(bidNotice)} targets={documentTargetsQuery.data ?? []} />
       </Stack>
-      {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setConditions([]); setSelectedCompanyPerformanceIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}
+      {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setConditions([]); setSelectedCompanyPerformanceIds([]); setSelectedTargetIds([]); setDeleteTargetIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}
       {bidNoticeDetailOpen ? <BidNoticeDetailPopup bidSeq={bidNotice?.bidSeq ?? null} onClose={() => setBidNoticeDetailOpen(false)} open readOnly /> : null}
       {detailRecord ? <CompanyPerformanceDetailDialog
-        businessTypeOptions={[]}
-        clientKindOptions={[]}
+        businessTypeOptions={businessTypeOptions}
+        clientKindOptions={clientKindOptions}
         deleteDisabled
         jobFinishOptions={[]}
         onClose={() => setDetailRecord(null)}
@@ -242,6 +290,13 @@ export function CompanyPerformanceDocumentsPage() {
         record={detailRecord}
         saveDisabled
       /> : null}
+      <ConfirmDeleteDialog
+        message={`${deleteTargetIds.length}건의 회사실적 문서 대상을 삭제하시겠습니까?`}
+        open={deleteTargetIds.length > 0}
+        title="삭제 확인"
+        onClose={() => setDeleteTargetIds([])}
+        onConfirm={() => deleteTargetMutation.mutate(deleteTargetIds)}
+      />
     </Box>
   );
 }

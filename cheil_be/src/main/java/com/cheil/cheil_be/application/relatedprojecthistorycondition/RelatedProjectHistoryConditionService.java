@@ -111,20 +111,4 @@ public class RelatedProjectHistoryConditionService {
         return timestamp == null ? null : timestamp.toInstant();
     }
 
-    private record ProjectHistoryCondition(
-            String conditionType,
-            String logicalOperator,
-            String label,
-            String level1Code,
-            String level2Code,
-            String level3Code,
-            String generalCode,
-            String outlineCategoryCode,
-            String outlineSubcategoryCode,
-            String operator,
-            String value,
-            String valueTo,
-            String valueType
-    ) {
-    }
 }

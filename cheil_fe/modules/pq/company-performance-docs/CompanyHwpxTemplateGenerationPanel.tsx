@@ -84,14 +84,14 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
         companyPerformanceSeqs: targets.map((target) => target.companyPerformanceSeq),
         mappings: Object.fromEntries(mappings.filter((mapping) => mapping.path.trim()).map((mapping) => [mapping.name, mapping.path.trim()])),
       });
-      download(blob, `${bidNotice.projectName || "회사실적"}_산출물.zip`);
-      setMessage({ severity: "success", text: `${targets.length}건의 회사실적 문서를 생성했습니다.` });
+      download(blob, `${bidNotice.projectName || "회사실적"}_산출물.hwpx`);
+      setMessage({ severity: "success", text: `${targets.length}건의 회사실적을 하나의 HWPX 문서로 생성했습니다.` });
     } catch (error) { setMessage({ severity: "error", text: error instanceof Error ? error.message : "회사실적 HWPX 생성에 실패했습니다." }); }
     finally { setGenerating(false); }
   };
   return <Card variant="outlined"><CardContent><Stack spacing={1.5}>
     <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
-      <Box><Typography sx={{ fontWeight: 800 }} variant="h6">회사실적 HWPX 문서 생성</Typography><Typography color="text.secondary" variant="body2">HWPX 양식을 업로드하고 PQ/HB 항목을 맵핑해 대상 회사실적 문서를 다운로드합니다.</Typography></Box>
+      <Box><Typography sx={{ fontWeight: 800 }} variant="h6">회사실적 HWPX 문서 생성</Typography></Box>
       <Stack direction="row" spacing={1}><Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button><Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button></Stack>
       <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
     </Box>
@@ -102,7 +102,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
         <Typography sx={{ fontWeight: 800 }} variant="subtitle1">HWPX 작성 참고사항</Typography>
         <Alert severity="info">HWPX 파일만 업로드할 수 있습니다. HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.</Alert>
         <Alert severity="info">양식의 셀 필드명과 PQ/HB 필드명이 일치해야 데이터가 정상적으로 맵핑됩니다.</Alert>
-        <Alert severity="info">문서 생성 전 업로드한 양식의 필드명과 맵핑된 회사실적 대상 건수를 확인해 주세요.</Alert>
+        <Alert severity="info">문서 생성 전 업로드한 양식의 필드명과 맵핑된 회사실적 대상 건수를 확인해 주세요. 맵핑된 표의 행이 실적별 목록으로 생성됩니다.</Alert>
         <FormControlLabel
           control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
           label="필드명 셀 클릭 시 자동복사 (Ctrl+C)"

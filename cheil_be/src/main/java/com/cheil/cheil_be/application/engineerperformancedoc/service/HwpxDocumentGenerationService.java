@@ -111,33 +111,21 @@ public class HwpxDocumentGenerationService {
         }
     }
 
-    /** 회사실적 대상별로 동일한 HWPX 양식에 회사실적 필드를 매핑해 ZIP으로 반환한다. */
+    /** 선택한 회사실적을 하나의 HWPX 문서에 순서대로 매핑해 반환한다. */
     public byte[] generateCompanyPerformances(MultipartFile template, CompanyPerformanceHwpxGenerateRequest request) {
         if (template == null || template.isEmpty() || request == null || request.bidSeq() == null
                 || request.companyPerformanceSeqs() == null || request.companyPerformanceSeqs().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식과 회사실적 대상을 선택해 주세요.");
         }
         byte[] source = readBytes(template);
-        Map<String, byte[]> outputs = new LinkedHashMap<>();
-        for (Long seq : request.companyPerformanceSeqs().stream().distinct().toList()) {
-            CompanyPerformance performance = companyPerformanceAdminService.findById(seq);
-            outputs.put(safeFilename(performance.jobName(), String.valueOf(seq)) + "_회사실적.hwpx",
-                    renderCompany(source, performance, request.mappings()));
-        }
-        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-             ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
-            outputs.forEach((filename, content) -> {
-                try { zip.putNextEntry(new ZipEntry(filename)); zip.write(content); zip.closeEntry(); }
-                catch (IOException exception) { throw new IllegalStateException("회사실적 HWPX ZIP 생성에 실패했습니다.", exception); }
-            });
-            zip.finish();
-            return bytes.toByteArray();
-        } catch (IOException exception) {
-            throw new IllegalStateException("회사실적 HWPX ZIP 생성에 실패했습니다.", exception);
-        }
+        List<CompanyPerformance> performances = request.companyPerformanceSeqs().stream()
+                .distinct()
+                .map(companyPerformanceAdminService::findById)
+                .toList();
+        return renderCompanies(source, performances, request.mappings());
     }
 
-    private byte[] renderCompany(byte[] source, CompanyPerformance performance, Map<String, String> mappings) {
+    private byte[] renderCompanies(byte[] source, List<CompanyPerformance> performances, Map<String, String> mappings) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
@@ -145,7 +133,7 @@ public class HwpxDocumentGenerationService {
                 ZipEntry entry;
                 while ((entry = input.getNextEntry()) != null) {
                     byte[] content = input.readAllBytes();
-                    if (isSection(entry.getName())) content = renderCompanySection(content, performance, mappings == null ? Map.of() : mappings);
+                    if (isSection(entry.getName())) content = renderCompanySection(content, performances, mappings == null ? Map.of() : mappings);
                     writeZipEntry(output, entry.getName(), content, "mimetype".equals(entry.getName()));
                 }
             }
@@ -157,14 +145,42 @@ public class HwpxDocumentGenerationService {
         }
     }
 
-    private byte[] renderCompanySection(byte[] source, CompanyPerformance performance, Map<String, String> mappings) throws Exception {
+    private byte[] renderCompanySection(byte[] source, List<CompanyPerformance> performances, Map<String, String> mappings) throws Exception {
         Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
         NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+        Set<Element> mappedRows = new LinkedHashSet<>();
         for (int index = 0; index < cells.getLength(); index++) {
             Element cell = (Element) cells.item(index);
             String field = cell.getAttribute("name");
             String path = mappings.get(field);
-            if (StringUtils.hasText(path)) setMappedCellText(cell, field, companyValue(path, performance));
+            if (StringUtils.hasText(path)) {
+                Node parent = cell.getParentNode();
+                while (parent instanceof Element && !"tr".equals(parent.getLocalName())) {
+                    parent = parent.getParentNode();
+                }
+                if (parent instanceof Element row) {
+                    mappedRows.add(row);
+                }
+            }
+        }
+
+        for (Element templateRow : mappedRows) {
+            Node parent = templateRow.getParentNode();
+            Node nextSibling = templateRow.getNextSibling();
+            for (CompanyPerformance performance : performances) {
+                Element renderedRow = (Element) templateRow.cloneNode(true);
+                NodeList renderedCells = renderedRow.getElementsByTagNameNS(HWP_NS, "tc");
+                for (int cellIndex = 0; cellIndex < renderedCells.getLength(); cellIndex++) {
+                    Element cell = (Element) renderedCells.item(cellIndex);
+                    String field = cell.getAttribute("name");
+                    String path = mappings.get(field);
+                    if (StringUtils.hasText(path)) {
+                        setMappedCellText(cell, field, companyValue(path, performance));
+                    }
+                }
+                parent.insertBefore(renderedRow, nextSibling);
+            }
+            parent.removeChild(templateRow);
         }
         normalizeTables(document);
         var transformer = TransformerFactory.newInstance().newTransformer();

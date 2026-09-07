@@ -23,7 +23,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { type GridColDef, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
+import { type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
@@ -122,6 +122,14 @@ const HISTORY_CARD_MIN_HEIGHT = 320;
 const HISTORY_CARD_MAX_HEIGHT = 900;
 const HISTORY_CARD_RESERVED_HEIGHT = 112;
 const reviewGridHeight = { xs: 240, md: "clamp(260px, calc(100vh - 400px), 440px)" } as const;
+const historySelectionAlignmentSx = {
+  "& .history-selection-cell, & .history-selection-header": {
+    alignItems: "center",
+    display: "flex",
+    justifyContent: "center",
+    padding: 0,
+  },
+} as const;
 
 const text = (value: string | number | null | undefined) => String(value ?? "").trim();
 
@@ -190,6 +198,8 @@ export function EngineerPerformanceDocumentsPage() {
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
+  const [historyPaginationModel, setHistoryPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [reviewPaginationModel, setReviewPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
   const [historySelectionAnchorId, setHistorySelectionAnchorId] = useState<string | null>(null);
   const [reviewSelectionAnchorId, setReviewSelectionAnchorId] = useState<string | null>(null);
@@ -511,8 +521,10 @@ export function EngineerPerformanceDocumentsPage() {
       {
         field: "__select__",
         headerName: "선택",
-        width: 64,
+        width: 48,
         ...center,
+        cellClassName: "history-selection-cell",
+        headerClassName: "history-selection-header",
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
@@ -522,13 +534,6 @@ export function EngineerPerformanceDocumentsPage() {
             indeterminate={historySomeSelected && !historyAllSelected}
             onChange={handleToggleAllHistorySelection}
             onClick={(event) => event.stopPropagation()}
-            size="small"
-            sx={{
-              p: 0,
-              "& .MuiSvgIcon-root": {
-                fontSize: 18,
-              },
-            }}
           />
         ),
         renderCell: ({ row }) => (
@@ -542,13 +547,6 @@ export function EngineerPerformanceDocumentsPage() {
               handleHistorySelection(historySelectionKey(row), undefined, "checkbox");
             }}
             onMouseDown={(event) => event.stopPropagation()}
-            size="small"
-            sx={{
-              p: 0,
-              "& .MuiSvgIcon-root": {
-                fontSize: 18,
-              },
-            }}
           />
         ),
       },
@@ -582,8 +580,10 @@ export function EngineerPerformanceDocumentsPage() {
       {
         field: "__select__",
         headerName: "선택",
-        width: 64,
+        width: 48,
         ...center,
+        cellClassName: "history-selection-cell",
+        headerClassName: "history-selection-header",
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
@@ -593,13 +593,6 @@ export function EngineerPerformanceDocumentsPage() {
             indeterminate={reviewSomeSelected && !reviewAllSelected}
             onChange={handleToggleAllReviewSelection}
             onClick={(event) => event.stopPropagation()}
-            size="small"
-            sx={{
-              p: 0,
-              "& .MuiSvgIcon-root": {
-                fontSize: 18,
-              },
-            }}
           />
         ),
         renderCell: ({ row }) => (
@@ -610,13 +603,6 @@ export function EngineerPerformanceDocumentsPage() {
               if (row.reviewId != null) {
                 handleReviewSelection(String(row.reviewId), event, "checkbox");
               }
-            }}
-            size="small"
-            sx={{
-              p: 0,
-              "& .MuiSvgIcon-root": {
-                fontSize: 18,
-              },
             }}
           />
         ),
@@ -1246,7 +1232,6 @@ export function EngineerPerformanceDocumentsPage() {
                     <EnterpriseDataGrid<PerformanceHistoryRow>
                       columns={orderedHistoryColumns}
                       getRowId={(row) => historySelectionKey(row)}
-                      hideFooter
                       hideFooterSelectedRowCount
                       loading={projectHistoryRowsQuery.isLoading || projectHistoryRowsQuery.isFetching}
                       onRowClick={(params: GridRowParams<PerformanceHistoryRow>, event) => {
@@ -1257,14 +1242,17 @@ export function EngineerPerformanceDocumentsPage() {
                           setPerformanceDetailSeq(params.row.seq);
                         }
                       }}
-                      paginationMode="server"
-                      rowCount={availableHistoryRows.length}
+                      onPaginationModelChange={setHistoryPaginationModel}
+                      paginationModel={historyPaginationModel}
+                      pageSizeOptions={[25, 50, 100]}
                       rows={availableHistoryRows}
                       columnHeaderHeight={36}
                       rowHeight={30}
+                      showPageNumbers
                       showToolbar={false}
                       wrapperMinHeight={historyGridHeight}
                       sx={{
+                        ...historySelectionAlignmentSx,
                         border: 0,
                         height: historyGridHeight,
                         "& .MuiDataGrid-row:hover": { cursor: "pointer" },
@@ -1347,7 +1335,6 @@ export function EngineerPerformanceDocumentsPage() {
                   <EnterpriseDataGrid<EngineerProjectHistoryReviewRecord>
                     columns={orderedReviewColumns}
                     getRowId={(row) => row.reviewId ?? row.id}
-                    hideFooter
                     hideFooterSelectedRowCount
                     loading={reviewRowsQuery.isLoading || reviewRowsQuery.isFetching}
                     onCellClick={(params, event) => {
@@ -1372,21 +1359,24 @@ export function EngineerPerformanceDocumentsPage() {
                         setPerformanceDetailSeq(params.row.seq);
                       }
                     }}
-                    paginationMode="server"
                     editMode="cell"
                     initialState={{ sorting: { sortModel: [{ field: "displayOrder", sort: "asc" }] } }}
+                    onPaginationModelChange={setReviewPaginationModel}
                     onProcessRowUpdateError={() => undefined}
+                    pageSizeOptions={[25, 50, 100]}
+                    paginationModel={reviewPaginationModel}
                     processRowUpdate={canUpdate ? processReviewRowUpdate : undefined}
-                    rowCount={reviewRows.length}
                     rows={reviewRows}
                     columnHeaderHeight={36}
                     rowHeight={30}
+                    showPageNumbers
                     exportFileNamePrefix="관련공사 참여이력 검토결과"
                     showPrintButton={false}
                     showToolbar
                     showXlsxExportButton
                     wrapperMinHeight={reviewGridHeight}
                     sx={{
+                      ...historySelectionAlignmentSx,
                       border: 0,
                       height: reviewGridHeight,
                       "& .MuiDataGrid-row:hover": { cursor: "pointer" },

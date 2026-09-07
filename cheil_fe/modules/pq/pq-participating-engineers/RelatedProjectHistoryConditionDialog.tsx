@@ -51,6 +51,7 @@ type RelatedProjectHistoryConditionDialogProps = {
 type CodeOption = {
   code: string;
   label: string;
+  valueType?: PqParticipatingEngineerProjectHistoryConditionValueType;
 };
 
 type ConstructionKindRow = {
@@ -75,6 +76,7 @@ type OutlineDetailRow = {
   categoryName: string;
   code: string;
   name: string;
+  valueType: PqParticipatingEngineerProjectHistoryConditionValueType;
 };
 
 const conditionTypeLabels: Record<PqParticipatingEngineerProjectHistoryConditionType, string> = {
@@ -96,7 +98,7 @@ const operatorLabels: Record<PqParticipatingEngineerProjectHistoryConditionOpera
 
 const operatorsByValueType: Record<PqParticipatingEngineerProjectHistoryConditionValueType, PqParticipatingEngineerProjectHistoryConditionOperator[]> = {
   code: ["="],
-  date: ["=", ">=", "<=", "BETWEEN"],
+  date: ["=", ">", ">=", "<", "<=", "BETWEEN"],
   number: ["=", ">=", "<=", ">", "<", "BETWEEN"],
   text: ["=", "LIKE", "!="],
 };
@@ -115,22 +117,30 @@ const createConditionId = () => {
 const defaultOperator = (valueType: PqParticipatingEngineerProjectHistoryConditionValueType) =>
   valueType === "number" || valueType === "date" ? ">=" : "=";
 
-const DATE_GENERAL_CONDITION_CODES = new Set(["C0104C1", "C0105C1", "C0120C1"]);
-const NUMBER_GENERAL_CONDITION_CODES = new Set(["C0107C1", "C0108C1_AMT"]);
+const metadataValueType = (refValue1: string | null | undefined): PqParticipatingEngineerProjectHistoryConditionValueType | undefined => {
+  if (!refValue1) return undefined;
+  try {
+    const metadata = JSON.parse(refValue1) as { valueType?: string };
+    const valueType = metadata.valueType?.trim().toLowerCase();
+    if (valueType === "number" || valueType === "date" || valueType === "text") return valueType;
+  } catch {
+    return undefined;
+  }
+  return undefined;
+};
 
-const generalConditionValueType = (code: string, label = ""): PqParticipatingEngineerProjectHistoryConditionValueType => {
-  if (DATE_GENERAL_CONDITION_CODES.has(code)) {
-    return "date";
+const generalConditionValueType = (refValue1?: string | null): PqParticipatingEngineerProjectHistoryConditionValueType => {
+  const configuredValueType = metadataValueType(refValue1);
+  if (configuredValueType) return configuredValueType;
+  return "text";
+};
+
+const conditionValueType = (condition: RelatedProjectHistoryCondition): PqParticipatingEngineerProjectHistoryConditionValueType => {
+  if (condition.conditionType === "constructionKind") {
+    return "code";
   }
-  if (NUMBER_GENERAL_CONDITION_CODES.has(code)) {
-    return "number";
-  }
-  // Keep a fallback for legacy conditions whose code is not mapped yet.
-  if (label.includes("일")) {
-    return "date";
-  }
-  if (label.includes("금액")) {
-    return "number";
+  if (condition.valueType === "number" || condition.valueType === "date") {
+    return condition.valueType;
   }
   return "text";
 };
@@ -145,10 +155,7 @@ const normalizeLogicalOperator = (operator: string | undefined, index: number): 
 };
 
 const normalizeCondition = (condition: RelatedProjectHistoryCondition, index: number): RelatedProjectHistoryCondition => {
-  const valueType =
-    condition.conditionType === "general" && condition.label
-      ? generalConditionValueType(condition.generalCode ?? "", condition.label)
-      : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
+  const valueType = conditionValueType(condition);
   const availableOperators = operatorsByValueType[valueType];
   const candidateOperator = condition.operator;
   const operator = candidateOperator && availableOperators.includes(candidateOperator) ? candidateOperator : defaultOperator(valueType);
@@ -260,8 +267,8 @@ export function RelatedProjectHistoryConditionDialog({
   });
 
   const outlineCodesQuery = useQuery({
-    queryKey: ["common-codes", "PQCT", "pq-participating-engineers", "condition-dialog"],
-    queryFn: () => listCommonCodes({ level1Code: "PQCT", useYn: "Y", sort: "level3Code" }),
+    queryKey: ["common-codes", "PQCT", "outline", "pq-participating-engineers", "condition-dialog"],
+    queryFn: () => listCommonCodes({ level1Code: "PQCT", level2CodePrefix: "Z", useYn: "Y", sort: "level3Code" }),
     enabled: open,
   });
 
@@ -301,6 +308,7 @@ export function RelatedProjectHistoryConditionDialog({
           code: code.level3Code,
           id: constructionTypePathKey(code.level2Code, code.level3Code),
           name: code.codeDetailName || code.codeName,
+          valueType: metadataValueType(code.refValue1) ?? "text",
         })),
     [activeOutlineCategoryCode, outlineCodesQuery.data, selectedOutlineCategory?.name],
   );
@@ -321,6 +329,7 @@ export function RelatedProjectHistoryConditionDialog({
       const rows = (generalConditionsQuery.data ?? []).map((code) => ({
         code: `${code.level2Code}${code.level3Code}`,
         label: code.codeDetailName || code.codeName,
+        valueType: generalConditionValueType(code.refValue1),
       }));
       return rows.filter((row) => includesKeyword([row.code, row.label], keyword));
     },
@@ -512,9 +521,9 @@ export function RelatedProjectHistoryConditionDialog({
                       id: createConditionId(),
                       label: `${params.row.code} - ${params.row.label}`,
                       logicalOperator: "AND",
-                      operator: defaultOperator(generalConditionValueType(params.row.code, params.row.label)),
+                      operator: defaultOperator(params.row.valueType ?? generalConditionValueType()),
                       value: "",
-                      valueType: generalConditionValueType(params.row.code, params.row.label),
+                      valueType: params.row.valueType ?? generalConditionValueType(),
                     })
                   }
                   pageSizeOptions={[20, 40, 100]}
@@ -553,11 +562,11 @@ export function RelatedProjectHistoryConditionDialog({
                         id: createConditionId(),
                         label: `${params.row.categoryName} / ${params.row.name}`,
                         logicalOperator: "AND",
-                        operator: ">=",
+                        operator: defaultOperator(params.row.valueType),
                         outlineCategoryCode: params.row.categoryCode,
                         outlineSubcategoryCode: params.row.code,
                         value: "",
-                        valueType: "number",
+                        valueType: params.row.valueType,
                       })
                     }
                     pageSizeOptions={[20, 40, 100]}
@@ -599,9 +608,7 @@ export function RelatedProjectHistoryConditionDialog({
                 ) : (
                   draft.map((condition, index) => {
                     const valueType =
-                      condition.conditionType === "general" && condition.label
-                        ? generalConditionValueType(condition.generalCode ?? "", condition.label)
-                        : condition.valueType ?? (condition.conditionType === "outline" ? "number" : "text");
+                      conditionValueType(condition);
                     const availableOperators = operatorsByValueType[valueType];
                     const configuredOperator = condition.operator ?? defaultOperator(valueType);
                     const operator = availableOperators.includes(configuredOperator) ? configuredOperator : defaultOperator(valueType);
@@ -656,24 +663,6 @@ export function RelatedProjectHistoryConditionDialog({
                             <MenuItem value="AND">AND</MenuItem>
                             <MenuItem value="OR">OR</MenuItem>
                           </TextField>
-                          {condition.conditionType === "outline" ? (
-                            <TextField
-                              disabled={disabled}
-                              label="값 형식"
-                              onChange={(event) =>
-                                updateCondition(condition.id, {
-                                  valueType: event.target.value as PqParticipatingEngineerProjectHistoryConditionValueType,
-                                })
-                              }
-                              select
-                              size="small"
-                              sx={standardFieldSx}
-                              value={valueType}
-                            >
-                              <MenuItem value="number">숫자</MenuItem>
-                              <MenuItem value="text">문자</MenuItem>
-                            </TextField>
-                          ) : null}
                           {needsValueInput(condition) ? (
                             <TextField
                               disabled={disabled}

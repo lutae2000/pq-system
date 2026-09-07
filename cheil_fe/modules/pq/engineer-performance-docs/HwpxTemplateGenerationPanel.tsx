@@ -488,9 +488,6 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
           >
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 800 }} variant="h6">PQ문서 생성</Typography>
-              <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
-                HWPX 양식을 업로드하고 필드를 매핑한 뒤, 선택한 기술인의 문서를 생성합니다.
-              </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
               <Button

@@ -28,6 +28,9 @@ import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipating
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.ReplacePqParticipatingEngineersRequest;
 import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
 
 /** PQ 공고에 참여하는 기술인의 후보·선정 목록을 조회하고 변경하는 서비스. */
 @Service
@@ -35,26 +38,9 @@ import com.cheil.cheil_be.application.engineer.EngineerDtos;
 public class PqParticipatingEngineerQueryService {
 
     private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
-    private static final Map<String, String> GENERAL_COLUMNS = Map.ofEntries(
-            Map.entry("C0101C1", "cp.job_name"),
-            Map.entry("C0102C1", "cp.client_kind"),
-            Map.entry("C0104C1", "cp.contract_from_date"),
-            Map.entry("C0105C1", "cp.contract_to_date"),
-            Map.entry("C0107C1", "cp.contract_amt"),
-            Map.entry("C0108C1", "cp.job_type"),
-            Map.entry("C0108C1_AMT", "cp.own_amt"),
-            Map.entry("C0110C1", "cp.business_type"),
-            Map.entry("C0120C1", "h.startdt"),
-            Map.entry("C0121C1", "cp.summary"),
-            Map.entry("C0130C1", "cp.job_finish_yn"),
-            Map.entry("C0140C1", "h.joinyn"),
-            Map.entry("C0141C1", "h.returnyn"),
-            Map.entry("C0150C1", "h.compname"),
-            Map.entry("C0160C1", "h.jobpart")
-    );
-
     private final JdbcClient jdbcClient;
     private final EngineerAdminService engineerAdminService;
+    private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final Gson gson = new Gson();
 
     @Transactional(readOnly = true)
@@ -71,6 +57,7 @@ public class PqParticipatingEngineerQueryService {
             String projectHistoryConditions,
             Pageable pageable
     ) {
+        Map<String, ProjectHistoryConditionMetadata> conditionMetadata = conditionMetadataService.findAll();
         QueryParts queryParts = buildCandidateWhere(
                 bidSeq,
                 workDutyId,
@@ -81,7 +68,8 @@ public class PqParticipatingEngineerQueryService {
                 jobField,
                 specialtyField,
                 retireYn,
-                parseProjectHistoryConditions(projectHistoryConditions)
+                parseProjectHistoryConditions(projectHistoryConditions),
+                conditionMetadata
         );
 
         String selectSql = """
@@ -284,7 +272,8 @@ public class PqParticipatingEngineerQueryService {
             String jobField,
             String specialtyField,
             String retireYn,
-            List<ProjectHistoryCondition> projectHistoryConditions
+            List<ProjectHistoryCondition> projectHistoryConditions,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata
     ) {
         List<String> conditions = new ArrayList<>();
         Map<String, Object> params = new LinkedHashMap<>();
@@ -331,7 +320,7 @@ public class PqParticipatingEngineerQueryService {
             params.put("excludeWorkDutyId", normalize(workDutyId));
         }
 
-        String historySql = buildProjectHistoryConditionSql(projectHistoryConditions, params);
+        String historySql = buildProjectHistoryConditionSql(projectHistoryConditions, params, conditionMetadata);
         if (StringUtils.hasText(historySql)) {
             conditions.add(historySql);
         }
@@ -342,15 +331,16 @@ public class PqParticipatingEngineerQueryService {
         return new QueryParts("WHERE " + String.join("\nAND ", conditions), params);
     }
 
-    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params) {
+    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
         List<String> fragments = new ArrayList<>();
         for (int i = 0; i < projectHistoryConditions.size(); i++) {
             ProjectHistoryCondition condition = projectHistoryConditions.get(i);
             String conditionType = normalize(condition.conditionType());
             String fragment = switch (conditionType == null ? "" : conditionType) {
                 case "constructionKind" -> constructionKindCondition(condition, params, i);
-                case "general" -> generalCondition(condition, params, i);
-                case "outline" -> outlineCondition(condition, params, i);
+                case "general" -> generalCondition(condition, params, i, conditionMetadata);
+                case "outline" -> outlineCondition(condition, params, i, conditionMetadata);
                 default -> "";
             };
             if (!StringUtils.hasText(fragment)) {
@@ -394,38 +384,27 @@ public class PqParticipatingEngineerQueryService {
                 level1Param, level2Param, kindAlias, level2Param, level3Param, kindAlias, level3Param);
     }
 
-    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String column = GENERAL_COLUMNS.get(normalize(condition.generalCode()));
-        if (!StringUtils.hasText(column)) {
-            return "";
-        }
+    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(condition.generalCode()));
+        if (metadata == null) return "";
         String historyAlias = "h" + index;
-        String performanceAlias = "cp" + index;
-        String qualifiedColumn = column.replace("h.", historyAlias + ".").replace("cp.", performanceAlias + ".");
-        String predicate = comparisonPredicate(qualifiedColumn, condition, params, index);
-        if (!StringUtils.hasText(predicate)) {
-            return "";
-        }
-        if (column.startsWith("h.")) {
-            return """
-                    m.engr_id IN (
-                        SELECT %s.engr_id
-                        FROM pq_engineer_project_history %s
-                        WHERE %s
-                    )
-                    """.formatted(historyAlias, historyAlias, predicate);
-        }
+        String targetAlias = "target" + index;
+        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index, metadata.valueType());
+        if (!StringUtils.hasText(predicate)) return "";
         return """
                 m.engr_id IN (
                     SELECT %s.engr_id
                     FROM pq_engineer_project_history %s
-                    JOIN company_performances %s ON %s.seq = %s.seq
-                    WHERE %s
+                    WHERE %s.seq IN (
+                        SELECT %s.seq FROM %s %s WHERE %s
+                    )
                 )
-                """.formatted(historyAlias, historyAlias, performanceAlias, performanceAlias, historyAlias, predicate);
+                """.formatted(historyAlias, historyAlias, historyAlias, targetAlias, metadata.table(), targetAlias, predicate);
     }
 
-    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
+    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
         String categoryCode = normalize(condition.outlineCategoryCode());
         String subcategoryCode = normalize(condition.outlineSubcategoryCode());
         if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
@@ -433,19 +412,22 @@ public class PqParticipatingEngineerQueryService {
         }
 
         String historyAlias = "h" + index;
-        String outlineAlias = "o" + index;
+        String targetAlias = "target" + index;
         List<String> outlineConditions = new ArrayList<>();
         if (StringUtils.hasText(categoryCode)) {
             String paramName = "outlineCategoryCode" + index;
-            outlineConditions.add(outlineAlias + ".cate_code = :" + paramName);
+            outlineConditions.add(targetAlias + ".cate_code = :" + paramName);
             params.put(paramName, categoryCode);
         }
         if (StringUtils.hasText(subcategoryCode)) {
             String paramName = "outlineSubcategoryCode" + index;
-            outlineConditions.add(outlineAlias + ".subcate_code = :" + paramName);
+            outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
             params.put(paramName, subcategoryCode);
         }
-        String predicate = comparisonPredicate(outlineAlias + ".otln_cont", condition, params, index);
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(categoryCode) + normalize(subcategoryCode));
+        if (metadata == null) return "";
+        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
+                metadata.valueType());
         if (StringUtils.hasText(predicate)) {
             outlineConditions.add(predicate);
         }
@@ -454,21 +436,27 @@ public class PqParticipatingEngineerQueryService {
                 m.engr_id IN (
                     SELECT %s.engr_id
                     FROM pq_engineer_project_history %s
-                    JOIN company_performance_outlines %s ON %s.seq = %s.seq
-                    WHERE %s
+                    WHERE %s.seq IN (
+                        SELECT %s.seq FROM %s %s WHERE %s
+                    )
                 )
-                """.formatted(historyAlias, historyAlias, outlineAlias, outlineAlias, historyAlias,
+                """.formatted(historyAlias, historyAlias, historyAlias, targetAlias, metadata.table(), targetAlias,
                 String.join("\nAND ", outlineConditions));
     }
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {
+        return comparisonPredicate(column, condition, params, index, null);
+    }
+
+    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            String metadataValueType) {
         String value = normalize(condition.value());
         String operator = operator(condition.operator());
         if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
             return "";
         }
 
-        String valueType = normalize(condition.valueType());
+        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : normalize(condition.valueType());
         boolean numberType = "number".equals(valueType);
         boolean dateType = "date".equals(valueType);
         String expression = numberType ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)" : column;
@@ -492,6 +480,7 @@ public class PqParticipatingEngineerQueryService {
         params.put(paramName, typedValue(value, paramName, numberType, dateType));
         return expression + " " + operator + " :" + paramName;
     }
+
 
     private List<ProjectHistoryCondition> parseProjectHistoryConditions(String projectHistoryConditions) {
         if (!StringUtils.hasText(projectHistoryConditions)) {
@@ -624,20 +613,4 @@ public class PqParticipatingEngineerQueryService {
     private record QueryParts(String whereSql, Map<String, Object> params) {
     }
 
-    private record ProjectHistoryCondition(
-            String conditionType,
-            String logicalOperator,
-            String label,
-            String level1Code,
-            String level2Code,
-            String level3Code,
-            String generalCode,
-            String outlineCategoryCode,
-            String outlineSubcategoryCode,
-            String operator,
-            String value,
-            String valueTo,
-            String valueType
-    ) {
-    }
 }

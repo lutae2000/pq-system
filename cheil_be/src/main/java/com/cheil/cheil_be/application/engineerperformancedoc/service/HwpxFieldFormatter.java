@@ -57,6 +57,9 @@ final class HwpxFieldFormatter {
         if (label.contains("당사금액")) {
             return formatAmount(review.ownAmt(), label);
         }
+        if (label.contains("PQ당사지분율")) {
+            return formatDivisionRate(review.divisionRate(), label);
+        }
         if (label.contains("용역시작일")) {
             return formatDate(review.contractFromDate(), label);
         }
@@ -205,6 +208,16 @@ final class HwpxFieldFormatter {
 
         BigDecimal converted = amount.divide(divisor, 0, RoundingMode.DOWN);
         return NumberFormat.getIntegerInstance(Locale.KOREA).format(converted);
+    }
+
+    private static String formatDivisionRate(BigDecimal divisionRate, String label) {
+        if (divisionRate == null) {
+            return "";
+        }
+        BigDecimal value = label.contains("(0.00%)")
+                ? divisionRate.movePointLeft(2)
+                : divisionRate;
+        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     static String formatDate(String value, String label) {

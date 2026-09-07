@@ -27,6 +27,9 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectH
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocumentValueSettingRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocumentValueSettingResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
 
 /** 기술인 실적 문서에 필요한 프로젝트 이력, 검토 결과, 문서 값 설정을 조회·관리하는 서비스. */
 @Service
@@ -34,26 +37,8 @@ import com.cheil.cheil_be.common.security.AuditActorResolver;
 public class EngineerPerformanceDocumentService {
 
     private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
-    private static final Map<String, String> GENERAL_COLUMNS = Map.ofEntries(
-            Map.entry("C0101C1", "cp.job_name"),
-            Map.entry("C0102C1", "cp.client_kind"),
-            Map.entry("C0104C1", "cp.contract_from_date"),
-            Map.entry("C0105C1", "cp.contract_to_date"),
-            Map.entry("C0107C1", "cp.contract_amt"),
-            Map.entry("C0108C1", "cp.job_type"),
-            Map.entry("C0108C1_AMT", "cp.own_amt"),
-            Map.entry("C0110C1", "cp.business_type"),
-            Map.entry("C0120C1", "h.startdt"),
-            Map.entry("C0121C1", "cp.summary"),
-            Map.entry("C0130C1", "cp.job_finish_yn"),
-            Map.entry("C0140C1", "h.joinyn"),
-            Map.entry("C0141C1", "h.returnyn"),
-            Map.entry("C0150C1", "h.compname"),
-            Map.entry("C0160C1", "h.jobpart")
-    );
-    private static final Set<String> NUMERIC_COLUMNS = Set.of("cp.contract_amt", "cp.own_amt");
-
     private final JdbcClient jdbcClient;
+    private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final Gson gson = new Gson();
 
     @Transactional(readOnly = true)
@@ -145,7 +130,8 @@ public class EngineerPerformanceDocumentService {
         params.put("engineerId", engineerId.trim());
         String conditionSql = buildProjectHistoryConditionSql(
                 parseProjectHistoryConditions(relatedProjectHistoryConditions),
-                params
+                params,
+                conditionMetadataService.findAll()
         );
 
         return jdbcClient.sql("""
@@ -327,7 +313,7 @@ public class EngineerPerformanceDocumentService {
         params.put("engineerId", engineerId);
 
         List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(request.relatedProjectHistoryConditions());
-        String conditionSql = buildProjectHistoryConditionSql(conditions, params);
+        String conditionSql = buildProjectHistoryConditionSql(conditions, params, conditionMetadataService.findAll());
         String selectSql = """
                 SELECT DISTINCT h.id
                 FROM pq_engineer_project_history h
@@ -562,15 +548,16 @@ public class EngineerPerformanceDocumentService {
         );
     }
 
-    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params) {
+    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
         List<String> fragments = new ArrayList<>();
         for (int i = 0; i < projectHistoryConditions.size(); i++) {
             ProjectHistoryCondition condition = projectHistoryConditions.get(i);
             String conditionType = normalize(condition.conditionType());
             String fragment = switch (conditionType == null ? "" : conditionType) {
                 case "constructionKind" -> constructionKindCondition(condition, params, i);
-                case "general" -> generalCondition(condition, params, i);
-                case "outline" -> outlineCondition(condition, params, i);
+                case "general" -> generalCondition(condition, params, i, conditionMetadata);
+                case "outline" -> outlineCondition(condition, params, i, conditionMetadata);
                 default -> "";
             };
             if (!StringUtils.hasText(fragment)) {
@@ -612,56 +599,46 @@ public class EngineerPerformanceDocumentService {
                 level3Param, kindAlias, level3Param);
     }
 
-    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String column = GENERAL_COLUMNS.get(normalize(condition.generalCode()));
-        if (!StringUtils.hasText(column)) {
-            return "";
-        }
+    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(condition.generalCode()));
         String historyAlias = "h" + index;
-        String performanceAlias = "cp" + index;
-        String qualifiedColumn = column.replace("h.", historyAlias + ".").replace("cp.", performanceAlias + ".");
-        String predicate = comparisonPredicate(qualifiedColumn, condition, params, index);
-        if (!StringUtils.hasText(predicate)) {
-            return "";
-        }
-        if (column.startsWith("h.")) {
-            return """
-                    h.seq IN (
-                        SELECT %s.seq
-                        FROM pq_engineer_project_history %s
-                        WHERE %s
-                    )
-                    """.formatted(historyAlias, historyAlias, predicate);
-        }
+        String targetAlias = "target" + index;
+        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index, metadata.valueType());
+        if (!StringUtils.hasText(predicate)) return "";
         return """
                 h.seq IN (
                     SELECT %s.seq
-                    FROM company_performances %s
+                    FROM %s %s
                     WHERE %s
                 )
-                """.formatted(performanceAlias, performanceAlias, predicate);
+                """.formatted(targetAlias, metadata.table(), targetAlias, predicate);
     }
 
-    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
+    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
         String categoryCode = normalize(condition.outlineCategoryCode());
         String subcategoryCode = normalize(condition.outlineSubcategoryCode());
         if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
             return "";
         }
 
-        String outlineAlias = "o" + index;
+        String targetAlias = "target" + index;
         List<String> outlineConditions = new ArrayList<>();
         if (StringUtils.hasText(categoryCode)) {
             String paramName = "outlineCategoryCode" + index;
-            outlineConditions.add(outlineAlias + ".cate_code = :" + paramName);
+            outlineConditions.add(targetAlias + ".cate_code = :" + paramName);
             params.put(paramName, categoryCode);
         }
         if (StringUtils.hasText(subcategoryCode)) {
             String paramName = "outlineSubcategoryCode" + index;
-            outlineConditions.add(outlineAlias + ".subcate_code = :" + paramName);
+            outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
             params.put(paramName, subcategoryCode);
         }
-        String predicate = comparisonPredicate(outlineAlias + ".otln_cont", condition, params, index);
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(categoryCode) + normalize(subcategoryCode));
+        if (metadata == null) return "";
+        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
+                metadata.valueType());
         if (StringUtils.hasText(predicate)) {
             outlineConditions.add(predicate);
         }
@@ -669,21 +646,26 @@ public class EngineerPerformanceDocumentService {
         return """
                 h.seq IN (
                     SELECT %s.seq
-                    FROM company_performance_outlines %s
+                    FROM %s %s
                     WHERE %s
                 )
-                """.formatted(outlineAlias, outlineAlias, String.join("\nAND ", outlineConditions));
+                """.formatted(targetAlias, metadata.table(), targetAlias, String.join("\nAND ", outlineConditions));
     }
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {
+        return comparisonPredicate(column, condition, params, index, null);
+    }
+
+    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
+            String metadataValueType) {
         String value = normalize(condition.value());
         String operator = operator(condition.operator());
         if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
             return "";
         }
 
-        String valueType = normalize(condition.valueType());
-        boolean numberType = "number".equals(valueType) || NUMERIC_COLUMNS.contains(column);
+        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : normalize(condition.valueType());
+        boolean numberType = "number".equals(valueType);
         boolean dateType = "date".equals(valueType);
         String expression = numberType
                 ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)"
@@ -816,20 +798,4 @@ public class EngineerPerformanceDocumentService {
         return timestamp == null ? null : timestamp.toInstant();
     }
 
-    private record ProjectHistoryCondition(
-            String conditionType,
-            String logicalOperator,
-            String label,
-            String level1Code,
-            String level2Code,
-            String level3Code,
-            String generalCode,
-            String outlineCategoryCode,
-            String outlineSubcategoryCode,
-            String operator,
-            String value,
-            String valueTo,
-            String valueType
-    ) {
-    }
 }

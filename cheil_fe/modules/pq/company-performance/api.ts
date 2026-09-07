@@ -215,6 +215,13 @@ export async function addCompanyPerformanceDocumentTargetsByConditions(request: 
   );
 }
 
+export async function deleteCompanyPerformanceDocumentTarget(bidSeq: number, targetId: number): Promise<void> {
+  return apiRequest(
+    apiClient.delete(`/pq/company-performance-document-targets/${encodeURIComponent(String(targetId))}`, { params: { bidSeq } }),
+    "회사실적 문서 대상을 삭제하지 못했습니다.",
+  );
+}
+
 export async function getCompanyPerformance(seq: number): Promise<CompanyPerformanceRecord> {
   return apiRequest(
     apiClient.get<CompanyPerformanceRecord>(`${COMPANY_PERFORMANCES_API}/${encodeURIComponent(String(seq))}`),
