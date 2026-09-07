@@ -2,16 +2,18 @@
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import FormatListNumberedOutlinedIcon from "@mui/icons-material/FormatListNumberedOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, Grid, Stack, TextField, Typography } from "@mui/material";
-import type { GridColDef, GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
+import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
@@ -28,11 +30,14 @@ import {
   getCompanyPerformance,
   listCompanyPerformances,
   listCompanyPerformanceDocumentTargets,
+  updateCompanyPerformanceDocumentTargetDisplayOrder,
   type CompanyPerformanceRecord,
   type CompanyPerformanceSearchParams,
 } from "@/modules/pq/company-performance/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
+
+type CompanyPerformanceTargetRow = CompanyPerformanceRecord & { targetId: number; displayOrder: number | null };
 
 const BidNoticeSelectDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
@@ -65,8 +70,8 @@ const DOCUMENT_GRID_HEIGHT = 420;
 
 // 조건 적용은 화면 페이지와 별개로 전체 대상의 식별자만 확인하므로 한 번의 서버 조회로 처리한다.
 export function CompanyPerformanceDocumentsPage() {
-  const { canDelete, canRead } = useCurrentMenuPermission();
-  const { showSnackbar } = useAppSnackbar();
+  const { canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const serviceTypeReferences = useCommonCodeLevel2Options("ST");
   const businessTypeReferences = useCommonCodeLevel2Options("CA", undefined, { enabled: canRead });
@@ -94,6 +99,37 @@ export function CompanyPerformanceDocumentsPage() {
     ],
     [serviceTypeReferences.labelByValue],
   );
+  const targetColumns = useMemo<GridColDef<CompanyPerformanceTargetRow>[]>(
+    () => [
+      {
+        field: "displayOrder",
+        headerName: "순번",
+        width: 75,
+        align: "center",
+        headerAlign: "center",
+        editable: canUpdate,
+        sortComparator: (left, right) => Number(left ?? Number.MAX_SAFE_INTEGER) - Number(right ?? Number.MAX_SAFE_INTEGER),
+        renderEditCell: (params: GridRenderEditCellParams<CompanyPerformanceTargetRow, number | null>) => (
+          <TextField
+            autoFocus
+            fullWidth
+            onChange={(event) => {
+              const digitsOnly = event.target.value.replace(/\D/g, "");
+              void params.api.setEditCellValue({ field: params.field, id: params.id, value: digitsOnly });
+            }}
+            onFocus={(event) => event.currentTarget.select()}
+            onClick={(event) => event.stopPropagation()}
+            size="small"
+            slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
+            value={params.value ?? ""}
+            variant="standard"
+          />
+        ),
+      },
+      ...(columns as unknown as GridColDef<CompanyPerformanceTargetRow>[]),
+    ],
+    [canUpdate, columns],
+  );
   const [bidNotice, setBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
@@ -104,6 +140,8 @@ export function CompanyPerformanceDocumentsPage() {
   const [selectedCompanyPerformanceIds, setSelectedCompanyPerformanceIds] = useState<number[]>([]);
   const [selectedTargetIds, setSelectedTargetIds] = useState<number[]>([]);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
+  const [renumberDialogOpen, setRenumberDialogOpen] = useState(false);
+  const targetGridApiRef = useGridApiRef();
   const [detailRecord, setDetailRecord] = useState<CompanyPerformanceRecord | null>(null);
   const searchParams = useMemo<CompanyPerformanceSearchParams>(() => ({
     keyword: appliedKeyword,
@@ -133,10 +171,10 @@ export function CompanyPerformanceDocumentsPage() {
     onSuccess: (record) => setDetailRecord(record),
   });
   const rows = useMemo(() => companyPerformancesQuery.data?.content ?? [], [companyPerformancesQuery.data?.content]);
-  const matchedRows = useMemo(() => {
+  const matchedRows = useMemo<CompanyPerformanceTargetRow[]>(() => {
     return (documentTargetsQuery.data ?? [])
-      .map((target) => target.companyPerformance)
-      .filter((row): row is CompanyPerformanceRecord => row !== null);
+      .filter((target): target is typeof target & { companyPerformance: CompanyPerformanceRecord } => target.companyPerformance !== null)
+      .map((target) => ({ ...target.companyPerformance, targetId: target.targetId, displayOrder: target.displayOrder }));
   }, [documentTargetsQuery.data]);
   const addTargetMutation = useMutation({
     mutationFn: (companyPerformanceSeqs: number[]) => addCompanyPerformanceDocumentTargets({ bidSeq: bidNotice!.bidSeq!, companyPerformanceSeqs }),
@@ -148,15 +186,32 @@ export function CompanyPerformanceDocumentsPage() {
   });
   const deleteTargetMutation = useMutation({
     mutationFn: async (targetIds: number[]) => {
-      if (!bidNotice?.bidSeq) return;
-      await Promise.all(targetIds.map((targetId) => deleteCompanyPerformanceDocumentTarget(bidNotice.bidSeq, targetId)));
+      const bidSeq = bidNotice?.bidSeq;
+      if (!bidSeq) return;
+      await Promise.all(targetIds.map((targetId) => deleteCompanyPerformanceDocumentTarget(bidSeq, targetId)));
     },
     onSuccess: async () => {
       setSelectedTargetIds([]);
       setDeleteTargetIds([]);
       await documentTargetsQuery.refetch();
-      showSnackbar("선택항목이 삭제되었습니다.", "success");
+      showSuccess("선택항목이 삭제되었습니다.");
     },
+  });
+  const renumberTargetMutation = useMutation({
+    mutationFn: async () => {
+      const bidSeq = bidNotice?.bidSeq;
+      if (!bidSeq) return;
+      const sortedRows = (targetGridApiRef.current?.getSortedRows() ?? []) as CompanyPerformanceTargetRow[];
+      await Promise.all(sortedRows.map((row, index) =>
+        updateCompanyPerformanceDocumentTargetDisplayOrder(bidSeq, row.targetId, index + 1),
+      ));
+    },
+    onSuccess: async () => {
+      setRenumberDialogOpen(false);
+      await documentTargetsQuery.refetch();
+      showSuccess("현재 정렬 순서로 순번을 저장했습니다.");
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "순번을 저장하지 못했습니다."),
   });
   const handleAdd = () => {
     if (!bidNotice?.bidSeq || selectedCompanyPerformanceIds.length === 0) return;
@@ -169,6 +224,21 @@ export function CompanyPerformanceDocumentsPage() {
     await addCompanyPerformanceDocumentTargetsByConditions({ bidSeq: bidNotice.bidSeq, conditions: nextConditions });
     await Promise.all([companyPerformancesQuery.refetch(), documentTargetsQuery.refetch()]);
   };
+  const processTargetRowUpdate = useCallback(async (updatedRow: CompanyPerformanceTargetRow, originalRow: CompanyPerformanceTargetRow) => {
+    if (!canUpdate) return originalRow;
+    const displayOrder = Number(updatedRow.displayOrder);
+    if (!Number.isInteger(displayOrder) || displayOrder < 1) {
+      throw new Error("순번은 1 이상의 정수로 입력해 주세요.");
+    }
+    try {
+      await updateCompanyPerformanceDocumentTargetDisplayOrder(bidNotice!.bidSeq!, updatedRow.targetId, displayOrder);
+      showSuccess("회사실적 순번을 저장했습니다.");
+      return { ...updatedRow, displayOrder };
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "회사실적 순번을 저장하지 못했습니다.");
+      throw error;
+    }
+  }, [bidNotice, canUpdate, showError, showSuccess]);
   const handleLoad = () => {
     if (!bidNotice) return;
     const nextKeyword = keyword.trim();
@@ -239,10 +309,11 @@ export function CompanyPerformanceDocumentsPage() {
           />
         </CardContent></Card>
         <Card variant="outlined"><CardContent>
-          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography><Typography color="text.secondary" variant="body2">조건에 맞는 실적은 설정 즉시 문서 생성 대상으로 저장됩니다.</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
-          <EnterpriseDataGrid<CompanyPerformanceRecord>
+          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button disabled={!canUpdate || matchedRows.length === 0 || renumberTargetMutation.isPending} onClick={() => setRenumberDialogOpen(true)} size="small" startIcon={<FormatListNumberedOutlinedIcon />} variant="outlined">현재 정렬로 순번 저장</Button><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
+          <EnterpriseDataGrid<CompanyPerformanceTargetRow>
             checkboxSelection
-            columns={columns}
+            columns={targetColumns}
+            apiRef={targetGridApiRef}
             disableRowSelectionOnClick
             getRowId={(row) => row.seq}
             loading={companyPerformancesQuery.isLoading || companyPerformancesQuery.isFetching}
@@ -266,8 +337,12 @@ export function CompanyPerformanceDocumentsPage() {
             }}
             rowHeight={30}
             rows={matchedRows}
+            processRowUpdate={canUpdate ? processTargetRowUpdate : undefined}
+            exportFileNamePrefix="조건 적용 회사실적"
             showPageNumbers
-            showToolbar={false}
+            showXlsxExportButton
+            showToolbar
+            stateCacheKey={false}
             wrapperMinHeight={DOCUMENT_GRID_HEIGHT}
             sx={{ border: 0, height: DOCUMENT_GRID_HEIGHT }}
           />
@@ -296,6 +371,15 @@ export function CompanyPerformanceDocumentsPage() {
         title="삭제 확인"
         onClose={() => setDeleteTargetIds([])}
         onConfirm={() => deleteTargetMutation.mutate(deleteTargetIds)}
+      />
+      <ConfirmActionDialog
+        confirmLabel="순번 적용"
+        loading={renumberTargetMutation.isPending}
+        message="현재 Grid 정렬 순서대로 회사실적 순번을 다시 저장하시겠습니까?"
+        onClose={() => setRenumberDialogOpen(false)}
+        onConfirm={() => renumberTargetMutation.mutate()}
+        open={renumberDialogOpen}
+        title="순번 일괄 적용 확인"
       />
     </Box>
   );

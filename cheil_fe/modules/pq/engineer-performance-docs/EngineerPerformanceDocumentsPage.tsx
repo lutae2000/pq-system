@@ -3,6 +3,7 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import FormatListNumberedOutlinedIcon from "@mui/icons-material/FormatListNumberedOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
@@ -23,7 +24,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
+import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
@@ -204,11 +205,13 @@ export function EngineerPerformanceDocumentsPage() {
   const [historySelectionAnchorId, setHistorySelectionAnchorId] = useState<string | null>(null);
   const [reviewSelectionAnchorId, setReviewSelectionAnchorId] = useState<string | null>(null);
   const [addConfirmOpen, setAddConfirmOpen] = useState(false);
+  const [renumberReviewDialogOpen, setRenumberReviewDialogOpen] = useState(false);
   const [pendingBulkDeleteReviewIds, setPendingBulkDeleteReviewIds] = useState<string[] | null>(null);
   const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
   const [isExcelDownloading, setIsExcelDownloading] = useState(false);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [selectorPanelCollapsed, setSelectorPanelCollapsed] = useState(false);
+  const reviewGridApiRef = useGridApiRef();
   const selectorResizeStartXRef = useRef(0);
   const selectorResizeStartWidthRef = useRef(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [historyCardHeight, setHistoryCardHeight] = useState(DEFAULT_HISTORY_CARD_HEIGHT);
@@ -827,6 +830,34 @@ export function EngineerPerformanceDocumentsPage() {
     },
   });
 
+  const renumberReviewMutation = useMutation({
+    mutationFn: async () => {
+      const sortedRows = (reviewGridApiRef.current?.getSortedRows() ?? []) as EngineerProjectHistoryReviewRecord[];
+      const rowsWithReviewId = sortedRows.filter((row) => row.reviewId != null);
+
+      await Promise.all(
+        rowsWithReviewId.map((row, index) =>
+          updateEngineerProjectHistoryReviewResult(
+            {
+              bidSeq: row.bidSeq ?? selectedBidSeq ?? 0,
+              engineerId: row.engineerId,
+              sourceSeq: row.sourceSeq,
+              displayOrder: index + 1,
+              sourceRow: row,
+            },
+            row.reviewId!,
+          ),
+        ),
+      );
+    },
+    onSuccess: async () => {
+      setRenumberReviewDialogOpen(false);
+      await invalidateReviewRows();
+      showSuccess("현재 정렬 순서로 순번을 저장했습니다.");
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "현재 정렬 순서로 순번을 저장하지 못했습니다."),
+  });
+
   const deleteEngineerMutation = useMutation({
     mutationFn: async () => {
       if (!canDelete || !selectedBidSeq || !pendingBulkDeleteEngineerIds?.length) {
@@ -1321,6 +1352,15 @@ export function EngineerPerformanceDocumentsPage() {
                       />
                       <Chip color="success" label={`검토결과 ${reviewRows.length}건`} size="small" />
                       <Button
+                        disabled={!canUpdate || !reviewRows.some((row) => row.reviewId != null) || renumberReviewMutation.isPending}
+                        onClick={() => setRenumberReviewDialogOpen(true)}
+                        size="small"
+                        startIcon={<FormatListNumberedOutlinedIcon />}
+                        variant="outlined"
+                      >
+                        현재 정렬로 순번 저장
+                      </Button>
+                      <Button
                         color="error"
                         disabled={!canDelete || selectedReviewIds.length === 0}
                         onClick={openBulkDeleteConfirm}
@@ -1333,6 +1373,7 @@ export function EngineerPerformanceDocumentsPage() {
                     </Box>
                   </Box>
                   <EnterpriseDataGrid<EngineerProjectHistoryReviewRecord>
+                    apiRef={reviewGridApiRef}
                     columns={orderedReviewColumns}
                     getRowId={(row) => row.reviewId ?? row.id}
                     hideFooterSelectedRowCount
@@ -1445,6 +1486,15 @@ export function EngineerPerformanceDocumentsPage() {
         onConfirm={() => void deleteReviewMutation.mutateAsync()}
         open={Boolean(pendingBulkDeleteReviewIds?.length)}
         targetLabel={pendingBulkDeleteReviewIds?.length ? `${pendingBulkDeleteReviewIds.length}건` : undefined}
+      />
+      <ConfirmActionDialog
+        confirmLabel="순번 적용"
+        loading={renumberReviewMutation.isPending}
+        message="현재 Grid 정렬 순서대로 관련공사 참여이력 검토결과 순번을 다시 저장하시겠습니까?"
+        onClose={() => setRenumberReviewDialogOpen(false)}
+        onConfirm={() => void renumberReviewMutation.mutate()}
+        open={renumberReviewDialogOpen}
+        title="순번 일괄 적용 확인"
       />
       <ConfirmDeleteDialog
         loading={deleteEngineerMutation.isPending}

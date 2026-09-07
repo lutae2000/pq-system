@@ -73,7 +73,7 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
                 .selectFrom(companyPerformanceEntity)
                 .where(where)
                 .orderBy(
-                        companyPerformanceEntity.contractFromDate.desc().nullsLast(),
+                        companyPerformanceEntity.contractToDate.asc().nullsLast(),
                         companyPerformanceEntity.seq.desc()
                 );
 

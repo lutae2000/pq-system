@@ -26,8 +26,20 @@ public class CompanyPerformanceDocumentTargetEntity {
     @Column(name = "company_performance_seq", nullable = false)
     private Long companyPerformanceSeq;
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
     public CompanyPerformanceDocumentTargetEntity(Long bidSeq, Long companyPerformanceSeq) {
+        this(bidSeq, companyPerformanceSeq, null);
+    }
+
+    public CompanyPerformanceDocumentTargetEntity(Long bidSeq, Long companyPerformanceSeq, Integer displayOrder) {
         this.bidSeq = bidSeq;
         this.companyPerformanceSeq = companyPerformanceSeq;
+        this.displayOrder = displayOrder;
+    }
+
+    public void setDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
     }
 }

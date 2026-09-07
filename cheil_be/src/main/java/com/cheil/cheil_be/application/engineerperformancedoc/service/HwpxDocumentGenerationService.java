@@ -10,6 +10,9 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -44,9 +47,7 @@ import org.w3c.dom.NodeList;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxGenerateRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxTemplateFieldResponse;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceHwpxGenerateRequest;
 import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
-import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceAdminService;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
@@ -62,7 +63,6 @@ public class HwpxDocumentGenerationService {
     private final EngineerAdminService engineerAdminService;
     private final BidNoticeAdminService bidNoticeAdminService;
     private final EngineerPerformanceDocumentService performanceDocumentService;
-    private final CompanyPerformanceAdminService companyPerformanceAdminService;
     private final JdbcClient jdbcClient;
 
     public List<HwpxTemplateFieldResponse> inspect(MultipartFile template) {
@@ -111,21 +111,31 @@ public class HwpxDocumentGenerationService {
         }
     }
 
-    /** 선택한 회사실적을 하나의 HWPX 문서에 순서대로 매핑해 반환한다. */
-    public byte[] generateCompanyPerformances(MultipartFile template, CompanyPerformanceHwpxGenerateRequest request) {
-        if (template == null || template.isEmpty() || request == null || request.bidSeq() == null
-                || request.companyPerformanceSeqs() == null || request.companyPerformanceSeqs().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식과 회사실적 대상을 선택해 주세요.");
-        }
+    /** 회사실적 전용 서비스가 전달한 데이터를 HWPX 문서로 렌더링한다. */
+    public byte[] renderCompanyPerformances(
+            MultipartFile template,
+            List<CompanyPerformance> performances,
+            Map<Long, String> contractPeriods,
+            Map<Long, String> jobRatios,
+            Map<String, String> jobTypeNames,
+            Map<String, String> mappings
+    ) {
         byte[] source = readBytes(template);
-        List<CompanyPerformance> performances = request.companyPerformanceSeqs().stream()
-                .distinct()
-                .map(companyPerformanceAdminService::findById)
-                .toList();
-        return renderCompanies(source, performances, request.mappings());
+        return renderCompanies(source, performances,
+                contractPeriods == null ? Map.of() : contractPeriods,
+                jobRatios == null ? Map.of() : jobRatios,
+                jobTypeNames == null ? Map.of() : jobTypeNames,
+                mappings);
     }
 
-    private byte[] renderCompanies(byte[] source, List<CompanyPerformance> performances, Map<String, String> mappings) {
+    private byte[] renderCompanies(
+            byte[] source,
+            List<CompanyPerformance> performances,
+            Map<Long, String> contractPeriods,
+            Map<Long, String> jobRatios,
+            Map<String, String> jobTypeNames,
+            Map<String, String> mappings
+    ) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
@@ -133,7 +143,11 @@ public class HwpxDocumentGenerationService {
                 ZipEntry entry;
                 while ((entry = input.getNextEntry()) != null) {
                     byte[] content = input.readAllBytes();
-                    if (isSection(entry.getName())) content = renderCompanySection(content, performances, mappings == null ? Map.of() : mappings);
+                    if (isSection(entry.getName())) {
+                content = renderCompanySection(content, performances, contractPeriods, jobRatios,
+                                jobTypeNames == null ? Map.of() : jobTypeNames,
+                                mappings == null ? Map.of() : mappings);
+                    }
                     writeZipEntry(output, entry.getName(), content, "mimetype".equals(entry.getName()));
                 }
             }
@@ -145,7 +159,14 @@ public class HwpxDocumentGenerationService {
         }
     }
 
-    private byte[] renderCompanySection(byte[] source, List<CompanyPerformance> performances, Map<String, String> mappings) throws Exception {
+    private byte[] renderCompanySection(
+            byte[] source,
+            List<CompanyPerformance> performances,
+            Map<Long, String> contractPeriods,
+            Map<Long, String> jobRatios,
+            Map<String, String> jobTypeNames,
+            Map<String, String> mappings
+    ) throws Exception {
         Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
         NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
         Set<Element> mappedRows = new LinkedHashSet<>();
@@ -175,7 +196,7 @@ public class HwpxDocumentGenerationService {
                     String field = cell.getAttribute("name");
                     String path = mappings.get(field);
                     if (StringUtils.hasText(path)) {
-                        setMappedCellText(cell, field, companyValue(path, performance));
+                        setMappedCellText(cell, field, companyValue(path, performance, field, contractPeriods, jobRatios, jobTypeNames));
                     }
                 }
                 parent.insertBefore(renderedRow, nextSibling);
@@ -191,23 +212,157 @@ public class HwpxDocumentGenerationService {
         return output.toByteArray();
     }
 
-    private String companyValue(String path, CompanyPerformance performance) {
+    private String companyValue(
+            String path,
+            CompanyPerformance performance,
+            String fieldName,
+            Map<Long, String> contractPeriods,
+            Map<Long, String> jobRatios,
+            Map<String, String> jobTypeNames
+    ) {
         if (!path.startsWith("row.")) return "";
         return switch (path.substring(4)) {
-            case "seq" -> string(performance.seq());
+            case "seq" -> performance.seq() == null ? "" : String.format("%03d", performance.seq());
+            case "code" -> string(performance.jobName()) + string(performance.seq());
             case "jobName" -> string(performance.jobName());
             case "orderClient" -> string(performance.orderClient());
-            case "contractFromDate" -> string(performance.contractFromDate());
-            case "contractToDate" -> string(performance.contractToDate());
-            case "contractAmt" -> string(performance.contractAmt());
-            case "ownAmt" -> string(performance.ownAmt());
-            case "jobRatio" -> string(performance.jobRatio());
-            case "divisionRate" -> string(performance.divisionRate());
-            case "jobType" -> string(performance.jobType());
+            case "contractPeriod" -> StringUtils.hasText(contractPeriods.get(performance.seq()))
+                    ? formatCompanyPeriodText(contractPeriods.get(performance.seq()), fieldName)
+                    : formatCompanyContractPeriod(performance, fieldName);
+            case "contractFromDate" -> formatCompanyDate(performance.contractFromDate(), fieldName);
+            case "contractToDate" -> formatCompanyDate(performance.contractToDate(), fieldName);
+            case "contractAmt" -> formatCompanyAmount(performance.contractAmt(), fieldName);
+            case "ownAmt" -> formatCompanyAmount(performance.ownAmt(), fieldName);
+            case "jobRatio" -> {
+                String jobRatio = jobRatios.get(performance.seq());
+                String value = StringUtils.hasText(jobRatio) ? jobRatio : performance.jobRatio();
+                yield fieldName.contains("PQ공동지분내역") ? formatJobRatio(value) : string(value);
+            }
+            case "divisionRate" -> formatCompanyDivisionRate(performance.divisionRate(), fieldName);
+            case "jobType" -> jobTypeNames.getOrDefault(performance.jobType(), string(performance.jobType()));
             case "summary" -> string(performance.summary());
             case "generalManagementYn" -> "Y".equals(performance.generalManagement()) ? "Y" : "N";
+            case "stopDate" -> formatCompanyDate(performance.stopDate(), fieldName);
+            case "remark" -> string(performance.remark());
             default -> "";
         };
+    }
+
+    private String formatCompanyAmount(Number amount, String fieldName) {
+        if (amount == null) return "";
+        BigDecimal divisor = fieldName.contains("(억)")
+                ? BigDecimal.valueOf(100_000_000L)
+                : fieldName.contains("(백만)")
+                        ? BigDecimal.valueOf(1_000_000L)
+                        : fieldName.contains("(만)")
+                                ? BigDecimal.valueOf(10_000L)
+                                : fieldName.contains("(천)") ? BigDecimal.valueOf(1_000L) : BigDecimal.ONE;
+        BigDecimal converted = BigDecimal.valueOf(amount.longValue()).divide(divisor, 0, RoundingMode.DOWN);
+        return NumberFormat.getIntegerInstance(Locale.KOREA).format(converted);
+    }
+
+    private String formatCompanyDivisionRate(BigDecimal value, String fieldName) {
+        if (value == null) return "";
+        BigDecimal formatted = fieldName.contains("(0.00%)") ? value.movePointLeft(2) : value;
+        return formatted.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String formatCompanyContractPeriod(CompanyPerformance performance, String fieldName) {
+        String from = formatCompanyDate(performance.contractFromDate(), fieldName);
+        String to = formatCompanyDate(performance.contractToDate(), fieldName);
+        return formatCompanyPeriodRange(performance.contractFromDate(), performance.contractToDate(), fieldName, from, to);
+    }
+
+    private String formatCompanyPeriodText(String value, String fieldName) {
+        return java.util.Arrays.stream(value.split("\\R"))
+                .map(period -> {
+                    String[] dates = period.split(" ~ ", -1);
+                    if (dates.length != 2) return "";
+                    return formatCompanyPeriodRange(
+                            dates[0], dates[1], fieldName,
+                            formatCompanyDate(dates[0], fieldName),
+                            formatCompanyDate(dates[1], fieldName));
+                })
+                .filter(StringUtils::hasText)
+                .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    private String formatCompanyPeriodRange(
+            String fromValue,
+            String toValue,
+            String fieldName,
+            String formattedFrom,
+            String formattedTo
+    ) {
+        if (formattedFrom.isEmpty() || formattedTo.isEmpty()) return "";
+        LocalDate from = parseCompanyDate(fromValue);
+        LocalDate to = parseCompanyDate(toValue);
+        if (from == null || to == null || to.isBefore(from)) return formattedFrom + " ~ " + formattedTo;
+
+        long days = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
+        String duration = switch (companyPeriodUnit(fieldName)) {
+            case "일" -> days + "일";
+            case "월" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP).toPlainString() + "개월";
+            case "년" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP).toPlainString() + "년";
+            case "년월" -> formatCompanyYearMonth(days);
+            default -> "";
+        };
+        return formattedFrom + " ~ " + formattedTo + (duration.isEmpty() ? "" : " (" + duration + ")");
+    }
+
+    private String companyPeriodUnit(String fieldName) {
+        if (fieldName.contains("(일)") || fieldName.contains("용역일수")) return "일";
+        if (fieldName.contains("(월)") || fieldName.contains("용역월수")) return "월";
+        if (fieldName.contains("(년월)") || fieldName.contains("용역년월")) return "년월";
+        if (fieldName.contains("(년)")) return "년";
+        return "";
+    }
+
+    private String formatCompanyYearMonth(long days) {
+        long years = days / 365;
+        long months = Math.round((days % 365) / 30.0);
+        if (months == 12) return (years + 1) + "년";
+        if (years == 0) return months + "개월";
+        return years + "년 " + months + "개월";
+    }
+
+    private LocalDate parseCompanyDate(String value) {
+        if (!StringUtils.hasText(value)) return null;
+        String digits = value.replaceAll("[^0-9]", "");
+        if (digits.length() != 8) return null;
+        try {
+            return LocalDate.parse(digits, DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (DateTimeParseException exception) {
+            return null;
+        }
+    }
+
+    private String formatCompanyDate(String value, String fieldName) {
+        if (!StringUtils.hasText(value)) return "";
+        try {
+            LocalDate date = LocalDate.parse(value.replaceAll("[^0-9]", ""), DateTimeFormatter.BASIC_ISO_DATE);
+            String normalized = fieldName.toLowerCase(Locale.ROOT);
+            DateTimeFormatter formatter = normalized.contains("yyyy년mm월dd일")
+                    ? DateTimeFormatter.ofPattern("yyyy년MM월dd일")
+                    : normalized.contains("yyyy년mm월")
+                            ? DateTimeFormatter.ofPattern("yyyy년MM월")
+                            : normalized.contains("yyyy.mm.dd")
+                                    ? DateTimeFormatter.ofPattern("yyyy.MM.dd")
+                                    : normalized.contains("yyyy.mm")
+                                            ? DateTimeFormatter.ofPattern("yyyy.MM")
+                                            : normalized.contains("yyyy-mm-dd")
+                                                    ? DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                                    : normalized.contains("yyyy-mm")
+                                                            ? DateTimeFormatter.ofPattern("yyyy-MM")
+                                                            : normalized.contains("yy.mm.dd")
+                                                                    ? DateTimeFormatter.ofPattern("yy.MM.dd")
+                                                                    : normalized.contains("yy-mm-dd")
+                                                                            ? DateTimeFormatter.ofPattern("yy-MM-dd")
+                                                                            : DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            return date.format(formatter);
+        } catch (DateTimeParseException exception) {
+            return value;
+        }
     }
 
     private byte[] render(

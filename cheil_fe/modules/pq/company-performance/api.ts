@@ -188,6 +188,7 @@ export type CompanyPerformanceDocumentTarget = {
   targetId: number;
   bidSeq: number;
   companyPerformanceSeq: number;
+  displayOrder: number | null;
   companyPerformance: CompanyPerformanceRecord | null;
 };
 
@@ -219,6 +220,17 @@ export async function deleteCompanyPerformanceDocumentTarget(bidSeq: number, tar
   return apiRequest(
     apiClient.delete(`/pq/company-performance-document-targets/${encodeURIComponent(String(targetId))}`, { params: { bidSeq } }),
     "회사실적 문서 대상을 삭제하지 못했습니다.",
+  );
+}
+
+export async function updateCompanyPerformanceDocumentTargetDisplayOrder(
+  bidSeq: number,
+  targetId: number,
+  displayOrder: number,
+): Promise<void> {
+  return apiRequest(
+    apiClient.put(`/pq/company-performance-document-targets/${encodeURIComponent(String(targetId))}/display-order`, { displayOrder }, { params: { bidSeq } }),
+    "회사실적 순번을 저장하지 못했습니다.",
   );
 }
 

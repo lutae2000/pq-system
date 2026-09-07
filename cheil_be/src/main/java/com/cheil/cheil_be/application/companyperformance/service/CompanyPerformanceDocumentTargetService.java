@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetEntity;
 import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetJpaRepository;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetResponse;
+import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetDisplayOrderRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceResponse;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetCondition;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -43,7 +44,17 @@ public class CompanyPerformanceDocumentTargetService {
                 .map(CompanyPerformanceResponse::from)
                 .collect(Collectors.toMap(CompanyPerformanceResponse::seq, Function.identity()));
         return targets.stream()
-                .map(target -> new CompanyPerformanceDocumentTargetResponse(target.getTargetId(), target.getBidSeq(), target.getCompanyPerformanceSeq(), performances.get(target.getCompanyPerformanceSeq())))
+                .sorted(java.util.Comparator.comparing(CompanyPerformanceDocumentTargetEntity::getDisplayOrder,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                        .thenComparing(CompanyPerformanceDocumentTargetEntity::getTargetId))
+                .map(target -> new CompanyPerformanceDocumentTargetResponse(
+                        target.getTargetId(), target.getBidSeq(), target.getCompanyPerformanceSeq(),
+                        target.getDisplayOrder(), performances.get(target.getCompanyPerformanceSeq())))
+                .toList()
+                .stream()
+                .sorted(java.util.Comparator.comparing(
+                        response -> response.companyPerformance() == null ? null : response.companyPerformance().contractToDate(),
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .toList();
     }
 
@@ -62,9 +73,15 @@ public class CompanyPerformanceDocumentTargetService {
         var existingSeqs = existingTargets.stream()
                 .map(CompanyPerformanceDocumentTargetEntity::getCompanyPerformanceSeq)
                 .collect(java.util.stream.Collectors.toSet());
+        int nextDisplayOrder = existingTargets.stream()
+                .map(CompanyPerformanceDocumentTargetEntity::getDisplayOrder)
+                .filter(java.util.Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(existingTargets.size()) + 1;
+        java.util.concurrent.atomic.AtomicInteger displayOrder = new java.util.concurrent.atomic.AtomicInteger(nextDisplayOrder);
         var newTargets = distinctSeqs.stream()
                 .filter(seq -> !existingSeqs.contains(seq))
-                .map(seq -> new CompanyPerformanceDocumentTargetEntity(requiredBidSeq, seq))
+                .map(seq -> new CompanyPerformanceDocumentTargetEntity(requiredBidSeq, seq, displayOrder.getAndIncrement()))
                 .toList();
         targetRepository.saveAll(newTargets);
 
@@ -136,6 +153,20 @@ public class CompanyPerformanceDocumentTargetService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다.");
         }
         targetRepository.delete(target);
+    }
+
+    @Transactional
+    public void updateDisplayOrder(Long bidSeq, Long targetId, CompanyPerformanceDocumentTargetDisplayOrderRequest request) {
+        if (request == null || request.displayOrder() == null || request.displayOrder() < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "순번은 1 이상의 정수로 입력해 주세요.");
+        }
+        CompanyPerformanceDocumentTargetEntity target = targetRepository.findById(targetId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다."));
+        if (!target.getBidSeq().equals(requiredBidSeq(bidSeq))) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다.");
+        }
+        target.setDisplayOrder(request.displayOrder());
+        targetRepository.save(target);
     }
 
     private Long requiredBidSeq(Long bidSeq) {

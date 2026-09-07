@@ -19,17 +19,24 @@ type CommonCodeFieldRow = { id: number; fieldName: string };
 
 const companyPath = (label: string) => {
   const name = label.replace(/^회사실적[_-]?/, "");
+  if (name === "순번") return "row.seq";
   if (name.includes("사업명") || name.includes("용역명")) return "row.jobName";
+  if (name.includes("용역코드")) return "row.code";
   if (name.includes("발주처")) return "row.orderClient";
-  if (name.includes("계약시작")) return "row.contractFromDate";
-  if (name.includes("계약종료")) return "row.contractToDate";
+  if (name.includes("용역기간") || name.includes("계약기간")) return "row.contractPeriod";
+  if (name.includes("계약시작") || name.includes("용역시작")) return "row.contractFromDate";
+  if (name.includes("계약종료") || name.includes("용역종료")) return "row.contractToDate";
+  if (name.includes("용역일수") || name.includes("용역월수") || name.includes("용역년월")) return "row.contractPeriod";
   if (name.includes("총계약") || name.includes("총금액")) return "row.contractAmt";
   if (name.includes("당사금액")) return "row.ownAmt";
   if (name.includes("공동도급")) return "row.jobRatio";
+  if (name.includes("PQ공동지분내역")) return "row.jobRatio";
   if (name.includes("지분율")) return "row.divisionRate";
   if (name.includes("용역구분")) return "row.jobType";
   if (name.includes("총괄")) return "row.generalManagementYn";
   if (name.includes("개요")) return "row.summary";
+  if (name.includes("중지일")) return "row.stopDate";
+  if (name.includes("비고")) return "row.remark";
   return "";
 };
 
@@ -99,10 +106,11 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
     {template ? <Chip label={`${template.name} · ${mappings.length}개 필드 · ${targets.length}건 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
     <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(280px, 0.75fr) minmax(0, 1.25fr)" } }}>
       <Stack spacing={1}>
-        <Typography sx={{ fontWeight: 800 }} variant="subtitle1">HWPX 작성 참고사항</Typography>
+        <Typography sx={{ fontWeight: 800 }} variant="subtitle1">한글문서 자동생성 안내사항</Typography>
         <Alert severity="info">HWPX 파일만 업로드할 수 있습니다. HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.</Alert>
         <Alert severity="info">양식의 셀 필드명과 PQ/HB 필드명이 일치해야 데이터가 정상적으로 맵핑됩니다.</Alert>
-        <Alert severity="info">문서 생성 전 업로드한 양식의 필드명과 맵핑된 회사실적 대상 건수를 확인해 주세요. 맵핑된 표의 행이 실적별 목록으로 생성됩니다.</Alert>
+        <Alert severity="info">HWPX 필드명에 xx가 포함되면 맵핑된 값의 줄바꿈이 제거되어 한 줄로 출력됩니다.</Alert>
+        <Alert severity="info">문서 다운로드 후 회사실적 대상을 꼭 확인해 주세요</Alert>
         <FormControlLabel
           control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
           label="필드명 셀 클릭 시 자동복사 (Ctrl+C)"

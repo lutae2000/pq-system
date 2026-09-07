@@ -4,6 +4,7 @@ public record CompanyPerformanceDocumentTargetResponse(
         Long targetId,
         Long bidSeq,
         Long companyPerformanceSeq,
+        Integer displayOrder,
         CompanyPerformanceResponse companyPerformance
 ) {
 }
