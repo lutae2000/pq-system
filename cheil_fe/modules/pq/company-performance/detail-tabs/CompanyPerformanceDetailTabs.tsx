@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Box, Tab, Tabs } from "@mui/material";
+import { Alert, Box, Stack, Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 
 import { FileActionCard } from "@/components/common/FileActionCard";
@@ -61,16 +61,24 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
         <Box hidden={activeTab !== 2}>{activeTab === 2 ? <OutlinesTab readOnly={readOnly} record={record} requestConfirmation={requestConfirmation} /> : null}</Box>
       </Box>
 
-      <Box sx={{ minWidth: 0 }}>
+      <Stack spacing={1.5} sx={{ minWidth: 0 }}>
         <FileActionCard
-          attachmentTarget={attachmentTarget}
-          description={record.seq ? "첨부된 파일이 없습니다." : "회사 실적 저장 후 파일을 업로드할 수 있습니다."}
+          attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PERFORMANCE" } : undefined}
+          description="실적증명서 파일"
           multiple
-          title="첨부파일"
+          title="실적증명서"
           uploadDisabled={readOnly || !record.seq}
           uploadLabel="파일 업로드"
         />
-      </Box>
+        <FileActionCard
+          attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PARTICIPANT_LIST" } : undefined}
+          description="참여자 명단 파일"
+          multiple
+          title="참여자 명단"
+          uploadDisabled={readOnly || !record.seq}
+          uploadLabel="파일 업로드"
+        />
+      </Stack>
     </Box>
   );
 }

@@ -43,6 +43,7 @@ type EmploymentStatus = "재직" | "퇴사";
 type CodeOption = { label: string; value: string };
 
 type EngineerListFilters = {
+  excludeCompleted: boolean;
   jobField: string;
   keyword: string;
   taskPeriodUnit: "일" | "개월";
@@ -61,6 +62,7 @@ const todayInputValue = () => {
 };
 
 const DEFAULT_FILTERS: EngineerListFilters = {
+  excludeCompleted: false,
   jobField: "",
   keyword: "",
   taskPeriodUnit: "일",
@@ -73,12 +75,12 @@ const DEFAULT_FILTERS: EngineerListFilters = {
 
 const DEFAULT_CONTRACT_PAGINATION: GridPaginationModel = {
   page: 0,
-  pageSize: 25,
+  pageSize: 100,
 };
 
 const DEFAULT_ENGINEER_PAGINATION: GridPaginationModel = {
   page: 0,
-  pageSize: 25,
+  pageSize: 100,
 };
 
 const ENGINEER_LIST_MIN_WIDTH = 360;
@@ -86,7 +88,6 @@ const ENGINEER_LIST_MAX_WIDTH = 760;
 const ENGINEER_LIST_DEFAULT_WIDTH = 520;
 const ENGINEER_LIST_CARD_HEIGHT = 640;
 const ENGINEER_LIST_GRID_HEIGHT = 560;
-const ENGINEER_CONTRACT_GRID_HEIGHT = 480;
 
 const STATUS_OPTIONS: Array<{ label: string; value: "" | EmploymentStatus }> = [
   { label: "전체", value: "" },
@@ -101,6 +102,7 @@ type WorkOverlapEngineerRow = {
   jobField: string;
   name: string;
   participationDays: number;
+  responsibility: string;
   specialtyField: string;
   status: EmploymentStatus;
 };
@@ -219,6 +221,7 @@ const mapEngineerProfileToRow = (profile: EngineerProfile): WorkOverlapEngineerR
   jobField: profile.detail.jobField,
   name: profile.summary.name,
   participationDays: profile.detail.participationDays,
+  responsibility: "",
   specialtyField: profile.detail.specialtyField,
   status: profile.summary.status === "퇴직" ? "퇴사" : "재직",
 });
@@ -237,6 +240,14 @@ const buildEngineerColumns = (
         {row.name}
       </Typography>
     ),
+  },
+  {
+    field: "responsibility",
+    headerName: "책임정도",
+    width: 90,
+    align: "center",
+    headerAlign: "center",
+    valueGetter: (_value, row) => row.responsibility || "-",
   },
   {
     field: "jobField",
@@ -289,7 +300,7 @@ const buildContractColumns = (
   {
     field: "publicContractYn",
     headerName: "공개계약",
-    width: 100,
+    width: 70,
     align: "center",
     headerAlign: "center",
     renderCell: ({ row }: GridRenderCellParams<WorkOverlapEngineerContractRow>) => (
@@ -488,10 +499,12 @@ async function loadSelectedEngineerContracts(
   selectedEngineer: WorkOverlapEngineerRow,
   referenceDate: string,
   remainingDays: number,
+  excludeCompleted: boolean,
   page: number,
   pageSize: number,
 ): Promise<ContractQueryResult> {
   const response: WorkOverlapEngineerContractPageResponse = await listWorkOverlapEngineerContracts(selectedEngineer.engineerId, {
+    excludeCompleted,
     page,
     referenceDate,
     remainingDays,
@@ -648,6 +661,7 @@ export function WorkOverlapEngineerListPage() {
       selectedEngineerIdForQuery,
       appliedReferenceDate,
       remainingDaysValue,
+      appliedFilters.excludeCompleted,
       contractPaginationModel.page,
       contractPaginationModel.pageSize,
     ],
@@ -657,6 +671,7 @@ export function WorkOverlapEngineerListPage() {
             selectedEngineer,
             appliedReferenceDate,
             remainingDaysValue,
+            appliedFilters.excludeCompleted,
             contractPaginationModel.page,
             contractPaginationModel.pageSize,
           )
@@ -738,6 +753,12 @@ export function WorkOverlapEngineerListPage() {
     setShowSelectedEngineersOnly(false);
     setEngineerPaginationModel(DEFAULT_ENGINEER_PAGINATION);
     setContractPaginationModel(DEFAULT_CONTRACT_PAGINATION);
+  };
+
+  const handleExcludeCompletedChange = (checked: boolean) => {
+    setFilters((current) => ({ ...current, excludeCompleted: checked }));
+    setAppliedFilters((current) => ({ ...current, excludeCompleted: checked }));
+    setContractPaginationModel((current) => ({ ...current, page: 0 }));
   };
 
   const handleSelectEngineer = (id: string) => {
@@ -922,6 +943,26 @@ export function WorkOverlapEngineerListPage() {
                 value={filters.remainingDays}
                 slotProps={{ htmlInput: { inputMode: "numeric" } }}
               />
+              <Box
+                sx={{
+                  alignItems: "center",
+                  display: "flex",
+                  flex: "0 0 150px",
+                  minHeight: 40,
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={filters.excludeCompleted}
+                      onChange={(_event, checked) => handleExcludeCompletedChange(checked)}
+                      size="small"
+                    />
+                  }
+                  label="준공 제외"
+                  sx={{ m: 0 }}
+                />
+              </Box>
             </Box>
           </SearchPanel>
 
@@ -1091,27 +1132,43 @@ export function WorkOverlapEngineerListPage() {
                 ) : selectedContracts.length === 0 ? (
                   <Alert severity="info">선택한 기술인과 연결된 참여 계약이 없습니다.</Alert>
                 ) : (
-                  <EnterpriseDataGrid<WorkOverlapEngineerContractRow>
-                    checkboxSelection
-                    columns={contractColumns}
-                    getRowId={(row) => row.contractNo}
-                    loading={contractsQuery.isLoading || contractsQuery.isFetching}
-                    onPaginationModelChange={(model) => setContractPaginationModel(model)}
-                    onRowDoubleClick={handleOpenContractDetail}
-                    paginationMode="server"
-                    paginationModel={contractPaginationModel}
-                    pageSizeOptions={[25, 50, 100]}
-                    readOnly
-                    rowCount={selectedContractsRowCount}
-                    rowHeight={30}
-                    rowSelectionModel={selectedContractRowSelectionModel}
-                    rows={selectedContractsUnique}
-                    onRowSelectionModelChange={handleContractSelectionModelChange}
-                    showPageNumbers
-                    showXlsxExportButton
-                    wrapperMinHeight={ENGINEER_CONTRACT_GRID_HEIGHT}
-                    sx={{ height: ENGINEER_CONTRACT_GRID_HEIGHT, maxWidth: "100%", minWidth: 0, width: "100%" }}
-                  />
+                  <Box sx={{ flex: 1, minHeight: 0, pb: 0.75 }}>
+                    <EnterpriseDataGrid<WorkOverlapEngineerContractRow>
+                      checkboxSelection
+                      columns={contractColumns}
+                      getRowId={(row) => row.contractNo}
+                      getRowClassName={(params) => (params.row.engineerHistoryYn ? "engineer-history-row" : "")}
+                      loading={contractsQuery.isLoading || contractsQuery.isFetching}
+                      onPaginationModelChange={(model) => setContractPaginationModel(model)}
+                      onRowDoubleClick={handleOpenContractDetail}
+                      paginationMode="server"
+                      paginationModel={contractPaginationModel}
+                      pageSizeOptions={[25, 50, 100]}
+                      readOnly
+                      rowCount={selectedContractsRowCount}
+                      rowHeight={30}
+                      rowSelectionModel={selectedContractRowSelectionModel}
+                      rows={selectedContractsUnique}
+                      onRowSelectionModelChange={handleContractSelectionModelChange}
+                      showPageNumbers
+                      showXlsxExportButton
+                      wrapperMinHeight="100%"
+                      sx={{
+                        height: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        width: "100%",
+                        "& .MuiDataGrid-row.engineer-history-row": {
+                          bgcolor: "rgba(255, 193, 7, 0.14)",
+                          "&:hover": { bgcolor: "rgba(255, 193, 7, 0.24)" },
+                          "&.Mui-selected": {
+                            bgcolor: "rgba(255, 193, 7, 0.25)",
+                            "&:hover": { bgcolor: "rgba(255, 193, 7, 0.32)" },
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
                 )}
               </CardContent>
             </Card>

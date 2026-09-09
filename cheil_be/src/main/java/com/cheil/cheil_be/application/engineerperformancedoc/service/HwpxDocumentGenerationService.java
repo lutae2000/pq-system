@@ -297,24 +297,25 @@ public class HwpxDocumentGenerationService {
         if (formattedFrom.isEmpty() || formattedTo.isEmpty()) return "";
         LocalDate from = parseCompanyDate(fromValue);
         LocalDate to = parseCompanyDate(toValue);
-        if (from == null || to == null || to.isBefore(from)) return formattedFrom + " ~ " + formattedTo;
+        if (from == null || to == null || to.isBefore(from)) return formattedFrom + "\n~\n" + formattedTo;
 
         long days = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
         String duration = switch (companyPeriodUnit(fieldName)) {
             case "일" -> days + "일";
-            case "월" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP).toPlainString() + "개월";
-            case "년" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP).toPlainString() + "년";
+            case "월" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 1, RoundingMode.DOWN).toPlainString() + "개월";
+            case "년" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 1, RoundingMode.DOWN).toPlainString() + "년";
             case "년월" -> formatCompanyYearMonth(days);
             default -> "";
         };
-        return formattedFrom + " ~ " + formattedTo + (duration.isEmpty() ? "" : " (" + duration + ")");
+        return formattedFrom + "\n~\n" + formattedTo + (duration.isEmpty() ? "" : "\n(" + duration + ")");
     }
 
     private String companyPeriodUnit(String fieldName) {
-        if (fieldName.contains("(일)") || fieldName.contains("용역일수")) return "일";
-        if (fieldName.contains("(월)") || fieldName.contains("용역월수")) return "월";
-        if (fieldName.contains("(년월)") || fieldName.contains("용역년월")) return "년월";
-        if (fieldName.contains("(년)")) return "년";
+        String normalized = fieldName == null ? "" : fieldName.replaceAll("\\s+", "");
+        if (normalized.contains("(일)") || normalized.contains("용역일수")) return "일";
+        if (normalized.contains("(월)") || normalized.contains("(개월)") || normalized.contains("용역월수") || normalized.contains("용역개월수")) return "월";
+        if (normalized.contains("(년월)") || normalized.contains("용역년월") || normalized.contains("용역년월수")) return "년월";
+        if (normalized.contains("(년)") || normalized.contains("용역년수")) return "년";
         return "";
     }
 

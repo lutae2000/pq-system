@@ -5,6 +5,7 @@ public record PqParticipatingEngineerResponse(
         String engrId,
         String workDutyId,
         Integer priority,
+        String responsibility,
         String role,
         String memo,
         String name,

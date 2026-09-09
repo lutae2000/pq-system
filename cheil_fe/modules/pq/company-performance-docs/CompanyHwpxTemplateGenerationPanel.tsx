@@ -12,6 +12,7 @@ import { useCommonCodeLevel3Options } from "@/modules/common/reference/useRefere
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { CompanyPerformanceDocumentTarget } from "@/modules/pq/company-performance/api";
 import { generateCompanyPerformanceHwpxDocuments, inspectHwpxTemplate, type HwpxTemplateFieldResponse } from "@/modules/pq/engineer-performance-docs/hwpxApi";
+import { PerformanceCertificateGenerationButton } from "@/modules/pq/engineer-performance-docs/PerformanceCertificateGenerationButton";
 
 type Props = { bidNotice: BidNoticeApiRecord | null; targets: CompanyPerformanceDocumentTarget[]; open: boolean };
 type MappingRow = HwpxTemplateFieldResponse & { path: string };
@@ -99,7 +100,18 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
   return <Card variant="outlined"><CardContent><Stack spacing={1.5}>
     <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
       <Box><Typography sx={{ fontWeight: 800 }} variant="h6">회사실적 HWPX 문서 생성</Typography></Box>
-      <Stack direction="row" spacing={1}><Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button><Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button></Stack>
+      <Stack direction="row" spacing={1}>
+        <PerformanceCertificateGenerationButton
+          bidSeq={bidNotice?.bidSeq ?? 0}
+          companyPerformanceSeqs={targets.slice().sort((a, b) => (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER)).map((target) => target.companyPerformanceSeq)}
+          disabled={!bidNotice?.bidSeq || targets.length === 0}
+          filenamePrefix={bidNotice?.projectName ?? undefined}
+          onError={(text) => setMessage({ severity: "error", text })}
+          onSuccess={(text) => setMessage({ severity: "success", text })}
+        />
+        <Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
+        <Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
+      </Stack>
       <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
     </Box>
     {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
@@ -142,7 +154,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
           columns={columns}
           disableRowSelectionOnClick
           getRowId={(row) => row.id}
-          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 50 } } }}
+          initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
           loading={hbFields.isLoading}
           pageSizeOptions={[50, 100]}
           rows={filteredFieldRows}

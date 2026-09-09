@@ -60,6 +60,15 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          "&:last-child": {
+            paddingBottom: 10,
+          },
+        },
+      },
+    },
     MuiTextField: {
       defaultProps: {
         variant: "outlined",

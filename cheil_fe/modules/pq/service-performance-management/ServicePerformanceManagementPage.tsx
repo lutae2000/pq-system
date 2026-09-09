@@ -158,6 +158,7 @@ export function ServicePerformanceManagementPage() {
   const [appliedSearchFilters, setAppliedSearchFilters] =
     useState<SearchFilterState>(() => defaultSearchFilters());
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [draft, setDraft] = useState<ServicePerformanceRecord>(() =>
     emptyDraft(),
   );
@@ -181,7 +182,7 @@ export function ServicePerformanceManagementPage() {
       periodType: appliedSearchFilters.periodType,
       referenceDate: appliedSearchFilters.referenceDate,
       siteName: appliedSearchFilters.siteName,
-      size: PAGE_SIZE,
+      size: pageSize,
     }),
     [
       appliedKeyword,
@@ -191,6 +192,7 @@ export function ServicePerformanceManagementPage() {
       appliedSearchFilters.referenceDate,
       appliedSearchFilters.siteName,
       page,
+      pageSize,
     ],
   );
 
@@ -201,7 +203,7 @@ export function ServicePerformanceManagementPage() {
     enabled: canRead,
   });
 
-  const pageData = performancesQuery.data || emptyPage(page, PAGE_SIZE);
+  const pageData = performancesQuery.data || emptyPage(page, pageSize);
   const rows = pageData.content || EMPTY_ROWS;
   const selectedRecord = draft;
   const selectedIdsSet = useMemo(
@@ -869,23 +871,24 @@ export function ServicePerformanceManagementPage() {
                 columns={columns}
                 getRowId={(row) => row.id}
                 checkboxSelection
-                hideFooter
                 hideFooterSelectedRowCount
                 loading={
                   performancesQuery.isLoading || performancesQuery.isFetching
                 }
-                onPaginationModelChange={(model: GridPaginationModel) =>
-                  setPage(model.page)
-                }
+                onPaginationModelChange={(model: GridPaginationModel) => {
+                  setPage(model.page);
+                  setPageSize(model.pageSize);
+                }}
                 onRowClick={handleRowClick}
                 onRowDoubleClick={handleRowDoubleClick}
                 onRowSelectionModelChange={handleSelectionModelChange}
-                pageSizeOptions={[PAGE_SIZE]}
+                pageSizeOptions={[25, 50, 100]}
                 paginationMode="server"
-                paginationModel={{ page, pageSize: PAGE_SIZE }}
+                paginationModel={{ page, pageSize }}
                 rowCount={pageData.totalElements}
                 rowSelectionModel={rowSelectionModel}
                 rows={rows}
+                showPageNumbers
                 showXlsxExportButton
                 showToolbar
                 sx={{

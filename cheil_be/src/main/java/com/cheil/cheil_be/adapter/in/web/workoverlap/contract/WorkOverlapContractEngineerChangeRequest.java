@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.in.web.workoverlapcontract;
+package com.cheil.cheil_be.adapter.in.web.workoverlap.contract;
 
 public record WorkOverlapContractEngineerChangeRequest(
         String beforeEngineerId,

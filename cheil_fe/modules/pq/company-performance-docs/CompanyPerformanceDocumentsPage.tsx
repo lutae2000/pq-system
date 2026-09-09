@@ -17,6 +17,7 @@ import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
+import { ResizableCard } from "@/components/common/ResizableCard";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
@@ -67,6 +68,9 @@ const displayDate = (value: string | null | undefined) => {
 const displayRate = (value: number | null | undefined) => value === null || value === undefined ? "-" : String(value);
 const displayGeneralManagement = (value: boolean | null | undefined) => value ? "Y" : "N";
 const DOCUMENT_GRID_HEIGHT = 420;
+const DOCUMENT_GRID_MIN_HEIGHT = 280;
+const DOCUMENT_GRID_MAX_HEIGHT = 900;
+const DOCUMENT_CARD_EXTRA_HEIGHT = 50;
 
 // 조건 적용은 화면 페이지와 별개로 전체 대상의 식별자만 확인하므로 한 번의 서버 조회로 처리한다.
 export function CompanyPerformanceDocumentsPage() {
@@ -141,6 +145,8 @@ export function CompanyPerformanceDocumentsPage() {
   const [selectedTargetIds, setSelectedTargetIds] = useState<number[]>([]);
   const [deleteTargetIds, setDeleteTargetIds] = useState<number[]>([]);
   const [renumberDialogOpen, setRenumberDialogOpen] = useState(false);
+  const [companyPerformanceGridHeight, setCompanyPerformanceGridHeight] = useState(DOCUMENT_GRID_HEIGHT);
+  const [matchedPerformanceGridHeight, setMatchedPerformanceGridHeight] = useState(DOCUMENT_GRID_HEIGHT);
   const targetGridApiRef = useGridApiRef();
   const [detailRecord, setDetailRecord] = useState<CompanyPerformanceRecord | null>(null);
   const searchParams = useMemo<CompanyPerformanceSearchParams>(() => ({
@@ -273,7 +279,15 @@ export function CompanyPerformanceDocumentsPage() {
             <Grid size={{ xs: 12, md: 4 }}><Box sx={{ display: "flex", gap: 1, justifyContent: { xs: "flex-start", md: "flex-end" }, flexWrap: "wrap" }}><Button disabled={!canRead || !bidNotice || companyPerformancesQuery.isFetching} onClick={handleLoad} startIcon={<SearchOutlinedIcon />} variant="contained">조회</Button><Button onClick={() => { setKeyword(""); setAppliedKeyword(""); }} startIcon={<RefreshOutlinedIcon />} variant="outlined">초기화</Button></Box></Grid>
           </Grid>
         </Stack></CardContent></Card>
-        <Card variant="outlined"><CardContent>
+        <ResizableCard
+          height={companyPerformanceGridHeight + DOCUMENT_CARD_EXTRA_HEIGHT}
+          maxHeight={DOCUMENT_GRID_MAX_HEIGHT + DOCUMENT_CARD_EXTRA_HEIGHT}
+          minHeight={DOCUMENT_GRID_MIN_HEIGHT + DOCUMENT_CARD_EXTRA_HEIGHT}
+          onHeightChange={(nextHeight) => setCompanyPerformanceGridHeight(Math.min(DOCUMENT_GRID_MAX_HEIGHT, Math.max(DOCUMENT_GRID_MIN_HEIGHT, nextHeight - DOCUMENT_CARD_EXTRA_HEIGHT)))}
+          resizeEdges={["bottom"]}
+          sx={{ width: "100%" }}
+          variant="outlined"
+        ><CardContent sx={{ "&:last-child": { pb: 0 } }}>
           <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1 }}>
             <Typography sx={{ fontWeight: 800 }} variant="subtitle1">회사실적 목록</Typography>
             <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
@@ -299,16 +313,24 @@ export function CompanyPerformanceDocumentsPage() {
             paginationModel={paginationModel}
             pageSizeOptions={[25, 50, 100]}
             rowCount={companyPerformancesQuery.data?.totalElements ?? 0}
-            rowHeight={30}
+            rowHeight={26}
             rows={rows}
             rowSelectionModel={{ ids: new Set(selectedCompanyPerformanceIds), type: "include" }}
             showPageNumbers
             showToolbar={false}
-            wrapperMinHeight={DOCUMENT_GRID_HEIGHT}
-            sx={{ border: 0, height: DOCUMENT_GRID_HEIGHT }}
+            wrapperMinHeight={companyPerformanceGridHeight}
+            sx={{ border: 0, height: companyPerformanceGridHeight }}
           />
-        </CardContent></Card>
-        <Card variant="outlined"><CardContent>
+        </CardContent></ResizableCard>
+        <ResizableCard
+          height={matchedPerformanceGridHeight + DOCUMENT_CARD_EXTRA_HEIGHT}
+          maxHeight={DOCUMENT_GRID_MAX_HEIGHT + DOCUMENT_CARD_EXTRA_HEIGHT}
+          minHeight={DOCUMENT_GRID_MIN_HEIGHT + DOCUMENT_CARD_EXTRA_HEIGHT}
+          onHeightChange={(nextHeight) => setMatchedPerformanceGridHeight(Math.min(DOCUMENT_GRID_MAX_HEIGHT, Math.max(DOCUMENT_GRID_MIN_HEIGHT, nextHeight - DOCUMENT_CARD_EXTRA_HEIGHT)))}
+          resizeEdges={["bottom"]}
+          sx={{ width: "100%" }}
+          variant="outlined"
+        ><CardContent sx={{ "&:last-child": { pb: 0 } }}>
           <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button disabled={!canUpdate || matchedRows.length === 0 || renumberTargetMutation.isPending} onClick={() => setRenumberDialogOpen(true)} size="small" startIcon={<FormatListNumberedOutlinedIcon />} variant="outlined">현재 정렬로 순번 저장</Button><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
           <EnterpriseDataGrid<CompanyPerformanceTargetRow>
             checkboxSelection
@@ -335,18 +357,23 @@ export function CompanyPerformanceDocumentsPage() {
               ),
               type: "include",
             }}
-            rowHeight={30}
+            rowHeight={26}
             rows={matchedRows}
+            summaryColumns={[
+              { field: "contractAmt", label: "총계약금액", format: displayMoney },
+              { field: "ownAmt", label: "당사금액", format: displayMoney },
+              { field: "divisionRate", label: "지분율", format: (value) => (value / 100).toFixed(2) },
+            ]}
             processRowUpdate={canUpdate ? processTargetRowUpdate : undefined}
             exportFileNamePrefix="조건 적용 회사실적"
             showPageNumbers
             showXlsxExportButton
             showToolbar
             stateCacheKey={false}
-            wrapperMinHeight={DOCUMENT_GRID_HEIGHT}
-            sx={{ border: 0, height: DOCUMENT_GRID_HEIGHT }}
+            wrapperMinHeight={matchedPerformanceGridHeight}
+            sx={{ border: 0, height: matchedPerformanceGridHeight }}
           />
-        </CardContent></Card>
+        </CardContent></ResizableCard>
         <CompanyHwpxTemplateGenerationPanel bidNotice={bidNotice} open={Boolean(bidNotice)} targets={documentTargetsQuery.data ?? []} />
       </Stack>
       {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setConditions([]); setSelectedCompanyPerformanceIds([]); setSelectedTargetIds([]); setDeleteTargetIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}

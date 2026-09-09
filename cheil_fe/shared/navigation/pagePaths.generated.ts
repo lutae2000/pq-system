@@ -44,6 +44,7 @@ export const generatedPagePaths = [
   "/system/user-management",
   "/work-overlap/contracts",
   "/work-overlap/engineers",
+  "/work-overlap/work-overlap-docs",
 ] as const;
 
 export type GeneratedPagePath = (typeof generatedPagePaths)[number];

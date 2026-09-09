@@ -72,6 +72,14 @@ public class PqParticipatingEngineerController {
         return ResponseEntity.ok(queryService.findSelectedProfiles(bidSeq, keyword));
     }
 
+    @GetMapping("/profiles/summary")
+    public ResponseEntity<List<EngineerDtos.Profile>> listSelectedProfileSummaries(
+            @RequestParam Long bidSeq,
+            @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(queryService.findSelectedProfileSummaries(bidSeq, keyword));
+    }
+
     /**
      * 선정된 기술자 목록을 조회한다.
      */

@@ -45,6 +45,7 @@ import { RolePermissionManagementPage as GeneratedPageComponent35 } from "@/modu
 import { UserManagementPage as GeneratedPageComponent36 } from "@/modules/system/user-management/UserManagementPage";
 import { WorkOverlapContractManagementPage as GeneratedPageComponent37 } from "@/modules/work-overlap/contracts/WorkOverlapContractManagementPage";
 import { WorkOverlapEngineerListPage as GeneratedPageComponent38 } from "@/modules/work-overlap/engineers/WorkOverlapEngineerListPage";
+import { WorkOverlapDocumentsPage as GeneratedPageComponent39 } from "@/modules/pq/work-overlap-docs/WorkOverlapDocumentsPage";
 
 import type { GeneratedPagePath } from "@/shared/navigation/pagePaths.generated";
 
@@ -88,4 +89,5 @@ export const pageRegistry: Record<GeneratedPagePath, ComponentType> = {
   "/system/user-management": GeneratedPageComponent36,
   "/work-overlap/contracts": GeneratedPageComponent37,
   "/work-overlap/engineers": GeneratedPageComponent38,
+  "/work-overlap/work-overlap-docs": GeneratedPageComponent39,
 };

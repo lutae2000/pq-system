@@ -9,5 +9,7 @@ public interface AppFileAttachmentJpaRepository extends JpaRepository<AppFileAtt
 
     List<AppFileAttachmentEntity> findByOwnerTypeAndOwnerIdOrderByCreatedAtDesc(String ownerType, String ownerId);
 
+    List<AppFileAttachmentEntity> findByOwnerTypeAndOwnerIdOrderByCreatedAtAsc(String ownerType, String ownerId);
+
     Optional<AppFileAttachmentEntity> findByFileId(String fileId);
 }

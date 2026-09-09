@@ -1,4 +1,4 @@
-﻿"use client";
+﻿﻿﻿"use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -113,6 +113,8 @@ const isTrueValue = (value: string | null | undefined) => {
 const toBooleanString = (checked: boolean) => (checked ? "true" : "false");
 const WORK_OVERLAP_CONTRACT_ATTACHMENT_OWNER_TYPE = "WORK_OVERLAP_CONTRACT";
 const WORK_OVERLAP_CONTRACT_EVIDENCE_ATTACHMENT_TYPE = "EVIDENCE";
+const WORK_OVERLAP_CONTRACT_PARTICIPANT_LIST_ATTACHMENT_TYPE =
+  "PARTICIPANT_LIST";
 const PERIOD_FIELD_NAMES = [
   "constructionStartDate",
   "constructionCompleteDate",
@@ -448,9 +450,11 @@ const Section = ({
 
 const SubHeader = ({
   action,
+  title,
   tooltip,
 }: {
   action?: ReactNode;
+  title?: string;
   tooltip?: string;
 }) => (
   <Box
@@ -467,6 +471,7 @@ const SubHeader = ({
         sx={{ fontSize: 13, fontWeight: 800, minWidth: 0 }}
         variant="subtitle2"
       >
+        {title}
       </Typography>
       {tooltip ? (
         <Tooltip arrow title={tooltip}>
@@ -486,12 +491,14 @@ const SubHeader = ({
 
 const DetailRow = ({
   alignItems = "stretch",
+  desktopColumns = "minmax(0, 1fr) minmax(380px, 0.84fr)",
   left,
   right,
 }: {
   alignItems?: "start" | "stretch";
+  desktopColumns?: string;
   left: ReactNode;
-  right: ReactNode;
+  right?: ReactNode;
 }) => (
   <Box
     sx={{
@@ -500,12 +507,12 @@ const DetailRow = ({
       gap: 2.25,
       gridTemplateColumns: {
         xs: "1fr",
-        lg: "minmax(0, 1fr) minmax(380px, 0.84fr)",
+        md: desktopColumns,
       },
     }}
   >
     <Box sx={{ display: "grid", minWidth: 0 }}>{left}</Box>
-    <Box sx={{ display: "grid", minWidth: 0 }}>{right}</Box>
+    {right ? <Box sx={{ display: "grid", minWidth: 0 }}>{right}</Box> : null}
   </Box>
 );
 
@@ -1084,6 +1091,164 @@ export function WorkOverlapContractDetailDialog({
     !changeDraft.afterEngineer ||
     !changeDraft.changeContent.trim();
 
+  const evidenceContent = (
+    <Section title="증빙 정보">
+      <Box
+                      sx={{
+                        alignContent: "start",
+                        display: "grid",
+                        gap: 1,
+                        gridTemplateColumns: "1fr",
+                        minWidth: 0,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          minHeight: 40,
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={isTrueValue(
+                                draft.performanceCertification,
+                              )}
+                              onChange={(_event, checked) =>
+                                updateField(
+                                  "performanceCertification",
+                                  toBooleanString(checked),
+                                )
+                              }
+                              size="small"
+                            />
+                          }
+                          label="실적증명"
+                          sx={{ m: 0, width: "100%" }}
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          minHeight: 40,
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={isTrueValue(
+                                draft.participateListDocument,
+                              )}
+                              onChange={(_event, checked) =>
+                                updateField(
+                                  "participateListDocument",
+                                  toBooleanString(checked),
+                                )
+                              }
+                              size="small"
+                            />
+                          }
+                          label="참여명단 문서"
+                          sx={{ m: 0, width: "100%" }}
+                        />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gridColumn: "1 / -1",
+                          minHeight: 40,
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={isTrueValue(draft.cemsConfirm)}
+                              onChange={(_event, checked) =>
+                                updateField(
+                                  "cemsConfirm",
+                                  toBooleanString(checked),
+                                )
+                              }
+                              size="small"
+                            />
+                          }
+                          label="CEMS"
+                          sx={{ m: 0, width: "100%" }}
+                        />
+                      </Box>
+      </Box>
+    </Section>
+  );
+
+  const attachmentContent = (
+    <Box
+                    sx={{
+                      display: "grid",
+                      gap: 1.25,
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        md: "repeat(2, minmax(0, 1fr))",
+                      },
+                      minWidth: 0,
+                      "& > .MuiBox-root > .MuiStack-root > .MuiBox-root:last-of-type":
+                        { maxHeight: 132, overflowY: "auto" },
+                    }}
+                  >
+                    <FileActionCard
+                      attachmentTarget={
+                        contractNo
+                          ? {
+                              attachmentType:
+                                WORK_OVERLAP_CONTRACT_EVIDENCE_ATTACHMENT_TYPE,
+                              ownerId: contractNo,
+                              ownerType:
+                                WORK_OVERLAP_CONTRACT_ATTACHMENT_OWNER_TYPE,
+                            }
+                          : undefined
+                      }
+                      deleteDisabled={false}
+                      description={
+                        contractNo
+                          ? "업무중복도 계약서 파일을 관리합니다."
+                          : "계약 저장 후 계약서를 업로드할 수 있습니다."
+                      }
+                      multiple
+                      showPdfPrintButton
+                      title="계약서"
+                      uploadDisabled={!contractNo}
+                      uploadLabel="파일 업로드"
+                    />
+                    <FileActionCard
+                      attachmentTarget={
+                        contractNo
+                          ? {
+                              attachmentType:
+                                WORK_OVERLAP_CONTRACT_PARTICIPANT_LIST_ATTACHMENT_TYPE,
+                              ownerId: contractNo,
+                              ownerType:
+                                WORK_OVERLAP_CONTRACT_ATTACHMENT_OWNER_TYPE,
+                            }
+                          : undefined
+                      }
+                      deleteDisabled={false}
+                      description={
+                        contractNo
+                          ? "업무중복도 계약 참여자 명단 파일을 관리합니다."
+                          : "계약 저장 후 참여자 명단을 업로드할 수 있습니다."
+                      }
+                      multiple
+                      showPdfPrintButton
+                      title="참여자 명단"
+                      uploadDisabled={!contractNo}
+                      uploadLabel="파일 업로드"
+                    />
+    </Box>
+  );
+
+
   return (
     <Dialog
       fullWidth
@@ -1273,150 +1438,25 @@ export function WorkOverlapContractDetailDialog({
                   </Box>
                 </Section>
               }
-              right={
+              right={attachmentContent}
+            />
+
+            <DetailRow
+              left={
                 <Box
                   sx={{
                     display: "grid",
                     gap: 2.25,
                     gridTemplateColumns: {
                       xs: "1fr",
-                      md: "minmax(240px, 0.78fr) minmax(0, 1fr)",
+                      sm: "minmax(0, 2fr) minmax(150px, 0.7fr)",
                     },
+                    gridTemplateRows: "auto minmax(0, 1fr)",
+                    height: "100%",
                     minWidth: 0,
                   }}
                 >
-                  <Section title="증빙 정보">
-                    <Box
-                      sx={{
-                        alignContent: "start",
-                        display: "grid",
-                        gap: 1,
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, minmax(0, 1fr))",
-                        },
-                        minWidth: 0,
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          minHeight: 40,
-                        }}
-                      >
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={isTrueValue(
-                                draft.performanceCertification,
-                              )}
-                              onChange={(_event, checked) =>
-                                updateField(
-                                  "performanceCertification",
-                                  toBooleanString(checked),
-                                )
-                              }
-                              size="small"
-                            />
-                          }
-                          label="실적증명"
-                          sx={{ m: 0, width: "100%" }}
-                        />
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          minHeight: 40,
-                        }}
-                      >
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={isTrueValue(
-                                draft.participateListDocument,
-                              )}
-                              onChange={(_event, checked) =>
-                                updateField(
-                                  "participateListDocument",
-                                  toBooleanString(checked),
-                                )
-                              }
-                              size="small"
-                            />
-                          }
-                          label="참여명단 문서"
-                          sx={{ m: 0, width: "100%" }}
-                        />
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gridColumn: "1 / -1",
-                          minHeight: 40,
-                        }}
-                      >
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={isTrueValue(draft.cemsConfirm)}
-                              onChange={(_event, checked) =>
-                                updateField(
-                                  "cemsConfirm",
-                                  toBooleanString(checked),
-                                )
-                              }
-                              size="small"
-                            />
-                          }
-                          label="CEMS"
-                          sx={{ m: 0, width: "100%" }}
-                        />
-                      </Box>
-                    </Box>
-                  </Section>
-
-                  <Box
-                    sx={{
-                      minWidth: 0,
-                      "& > .MuiBox-root > .MuiStack-root > .MuiBox-root:last-of-type":
-                        { maxHeight: 132, overflowY: "auto" },
-                    }}
-                  >
-                    <FileActionCard
-                      attachmentTarget={
-                        contractNo
-                          ? {
-                              attachmentType:
-                                WORK_OVERLAP_CONTRACT_EVIDENCE_ATTACHMENT_TYPE,
-                              ownerId: contractNo,
-                              ownerType:
-                                WORK_OVERLAP_CONTRACT_ATTACHMENT_OWNER_TYPE,
-                            }
-                          : undefined
-                      }
-                      deleteDisabled={false}
-                      description={
-                        contractNo
-                          ? "업무중복도 계약 증빙파일을 관리합니다."
-                          : "계약 저장 후 증빙파일을 업로드할 수 있습니다."
-                      }
-                      multiple
-                      showPdfPrintButton
-                      title="파일 목록"
-                      uploadDisabled={!contractNo}
-                      uploadLabel="파일 업로드"
-                    />
-                  </Box>
-                </Box>
-              }
-            />
-
-            <DetailRow
-              left={
-                <Box sx={{ display: "grid", gap: 2.25, minWidth: 0 }}>
+                  <Box sx={{ display: "grid", minWidth: 0 }}>
                   <Section title="기간 정보">
                     <Box
                       sx={{
@@ -1548,30 +1588,44 @@ export function WorkOverlapContractDetailDialog({
                       ) : null}
                     </Box>
                   </Section>
+                  </Box>
 
-                  <Section title="기타">
-                    <TextField
-                      label="비고"
-                      multiline
-                      minRows={3}
-                      maxRows={3}
-                      onChange={(event) =>
-                        updateField("remark", event.target.value || null)
-                      }
-                      size="small"
-                      sx={{
-                        ...standardFieldSx,
-                        "& .MuiInputBase-inputMultiline": {
-                          overflowY: "auto",
-                        },
-                      }}
-                      value={toText(draft.remark)}
-                    />
-                  </Section>
+                  <Box sx={{ display: "grid", minWidth: 0 }}>
+                    {evidenceContent}
+                  </Box>
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridColumn: { xs: "auto", sm: "1 / -1" },
+                      minHeight: 0,
+                      minWidth: 0,
+                    }}
+                  >
+                    <Section title="기타">
+                      <TextField
+                        label="비고"
+                        multiline
+                        minRows={3}
+                        maxRows={3}
+                        onChange={(event) =>
+                          updateField("remark", event.target.value || null)
+                        }
+                        size="small"
+                        sx={{
+                          ...standardFieldSx,
+                          height: "100%",
+                          "& .MuiInputBase-inputMultiline": {
+                            overflowY: "auto",
+                          },
+                        }}
+                        value={toText(draft.remark)}
+                      />
+                    </Section>
+                  </Box>
                 </Box>
               }
               right={
-                <Box sx={{ display: "grid", gap: 2.25, minWidth: 0 }}>
                   <Section dense title="기간 정보 변경 이력">
                     <Stack spacing={1} sx={{ minWidth: 0 }}>
                       <SubHeader
@@ -1634,13 +1688,13 @@ export function WorkOverlapContractDetailDialog({
                           rows={periodHistoryRows}
                           showPageNumbers
                           showToolbar={false}
-                          wrapperMinHeight={255}
+                          wrapperMinHeight={290}
                           sx={{
                             border: 0,
                             flex: 1,
-                            height: 255,
+                            height: 290,
                             maxWidth: "100%",
-                            minHeight: 255,
+                            minHeight: 290,
                             width: "100%",
                             "& .MuiDataGrid-footerContainer": {
                               minHeight: 32,
@@ -1654,9 +1708,9 @@ export function WorkOverlapContractDetailDialog({
                       </Box>
                     </Stack>
                   </Section>
-                </Box>
               }
             />
+
             <DetailRow
               left={
                 <Section title="참여 기술인">

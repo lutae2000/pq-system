@@ -128,10 +128,11 @@ public class EngineerPerformanceDocumentService {
 
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("engineerId", engineerId.trim());
+        List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(relatedProjectHistoryConditions);
         String conditionSql = buildProjectHistoryConditionSql(
-                parseProjectHistoryConditions(relatedProjectHistoryConditions),
+                conditions,
                 params,
-                conditionMetadataService.findAll()
+                conditions.isEmpty() ? Map.of() : conditionMetadataService.findAll()
         );
 
         return jdbcClient.sql("""
@@ -308,12 +309,28 @@ public class EngineerPerformanceDocumentService {
     public List<EngineerProjectHistoryReviewResponse> syncReviewResults(EngineerProjectHistoryReviewSyncRequest request) {
         Long bidSeq = requiredBidSeq(request.bidSeq());
         String engineerId = required(request.engineerId(), "engineerId");
+        String actor = AuditActorResolver.resolve();
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
         params.put("engineerId", engineerId);
 
+        jdbcClient.sql("""
+                        DELETE FROM pq_engineer_project_history_review_results
+                        WHERE bid_seq = :bidSeq
+                          AND engineer_id = :engineerId
+                          AND created_id = :actor
+                        """)
+                .param("bidSeq", bidSeq)
+                .param("engineerId", engineerId)
+                .param("actor", actor)
+                .update();
+
         List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(request.relatedProjectHistoryConditions());
-        String conditionSql = buildProjectHistoryConditionSql(conditions, params, conditionMetadataService.findAll());
+        String conditionSql = buildProjectHistoryConditionSql(
+                conditions,
+                params,
+                conditions.isEmpty() ? Map.of() : conditionMetadataService.findAll()
+        );
         String selectSql = """
                 SELECT DISTINCT h.id
                 FROM pq_engineer_project_history h
@@ -339,7 +356,6 @@ public class EngineerPerformanceDocumentService {
             return findReviewResults(bidSeq, engineerId, request.relatedProjectHistoryConditions());
         }
 
-        String actor = AuditActorResolver.resolve();
         int displayOrder = nextDisplayOrder(bidSeq, engineerId);
         for (Integer sourceSeq : matchingSourceSeqs) {
             jdbcClient.sql("""

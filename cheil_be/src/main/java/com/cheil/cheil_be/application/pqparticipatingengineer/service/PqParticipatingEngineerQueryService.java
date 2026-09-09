@@ -57,7 +57,10 @@ public class PqParticipatingEngineerQueryService {
             String projectHistoryConditions,
             Pageable pageable
     ) {
-        Map<String, ProjectHistoryConditionMetadata> conditionMetadata = conditionMetadataService.findAll();
+        List<ProjectHistoryCondition> historyConditions = parseProjectHistoryConditions(projectHistoryConditions);
+        Map<String, ProjectHistoryConditionMetadata> conditionMetadata = historyConditions.isEmpty()
+                ? Map.of()
+                : conditionMetadataService.findAll();
         QueryParts queryParts = buildCandidateWhere(
                 bidSeq,
                 workDutyId,
@@ -68,7 +71,7 @@ public class PqParticipatingEngineerQueryService {
                 jobField,
                 specialtyField,
                 retireYn,
-                parseProjectHistoryConditions(projectHistoryConditions),
+                historyConditions,
                 conditionMetadata
         );
 
@@ -128,7 +131,8 @@ public class PqParticipatingEngineerQueryService {
                     s.bid_seq,
                     s.work_duty_id,
                     s.engr_id,
-                    ROW_NUMBER() OVER (ORDER BY m.namekor NULLS LAST, s.engr_id) AS priority,
+                    COALESCE(s.priority, ROW_NUMBER() OVER (ORDER BY m.namekor NULLS LAST, s.engr_id)) AS priority,
+                    s.responsibility,
                     m.namekor,
                     m.birthday,
                     m.deptname,
@@ -146,23 +150,103 @@ public class PqParticipatingEngineerQueryService {
             sql.append(" AND s.work_duty_id = :workDutyId");
             params.put("workDutyId", workDutyId.trim());
         }
-        sql.append(" ORDER BY priority");
+        sql.append(" ORDER BY CASE WHEN s.priority IS NULL THEN 1 ELSE 0 END, s.priority NULLS LAST, "
+                + "CASE LOWER(COALESCE(s.responsibility, '')) "
+                + "WHEN '사업책임' THEN 1 WHEN '책임' THEN 2 WHEN '참여' THEN 3 WHEN '실무' THEN 4 ELSE 5 END, "
+                + "m.namekor NULLS LAST, s.engr_id");
 
         return jdbcClient.sql(sql.toString())
                 .params(params)
-                .query((rs, rowNum) -> toSelectedResponse(rs.getLong("bid_seq"), rs.getString("work_duty_id"), rs.getString("engr_id"), rs.getInt("priority"),
+                .query((rs, rowNum) -> toSelectedResponse(rs.getLong("bid_seq"), rs.getString("work_duty_id"), rs.getString("engr_id"), rs.getInt("priority"), rs.getString("responsibility"),
                         rs.getString("namekor"), rs.getString("birthday"), rs.getString("deptname"), rs.getString("grade"), rs.getString("dutypart"), rs.getString("propart"), rs.getString("retireyn")))
                 .list();
     }
 
     @Transactional(readOnly = true)
     public List<EngineerDtos.Profile> findSelectedProfiles(Long bidSeq, String keyword) {
+        return findSelectedProfileIds(bidSeq, keyword).stream()
+                .map(engineerAdminService::findByEngrId)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EngineerDtos.Profile> findSelectedProfileSummaries(Long bidSeq, String keyword) {
         if (bidSeq == null) {
             return List.of();
         }
 
         StringBuilder sql = new StringBuilder("""
-                SELECT DISTINCT
+                SELECT
+                    s.engr_id,
+                    CASE LOWER(COALESCE(s.responsibility, ''))
+                        WHEN '사업책임' THEN 1
+                        WHEN '책임' THEN 2
+                        WHEN '참여' THEN 3
+                        WHEN '실무' THEN 4
+                        ELSE 5
+                    END AS responsibility_order,
+                    COALESCE(s.priority, 2147483647) AS engineer_priority,
+                    m.namekor,
+                    m.birthday,
+                    m.deptname,
+                    m.grade,
+                    m.dutypart,
+                    m.propart,
+                    m.retireyn,
+                    v.selected_education_id,
+                    v.selected_license_id
+                FROM pq_find_engr_info s
+                LEFT JOIN pq_engineer_master m ON m.engr_id = s.engr_id
+                LEFT JOIN pq_engineer_document_value_settings v
+                    ON v.bid_seq = s.bid_seq AND v.engineer_id = s.engr_id
+                WHERE s.bid_seq = :bidSeq
+                """);
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("bidSeq", bidSeq);
+        if (StringUtils.hasText(keyword)) {
+            sql.append("""
+                     AND (
+                        LOWER(m.engr_id) LIKE :keyword
+                        OR LOWER(m.namekor) LIKE :keyword
+                        OR LOWER(m.deptname) LIKE :keyword
+                        OR LOWER(m.grade) LIKE :keyword
+                        OR LOWER(m.dutypart) LIKE :keyword
+                        OR LOWER(m.propart) LIKE :keyword
+                    )
+                    """);
+            params.put("keyword", "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
+        }
+        sql.append(" ORDER BY CASE WHEN s.priority IS NULL THEN 1 ELSE 0 END, s.priority NULLS LAST, "
+                + "responsibility_order, m.namekor NULLS LAST, s.engr_id");
+
+        return jdbcClient.sql(sql.toString())
+                .params(params)
+                .query((rs, rowNum) -> new EngineerDtos.Profile(
+                        new EngineerDtos.Basic(
+                                rs.getString("engr_id"),
+                                rs.getString("namekor"),
+                                rs.getString("birthday"),
+                                rs.getString("deptname"),
+                                rs.getString("grade"),
+                                null,
+                                null,
+                                null,
+                                rs.getString("retireyn"),
+                                rs.getString("dutypart"),
+                                rs.getString("propart")
+                        ),
+                        List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+                ))
+                .list();
+    }
+
+    private List<String> findSelectedProfileIds(Long bidSeq, String keyword) {
+        if (bidSeq == null) {
+            return List.of();
+        }
+
+        StringBuilder sql = new StringBuilder("""
+                SELECT
                     s.engr_id,
                     m.namekor
                 FROM pq_find_engr_info s
@@ -189,10 +273,7 @@ public class PqParticipatingEngineerQueryService {
         return jdbcClient.sql(sql.toString())
                 .params(params)
                 .query((rs, rowNum) -> rs.getString("engr_id"))
-                .list()
-                .stream()
-                .map(engineerAdminService::findByEngrId)
-                .toList();
+                .list();
     }
 
     @Transactional
@@ -200,7 +281,7 @@ public class PqParticipatingEngineerQueryService {
         Long bidSeq = requiredBidSeq(request.bidSeq());
         String workDutyId = required(request.workDutyId(), "workDutyId");
         String engrId = required(request.engrId(), "engrId");
-        upsert(bidSeq, workDutyId, engrId);
+        upsert(bidSeq, workDutyId, engrId, request.priority(), request.responsibility());
         return findSelectedOne(bidSeq, workDutyId, engrId);
     }
 
@@ -210,18 +291,22 @@ public class PqParticipatingEngineerQueryService {
         String nextEngrId = StringUtils.hasText(request.engrId()) ? request.engrId().trim() : required(engrId, "engrId");
         Long nextBidSeq = request.bidSeq() == null ? requiredBidSeq(bidSeq) : request.bidSeq();
 
-        int deleted = jdbcClient.sql("""
-                        DELETE FROM pq_find_engr_info
+        int updated = jdbcClient.sql("""
+                        UPDATE pq_find_engr_info
+                        SET priority = :priority,
+                            responsibility = :responsibility,
+                            last_changed_at = CURRENT_TIMESTAMP
                         WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId AND engr_id = :engrId
                         """)
                 .param("bidSeq", requiredBidSeq(bidSeq))
                 .param("workDutyId", required(workDutyId, "workDutyId"))
                 .param("engrId", required(engrId, "engrId"))
+                .param("priority", request.priority())
+                .param("responsibility", normalize(request.responsibility()))
                 .update();
-        if (deleted != 1) {
+        if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PQ참여 기술자 정보를 찾을 수 없습니다.");
         }
-        upsert(nextBidSeq, nextWorkDutyId, nextEngrId);
         return findSelectedOne(nextBidSeq, nextWorkDutyId, nextEngrId);
     }
 
@@ -253,12 +338,14 @@ public class PqParticipatingEngineerQueryService {
         Set<String> engineerIds = new LinkedHashSet<>();
         if (request.engineers() != null) {
             request.engineers().stream()
-                    .map(ReplacePqParticipatingEngineersRequest.Item::engrId)
-                    .map(this::normalize)
-                    .filter(StringUtils::hasText)
-                    .forEach(engineerIds::add);
+                    .filter(item -> StringUtils.hasText(item.engrId()))
+                    .forEach(item -> {
+                        String engineerId = normalize(item.engrId());
+                        if (engineerIds.add(engineerId)) {
+                            upsert(bidSeq, workDutyId, engineerId, item.priority(), item.responsibility());
+                        }
+                    });
         }
-        engineerIds.forEach(engrId -> upsert(bidSeq, workDutyId, engrId));
         return findSelected(bidSeq, workDutyId);
     }
 
@@ -507,14 +594,37 @@ public class PqParticipatingEngineerQueryService {
 
     private void upsert(Long bidSeq, String workDutyId, String engrId) {
         jdbcClient.sql("""
-                        INSERT INTO pq_find_engr_info (bid_seq, work_duty_id, engr_id, last_changed_at)
-                        VALUES (:bidSeq, :workDutyId, :engrId, CURRENT_TIMESTAMP)
+                        INSERT INTO pq_find_engr_info (bid_seq, work_duty_id, engr_id, priority, responsibility, last_changed_at)
+                        VALUES (:bidSeq, :workDutyId, :engrId, :priority, :responsibility, CURRENT_TIMESTAMP)
                         ON CONFLICT (bid_seq, work_duty_id, engr_id)
-                        DO UPDATE SET last_changed_at = CURRENT_TIMESTAMP
+                        DO UPDATE SET
+                            priority = EXCLUDED.priority,
+                            responsibility = EXCLUDED.responsibility,
+                            last_changed_at = CURRENT_TIMESTAMP
                         """)
                 .param("bidSeq", bidSeq)
                 .param("workDutyId", workDutyId)
                 .param("engrId", engrId)
+                .param("priority", null)
+                .param("responsibility", null)
+                .update();
+    }
+
+    private void upsert(Long bidSeq, String workDutyId, String engrId, Integer priority, String responsibility) {
+        jdbcClient.sql("""
+                        INSERT INTO pq_find_engr_info (bid_seq, work_duty_id, engr_id, priority, responsibility, last_changed_at)
+                        VALUES (:bidSeq, :workDutyId, :engrId, :priority, :responsibility, CURRENT_TIMESTAMP)
+                        ON CONFLICT (bid_seq, work_duty_id, engr_id)
+                        DO UPDATE SET
+                            priority = EXCLUDED.priority,
+                            responsibility = EXCLUDED.responsibility,
+                            last_changed_at = CURRENT_TIMESTAMP
+                        """)
+                .param("bidSeq", bidSeq)
+                .param("workDutyId", workDutyId)
+                .param("engrId", engrId)
+                .param("priority", priority)
+                .param("responsibility", normalize(responsibility))
                 .update();
     }
 
@@ -523,6 +633,7 @@ public class PqParticipatingEngineerQueryService {
             String workDutyId,
             String engrId,
             Integer priority,
+            String responsibility,
             String name,
             String birthDate,
             String department,
@@ -536,6 +647,7 @@ public class PqParticipatingEngineerQueryService {
                 engrId,
                 workDutyId,
                 priority,
+                responsibility,
                 null,
                 null,
                 name,

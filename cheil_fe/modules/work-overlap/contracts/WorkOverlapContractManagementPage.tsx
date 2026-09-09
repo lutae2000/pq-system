@@ -42,7 +42,6 @@ import {
   displayText,
   formatDateText,
   formatNumberText,
-  formatPeriodText,
   toWorkOverlapContractRequest,
 } from "@/modules/work-overlap/contracts/workOverlapContractForm";
 
@@ -385,10 +384,16 @@ export function WorkOverlapContractManagementPage() {
     },
     { field: "serviceName", headerName: "용역명", minWidth: 300, flex: 1.4, valueGetter: (_value, row) => displayText(row.serviceName) },
     {
-      field: "constructionPeriod",
-      headerName: "계약기간",
-      width: 210,
-      valueGetter: (_value, row) => formatPeriodText(row.constructionStartDate, row.constructionCompleteDate),
+      field: "constructionStartDate",
+      headerName: "착수일",
+      width: 105,
+      valueGetter: (_value, row) => formatDateText(row.constructionStartDate),
+    },
+    {
+      field: "constructionCompleteDate",
+      headerName: "준공일",
+      width: 105,
+      valueGetter: (_value, row) => formatDateText(row.constructionCompleteDate),
     },
     {
       field: "managementServiceCompleteDate",
@@ -397,10 +402,16 @@ export function WorkOverlapContractManagementPage() {
       valueGetter: (_value, row) => formatDateText(row.managementServiceCompleteDate),
     },
     {
-      field: "stopPeriod",
-      headerName: "중지기간",
-      width: 210,
-      valueGetter: (_value, row) => formatPeriodText(row.constructionStopFromDate, row.constructionStopToDate),
+      field: "constructionStopFromDate",
+      headerName: "중지일",
+      width: 105,
+      valueGetter: (_value, row) => formatDateText(row.constructionStopFromDate),
+    },
+    {
+      field: "constructionStopToDate",
+      headerName: "중지종료일",
+      width: 105,
+      valueGetter: (_value, row) => formatDateText(row.constructionStopToDate),
     },
     {
       field: "remainingDays",

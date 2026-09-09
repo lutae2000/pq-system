@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.out.persistence.workoverlapcontract;
+package com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract;
 
 import java.math.BigDecimal;
 
@@ -11,8 +11,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractRequest;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractResponse;
 import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
 
 @Entity

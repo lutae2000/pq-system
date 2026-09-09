@@ -531,6 +531,22 @@ export async function listSelectedEngineerProfilesForBidNotice(params: {
   return profiles.map(mapProfile);
 }
 
+export async function listSelectedEngineerProfileSummariesForBidNotice(params: {
+  bidSeq: number;
+  keyword?: string;
+}): Promise<EngineerProfileView[]> {
+  const profiles = await apiRequest<BackendEngineerProfile[]>(
+    apiClient.get("/pq/participating-engineers/profiles/summary", {
+      params: {
+        bidSeq: params.bidSeq,
+        keyword: params.keyword?.trim() || undefined,
+      },
+    }),
+    "선정 기술인 요약 목록을 불러오지 못했습니다.",
+  );
+  return profiles.map(mapProfile);
+}
+
 export async function saveEngineerProfile(profile: EngineerProfileView): Promise<EngineerProfileView> {
   return saveEngineerMaster(profile.summary.id, profile);
 }

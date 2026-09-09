@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.out.persistence.workoverlapcontract;
+package com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,12 +1,13 @@
-package com.cheil.cheil_be.adapter.in.web.workoverlapcontract;
+package com.cheil.cheil_be.adapter.in.web.workoverlap.contract;
 
 import java.math.BigDecimal;
 
-public record WorkOverlapContractRequest(
+public record WorkOverlapEngineerContractResponse(
+        String contractNo,
         String serviceType,
         String clientName,
         String supervisingDepartmentCode,
-        Boolean publicContractYn,
+        boolean publicContractYn,
         String serviceName,
         String constructionStartDate,
         String constructionCompleteDate,
@@ -20,6 +21,16 @@ public record WorkOverlapContractRequest(
         String participateListDocument,
         String cemsConfirm,
         String remark,
-        String periodChangeReason
+        String createdAt,
+        String createdId,
+        String lastChangedAt,
+        String lastChangedId,
+        String participationType,
+        Boolean pqTargetYn,
+        Integer remainDate,
+        Boolean checkYn,
+        String beforeEngineerId,
+        String afterEngineerId,
+        Boolean engineerHistoryYn
 ) {
 }

@@ -67,6 +67,7 @@ export type PqParticipatingEngineerRecord = {
   engrId: string;
   workDutyId: string;
   priority: number | null;
+  responsibility: string | null;
   role: string | null;
   memo: string | null;
   name?: string | null;
@@ -83,6 +84,7 @@ export type PqParticipatingEngineerRequest = {
   engrId: string;
   workDutyId: string;
   priority?: number | null;
+  responsibility?: string | null;
   role?: string | null;
   memo?: string | null;
 };
@@ -93,6 +95,7 @@ export type ReplacePqParticipatingEngineersRequest = {
   engineers: Array<{
     engrId: string;
     priority?: number | null;
+    responsibility?: string | null;
     role?: string | null;
     memo?: string | null;
   }>;

@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.workoverlapcontract.service;
+package com.cheil.cheil_be.application.workoverlap.contract;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,13 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractPeriodHistoryResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractSummaryResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapEngineerContractResponse;
-import com.cheil.cheil_be.adapter.out.persistence.workoverlapcontract.WorkOverlapContractEntity;
-import com.cheil.cheil_be.adapter.out.persistence.workoverlapcontract.WorkOverlapContractJpaRepository;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractRequest;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractPeriodHistoryResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractSummaryResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapEngineerContractResponse;
+import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverlapContractEntity;
+import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverlapContractJpaRepository;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
 
@@ -220,6 +220,7 @@ public class WorkOverlapContractService {
             String engineerId,
             String referenceDate,
             String remainingDays,
+            boolean excludeCompleted,
             Pageable pageable
     ) {
         String normalizedEngineerId = value(engineerId);
@@ -230,13 +231,31 @@ public class WorkOverlapContractService {
         Integer normalizedRemainingDays = positiveInteger(remainingDays, "remainingDays");
 
         long totalElements = jdbcClient.sql("""
-                        SELECT COUNT(DISTINCT c.contract_no)
+                        SELECT COUNT(*)
                         FROM work_overlap_contracts c
-                        INNER JOIN work_overlap_contract_engineers e
-                                ON e.contract_no = c.contract_no
-                        WHERE e.engineer_id = :engineerId
+                        WHERE (
+                                EXISTS (
+                                    SELECT 1
+                                    FROM work_overlap_contract_engineers e
+                                    WHERE e.contract_no = c.contract_no
+                                      AND e.engineer_id = :engineerId
+                                )
+                                OR EXISTS (
+                                    SELECT 1
+                                    FROM work_overlap_contract_engineer_histories h
+                                    WHERE h.contract_no = c.contract_no
+                                      AND (h.before_engineer_id = :engineerId OR h.after_engineer_id = :engineerId)
+                                )
+                          )
+                          AND (
+                                :excludeCompleted = FALSE
+                                OR NULLIF(TRIM(c.construction_complete_date), '') IS NULL
+                                OR c.construction_complete_date >= :referenceDate
+                          )
                         """)
                 .param("engineerId", normalizedEngineerId)
+                .param("excludeCompleted", excludeCompleted)
+                .param("referenceDate", normalizedReferenceDate)
                 .query(Long.class)
                 .single();
 
@@ -273,6 +292,9 @@ public class WorkOverlapContractService {
                             c.last_changed_id,
                             e.participation_type,
                             e.pq_target_yn,
+                            h.before_engineer_id,
+                            h.after_engineer_id,
+                            (h.id IS NOT NULL) AS engineer_history_yn,
                             CASE
                                 WHEN c.construction_complete_date IS NULL THEN NULL
                                 ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') + 1
@@ -283,13 +305,28 @@ public class WorkOverlapContractService {
                                 ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') +1 > :remainingDays AND c.service_type = '설계'
                             END AS check_yn
                         FROM work_overlap_contracts c
-                        INNER JOIN work_overlap_contract_engineers e
-                                ON e.contract_no = c.contract_no
-                        WHERE e.engineer_id = :engineerId
+                        LEFT JOIN work_overlap_contract_engineers e
+                               ON e.contract_no = c.contract_no
+                              AND e.engineer_id = :engineerId
+                        LEFT JOIN LATERAL (
+                            SELECT history.id, history.before_engineer_id, history.after_engineer_id
+                            FROM work_overlap_contract_engineer_histories history
+                            WHERE history.contract_no = c.contract_no
+                              AND (history.before_engineer_id = :engineerId OR history.after_engineer_id = :engineerId)
+                            ORDER BY history.created_at DESC, history.id DESC
+                            LIMIT 1
+                        ) h ON TRUE
+                        WHERE (e.engineer_id IS NOT NULL OR h.id IS NOT NULL)
+                          AND (
+                                :excludeCompleted = FALSE
+                                OR NULLIF(TRIM(c.construction_complete_date), '') IS NULL
+                                OR c.construction_complete_date >= :referenceDate
+                          )
                         ORDER BY c.contract_no
                         LIMIT :limit OFFSET :offset
                         """)
                 .param("engineerId", normalizedEngineerId)
+                .param("excludeCompleted", excludeCompleted)
                 .param("referenceDate", normalizedReferenceDate)
                 .param("remainingDays", normalizedRemainingDays)
                 .param("limit", limit)
@@ -320,7 +357,10 @@ public class WorkOverlapContractService {
                         rs.getString("participation_type"),
                         booleanValue(rs, "pq_target_yn"),
                         integerValue(rs, "remain_date"),
-                        booleanValue(rs, "check_yn")
+                        booleanValue(rs, "check_yn"),
+                        rs.getString("before_engineer_id"),
+                        rs.getString("after_engineer_id"),
+                        booleanValue(rs, "engineer_history_yn")
                 ))
                 .list();
 

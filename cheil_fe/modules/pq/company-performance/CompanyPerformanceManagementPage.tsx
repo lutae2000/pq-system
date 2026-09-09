@@ -92,8 +92,8 @@ const formatDateDisplay = (value: string | null | undefined) => {
 const formatMoney = (value: number | null | undefined) => new Intl.NumberFormat("ko-KR").format(Number(value ?? 0));
 const yesNoOptions = [
   { label: "전체", value: "All" },
-  { label: "Y", value: "Y" },
-  { label: "N", value: "N" },
+  { label: "자사", value: "Y" },
+  { label: "타사", value: "N" },
 ] as const;
 
 const emptyPage = (page: number, size: number): CompanyPerformancePageResponse => ({
@@ -156,7 +156,7 @@ export function CompanyPerformanceManagementPage() {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [clientKind, setClientKind] = useState("");
-  const [jobOwnFilter, setJobOwnFilter] = useState<"All" | "Y" | "N">("All");
+  const [jobOwnFilter, setJobOwnFilter] = useState<"All" | "Y" | "N">("Y");
   const [jobFinishFilter, setJobFinishFilter] = useState("All");
   const [contractFromDate, setContractFromDate] = useState("");
   const [contractToDate, setContractToDate] = useState("");
@@ -362,7 +362,7 @@ export function CompanyPerformanceManagementPage() {
       appliedKeyword === "" &&
       businessType === "" &&
       clientKind === "" &&
-      jobOwnFilter === "All" &&
+      jobOwnFilter === "Y" &&
       jobFinishFilter === "All" &&
       contractFromDate === "" &&
       contractToDate === "" &&
@@ -373,7 +373,7 @@ export function CompanyPerformanceManagementPage() {
     setAppliedKeyword("");
     setBusinessType("");
     setClientKind("");
-    setJobOwnFilter("All");
+    setJobOwnFilter("Y");
     setJobFinishFilter("All");
     setContractFromDate("");
     setContractToDate("");

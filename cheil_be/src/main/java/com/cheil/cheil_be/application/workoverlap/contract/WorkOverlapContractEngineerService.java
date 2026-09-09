@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.workoverlapcontract.service;
+package com.cheil.cheil_be.application.workoverlap.contract;
 
 import java.util.List;
 
@@ -10,11 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerCandidateResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerChangeRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerHistoryResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapContractEngineerResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerCandidateResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerChangeRequest;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerHistoryResponse;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerRequest;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 /** 업무중복도 계약에 참여하는 기술인과 경력 이력을 조회하고 관리하는 서비스. */

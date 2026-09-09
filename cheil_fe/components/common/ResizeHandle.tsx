@@ -61,8 +61,8 @@ export function ResizeHandle({ ariaLabel, orientation, onClick, onKeyDown, onPoi
                 width: 36,
               }
             : {
-                bottom: -18,
-                height: 36,
+                bottom: -10,
+                height: 20,
                 left: 0,
                 right: 0,
               }),
@@ -74,7 +74,7 @@ export function ResizeHandle({ ariaLabel, orientation, onClick, onKeyDown, onPoi
             boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 18px rgba(15, 23, 42, 0.08)",
             backdropFilter: "blur(6px)",
             content: '""',
-            height: vertical ? 68 : 18,
+            height: vertical ? 68 : 14,
             transition: "background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
             width: vertical ? 18 : 68,
           },

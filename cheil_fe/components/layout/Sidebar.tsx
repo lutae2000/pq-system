@@ -165,7 +165,7 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
 
     if (!routeAvailable) {
       return (
-        <Tooltip key={item.id} title="?꾩쭅 ?곌껐?섏? ?딆? 硫붾돱?낅땲?? system_menus.menuPath瑜??뺤씤?섏꽭??" placement="right">
+        <Tooltip key={item.id} title="등록된 화면 경로가 없어 이동할 수 없습니다. system_menus.menuPath를 확인하세요." placement="right">
           <Box component="span" sx={{ display: "block" }}>
             {listItem}
           </Box>

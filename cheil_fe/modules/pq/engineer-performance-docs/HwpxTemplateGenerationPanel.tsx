@@ -13,12 +13,14 @@ import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 import { generateHwpxDocuments, inspectHwpxTemplate, type HwpxTemplateFieldResponse } from "./hwpxApi";
+import { PerformanceCertificateGenerationButton } from "./PerformanceCertificateGenerationButton";
 
 type Props = {
   bidNotice: BidNoticeApiRecord | null;
   profiles: EngineerProfile[];
   relatedProjectHistoryConditions: RelatedProjectHistoryCondition[];
   open: boolean;
+  showParticipantListButton?: boolean;
 };
 
 type Mapping = HwpxTemplateFieldResponse & { path: string };
@@ -312,7 +314,12 @@ function download(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjectHistoryConditions, open }: Props) {
+export function HwpxTemplateGenerationPanel(props: Props) {
+  if (!props.open) return null;
+  return <HwpxTemplateGenerationPanelContent {...props} />;
+}
+
+function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjectHistoryConditions, open, showParticipantListButton = false }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [template, setTemplate] = useState<File | null>(null);
   const [templateName, setTemplateName] = useState("");
@@ -423,8 +430,6 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
     return labels;
   }, [historyFieldsQuery.items]);
 
-  if (!open) return null;
-
   const handleUpload = async (file?: File) => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".hwpx")) {
@@ -490,6 +495,28 @@ export function HwpxTemplateGenerationPanel({ bidNotice, profiles, relatedProjec
               <Typography sx={{ fontWeight: 800 }} variant="h6">PQ문서 생성</Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
+              {showParticipantListButton ? <PerformanceCertificateGenerationButton
+                bidSeq={bidNotice?.bidSeq ?? 0}
+                disabled={!bidNotice?.bidSeq || profiles.length === 0}
+                engineerIds={profiles.map((profile) => profile.summary.id)}
+                engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
+                filenamePrefix={bidNotice?.projectName ?? undefined}
+                includeParticipantList
+                label="참여자명단 + 실적증명서 생성"
+                onError={(text) => setMessage({ severity: "error", text })}
+                onSuccess={(text) => setMessage({ severity: "success", text })}
+                relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
+              /> : null}
+              <PerformanceCertificateGenerationButton
+                bidSeq={bidNotice?.bidSeq ?? 0}
+                disabled={!bidNotice?.bidSeq || profiles.length === 0}
+                engineerIds={profiles.map((profile) => profile.summary.id)}
+                engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
+                filenamePrefix={bidNotice?.projectName ?? undefined}
+                onError={(text) => setMessage({ severity: "error", text })}
+                onSuccess={(text) => setMessage({ severity: "success", text })}
+                relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
+              />
               <Button
                 disabled={basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading}
                 fullWidth

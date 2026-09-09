@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
 
 @RestController
 @RequestMapping("/pq/engineer-performance-docs")
@@ -29,6 +30,35 @@ public class EngineerPerformanceDocumentController {
 
     private final EngineerPerformanceDocumentService engineerPerformanceDocumentService;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
+    private final PerformanceCertificateGenerationService performanceCertificateGenerationService;
+
+    @PostMapping("/performance-certificates/generate")
+    public ResponseEntity<byte[]> generatePerformanceCertificate(
+            @RequestBody PerformanceCertificateGenerateRequest request
+    ) {
+        byte[] content = performanceCertificateGenerationService.generate(request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(content.length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("실적증명서.hwpx", java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .body(content);
+    }
+
+    @PostMapping("/performance-certificates/generate-batch")
+    public ResponseEntity<byte[]> generatePerformanceCertificateBatch(
+            @RequestBody PerformanceCertificateGenerateRequest request
+    ) {
+        byte[] content = performanceCertificateGenerationService.generateBatch(request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("application/zip"))
+                .contentLength(content.length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("실적증명서.zip", java.nio.charset.StandardCharsets.UTF_8)
+                        .build().toString())
+                .body(content);
+    }
 
     @PostMapping(value = "/hwpx/inspect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<HwpxTemplateFieldResponse>> inspectHwpx(@RequestPart("template") MultipartFile template) {

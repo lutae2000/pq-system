@@ -11,6 +11,7 @@ public record ReplacePqParticipatingEngineersRequest(
     public record Item(
             String engrId,
             Integer priority,
+            String responsibility,
             String role,
             String memo
     ) {

@@ -46,3 +46,26 @@ export function generateCompanyPerformanceHwpxDocuments(template: File, request:
     "회사실적 HWPX 산출물 생성에 실패했습니다.",
   );
 }
+
+export type PerformanceCertificateGenerateRequest = {
+  bidSeq: number;
+  engineerIds?: string[];
+  engineerNames?: Record<string, string>;
+  companyPerformanceSeqs?: number[];
+  relatedProjectHistoryConditions?: string;
+  includeParticipantList?: boolean;
+};
+
+export function generatePerformanceCertificate(request: PerformanceCertificateGenerateRequest) {
+  return apiRequest(
+    apiClient.post<Blob>("/pq/engineer-performance-docs/performance-certificates/generate", request, { responseType: "blob" }),
+    "실적증명서 생성에 실패했습니다.",
+  );
+}
+
+export function generatePerformanceCertificateBatch(request: PerformanceCertificateGenerateRequest) {
+  return apiRequest(
+    apiClient.post<Blob>("/pq/engineer-performance-docs/performance-certificates/generate-batch", request, { responseType: "blob" }),
+    "기술인별 실적증명서 ZIP 생성에 실패했습니다.",
+  );
+}

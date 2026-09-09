@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.in.web.workoverlapcontract;
+package com.cheil.cheil_be.adapter.in.web.workoverlap.contract;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,11 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import com.cheil.cheil_be.application.workoverlapcontract.service.WorkOverlapContractEngineerService;
-import com.cheil.cheil_be.application.workoverlapcontract.service.WorkOverlapContractService;
+import com.cheil.cheil_be.application.workoverlap.contract.WorkOverlapContractEngineerService;
+import com.cheil.cheil_be.application.workoverlap.contract.WorkOverlapContractService;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
-import com.cheil.cheil_be.adapter.in.web.workoverlapcontract.WorkOverlapEngineerContractResponse;
 
 @RestController
 @RequestMapping("/work-overlap-contracts")
@@ -107,6 +106,7 @@ public class WorkOverlapContractController {
             @PathVariable String engineerId,
             @RequestParam(required = false) String referenceDate,
             @RequestParam(required = false) String remainingDays,
+            @RequestParam(required = false, defaultValue = "false") boolean excludeCompleted,
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
@@ -115,6 +115,7 @@ public class WorkOverlapContractController {
                 engineerId,
                 referenceDate,
                 remainingDays,
+                excludeCompleted,
                 PageRequests.of(page, size, DEFAULT_SORT)
         );
         return ResponseEntity.ok(PageResponse.from(result));

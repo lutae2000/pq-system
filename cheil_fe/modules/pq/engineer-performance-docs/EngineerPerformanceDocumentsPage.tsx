@@ -54,7 +54,7 @@ import {
   updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
-import { listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
+import { getEngineerProfile, listSelectedEngineerProfileSummariesForBidNotice } from "@/modules/pq/engineers/api";
 import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 import type { EngineerDocumentValueSetting } from "@/modules/pq/engineer-performance-docs/EngineerDocumentValueSettingDialog";
@@ -121,7 +121,7 @@ const SELECTOR_PANEL_MAX_WIDTH = 560;
 const DEFAULT_HISTORY_CARD_HEIGHT = 520;
 const HISTORY_CARD_MIN_HEIGHT = 320;
 const HISTORY_CARD_MAX_HEIGHT = 900;
-const HISTORY_CARD_RESERVED_HEIGHT = 112;
+const HISTORY_CARD_RESERVED_HEIGHT = 80;
 const reviewGridHeight = { xs: 240, md: "clamp(260px, calc(100vh - 400px), 440px)" } as const;
 const historySelectionAlignmentSx = {
   "& .history-selection-cell, & .history-selection-header": {
@@ -153,6 +153,8 @@ const formatDivisionRate = (value: string | number | null | undefined) => {
   }
   return String(value);
 };
+
+const formatDivisionRateTotal = (value: number) => (value / 100).toFixed(2);
 
 const formatDateYmd = (value: string | number | null | undefined) => {
   const raw = text(value);
@@ -226,7 +228,7 @@ export function EngineerPerformanceDocumentsPage() {
   const engineersQuery = useQuery({
     queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", keyword.trim()],
     queryFn: () =>
-      listSelectedEngineerProfilesForBidNotice({
+      listSelectedEngineerProfileSummariesForBidNotice({
         bidSeq: selectedBidNotice?.bidSeq ?? 0,
         keyword,
       }),
@@ -261,12 +263,16 @@ export function EngineerPerformanceDocumentsPage() {
     [documentValueSettingsByEngineerId, profiles],
   );
 
-  const activeEngineerProfile = useMemo(
-    () => profiles.find((profile) => profile.summary.id === activeEngineerId) ?? null,
-    [activeEngineerId, profiles],
-  );
-
   const selectedBidSeq = selectedBidNotice?.bidSeq ?? null;
+
+  const activeEngineerProfileQuery = useQuery({
+    queryKey: ["engineer-performance-docs", "active-engineer-profile", activeEngineerId || "none"],
+    queryFn: () => getEngineerProfile(activeEngineerId),
+    enabled: tabQueryEnabled && Boolean(activeEngineerId) && documentValueSettingOpen,
+  });
+  const activeEngineerProfile = activeEngineerProfileQuery.data
+    ?? profiles.find((profile) => profile.summary.id === activeEngineerId)
+    ?? null;
 
   const saveDocumentValueSettingMutation = useMutation({
     mutationFn: (value: EngineerDocumentValueSetting) => {
@@ -943,8 +949,9 @@ export function EngineerPerformanceDocumentsPage() {
         }),
       );
 
+      const detailedProfiles = await Promise.all(profiles.map((profile) => getEngineerProfile(profile.summary.id)));
       await downloadEngineerPerformanceReviewWorkbook({
-        profiles,
+        profiles: detailedProfiles,
         projectName: text(selectedBidNotice.projectName),
         reviewResultsByEngineer,
         engLevelLabelByCode: labelByEngLevel,
@@ -1085,10 +1092,10 @@ export function EngineerPerformanceDocumentsPage() {
               alignItems: { xs: "start", xl: "stretch" },
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: selectorPanelCollapsed ? "minmax(0, 1fr)" : `${selectorPanelWidth}px minmax(0, 1fr)` },
+              gridTemplateColumns: { xs: "1fr", lg: selectorPanelCollapsed ? "minmax(0, 1fr)" : `${selectorPanelWidth}px minmax(0, 1fr)` },
             }}
           >
-            {!selectorPanelCollapsed ? <Card sx={{ display: "flex", flexDirection: "column", height: { xs: "auto", xl: "100%" }, minWidth: 0, position: "relative" }} variant="outlined">
+            {!selectorPanelCollapsed ? <Card sx={{ display: "flex", flexDirection: "column", height: { xs: "auto", lg: "100%" }, minWidth: 0, position: "relative" }} variant="outlined">
               <CardContent sx={{ display: "flex", flex: 1, flexDirection: "column", minHeight: 0 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
@@ -1170,10 +1177,10 @@ export function EngineerPerformanceDocumentsPage() {
                   columnHeaderHeight={36}
                   rowHeight={30}
                   showToolbar={false}
-                  wrapperMinHeight={{ ...selectorGridHeight, xl: "100%" }}
+                  wrapperMinHeight={{ ...selectorGridHeight, lg: "100%" }}
                   sx={{
                     border: 0,
-                    height: { ...selectorGridHeight, xl: "100%" },
+                    height: { ...selectorGridHeight, lg: "100%" },
                     "& .MuiDataGrid-row:hover": { cursor: "pointer" },
                     "& .MuiDataGrid-main": { overflow: "hidden" },
                     "& .MuiDataGrid-virtualScroller": {
@@ -1193,6 +1200,7 @@ export function EngineerPerformanceDocumentsPage() {
               <ResizeHandle
                 ariaLabel="선택 기술인 목록 너비 조절"
                 orientation="vertical"
+                sx={{ display: { xs: "none", lg: "flex" } }}
                 onKeyDown={(event) => {
                   if (event.key === "ArrowLeft") {
                     event.preventDefault();
@@ -1224,7 +1232,7 @@ export function EngineerPerformanceDocumentsPage() {
                 }}
                 variant="outlined"
               >
-                <CardContent sx={{ boxSizing: "border-box", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, pb: 2.5 }}>
+                <CardContent sx={{ boxSizing: "border-box", display: "flex", flexDirection: "column", height: "100%", minHeight: 0, pb: 0 }}>
                   <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                     <Box>
                       <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -1314,7 +1322,7 @@ export function EngineerPerformanceDocumentsPage() {
               </Card>
 
               <Card variant="outlined">
-                <CardContent>
+                <CardContent sx={{ "&:last-child": { pb: 0 } }}>
                   <Box
                     sx={{
                       alignItems: { xs: "flex-start", xl: "center" },
@@ -1408,6 +1416,11 @@ export function EngineerPerformanceDocumentsPage() {
                     paginationModel={reviewPaginationModel}
                     processRowUpdate={canUpdate ? processReviewRowUpdate : undefined}
                     rows={reviewRows}
+                    summaryColumns={[
+                      { field: "contractAmt", label: "계약금액", format: (value) => formatMoney(value) },
+                      { field: "ownAmt", label: "자사금액", format: (value) => formatMoney(value) },
+                      { field: "divisionRate", label: "지분율", format: formatDivisionRateTotal },
+                    ]}
                     columnHeaderHeight={36}
                     rowHeight={30}
                     showPageNumbers
@@ -1432,7 +1445,7 @@ export function EngineerPerformanceDocumentsPage() {
               </Card>
             </Box>
           </Box>
-          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} />
+          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} showParticipantListButton />
         </Stack>
       )}
 

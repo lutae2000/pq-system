@@ -5,6 +5,7 @@ public record PqParticipatingEngineerRequest(
         String engrId,
         String workDutyId,
         Integer priority,
+        String responsibility,
         String role,
         String memo
 ) {

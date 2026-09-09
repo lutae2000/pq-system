@@ -208,7 +208,7 @@ export function BidNoticeSelectDialog({ open, onClose, onSelect, stateCacheKey, 
       slotProps={{
         paper: {
           sx: {
-            height: "88vh",
+            height: "79vh",
             maxWidth: "min(1680px, calc(100vw - 48px))",
             width: "min(1680px, calc(100vw - 48px))",
           },
@@ -323,10 +323,11 @@ export function BidNoticeSelectDialog({ open, onClose, onSelect, stateCacheKey, 
             showPageNumbers
             showToolbar={false}
             stateCacheKey={stateCacheKey ? `${stateCacheKey}:grid` : undefined}
+            wrapperMinHeight="56vh"
             sx={{
               border: 0,
-              height: "64vh",
-              minHeight: 520,
+              height: "56vh",
+              minHeight: 400,
               "& .MuiDataGrid-row:hover": { cursor: "pointer" },
             }}
           />

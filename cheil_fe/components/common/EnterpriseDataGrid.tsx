@@ -38,6 +38,7 @@ import { useSessionMenuPermissions } from "@/shared/navigation/useSessionMenuPer
 type EnterpriseDataGridHeight = ResponsiveStyleValue<AllSystemCSSProperties["height"]>;
 
 export type EnterpriseDataGridProps<Row extends GridValidRowModel> = DataGridProps<Row> & {
+  summaryColumns?: EnterpriseDataGridSummaryColumn<Row>[];
   exportFileNamePrefix?: string;
   enableCellSelection?: boolean;
   autoCopyOnCellClick?: boolean;
@@ -63,6 +64,12 @@ export type EnterpriseDataGridProps<Row extends GridValidRowModel> = DataGridPro
   showXlsxExportButton?: boolean;
   stateCacheKey?: string | false;
   wrapperMinHeight?: EnterpriseDataGridHeight;
+};
+
+export type EnterpriseDataGridSummaryColumn<Row extends GridValidRowModel> = {
+  field: keyof Row & string;
+  format?: (value: number) => string;
+  label?: string;
 };
 
 export type EnterpriseRowActionConfirm = {
@@ -463,17 +470,20 @@ function EnterpriseFooter({ pageSizeOptions = [], showPageInfo = false, showPage
   return (
     <GridFooterContainer
       sx={{
-        alignItems: "stretch",
+        alignItems: "center",
+        boxSizing: "border-box",
         display: "flex",
-        flexDirection: "column",
-        gap: 0.5,
-        px: 2,
-        py: 0.75,
+        flexDirection: "row",
+        gap: 1,
+        justifyContent: "space-between",
+        minHeight: 52,
+        px: 1.5,
+        py: 0.5,
       }}
     >
       {showPageInfo || showPageNumbers ? (
-        <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, minWidth: 0 }}>
-          <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1, minWidth: 0 }}>
+        <Box sx={{ alignItems: "center", display: "flex", flex: 1, justifyContent: "space-between", gap: 1, minHeight: 36, minWidth: 0 }}>
+          <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 0.75, minWidth: 0 }}>
             {showPageInfo ? (
               <Box sx={{ color: "text.secondary", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
                 {currentPage} / {Math.max(pageCount, 1)} 페이지
@@ -491,16 +501,16 @@ function EnterpriseFooter({ pageSizeOptions = [], showPageInfo = false, showPage
                 size="small"
                 sx={{
                   minWidth: 92,
-                  "& .MuiInputBase-root": { height: 32 },
+                  "& .MuiInputBase-root": { borderRadius: 1.5, height: 28 },
                   "& .MuiInputLabel-root": { fontSize: 12 },
-                  "& .MuiSelect-select": { fontSize: 13, py: 0.5 },
+                  "& .MuiSelect-select": { fontSize: 13, py: 0 },
                 }}
                 value={paginationModel.pageSize}
               >
                 {pageSizeSelectOptions.map((option) => {
                   const value = getPageSizeOptionValue(option);
                   return (
-                    <MenuItem key={value} value={value}>
+                    <MenuItem key={value} value={value} sx={{ minHeight: 28, py: 0 }}>
                       {typeof option === "number" ? value : option.label}
                     </MenuItem>
                   );
@@ -519,6 +529,7 @@ function EnterpriseFooter({ pageSizeOptions = [], showPageInfo = false, showPage
               showLastButton
               siblingCount={1}
               boundaryCount={1}
+              sx={{ flexShrink: 0, "& .MuiPagination-ul": { flexWrap: "nowrap" } }}
             />
           ) : null}
         </Box>
@@ -697,6 +708,8 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     enableEditTabNavigation = true,
     initialState,
     columns,
+    rows: userRows,
+    summaryColumns,
     editMode: userEditMode,
     onCellKeyDown: userOnCellKeyDown,
     onCellClick: userOnCellClick,
@@ -805,6 +818,21 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
         return readOnly ? { ...resolvedColumn, editable: false } : resolvedColumn;
       }),
     [columns, columnWidths, readOnly],
+  );
+  const summaryValues = useMemo(
+    () => (summaryColumns ?? []).map((summaryColumn) => {
+      const total = (userRows ?? []).reduce((sum, row) => {
+        const value = Number(row[summaryColumn.field]);
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+      const column = resolvedColumns.find((candidate) => candidate.field === summaryColumn.field);
+      return {
+        field: summaryColumn.field,
+        label: summaryColumn.label ?? column?.headerName ?? summaryColumn.field,
+        value: summaryColumn.format ? summaryColumn.format(total) : String(total),
+      };
+    }),
+    [resolvedColumns, summaryColumns, userRows],
   );
   const handleColumnWidthChange = useCallback<NonNullable<DataGridProps<Row>["onColumnWidthChange"]>>(
     (params, event, details) => {
@@ -1455,7 +1483,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   };
 
   return (
-    <Box sx={{ display: "flex", height: wrapperMinHeight, minHeight: wrapperMinHeight, minWidth: 0, width: "100%" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: summaryValues.length > 0 ? 0.75 : 0, height: wrapperMinHeight, minHeight: wrapperMinHeight, minWidth: 0, width: "100%" }}>
       <ConfirmActionDialog
         open={Boolean(pendingRowUpdate)}
         title={pendingRowUpdate?.action.title ?? ""}
@@ -1471,6 +1499,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
       <DataGrid
         apiRef={apiRef}
         {...restProps}
+        rows={userRows}
         clipboardCopyCellDelimiter={clipboardCopyCellDelimiter ?? "\t"}
         cellModesModel={readOnly ? undefined : userCellModesModel}
         checkboxSelection={userCheckboxSelection}
@@ -1585,6 +1614,30 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
           ...userSx,
         }}
       />
+      {summaryValues.length > 0 ? (
+        <Box
+          sx={{
+            alignItems: "center",
+            bgcolor: "#f8fafc",
+            border: "1px solid #d6e0eb",
+            borderRadius: 1.5,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: { xs: 1.5, sm: 3 },
+            justifyContent: "flex-end",
+            minHeight: 34,
+            px: 1.5,
+            py: 0.5,
+          }}
+        >
+          {summaryValues.map((summary) => (
+            <Box key={summary.field} sx={{ alignItems: "baseline", display: "inline-flex", gap: 0.75 }}>
+              <Box component="span" sx={{ color: "#64748b", fontSize: "0.75rem", fontWeight: 700 }}>{summary.label}</Box>
+              <Box component="span" sx={{ color: "#0f172a", fontSize: "0.8125rem", fontWeight: 800 }}>{summary.value}</Box>
+            </Box>
+          ))}
+        </Box>
+      ) : null}
     </Box>
   );
 }

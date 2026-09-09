@@ -786,6 +786,53 @@ export function EngineerPersonalInfoPage() {
 
   const selectedEngineer = selectedListEngineer;
 
+  const handleCancelNewEngineer = useCallback(() => {
+    if (!selectedEngineer?.summary.isNew) {
+      return;
+    }
+
+    const nextEngineer = profiles.find((profile) => !profile.summary.isNew && profile.summary.id !== selectedEngineer.summary.id) ?? null;
+    setProfiles((current) => current.filter((profile) => profile.summary.id !== selectedEngineer.summary.id));
+    setSelectedEngineerId(nextEngineer?.summary.id ?? "");
+    setSelectedTab("career");
+    setSelectedCareerRowId("");
+    setSelectedCertificateRowId("");
+    setSelectedEducationRowId("");
+    setSelectedAwardRowId("");
+    setSelectedTrainingRowId("");
+    setRowModesModel({
+      award: {},
+      career: {},
+      certificate: {},
+      education: {},
+      performance: {},
+      training: {},
+    });
+  }, [profiles, selectedEngineer]);
+
+  useEffect(() => {
+    if (!selectedEngineer?.summary.isNew) {
+      return;
+    }
+
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) {
+        return;
+      }
+
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('[role="dialog"], .MuiDataGrid-root')) {
+        return;
+      }
+
+      event.preventDefault();
+      handleCancelNewEngineer();
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [handleCancelNewEngineer, selectedEngineer]);
+
   const replaceProfile = (saved: EngineerProfile, tab?: DetailTab) => {
     setProfiles((current) => current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)));
 
