@@ -20,6 +20,7 @@ import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ConfirmActionDialog, ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
+import { EngineerSelectDialog } from "@/components/common/EngineerSelectDialog";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ResizableCard } from "@/components/common/ResizableCard";
@@ -31,9 +32,8 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
-import { listSelectedEngineerProfileSummariesForBidNotice } from "@/modules/pq/engineers/api";
-import { deletePqParticipatingEngineer, listPqParticipatingEngineers, updatePqParticipatingEngineer } from "@/modules/pq/pq-participating-engineers/api";
-import { deleteWorkOverlapDocumentTarget, listWorkOverlapDocumentEngineerContracts, replaceWorkOverlapDocumentTargets, type WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
+import { getEngineerProfile } from "@/modules/pq/engineers/api";
+import { deleteWorkOverlapDocumentTarget, deleteWorkOverlapDocumentEngineer, listWorkOverlapDocumentEngineerContracts, listWorkOverlapDocumentEngineers, replaceWorkOverlapDocumentEngineers, replaceWorkOverlapDocumentTargets, updateWorkOverlapDocumentEngineer, type WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
 import { buildWorkOverlapContractColumns } from "@/modules/work-overlap/engineers/workOverlapContractColumns";
 
 const BidNoticeSelectDialog = dynamic(
@@ -76,6 +76,13 @@ const today = () => {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 };
 
+const formatBirthDate = (value: string | null | undefined) => {
+  const normalized = value?.trim() ?? "";
+  return /^\d{8}$/.test(normalized)
+    ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}`
+    : normalized;
+};
+
 const DEFAULT_SELECTOR_PANEL_WIDTH = 360;
 const DEFAULT_CONTRACT_CARD_HEIGHT = 520;
 const CONTRACT_CARD_MIN_HEIGHT = 320;
@@ -95,8 +102,9 @@ export function WorkOverlapDocumentsPage() {
   const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
-  const workDutyId = currentSession?.employeeNo ?? "";
+  const workDutyId = currentSession?.loginId ?? "";
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
+  const [engineerSelectDialogOpen, setEngineerSelectDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
   const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [referenceDate, setReferenceDate] = useState(today());
@@ -170,16 +178,10 @@ export function WorkOverlapDocumentsPage() {
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
 
-  const engineersQuery = useQuery({
-    queryKey: ["work-overlap-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", keyword.trim()],
-    queryFn: () => listSelectedEngineerProfileSummariesForBidNotice({ bidSeq: selectedBidNotice?.bidSeq ?? 0, keyword }),
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
-  });
-
-  const selectedEngineerRecordsQuery = useQuery({
-    queryKey: ["work-overlap-docs", "selected-engineer-records", selectedBidNotice?.bidSeq ?? "none", workDutyId],
-    queryFn: () => listPqParticipatingEngineers({ bidSeq: selectedBidNotice?.bidSeq ?? 0, workDutyId }),
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
+  const targetEngineersQuery = useQuery({
+    queryKey: ["work-overlap-docs", "document-engineers", selectedBidNotice?.bidSeq ?? "none", currentSession?.loginId ?? "none", keyword.trim()],
+    queryFn: () => listWorkOverlapDocumentEngineers(selectedBidNotice?.bidSeq ?? 0, currentSession?.loginId ?? "", keyword),
+    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq && currentSession?.loginId),
   });
 
   const activeEngineerContractsQuery = useQuery({
@@ -194,30 +196,30 @@ export function WorkOverlapDocumentsPage() {
     enabled: tabQueryEnabled && Boolean(workDutyId && activeEngineerId),
   });
 
-  const profiles = useMemo(() => engineersQuery.data ?? [], [engineersQuery.data]);
-  const selectedEngineerRecords = useMemo(
-    () => new Map((selectedEngineerRecordsQuery.data ?? []).map((record) => [record.engrId, record])),
-    [selectedEngineerRecordsQuery.data],
-  );
+  const activeEngineerQuery = useQuery({
+    queryKey: ["work-overlap-docs", "engineer-profile", activeEngineerId],
+    queryFn: () => getEngineerProfile(activeEngineerId),
+    enabled: tabQueryEnabled && Boolean(activeEngineerId),
+  });
+
   const engineerRows = useMemo<EngineerRow[]>(
-    () => profiles.map((profile) => {
-      const engineerId = profile.summary.id;
-      const record = selectedEngineerRecords.get(engineerId);
+    () => (targetEngineersQuery.data ?? []).map((target) => {
+      const engineerId = target.engrId;
       const override = engineerRowOverrides[engineerId];
       return {
-        birthDate: profile.detail.birthDate,
+        birthDate: formatBirthDate(target.birthday),
         engineerId,
-        jobField: profile.detail.jobField || profile.summary.workField,
-        name: profile.summary.name,
-        position: profile.summary.position,
-        priority: override?.priority ?? record?.priority ?? null,
-        responsibility: override?.responsibility ?? record?.responsibility ?? "",
-        specialtyField: profile.detail.specialtyField,
+        jobField: target.dutyPart || target.proPart || "",
+        name: target.nameKor ?? engineerId,
+        position: target.grade ?? "",
+        priority: override?.priority ?? target.displayOrder ?? null,
+        responsibility: override?.responsibility ?? target.responsibility ?? "",
+        specialtyField: target.proPart ?? "",
       };
     }),
-    [engineerRowOverrides, profiles, selectedEngineerRecords],
+    [engineerRowOverrides, targetEngineersQuery.data],
   );
-  const activeEngineer = profiles.find((profile) => profile.summary.id === activeEngineerId) ?? null;
+  const activeEngineer = activeEngineerQuery.data ?? null;
   const activeEngineerRow = engineerRows.find((row) => row.engineerId === activeEngineerId) ?? null;
   const contractRows = useMemo(() => activeEngineerContractsQuery.data?.availableContracts.content ?? [], [activeEngineerContractsQuery.data?.availableContracts.content]);
   const persistedSavedContractRows = useMemo<SavedContractRow[]>(
@@ -337,6 +339,44 @@ export function WorkOverlapDocumentsPage() {
     setContractPaginationModel((current) => ({ ...current, page: 0 }));
   };
 
+  const handleAddEngineers = async (engineerIds: string[]) => {
+    if (!selectedBidNotice?.bidSeq || !workDutyId || engineerIds.length === 0) {
+      return;
+    }
+
+    const currentRows = await listWorkOverlapDocumentEngineers(selectedBidNotice.bidSeq, workDutyId);
+    const currentIds = new Set(currentRows.map((row) => row.engrId));
+    const nextEngineers = currentRows.map((row) => ({
+      engrId: row.engrId,
+      displayOrder: row.displayOrder,
+      responsibility: row.responsibility,
+    }));
+    let nextDisplayOrder = Math.max(0, ...currentRows.map((row) => row.displayOrder ?? 0));
+    engineerIds.forEach((engrId) => {
+      if (!currentIds.has(engrId)) {
+        nextDisplayOrder += 1;
+        nextEngineers.push({
+          engrId,
+          displayOrder: nextDisplayOrder,
+          responsibility: null,
+        });
+      }
+    });
+
+    try {
+      await replaceWorkOverlapDocumentEngineers({
+        bidSeq: selectedBidNotice.bidSeq,
+        workDutyId,
+        engineers: nextEngineers,
+      });
+      setEngineerSelectDialogOpen(false);
+      await targetEngineersQuery.refetch();
+      showSuccess("선택 기술인을 추가했습니다.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "선택 기술인을 추가하지 못했습니다.");
+    }
+  };
+
   const handleReset = () => {
     setKeyword("");
     setReferenceDate(today());
@@ -391,27 +431,21 @@ export function WorkOverlapDocumentsPage() {
       return originalRow;
     }
 
-    const record = selectedEngineerRecords.get(updatedRow.engineerId);
-    if (!record?.workDutyId && !workDutyId) {
+    if (!workDutyId) {
       showError("PQ 작업자 정보를 확인할 수 없습니다.");
       return originalRow;
     }
 
     const nextRow = { ...updatedRow, priority: nextPriority, responsibility: rawResponsibility };
     try {
-      await updatePqParticipatingEngineer(
-        selectedBidNotice.bidSeq,
-        record?.workDutyId ?? workDutyId,
-        updatedRow.engineerId,
-        {
-          bidSeq: selectedBidNotice.bidSeq,
-          engrId: updatedRow.engineerId,
-          workDutyId: record?.workDutyId ?? workDutyId,
-          priority: nextPriority,
-          responsibility: rawResponsibility,
-        },
-      );
-      await Promise.all([engineersQuery.refetch(), selectedEngineerRecordsQuery.refetch()]);
+      await updateWorkOverlapDocumentEngineer({
+        bidSeq: selectedBidNotice.bidSeq,
+        engrId: updatedRow.engineerId,
+        workDutyId,
+        displayOrder: nextPriority,
+        responsibility: rawResponsibility,
+      });
+      await targetEngineersQuery.refetch();
       setEngineerRowOverrides((current) => ({
         ...current,
         [updatedRow.engineerId]: { priority: nextPriority, responsibility: rawResponsibility },
@@ -441,16 +475,14 @@ export function WorkOverlapDocumentsPage() {
       const updatedRows = orderedRows.map((row, index) => ({ ...row, priority: index + 1 }));
       await Promise.all(
         updatedRows.map((row) => {
-          const record = selectedEngineerRecords.get(row.engineerId);
-          const rowWorkDutyId = record?.workDutyId ?? workDutyId;
-          if (!rowWorkDutyId) {
+          if (!workDutyId) {
             throw new Error("PQ 작업자 정보를 확인할 수 없습니다.");
           }
-          return updatePqParticipatingEngineer(bidSeq, rowWorkDutyId, row.engineerId, {
+          return updateWorkOverlapDocumentEngineer({
             bidSeq,
             engrId: row.engineerId,
-            workDutyId: rowWorkDutyId,
-            priority: Number(row.priority),
+            workDutyId,
+            displayOrder: Number(row.priority),
             responsibility: row.responsibility,
           });
         }),
@@ -459,7 +491,7 @@ export function WorkOverlapDocumentsPage() {
         ...current,
         ...Object.fromEntries(updatedRows.map((row) => [row.engineerId, { priority: row.priority, responsibility: row.responsibility }])),
       }));
-      await Promise.all([engineersQuery.refetch(), selectedEngineerRecordsQuery.refetch()]);
+      await targetEngineersQuery.refetch();
       setEngineerRowOverrides({});
       showSuccess("현재 Grid 순서대로 순번을 저장했습니다.");
       setAutoNumberEngineersOpen(false);
@@ -615,21 +647,20 @@ export function WorkOverlapDocumentsPage() {
     }
     setIsDeletingEngineers(true);
     try {
-      const participatingEngineers = await listPqParticipatingEngineers({ bidSeq: selectedBidNotice.bidSeq });
       const targetEngineerIds = new Set(deleteEngineerIds);
-      const targetRows = participatingEngineers.filter((row) => targetEngineerIds.has(row.engrId));
+      const targetRows = (targetEngineersQuery.data ?? []).filter((row) => targetEngineerIds.has(row.engrId));
 
       if (targetRows.length === 0) {
         throw new Error("삭제할 기술인이 없습니다.");
       }
 
-      await Promise.all(targetRows.map((row) => deletePqParticipatingEngineer(row.bidSeq, row.workDutyId, row.engrId)));
+      await Promise.all(targetRows.map((row) => deleteWorkOverlapDocumentEngineer(row.bidSeq, currentSession?.loginId ?? "", row.engrId)));
       setDeleteEngineerIds([]);
       setSelectedEngineerIds([]);
       if (activeEngineerId && targetEngineerIds.has(activeEngineerId)) {
         setActiveEngineerId("");
       }
-      await engineersQuery.refetch();
+      await targetEngineersQuery.refetch();
       showSuccess("선택한 기술인을 삭제했습니다.");
     } catch (error) {
       showError(error instanceof Error ? error.message : "기술인을 삭제하지 못했습니다.");
@@ -660,8 +691,8 @@ export function WorkOverlapDocumentsPage() {
                     <Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth label="발주처" size="small" sx={fieldSx} value={String(selectedBidNotice.orderClientName ?? selectedBidNotice.orderClient ?? "")} slotProps={{ input: { readOnly: true } }} /></Grid>
                     <Grid size={{ xs: 12, sm: 6, md: 1.5 }}><TextField fullWidth label="공고일" size="small" sx={fieldSx} value={String(selectedBidNotice.announceDate ?? "").slice(0, 10)} slotProps={{ input: { readOnly: true } }} /></Grid>
                     <Grid size={{ xs: 12, sm: 6, md: 1.5 }}><TextField fullWidth label="공고마감" size="small" sx={fieldSx} value={String(selectedBidNotice.bidClosingDate ?? "").slice(0, 10)} slotProps={{ input: { readOnly: true } }} /></Grid>
-                    <Grid size={{ xs: 12, sm: 4, md: 2 }}><TextField fullWidth label="기술인 검색" onChange={(event) => setKeyword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void engineersQuery.refetch(); } }} size="small" sx={fieldSx} value={keyword} /></Grid>
-                    <Grid size={{ xs: 12, sm: 8, md: 10 }}><Box sx={{ alignItems: "center", display: "flex", gap: 1, justifyContent: "flex-end" }}><Button onClick={() => void engineersQuery.refetch()} disabled={!selectedBidNotice || engineersQuery.isFetching} startIcon={<SearchOutlinedIcon />} variant="contained">조회</Button><Button onClick={handleReset} startIcon={<RefreshOutlinedIcon />} variant="outlined">초기화</Button></Box></Grid>
+                    <Grid size={{ xs: 12, sm: 4, md: 2 }}><TextField fullWidth label="기술인 검색" onChange={(event) => setKeyword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void targetEngineersQuery.refetch(); } }} size="small" sx={fieldSx} value={keyword} /></Grid>
+                    <Grid size={{ xs: 12, sm: 8, md: 10 }}><Box sx={{ alignItems: "center", display: "flex", gap: 1, justifyContent: "flex-end" }}><Button onClick={() => void targetEngineersQuery.refetch()} disabled={!selectedBidNotice || targetEngineersQuery.isFetching} startIcon={<SearchOutlinedIcon />} variant="contained">조회</Button><Button onClick={handleReset} startIcon={<RefreshOutlinedIcon />} variant="outlined">초기화</Button></Box></Grid>
                   </>
                 ) : null}
               </Grid>
@@ -703,6 +734,7 @@ export function WorkOverlapDocumentsPage() {
                   <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">선택 기술인 목록</Typography>
                   <Box sx={{ alignItems: "center", display: "flex", gap: 0.5 }}>
+
                     <Button
                       disabled={!canUpdate || engineerRows.length === 0 || isAutoNumberingEngineers}
                       onClick={() => setAutoNumberEngineersOpen(true)}
@@ -713,7 +745,16 @@ export function WorkOverlapDocumentsPage() {
                     >
                       자동 순번
                     </Button>
-                    <Chip label={`${engineerRows.length}명`} size="small" variant="outlined" />
+                    <IconButton
+                        aria-label="선택 기술인 추가"
+                        color="primary"
+                        disabled={(!canCreate && !canUpdate) || !selectedBidNotice || !workDutyId}
+                        onClick={() => setEngineerSelectDialogOpen(true)}
+                        size="small"
+                        title="선택 기술인 추가"
+                    >
+                      <AddOutlinedIcon fontSize="small" />
+                    </IconButton>
                     <IconButton
                       aria-label="선택한 기술인 삭제"
                       color="error"
@@ -733,7 +774,7 @@ export function WorkOverlapDocumentsPage() {
                   checkboxSelection
                   disableRowSelectionOnClick
                   getRowId={(row) => row.engineerId}
-                  loading={engineersQuery.isLoading || engineersQuery.isFetching}
+                  loading={targetEngineersQuery.isLoading || targetEngineersQuery.isFetching}
                   onCellClick={(params, event) => {
                     if (canUpdate && (params.field === "priority" || params.field === "responsibility")) {
                       if (params.api.getCellMode(params.id, params.field) !== "edit") {
@@ -971,6 +1012,15 @@ export function WorkOverlapDocumentsPage() {
         </Stack>
       )}
       {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} stateCacheKey="work-overlap-docs:bid-notice-select" onSelect={handleSelectBidNotice} /> : null}
+      {engineerSelectDialogOpen ? (
+        <EngineerSelectDialog
+          assignedEngineerIds={engineerRows.map((row) => row.engineerId)}
+          onClose={() => setEngineerSelectDialogOpen(false)}
+          onSave={(engineerIds) => void handleAddEngineers(engineerIds)}
+          open
+          title={selectedBidNotice?.projectName ?? "선택 기술인"}
+        />
+      ) : null}
       {bidNoticeDetailOpen ? <BidNoticeDetailPopup bidSeq={selectedBidNotice?.bidSeq ?? null} onClose={() => setBidNoticeDetailOpen(false)} open readOnly /> : null}
       {contractDetailRecord ? <WorkOverlapContractDetailDialog
         deleteDisabled

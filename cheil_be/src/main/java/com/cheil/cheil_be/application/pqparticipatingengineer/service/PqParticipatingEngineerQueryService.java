@@ -31,6 +31,7 @@ import com.cheil.cheil_be.application.engineer.EngineerDtos;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
+import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 /** PQ 공고에 참여하는 기술인의 후보·선정 목록을 조회하고 변경하는 서비스. */
 @Service
@@ -170,7 +171,7 @@ public class PqParticipatingEngineerQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<EngineerDtos.Profile> findSelectedProfileSummaries(Long bidSeq, String keyword) {
+    public List<EngineerDtos.Profile> findSelectedProfileSummaries(Long bidSeq, String workDutyId, String keyword) {
         if (bidSeq == null) {
             return List.of();
         }
@@ -198,11 +199,15 @@ public class PqParticipatingEngineerQueryService {
                 FROM pq_find_engr_info s
                 LEFT JOIN pq_engineer_master m ON m.engr_id = s.engr_id
                 LEFT JOIN pq_engineer_document_value_settings v
-                    ON v.bid_seq = s.bid_seq AND v.engineer_id = s.engr_id
+                    ON v.bid_seq = s.bid_seq AND v.engr_id = s.engr_id
                 WHERE s.bid_seq = :bidSeq
                 """);
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
+        if (StringUtils.hasText(workDutyId)) {
+            sql.append(" AND s.work_duty_id = :workDutyId");
+            params.put("workDutyId", workDutyId.trim());
+        }
         if (StringUtils.hasText(keyword)) {
             sql.append("""
                      AND (
@@ -295,7 +300,9 @@ public class PqParticipatingEngineerQueryService {
                         UPDATE pq_find_engr_info
                         SET priority = :priority,
                             responsibility = :responsibility,
-                            last_changed_at = CURRENT_TIMESTAMP
+                            created_id = COALESCE(created_id, :actor),
+                            last_changed_at = CURRENT_TIMESTAMP,
+                            last_changed_id = :actor
                         WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId AND engr_id = :engrId
                         """)
                 .param("bidSeq", requiredBidSeq(bidSeq))
@@ -303,6 +310,7 @@ public class PqParticipatingEngineerQueryService {
                 .param("engrId", required(engrId, "engrId"))
                 .param("priority", request.priority())
                 .param("responsibility", normalize(request.responsibility()))
+                .param("actor", AuditActorResolver.resolve())
                 .update();
         if (updated != 1) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PQ참여 기술자 정보를 찾을 수 없습니다.");
@@ -594,37 +602,55 @@ public class PqParticipatingEngineerQueryService {
 
     private void upsert(Long bidSeq, String workDutyId, String engrId) {
         jdbcClient.sql("""
-                        INSERT INTO pq_find_engr_info (bid_seq, work_duty_id, engr_id, priority, responsibility, last_changed_at)
-                        VALUES (:bidSeq, :workDutyId, :engrId, :priority, :responsibility, CURRENT_TIMESTAMP)
+                        INSERT INTO pq_find_engr_info (
+                            bid_seq, work_duty_id, engr_id, priority, responsibility,
+                            created_id, last_changed_at, last_changed_id
+                        )
+                        VALUES (
+                            :bidSeq, :workDutyId, :engrId, :priority, :responsibility,
+                            :actor, CURRENT_TIMESTAMP, :actor
+                        )
                         ON CONFLICT (bid_seq, work_duty_id, engr_id)
                         DO UPDATE SET
                             priority = EXCLUDED.priority,
                             responsibility = EXCLUDED.responsibility,
-                            last_changed_at = CURRENT_TIMESTAMP
+                            created_id = COALESCE(pq_find_engr_info.created_id, EXCLUDED.created_id),
+                            last_changed_at = CURRENT_TIMESTAMP,
+                            last_changed_id = EXCLUDED.last_changed_id
                         """)
                 .param("bidSeq", bidSeq)
                 .param("workDutyId", workDutyId)
                 .param("engrId", engrId)
                 .param("priority", null)
                 .param("responsibility", null)
+                .param("actor", AuditActorResolver.resolve())
                 .update();
     }
 
     private void upsert(Long bidSeq, String workDutyId, String engrId, Integer priority, String responsibility) {
         jdbcClient.sql("""
-                        INSERT INTO pq_find_engr_info (bid_seq, work_duty_id, engr_id, priority, responsibility, last_changed_at)
-                        VALUES (:bidSeq, :workDutyId, :engrId, :priority, :responsibility, CURRENT_TIMESTAMP)
+                        INSERT INTO pq_find_engr_info (
+                            bid_seq, work_duty_id, engr_id, priority, responsibility,
+                            created_id, last_changed_at, last_changed_id
+                        )
+                        VALUES (
+                            :bidSeq, :workDutyId, :engrId, :priority, :responsibility,
+                            :actor, CURRENT_TIMESTAMP, :actor
+                        )
                         ON CONFLICT (bid_seq, work_duty_id, engr_id)
                         DO UPDATE SET
                             priority = EXCLUDED.priority,
                             responsibility = EXCLUDED.responsibility,
-                            last_changed_at = CURRENT_TIMESTAMP
+                            created_id = COALESCE(pq_find_engr_info.created_id, EXCLUDED.created_id),
+                            last_changed_at = CURRENT_TIMESTAMP,
+                            last_changed_id = EXCLUDED.last_changed_id
                         """)
                 .param("bidSeq", bidSeq)
                 .param("workDutyId", workDutyId)
                 .param("engrId", engrId)
                 .param("priority", priority)
                 .param("responsibility", normalize(responsibility))
+                .param("actor", AuditActorResolver.resolve())
                 .update();
     }
 

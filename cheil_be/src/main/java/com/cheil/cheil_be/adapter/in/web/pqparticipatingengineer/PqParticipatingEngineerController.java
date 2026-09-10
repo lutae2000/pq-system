@@ -75,9 +75,10 @@ public class PqParticipatingEngineerController {
     @GetMapping("/profiles/summary")
     public ResponseEntity<List<EngineerDtos.Profile>> listSelectedProfileSummaries(
             @RequestParam Long bidSeq,
+            @RequestParam(required = false) String workDutyId,
             @RequestParam(required = false) String keyword
     ) {
-        return ResponseEntity.ok(queryService.findSelectedProfileSummaries(bidSeq, keyword));
+        return ResponseEntity.ok(queryService.findSelectedProfileSummaries(bidSeq, workDutyId, keyword));
     }
 
     /**

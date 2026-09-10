@@ -139,3 +139,61 @@ export async function deleteWorkOverlapDocumentTarget(bidSeq: number, workDutyId
     "저장된 업무중복도 계약을 삭제하지 못했습니다.",
   );
 }
+
+export type WorkOverlapDocumentEngineerRecord = {
+  targetId: number;
+  bidSeq: number;
+  workDutyId: string;
+  engrId: string;
+  displayOrder: number | null;
+  responsibility: string | null;
+  nameKor: string | null;
+  birthday: string | null;
+  deptName: string | null;
+  grade: string | null;
+  dutyPart: string | null;
+  proPart: string | null;
+  retireYn: string | null;
+};
+
+export async function listWorkOverlapDocumentEngineers(bidSeq: number, workDutyId: string, keyword?: string): Promise<WorkOverlapDocumentEngineerRecord[]> {
+  return apiRequest(
+    apiClient.get<WorkOverlapDocumentEngineerRecord[]>("/pq/work-overlap-document-engineers", { params: { bidSeq, workDutyId, keyword: keyword?.trim() || undefined } }),
+    "업무중복도 문서 대상 기술인 목록을 불러오지 못했습니다.",
+  );
+}
+
+export async function replaceWorkOverlapDocumentEngineers(requestBody: {
+  bidSeq: number;
+  workDutyId: string;
+  engineers: Array<{
+    engrId: string;
+    displayOrder: number | null;
+    responsibility: string | null;
+  }>;
+}): Promise<WorkOverlapDocumentEngineerRecord[]> {
+  return apiRequest(
+    apiClient.put<WorkOverlapDocumentEngineerRecord[]>("/pq/work-overlap-document-engineers", requestBody),
+    "업무중복도 문서 대상 기술인을 저장하지 못했습니다.",
+  );
+}
+
+export async function updateWorkOverlapDocumentEngineer(requestBody: {
+  bidSeq: number;
+  workDutyId: string;
+  engrId: string;
+  displayOrder: number | null;
+  responsibility: string | null;
+}): Promise<void> {
+  await apiRequest(
+    apiClient.patch("/pq/work-overlap-document-engineers", requestBody),
+    "?낅Т以묐났??臾몄꽌 ???湲곗닠???뺣낫瑜??섏젙?섏? 紐삵뻽?듬땲??",
+  );
+}
+
+export async function deleteWorkOverlapDocumentEngineer(bidSeq: number, workDutyId: string, engineerId: string): Promise<void> {
+  await apiRequest(
+    apiClient.delete("/pq/work-overlap-document-engineers", { params: { bidSeq, workDutyId, engrId: engineerId } }),
+    "업무중복도 문서 대상 기술인을 삭제하지 못했습니다.",
+  );
+}

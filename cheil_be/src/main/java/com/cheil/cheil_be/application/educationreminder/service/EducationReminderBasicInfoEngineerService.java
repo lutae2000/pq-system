@@ -39,7 +39,7 @@ public class EducationReminderBasicInfoEngineerService {
         return jdbcClient.sql("""
                         SELECT
                             a.basic_info_code,
-                            a.engineer_id,
+                            a.engr_id,
                             COALESCE(m.namekor, '') AS engineer_name,
                             COALESCE(m.deptname, '') AS department_name,
                             COALESCE(m.grade, '') AS grade,
@@ -52,15 +52,15 @@ public class EducationReminderBasicInfoEngineerService {
                             a.last_changed_at,
                             a.last_changed_id
                         FROM education_reminder_basic_info_engineers a
-                        LEFT JOIN pq_engineer_master m ON m.engr_id = a.engineer_id
-                        LEFT JOIN engineer_contacts p ON p.engr_id = a.engineer_id
+                        LEFT JOIN pq_engineer_master m ON m.engr_id = a.engr_id
+                        LEFT JOIN engineer_contacts p ON p.engr_id = a.engr_id
                         WHERE a.basic_info_code = :basicInfoCode
-                        ORDER BY m.namekor NULLS LAST, a.engineer_id
+                        ORDER BY m.namekor NULLS LAST, a.engr_id
                         """)
                 .param("basicInfoCode", normalizedBasicInfoCode)
                 .query((rs, rowNum) -> new EducationReminderBasicInfoEngineerResponse(
                         rs.getString("basic_info_code"),
-                        rs.getString("engineer_id"),
+                        rs.getString("engr_id"),
                         rs.getString("engineer_name"),
                         rs.getString("department_name"),
                         rs.getString("grade"),
@@ -104,7 +104,7 @@ public class EducationReminderBasicInfoEngineerService {
             jdbcClient.sql("""
                             INSERT INTO education_reminder_basic_info_engineers (
                                 basic_info_code,
-                                engineer_id,
+                                engr_id,
                                 created_id,
                                 last_changed_id
                             )
@@ -114,7 +114,7 @@ public class EducationReminderBasicInfoEngineerService {
                                 :actor,
                                 :actor
                             )
-                            ON CONFLICT (basic_info_code, engineer_id)
+                            ON CONFLICT (basic_info_code, engr_id)
                             DO UPDATE SET
                                 last_changed_at = CURRENT_TIMESTAMP,
                                 last_changed_id = EXCLUDED.last_changed_id
@@ -137,7 +137,7 @@ public class EducationReminderBasicInfoEngineerService {
         int deleted = jdbcClient.sql("""
                         DELETE FROM education_reminder_basic_info_engineers
                         WHERE basic_info_code = :basicInfoCode
-                          AND engineer_id = :engineerId
+                          AND engr_id = :engineerId
                         """)
                 .param("basicInfoCode", normalizedBasicInfoCode)
                 .param("engineerId", normalizedEngineerId)

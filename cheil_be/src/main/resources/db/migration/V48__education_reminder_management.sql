@@ -151,24 +151,24 @@ COMMENT ON COLUMN engineer_contacts.last_changed_id IS '최종 변경자 ID';
 
 CREATE TABLE IF NOT EXISTS education_reminder_basic_info_engineers (
     basic_info_code VARCHAR(50) NOT NULL,
-    engineer_id VARCHAR(20) NOT NULL,
+    engr_id VARCHAR(20) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
-    CONSTRAINT pk_education_reminder_basic_info_engineers PRIMARY KEY (basic_info_code, engineer_id),
+    CONSTRAINT pk_education_reminder_basic_info_engineers PRIMARY KEY (basic_info_code, engr_id),
     CONSTRAINT fk_education_reminder_basic_info_engineers_basic_info_code
         FOREIGN KEY (basic_info_code) REFERENCES education_reminder_basic_infos (code) ON DELETE CASCADE,
     CONSTRAINT fk_education_reminder_basic_info_engineers_engineer
-        FOREIGN KEY (engineer_id) REFERENCES pq_engineer_master (engr_id) ON DELETE CASCADE
+        FOREIGN KEY (engr_id) REFERENCES pq_engineer_master (engr_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS ix_education_reminder_basic_info_engineers_engineer_id
-    ON education_reminder_basic_info_engineers (engineer_id);
+CREATE INDEX IF NOT EXISTS ix_education_reminder_basic_info_engineers_engr_id
+    ON education_reminder_basic_info_engineers (engr_id);
 
 COMMENT ON TABLE education_reminder_basic_info_engineers IS '교육 알림 기초정보별 할당 기술인';
 COMMENT ON COLUMN education_reminder_basic_info_engineers.basic_info_code IS '교육 알림 기초정보 코드';
-COMMENT ON COLUMN education_reminder_basic_info_engineers.engineer_id IS '기술인 ID';
+COMMENT ON COLUMN education_reminder_basic_info_engineers.engr_id IS '기술인 ID';
 
 CREATE TABLE IF NOT EXISTS education_reminder_send_batches (
     id BIGSERIAL PRIMARY KEY,
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS education_reminder_send_logs (
     id BIGSERIAL PRIMARY KEY,
     batch_id BIGINT NOT NULL,
     target_row_key VARCHAR(100) NOT NULL,
-    engineer_id VARCHAR(20) NOT NULL,
+    engr_id VARCHAR(20) NOT NULL,
     engineer_name VARCHAR(100) NOT NULL,
     department_name VARCHAR(100),
     target_phone_no VARCHAR(50),
@@ -234,7 +234,7 @@ COMMENT ON COLUMN education_reminder_send_batches.template_id IS '템플릿 ID';
 COMMENT ON COLUMN education_reminder_send_batches.channel IS '발송 채널';
 COMMENT ON COLUMN education_reminder_send_batches.status IS '발송 상태';
 COMMENT ON COLUMN education_reminder_send_logs.batch_id IS '발송 배치 ID';
-COMMENT ON COLUMN education_reminder_send_logs.engineer_id IS '기술인 ID';
+COMMENT ON COLUMN education_reminder_send_logs.engr_id IS '기술인 ID';
 COMMENT ON COLUMN education_reminder_send_logs.actual_phone_no IS '실제 발송 전화번호';
 COMMENT ON COLUMN education_reminder_send_logs.status IS '발송 상태';
 

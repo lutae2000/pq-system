@@ -44,6 +44,7 @@ import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/module
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerStatus } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import {
+  deletePqParticipatingEngineer,
   listPqParticipatingEngineerCandidates,
   listPqParticipatingEngineers,
   replacePqParticipatingEngineers,
@@ -51,6 +52,7 @@ import {
   type PqParticipatingEngineerRecord,
 } from "@/modules/pq/pq-participating-engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import { deleteWorkOverlapDocumentEngineer, replaceWorkOverlapDocumentEngineers } from "@/modules/work-overlap/engineers/api";
 
 const PqEngineerPerformanceTabs = dynamic(
   () => import("@/modules/pq/pq-participating-engineers/PqEngineerPerformanceTabs").then((module) => module.PqEngineerPerformanceTabs),
@@ -254,7 +256,7 @@ export function PqParticipatingEngineersPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
-  const workDutyId = currentSession?.employeeNo ?? "";
+  const workDutyId = currentSession?.loginId ?? "";
   const candidateClickTimerRef = useRef<number | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<CandidateFilters>(() => emptyFilters());
@@ -388,7 +390,7 @@ export function PqParticipatingEngineersPage() {
       if (!workDutyId) {
         throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
       }
-      return replacePqParticipatingEngineers({
+      const requestBody = {
         bidSeq,
         workDutyId,
         engineers: selectedEngineers.map((engineer, index) => ({
@@ -397,18 +399,65 @@ export function PqParticipatingEngineersPage() {
           priority: index + 1,
           role: engineer.role || null,
         })),
-      });
+      };
+      return Promise.all([
+        replacePqParticipatingEngineers(requestBody),
+        replaceWorkOverlapDocumentEngineers({
+          bidSeq,
+          workDutyId: currentSession?.loginId ?? "",
+          engineers: requestBody.engineers.map((engineer) => ({
+            engrId: engineer.engrId,
+            displayOrder: engineer.priority ?? null,
+            responsibility: null,
+          })),
+        }),
+      ]);
     },
-    onSuccess: async (records) => {
+    onSuccess: async ([records]) => {
       const nextSelectedEngineers = records.map(toSelectedEngineerFromRecord);
       setSelectedEngineers(nextSelectedEngineers);
       setSelectedEngineerSnapshot(serializeSelectedEngineers(nextSelectedEngineers));
       await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineer-candidates"] });
       await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineers", selectedCompanyPerformance?.bidSeq, workDutyId] });
+      await queryClient.invalidateQueries({ queryKey: ["work-overlap-docs", "document-engineers", selectedCompanyPerformance?.bidSeq, currentSession?.loginId] });
       setSnackbar({ message: "PQ참여 기술인 목록을 저장했습니다.", severity: "success" });
     },
     onError: (error) => {
       setSnackbar({ message: error instanceof Error ? error.message : "PQ참여 기술인 목록 저장에 실패했습니다.", severity: "error" });
+    },
+  });
+
+  const removeSelectedEngineersMutation = useMutation({
+    mutationFn: (engineerIds: string[]) => {
+      const bidSeq = selectedCompanyPerformance?.bidSeq;
+      if (!bidSeq || !workDutyId || !currentSession?.loginId) {
+        throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
+      }
+      return Promise.all(
+        engineerIds.map(async (engrId) => {
+          await deletePqParticipatingEngineer(bidSeq, workDutyId, engrId);
+          await deleteWorkOverlapDocumentEngineer(bidSeq, currentSession.loginId, engrId).catch(() => undefined);
+        }),
+      );
+    },
+    onSuccess: async (_, removedIds) => {
+      const removedIdSet = new Set(removedIds);
+      const nextSelectedEngineers = selectedEngineers
+        .filter((engineer) => !removedIdSet.has(engineer.engineerId))
+        .map((engineer, index) => ({ ...engineer, priority: index + 1 }));
+      setSelectedEngineers(nextSelectedEngineers);
+      setSelectedEngineerSnapshot(serializeSelectedEngineers(nextSelectedEngineers));
+      setSelectedEngineerIds((current) => current.filter((id) => !removedIdSet.has(id)));
+      setSelectedEngineerSelectionAnchorId((current) => (current && removedIdSet.has(current) ? null : current));
+      setPendingBulkDeleteEngineerIds(null);
+      setHistoryEngineerId((current) => removedIdSet.has(current) ? nextSelectedEngineers[0]?.engineerId ?? "" : current);
+      await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineer-candidates"] });
+      await queryClient.invalidateQueries({ queryKey: ["pq-participating-engineers", selectedCompanyPerformance?.bidSeq, workDutyId] });
+      await queryClient.invalidateQueries({ queryKey: ["work-overlap-docs", "document-engineers", selectedCompanyPerformance?.bidSeq, currentSession?.loginId] });
+      setSnackbar({ message: `선정 기술인 ${removedIds.length}명을 삭제했습니다.`, severity: "success" });
+    },
+    onError: (error) => {
+      setSnackbar({ message: error instanceof Error ? error.message : "선정 기술인을 삭제하지 못했습니다.", severity: "error" });
     },
   });
 
@@ -608,27 +657,8 @@ export function PqParticipatingEngineersPage() {
     if (!pendingBulkDeleteEngineerIds || pendingBulkDeleteEngineerIds.length === 0) {
       return;
     }
-
-    const removedIds = new Set(pendingBulkDeleteEngineerIds);
-    const nextSelectedEngineers = selectedEngineers
-      .filter((engineer) => !removedIds.has(engineer.engineerId))
-      .map((engineer, index) => ({ ...engineer, priority: index + 1 }));
-
-    setSelectedEngineers(nextSelectedEngineers);
-    setSelectedEngineerIds((current) => current.filter((id) => !removedIds.has(id)));
-    setSelectedEngineerSelectionAnchorId((current) => (current && removedIds.has(current) ? null : current));
-    setPendingBulkDeleteEngineerIds(null);
-    setHistoryEngineerId((current) => {
-      if (!removedIds.has(current)) {
-        return current;
-      }
-      return nextSelectedEngineers[0]?.engineerId ?? "";
-    });
-    setSnackbar({
-      message: `선정 기술인 ${pendingBulkDeleteEngineerIds.length}명을 목록에서 제외했습니다. 저장 버튼을 눌러 반영하세요.`,
-      severity: "success",
-    });
-  }, [pendingBulkDeleteEngineerIds, selectedEngineers]);
+    removeSelectedEngineersMutation.mutate(pendingBulkDeleteEngineerIds);
+  }, [pendingBulkDeleteEngineerIds, removeSelectedEngineersMutation]);
 
   const cancelRemoveSelectedEngineers = useCallback(() => {
     setPendingBulkDeleteEngineerIds(null);
@@ -1389,7 +1419,7 @@ export function PqParticipatingEngineersPage() {
         confirmColor="error"
         confirmLabel="제외"
         enableKeyboardActions
-        loading={false}
+        loading={removeSelectedEngineersMutation.isPending}
         message={`선택된 ${pendingBulkDeleteEngineerIds?.length ?? 0}명의 선정 기술인를 목록에서 제외합니다.`}
         open
         targetLabel="선정 기술인"

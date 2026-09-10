@@ -47,15 +47,15 @@ public class EngineerPerformanceDocumentService {
             return List.of();
         }
         return jdbcClient.sql("""
-                SELECT bid_seq, engineer_id, selected_education_id, selected_license_id,
+                SELECT bid_seq, engr_id, selected_education_id, selected_license_id,
                        created_at, created_id, last_changed_at, last_changed_id
                 FROM pq_engineer_document_value_settings
                 WHERE bid_seq = :bidSeq
-                ORDER BY engineer_id
+                ORDER BY engr_id
                 """)
                 .param("bidSeq", bidSeq)
                 .query((rs, rowNum) -> new EngineerDocumentValueSettingResponse(
-                        rs.getLong("bid_seq"), rs.getString("engineer_id"),
+                        rs.getLong("bid_seq"), rs.getString("engr_id"),
                         rs.getObject("selected_education_id", Long.class),
                         rs.getObject("selected_license_id", Long.class),
                         rs.getTimestamp("created_at"), rs.getString("created_id"),
@@ -77,9 +77,9 @@ public class EngineerPerformanceDocumentService {
         String actor = AuditActorResolver.resolve();
         jdbcClient.sql("""
                 INSERT INTO pq_engineer_document_value_settings
-                    (bid_seq, engineer_id, selected_education_id, selected_license_id, created_id, last_changed_id)
+                    (bid_seq, engr_id, selected_education_id, selected_license_id, created_id, last_changed_id)
                 VALUES (:bidSeq, :engineerId, :educationId, :licenseId, :actor, :actor)
-                ON CONFLICT (bid_seq, engineer_id) DO UPDATE SET
+                ON CONFLICT (bid_seq, engr_id) DO UPDATE SET
                     selected_education_id = EXCLUDED.selected_education_id,
                     selected_license_id = EXCLUDED.selected_license_id,
                     last_changed_at = CURRENT_TIMESTAMP,
@@ -90,14 +90,14 @@ public class EngineerPerformanceDocumentService {
                 .param("actor", actor).update();
 
         return jdbcClient.sql("""
-                SELECT bid_seq, engineer_id, selected_education_id, selected_license_id,
+                SELECT bid_seq, engr_id, selected_education_id, selected_license_id,
                        created_at, created_id, last_changed_at, last_changed_id
                 FROM pq_engineer_document_value_settings
-                WHERE bid_seq = :bidSeq AND engineer_id = :engineerId
+                WHERE bid_seq = :bidSeq AND engr_id = :engineerId
                 """)
                 .params(Map.of("bidSeq", bidSeq, "engineerId", engineerId))
                 .query((rs, rowNum) -> new EngineerDocumentValueSettingResponse(
-                        rs.getLong("bid_seq"), rs.getString("engineer_id"),
+                        rs.getLong("bid_seq"), rs.getString("engr_id"),
                         rs.getObject("selected_education_id", Long.class),
                         rs.getObject("selected_license_id", Long.class),
                         rs.getTimestamp("created_at"), rs.getString("created_id"),
@@ -139,7 +139,7 @@ public class EngineerPerformanceDocumentService {
                         SELECT
                             NULL::BIGINT AS review_id,
                             NULL::BIGINT AS bid_seq,
-                            h.engr_id AS engineer_id,
+                            h.engr_id AS engr_id,
                             h.id AS source_seq,
                             NULL::INTEGER AS display_order,
                             CAST(h.id AS TEXT) AS id,
@@ -207,11 +207,12 @@ public class EngineerPerformanceDocumentService {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
         params.put("engineerId", engineerId.trim());
+        params.put("actor", AuditActorResolver.resolve());
         String sql = """
                 SELECT
                     r.review_id,
                     r.bid_seq,
-                    r.engineer_id,
+                    r.engr_id,
                     r.source_seq,
                     r.display_order,
                     CAST(h.id AS TEXT) AS id,
@@ -256,12 +257,13 @@ public class EngineerPerformanceDocumentService {
                     r.last_changed_id
                 FROM pq_engineer_project_history_review_results r
                 JOIN pq_engineer_project_history h
-                  ON h.engr_id = r.engineer_id
+                  ON h.engr_id = r.engr_id
                  AND h.id = r.source_seq
                 JOIN company_performances cp
                   ON cp.seq = h.seq
                 WHERE r.bid_seq = :bidSeq
-                  AND r.engineer_id = :engineerId
+                  AND r.engr_id = :engineerId
+                  AND r.created_id = :actor
                 ORDER BY r.display_order NULLS LAST, r.review_id
                 """;
 
@@ -282,12 +284,12 @@ public class EngineerPerformanceDocumentService {
         String actor = AuditActorResolver.resolve();
         Long reviewId = jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history_review_results (
-                            bid_seq, engineer_id, source_seq, display_order, created_id, last_changed_id
+                            bid_seq, engr_id, source_seq, display_order, created_id, last_changed_id
                         )
                         VALUES (
                             :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
                         )
-                        ON CONFLICT (bid_seq, engineer_id, source_seq)
+                        ON CONFLICT (bid_seq, engr_id, source_seq)
                         DO UPDATE SET
                             display_order = EXCLUDED.display_order,
                             last_changed_at = CURRENT_TIMESTAMP,
@@ -317,7 +319,7 @@ public class EngineerPerformanceDocumentService {
         jdbcClient.sql("""
                         DELETE FROM pq_engineer_project_history_review_results
                         WHERE bid_seq = :bidSeq
-                          AND engineer_id = :engineerId
+                          AND engr_id = :engineerId
                           AND created_id = :actor
                         """)
                 .param("bidSeq", bidSeq)
@@ -341,7 +343,7 @@ public class EngineerPerformanceDocumentService {
                       SELECT existing.source_seq
                       FROM pq_engineer_project_history_review_results existing
                       WHERE existing.bid_seq = :bidSeq
-                        AND existing.engineer_id = :engineerId
+                        AND existing.engr_id = :engineerId
                   )
                 """ + conditionSql + """
                 ORDER BY h.id
@@ -360,12 +362,12 @@ public class EngineerPerformanceDocumentService {
         for (Integer sourceSeq : matchingSourceSeqs) {
             jdbcClient.sql("""
                             INSERT INTO pq_engineer_project_history_review_results (
-                                bid_seq, engineer_id, source_seq, display_order, created_id, last_changed_id
+                                bid_seq, engr_id, source_seq, display_order, created_id, last_changed_id
                             )
                             VALUES (
                                 :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
                             )
-                            ON CONFLICT (bid_seq, engineer_id, source_seq)
+                            ON CONFLICT (bid_seq, engr_id, source_seq)
                             DO NOTHING
                             """)
                     .param("bidSeq", bidSeq)
@@ -393,7 +395,7 @@ public class EngineerPerformanceDocumentService {
         jdbcClient.sql("""
                         UPDATE pq_engineer_project_history_review_results
                         SET bid_seq = :bidSeq,
-                            engineer_id = :engineerId,
+                            engr_id = :engineerId,
                             source_seq = :sourceSeq,
                             display_order = :displayOrder,
                             last_changed_at = CURRENT_TIMESTAMP,
@@ -416,7 +418,7 @@ public class EngineerPerformanceDocumentService {
         int deleted = jdbcClient.sql("""
                         DELETE FROM pq_engineer_project_history_review_results
                         WHERE bid_seq = :bidSeq
-                          AND engineer_id = :engineerId
+                          AND engr_id = :engineerId
                           AND review_id = :reviewId
                         """)
                 .param("bidSeq", requiredBidSeq(bidSeq))
@@ -433,7 +435,7 @@ public class EngineerPerformanceDocumentService {
                         SELECT
                             r.review_id,
                             r.bid_seq,
-                            r.engineer_id,
+                            r.engr_id,
                             r.source_seq,
                             r.display_order,
                             CAST(h.id AS TEXT) AS id,
@@ -478,7 +480,7 @@ public class EngineerPerformanceDocumentService {
                             r.last_changed_id
                 FROM pq_engineer_project_history_review_results r
                 JOIN pq_engineer_project_history h
-                  ON h.engr_id = r.engineer_id
+                  ON h.engr_id = r.engr_id
                  AND h.id = r.source_seq
                         JOIN company_performances cp
                           ON cp.seq = h.seq
@@ -511,7 +513,7 @@ public class EngineerPerformanceDocumentService {
                         SELECT COALESCE(MAX(display_order), 0) + 1
                         FROM pq_engineer_project_history_review_results
                         WHERE bid_seq = :bidSeq
-                          AND engineer_id = :engineerId
+                          AND engr_id = :engineerId
                         """)
                 .param("bidSeq", bidSeq)
                 .param("engineerId", engineerId)
@@ -523,7 +525,7 @@ public class EngineerPerformanceDocumentService {
         return new EngineerProjectHistoryReviewResponse(
                 getNullableLong(rs, "review_id"),
                 getNullableLong(rs, "bid_seq"),
-                rs.getString("engineer_id"),
+                rs.getString("engr_id"),
                 getNullableInteger(rs, "source_seq"),
                 getNullableInteger(rs, "display_order"),
                 rs.getString("id"),

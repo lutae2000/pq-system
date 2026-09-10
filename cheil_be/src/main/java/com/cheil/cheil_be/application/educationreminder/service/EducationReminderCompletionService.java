@@ -235,7 +235,7 @@ public class EducationReminderCompletionService {
                 ),
                 assigned_educations AS (
                     SELECT
-                        eb.engineer_id AS engr_id,
+                        eb.engr_id AS engr_id,
                         eb.basic_info_code AS education_code,
                         b.name AS education_name,
                         b.cycle_unit,

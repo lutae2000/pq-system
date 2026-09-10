@@ -533,12 +533,14 @@ export async function listSelectedEngineerProfilesForBidNotice(params: {
 
 export async function listSelectedEngineerProfileSummariesForBidNotice(params: {
   bidSeq: number;
+  workDutyId?: string;
   keyword?: string;
 }): Promise<EngineerProfileView[]> {
   const profiles = await apiRequest<BackendEngineerProfile[]>(
     apiClient.get("/pq/participating-engineers/profiles/summary", {
       params: {
         bidSeq: params.bidSeq,
+        workDutyId: params.workDutyId?.trim() || undefined,
         keyword: params.keyword?.trim() || undefined,
       },
     }),

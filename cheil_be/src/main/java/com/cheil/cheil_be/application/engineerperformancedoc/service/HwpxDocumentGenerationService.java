@@ -722,9 +722,9 @@ public class HwpxDocumentGenerationService {
                        COALESCE((SELECT c.cert_name FROM certifications c WHERE c.cert_code = l.license_code AND c.use_yn = TRUE), l.license_code) AS license_name,
                        l.license_no
                 FROM pq_engineer_document_value_settings v
-                LEFT JOIN pq_engineer_school s ON s.id = v.selected_education_id AND s.engr_id = v.engineer_id
-                LEFT JOIN pq_engineer_license l ON l.id = v.selected_license_id AND l.engr_id = v.engineer_id
-                WHERE v.bid_seq = :bidSeq AND v.engineer_id = :engineerId
+                LEFT JOIN pq_engineer_school s ON s.id = v.selected_education_id AND s.engr_id = v.engr_id
+                LEFT JOIN pq_engineer_license l ON l.id = v.selected_license_id AND l.engr_id = v.engr_id
+                WHERE v.bid_seq = :bidSeq AND v.engr_id = :engineerId
                 """)
                 .params(Map.of("bidSeq", bidSeq, "engineerId", engineerId))
                 .query((rs, rowNum) -> new BasicDocumentValues(

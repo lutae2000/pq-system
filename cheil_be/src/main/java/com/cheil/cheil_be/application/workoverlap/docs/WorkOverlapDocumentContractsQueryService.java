@@ -88,9 +88,9 @@ public class WorkOverlapDocumentContractsQueryService {
                         LEFT JOIN work_overlap_document_targets t
                                ON t.bid_seq = :bidSeq
                               AND t.work_duty_id = :workDutyId
-                              AND t.engineer_id = :engineerId
+                              AND t.engr_id = :engineerId
                               AND t.contract_no = c.contract_no
-                        WHERE e.engineer_id = :engineerId
+                        WHERE e.engr_id = :engineerId
                         ORDER BY c.contract_no
                         """)
                 .param("bidSeq", bidSeq)

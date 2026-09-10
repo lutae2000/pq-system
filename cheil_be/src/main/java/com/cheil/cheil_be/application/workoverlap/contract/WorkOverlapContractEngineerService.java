@@ -55,7 +55,7 @@ public class WorkOverlapContractEngineerService {
     public List<WorkOverlapContractEngineerResponse> findByContractNo(String contractNo) {
         return jdbcClient.sql("""
                         SELECT
-                            e.engineer_id,
+                            e.engr_id,
                             m.namekor,
                             m.birthday,
                             COALESCE(e.field, m.dutypart, m.propart) AS field,
@@ -64,13 +64,13 @@ public class WorkOverlapContractEngineerService {
                             e.pq_target_yn,
                             e.remark
                         FROM work_overlap_contract_engineers e
-                        LEFT JOIN pq_engineer_master m ON m.engr_id = e.engineer_id
+                        LEFT JOIN pq_engineer_master m ON m.engr_id = e.engr_id
                         WHERE e.contract_no = :contractNo
-                        ORDER BY e.participation_date NULLS LAST, m.namekor NULLS LAST, e.engineer_id
+                        ORDER BY e.participation_date NULLS LAST, m.namekor NULLS LAST, e.engr_id
                         """)
                 .param("contractNo", required(contractNo, "contractNo"))
                 .query((rs, rowNum) -> new WorkOverlapContractEngineerResponse(
-                        rs.getString("engineer_id"),
+                        rs.getString("engr_id"),
                         rs.getString("namekor"),
                         rs.getString("birthday"),
                         rs.getString("field"),
@@ -88,14 +88,14 @@ public class WorkOverlapContractEngineerService {
                         SELECT
                             h.id,
                             h.created_at,
-                            h.before_engineer_id,
+                            h.before_engr_id,
                             bm.namekor AS before_engineer_name,
-                            h.after_engineer_id,
+                            h.after_engr_id,
                             am.namekor AS after_engineer_name,
                             h.change_content
                         FROM work_overlap_contract_engineer_histories h
-                        LEFT JOIN pq_engineer_master bm ON bm.engr_id = h.before_engineer_id
-                        LEFT JOIN pq_engineer_master am ON am.engr_id = h.after_engineer_id
+                        LEFT JOIN pq_engineer_master bm ON bm.engr_id = h.before_engr_id
+                        LEFT JOIN pq_engineer_master am ON am.engr_id = h.after_engr_id
                         WHERE h.contract_no = :contractNo
                         ORDER BY h.created_at DESC, h.id DESC
                         """)
@@ -103,9 +103,9 @@ public class WorkOverlapContractEngineerService {
                 .query((rs, rowNum) -> new WorkOverlapContractEngineerHistoryResponse(
                         rs.getLong("id"),
                         rs.getTimestamp("created_at") == null ? null : rs.getTimestamp("created_at").toInstant().toString(),
-                        rs.getString("before_engineer_id"),
+                        rs.getString("before_engr_id"),
                         rs.getString("before_engineer_name"),
-                        rs.getString("after_engineer_id"),
+                        rs.getString("after_engr_id"),
                         rs.getString("after_engineer_name"),
                         rs.getString("change_content")
                 ))
@@ -138,7 +138,7 @@ public class WorkOverlapContractEngineerService {
         String actor = AuditActorResolver.resolve();
         jdbcClient.sql("""
                         INSERT INTO work_overlap_contract_engineers (
-                            contract_no, engineer_id, field, participation_date, participation_type, pq_target_yn, remark, created_id, last_changed_id
+                            contract_no, engr_id, field, participation_date, participation_type, pq_target_yn, remark, created_id, last_changed_id
                         )
                         VALUES (:contractNo, :engineerId, :field, :participationDate, :participationType, :pqTargetYn, :remark, :actor, :actor)
                         """)
@@ -167,7 +167,7 @@ public class WorkOverlapContractEngineerService {
         String actor = AuditActorResolver.resolve();
         int updated = jdbcClient.sql("""
                         UPDATE work_overlap_contract_engineers
-                        SET engineer_id = :afterEngineerId,
+                        SET engr_id = :afterEngineerId,
                             field = :field,
                             participation_date = :participationDate,
                             participation_type = :participationType,
@@ -175,7 +175,7 @@ public class WorkOverlapContractEngineerService {
                             remark = :remark,
                             last_changed_at = CURRENT_TIMESTAMP,
                             last_changed_id = :actor
-                        WHERE contract_no = :contractNo AND engineer_id = :engineerId
+                        WHERE contract_no = :contractNo AND engr_id = :engineerId
                         """)
                 .param("contractNo", normalizedContractNo)
                 .param("engineerId", normalizedEngineerId)
@@ -201,7 +201,7 @@ public class WorkOverlapContractEngineerService {
         String normalizedContractNo = required(contractNo, "contractNo");
         String normalizedEngineerId = required(engineerId, "engineerId");
         WorkOverlapContractEngineerResponse target = findByEngineerId(normalizedContractNo, normalizedEngineerId);
-        int deleted = jdbcClient.sql("DELETE FROM work_overlap_contract_engineers WHERE contract_no = :contractNo AND engineer_id = :engineerId")
+        int deleted = jdbcClient.sql("DELETE FROM work_overlap_contract_engineers WHERE contract_no = :contractNo AND engr_id = :engineerId")
                 .param("contractNo", normalizedContractNo)
                 .param("engineerId", normalizedEngineerId)
                 .update();
@@ -221,7 +221,7 @@ public class WorkOverlapContractEngineerService {
         String actor = AuditActorResolver.resolve();
         jdbcClient.sql("""
                         INSERT INTO work_overlap_contract_engineer_histories (
-                            contract_no, before_engineer_id, after_engineer_id, change_content, created_id, last_changed_id
+                            contract_no, before_engr_id, after_engr_id, change_content, created_id, last_changed_id
                         )
                         VALUES (:contractNo, :beforeEngineerId, :afterEngineerId, :changeContent, :actor, :actor)
                         """)

@@ -238,13 +238,13 @@ public class WorkOverlapContractService {
                                     SELECT 1
                                     FROM work_overlap_contract_engineers e
                                     WHERE e.contract_no = c.contract_no
-                                      AND e.engineer_id = :engineerId
+                                      AND e.engr_id = :engineerId
                                 )
                                 OR EXISTS (
                                     SELECT 1
                                     FROM work_overlap_contract_engineer_histories h
                                     WHERE h.contract_no = c.contract_no
-                                      AND (h.before_engineer_id = :engineerId OR h.after_engineer_id = :engineerId)
+                                      AND (h.before_engr_id = :engineerId OR h.after_engr_id = :engineerId)
                                 )
                           )
                           AND (
@@ -292,8 +292,8 @@ public class WorkOverlapContractService {
                             c.last_changed_id,
                             e.participation_type,
                             e.pq_target_yn,
-                            h.before_engineer_id,
-                            h.after_engineer_id,
+                            h.before_engr_id,
+                            h.after_engr_id,
                             (h.id IS NOT NULL) AS engineer_history_yn,
                             CASE
                                 WHEN c.construction_complete_date IS NULL THEN NULL
@@ -307,16 +307,16 @@ public class WorkOverlapContractService {
                         FROM work_overlap_contracts c
                         LEFT JOIN work_overlap_contract_engineers e
                                ON e.contract_no = c.contract_no
-                              AND e.engineer_id = :engineerId
+                              AND e.engr_id = :engineerId
                         LEFT JOIN LATERAL (
-                            SELECT history.id, history.before_engineer_id, history.after_engineer_id
+                            SELECT history.id, history.before_engr_id, history.after_engr_id
                             FROM work_overlap_contract_engineer_histories history
                             WHERE history.contract_no = c.contract_no
-                              AND (history.before_engineer_id = :engineerId OR history.after_engineer_id = :engineerId)
+                              AND (history.before_engr_id = :engineerId OR history.after_engr_id = :engineerId)
                             ORDER BY history.created_at DESC, history.id DESC
                             LIMIT 1
                         ) h ON TRUE
-                        WHERE (e.engineer_id IS NOT NULL OR h.id IS NOT NULL)
+                        WHERE (e.engr_id IS NOT NULL OR h.id IS NOT NULL)
                           AND (
                                 :excludeCompleted = FALSE
                                 OR NULLIF(TRIM(c.construction_complete_date), '') IS NULL
@@ -358,8 +358,8 @@ public class WorkOverlapContractService {
                         booleanValue(rs, "pq_target_yn"),
                         integerValue(rs, "remain_date"),
                         booleanValue(rs, "check_yn"),
-                        rs.getString("before_engineer_id"),
-                        rs.getString("after_engineer_id"),
+                        rs.getString("before_engr_id"),
+                        rs.getString("after_engr_id"),
                         booleanValue(rs, "engineer_history_yn")
                 ))
                 .list();
@@ -553,8 +553,8 @@ public class WorkOverlapContractService {
         return jdbcClient.sql("""
                         SELECT DISTINCT e.contract_no
                         FROM work_overlap_contract_engineers e
-                        LEFT JOIN pq_engineer_master m ON m.engr_id = e.engineer_id
-                        WHERE LOWER(e.engineer_id) LIKE LOWER(CONCAT('%', :engineerName, '%'))
+                        LEFT JOIN pq_engineer_master m ON m.engr_id = e.engr_id
+                        WHERE LOWER(e.engr_id) LIKE LOWER(CONCAT('%', :engineerName, '%'))
                            OR LOWER(COALESCE(m.namekor, '')) LIKE LOWER(CONCAT('%', :engineerName, '%'))
                         ORDER BY e.contract_no
                         """)

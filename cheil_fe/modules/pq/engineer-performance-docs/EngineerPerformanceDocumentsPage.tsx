@@ -37,6 +37,7 @@ import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
+import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
@@ -190,6 +191,8 @@ export function EngineerPerformanceDocumentsPage() {
   const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const queryClient = useQueryClient();
+  const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
+  const workDutyId = currentSession?.loginId ?? "";
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
   const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);
@@ -226,13 +229,14 @@ export function EngineerPerformanceDocumentsPage() {
   const engLevelReferences = useCommonCodeLevel2Options("51", { useYn: "Y" }, { enabled: canRead });
 
   const engineersQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", keyword.trim()],
+    queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", workDutyId, keyword.trim()],
     queryFn: () =>
       listSelectedEngineerProfileSummariesForBidNotice({
         bidSeq: selectedBidNotice?.bidSeq ?? 0,
+        workDutyId,
         keyword,
       }),
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
+    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq && workDutyId),
   });
 
   const documentValueSettingsQuery = useQuery({
