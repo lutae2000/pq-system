@@ -77,7 +77,6 @@ export type CompanyPerformanceEngineerRecord = {
   duty: string | null;
   jobField: string | null;
   specialtyField: string | null;
-  method: string | null;
   remark: string | null;
 };
 
@@ -88,6 +87,9 @@ export type CompanyPerformanceEngineerCandidate = {
   name: string | null;
   department: string | null;
   position: string | null;
+  dutyPart: string | null;
+  proPart: string | null;
+  designGrade: string | null;
 };
 
 export type CompanyPerformanceConstructionKindRecord = {

@@ -15,7 +15,6 @@ public record CompanyPerformanceEngineerRequest(
         String duty,
         String jobField,
         String specialtyField,
-        String method,
         String remark
 ) {
 }

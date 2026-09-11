@@ -33,8 +33,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     String endDt;
     @Column(name = "jobclass")
     String jobClass;
-    @Column(name = "method")
-    String method;
     @Column(name = "jobtag")
     String jobTag;
     @Column(name = "jobpart")
@@ -67,7 +65,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
                 startDt,
                 endDt,
                 jobClass,
-                method,
                 jobTag,
                 jobPart,
                 proPart,

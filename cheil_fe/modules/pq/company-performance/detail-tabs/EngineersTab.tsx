@@ -71,7 +71,6 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
   duty: text(row.duty) || null,
   engineerId: text(row.engineerId) || null,
   jobField: text(row.jobField) || null,
-  method: text(row.method) || null,
   participationEndDate: toDateValue(row.participationEndDate),
   participationFieldPosition: text(row.participationFieldPosition) || null,
   participationGrade: toNullableNumber(row.participationGrade),
@@ -85,11 +84,13 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
 function EngineerAutocompleteEditCell({
   loading,
   onSearch,
+  onSelectEngineer,
   options,
   params,
 }: {
   loading: boolean;
   onSearch: (keyword: string) => void;
+  onSelectEngineer: (engineerId: string) => void;
   options: CodeOption[];
   params: GridRenderEditCellParams<CompanyPerformanceEngineerRecord, string | null>;
 }) {
@@ -111,7 +112,9 @@ function EngineerAutocompleteEditCell({
       isOptionEqualToValue={(option, currentValue) => String(option.value) === String(currentValue.value)}
       loading={loading}
       onChange={(event, nextValue) => {
-        void params.api.setEditCellValue({ id: params.id, field: params.field, value: nextValue?.value ?? "" }, event);
+        const engineerId = String(nextValue?.value ?? "");
+        void params.api.setEditCellValue({ id: params.id, field: params.field, value: engineerId }, event);
+        onSelectEngineer(engineerId);
       }}
       onInputChange={(_event, nextInputValue, reason) => {
         if (reason === "input") {
@@ -142,6 +145,17 @@ function YmdEditCell(params: GridRenderEditCellParams<CompanyPerformanceEngineer
   );
 }
 
+const resolveParticipationGradeValue = (value: string | null, options: CodeOption[]) => {
+  const numericValue = Number(text(value));
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  const matchedOption = options.find((option) => option.value === Math.trunc(numericValue)) ??
+    options.find((option) => option.value === Math.trunc(numericValue / 10));
+  return matchedOption ? Number(matchedOption.value) : null;
+};
+
 export function EngineersTab({ readOnly = false, record, requestConfirmation }: EngineersTabProps) {
   const queryClient = useQueryClient();
   const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
@@ -168,6 +182,8 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   });
 
   const participationFieldPositionReferences = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" });
+  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" });
+  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" });
   const categoryReferences = useCommonCodeLevel2Options("CA", { useYn: "Y" });
   const participationGradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" });
 
@@ -192,17 +208,33 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     [participationFieldPositionReferences.options],
   );
   const participationFieldPositionLabelByCode = participationFieldPositionReferences.labelByValue;
+  const jobFieldLabelByCode = jobFieldReferences.labelByValue;
+  const specialtyFieldLabelByCode = specialtyFieldReferences.labelByValue;
   const participationGradeOptions = useMemo<CodeOption[]>(
     () => toNumericLevel2SelectOptions(participationGradeReferences.options),
     [participationGradeReferences.options],
   );
   const participationGradeLabelByCode = participationGradeReferences.labelByValue;
 
+  const engineerCandidateById = useMemo(
+    () => new Map((engineerProfilesQuery.data ?? []).map((engineer) => [engineer.engineerId, engineer])),
+    [engineerProfilesQuery.data],
+  );
+
+  const participationFieldPositionOrder = useMemo(
+    () => new Map(participationFieldPositionOptions.map((option, index) => [String(option.value), index])),
+    [participationFieldPositionOptions],
+  );
+
   const yesNoOptions = useMemo<CodeOption[]>(() => [{ label: "Y", value: "Y" }, { label: "N", value: "N" }], []);
 
   const rows = useMemo(
-    () => [...newRows, ...(engineersQuery.data ?? [])],
-    [engineersQuery.data, newRows],
+    () => [...newRows, ...(engineersQuery.data ?? [])].sort((left, right) => {
+      const leftOrder = participationFieldPositionOrder.get(text(left.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = participationFieldPositionOrder.get(text(right.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder || left.id - right.id;
+    }),
+    [engineersQuery.data, newRows, participationFieldPositionOrder],
   );
 
   const invalidateEngineers = useCallback(
@@ -249,13 +281,19 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceEngineerRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> => ({
+    (row: CompanyPerformanceEngineerRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+      if (row.isNew && !text(row.name)) {
+        return null;
+      }
+
+      return {
         confirmColor: "primary",
         confirmLabel: row.isNew ? "등록" : "수정",
         message: row.isNew ? "참여기술인를 등록하시겠습니까?" : "참여기술인 정보를 수정하시겠습니까?",
         targetLabel: displayTarget(row.name, row.isNew ? "신규 참여기술인" : String(row.id)),
         title: row.isNew ? "참여기술인 등록" : "참여기술인 수정",
-      }),
+      };
+    },
     [],
   );
 
@@ -278,27 +316,51 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     const newRow: CompanyPerformanceEngineerRecord = {
       actualParticipationYn: "Y",
       category: "",
-      companyAtParticipation: "",
+      companyAtParticipation: "(주)제일엔지니어링종합건축사사무소",
       departmentAtParticipation: "",
       duty: "",
       engineerId: "",
       id,
       isNew: true,
       jobField: "",
-      method: "",
       name: "",
-      participationEndDate: "",
+      participationEndDate: toDateValue(record.contractToDate),
       participationFieldPosition: "",
       participationGrade: null,
-      participationStartDate: "",
+      participationStartDate: toDateValue(record.contractFromDate),
       positionAtParticipation: "",
       remark: "",
-      reportYn: "N",
+      reportYn: "Y",
       specialtyField: "",
     };
     setNewRows((current) => [newRow, ...current]);
     setRowModesModel((current) => ({ ...current, [id]: { mode: GridRowModes.Edit, fieldToFocus: "engineerId" } }));
   };
+
+  const applyEngineerMasterValues = useCallback(
+    (params: GridRenderEditCellParams<CompanyPerformanceEngineerRecord>, engineerId: string) => {
+      const engineer = engineerCandidateById.get(engineerId);
+      if (!engineer) {
+        return;
+      }
+
+      const values: Partial<CompanyPerformanceEngineerRecord> = {
+        departmentAtParticipation: engineer.department,
+        jobField: formatReferenceLabel(jobFieldLabelByCode, engineer.dutyPart) || engineer.dutyPart,
+        name: engineer.name,
+        participationGrade: resolveParticipationGradeValue(engineer.designGrade, participationGradeOptions),
+        positionAtParticipation: engineer.position,
+        specialtyField: formatReferenceLabel(specialtyFieldLabelByCode, engineer.proPart) || engineer.proPart,
+      };
+
+      void Promise.all(
+        Object.entries(values).map(([field, value]) =>
+          params.api.setEditCellValue({ id: params.id, field, value: value ?? "" }),
+        ),
+      );
+    },
+    [engineerCandidateById, jobFieldLabelByCode, participationGradeOptions, specialtyFieldLabelByCode],
+  );
 
   const handleRowEditStop: NonNullable<DataGridProps<CompanyPerformanceEngineerRecord>["onRowEditStop"]> = (params, event) => {
     if (params.reason === GridRowEditStopReasons.rowFocusOut) {
@@ -320,24 +382,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       return;
     }
 
-    const hasInput = [
-      row.engineerId,
-      row.category,
-      row.companyAtParticipation,
-      row.departmentAtParticipation,
-      row.duty,
-      row.jobField,
-      row.method,
-      row.name,
-      row.participationEndDate,
-      row.participationFieldPosition,
-      row.participationStartDate,
-      row.positionAtParticipation,
-      row.remark,
-      row.specialtyField,
-    ].some((value) => text(value));
-
-    if (hasInput) {
+    if (text(row.name)) {
       return false;
     }
 
@@ -365,6 +410,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
           <EngineerAutocompleteEditCell
             loading={engineerProfilesQuery.isFetching}
             onSearch={setEngineerKeyword}
+            onSelectEngineer={(engineerId) => applyEngineerMasterValues(params, engineerId)}
             options={engineerOptions}
             params={params}
           />
@@ -453,9 +499,22 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       { field: "departmentAtParticipation", headerName: "참여당시 부서", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.departmentAtParticipation) },
       { field: "positionAtParticipation", headerName: "참여당시 직위", width: 120, editable: true, valueGetter: (_value, row) => displayBlank(row.positionAtParticipation) },
       { field: "duty", headerName: "담당업무", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.duty) },
-      { field: "jobField", headerName: "직무분야", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.jobField) },
-      { field: "specialtyField", headerName: "전문분야", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.specialtyField) },
-      { field: "method", headerName: "공법", width: 120, editable: true, valueGetter: (_value, row) => displayBlank(row.method) },
+      {
+        field: "jobField",
+        headerName: "직무분야",
+        width: 130,
+        editable: true,
+        renderCell: (params) => formatReferenceLabel(jobFieldLabelByCode, params.row.jobField) || displayBlank(params.row.jobField),
+        valueGetter: (_value, row) => displayBlank(row.jobField),
+      },
+      {
+        field: "specialtyField",
+        headerName: "전문분야",
+        width: 130,
+        editable: true,
+        renderCell: (params) => formatReferenceLabel(specialtyFieldLabelByCode, params.row.specialtyField) || displayBlank(params.row.specialtyField),
+        valueGetter: (_value, row) => displayBlank(row.specialtyField),
+      },
       { field: "remark", headerName: "비고", minWidth: 180, flex: 1, editable: true, valueGetter: (_value, row) => displayBlank(row.remark) },
       {
         field: "actions",
@@ -511,6 +570,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       },
     ],
     [
+      applyEngineerMasterValues,
       canCreate,
       canDelete,
       canUpdate,
@@ -525,12 +585,27 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       participationFieldPositionOptions,
       participationGradeLabelByCode,
       participationGradeOptions,
+      jobFieldLabelByCode,
+      specialtyFieldLabelByCode,
       rowModesModel,
       yesNoOptions,
     ],
   );
 
-  const processRowUpdate = async (updatedRow: CompanyPerformanceEngineerRecord) => {
+  const processRowUpdate = async (
+    updatedRow: CompanyPerformanceEngineerRecord,
+    originalRow: CompanyPerformanceEngineerRecord,
+  ) => {
+    if (updatedRow.isNew && !text(updatedRow.name)) {
+      setRowModesModel((current) => {
+        const next = { ...current };
+        delete next[String(updatedRow.id)];
+        return next;
+      });
+      setNewRows((current) => current.filter((row) => row.id !== updatedRow.id));
+      return originalRow;
+    }
+
     if (readOnly) {
       return updatedRow;
     }

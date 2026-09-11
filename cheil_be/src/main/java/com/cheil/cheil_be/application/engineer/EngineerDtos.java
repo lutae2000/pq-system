@@ -74,7 +74,6 @@ public final class EngineerDtos {
             String startDt,
             String endDt,
             String jobClass,
-            String method,
             String jobTag,
             String jobPart,
             String proPart,

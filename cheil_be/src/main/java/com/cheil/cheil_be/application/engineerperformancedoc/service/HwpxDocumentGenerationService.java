@@ -1406,7 +1406,6 @@ public class HwpxDocumentGenerationService {
             case "duty" -> review.duty();
             case "proPart" -> review.proPart();
             case "jobClass" -> review.jobClass();
-            case "method" -> review.method();
             case "jobTag" -> review.jobTag();
             case "jobPart" -> review.jobPart();
             case "deptName" -> review.deptName();

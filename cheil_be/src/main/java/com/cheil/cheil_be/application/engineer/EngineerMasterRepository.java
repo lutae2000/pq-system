@@ -23,7 +23,10 @@ public interface EngineerMasterRepository extends JpaRepository<EngineerMasterEn
                 e.engrId,
                 e.nameKor,
                 e.deptName,
-                e.grade
+                e.grade,
+                e.dutyPart,
+                e.proPart,
+                e.designGrade
             )
             from EngineerMasterEntity e
             where :keyword = ''

@@ -208,7 +208,12 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceConstructionKindRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> => ({
+    (row: CompanyPerformanceConstructionKindRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+      if (row.isNew && !text(row.level1Code) && !text(row.level2Code) && !text(row.level3Code)) {
+        return null;
+      }
+
+      return {
         confirmColor: "primary",
         confirmLabel: row.isNew ? "등록" : "수정",
         message: row.isNew ? "공사종류를 등록하시겠습니까?" : "공사종류를 수정하시겠습니까?",
@@ -217,7 +222,8 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
           row.isNew ? "신규 공사종류" : String(row.id),
         ),
         title: row.isNew ? "공사종류 등록" : "공사종류 수정",
-      }),
+      };
+    },
     [],
   );
 
@@ -400,7 +406,20 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
     ],
   );
 
-  const processRowUpdate = async (updatedRow: CompanyPerformanceConstructionKindRecord) => {
+  const processRowUpdate = async (
+    updatedRow: CompanyPerformanceConstructionKindRecord,
+    originalRow: CompanyPerformanceConstructionKindRecord,
+  ) => {
+    if (updatedRow.isNew && !text(updatedRow.level1Code) && !text(updatedRow.level2Code) && !text(updatedRow.level3Code)) {
+      setRowModesModel((current) => {
+        const next = { ...current };
+        delete next[String(updatedRow.id)];
+        return next;
+      });
+      setNewRows((current) => current.filter((row) => row.id !== updatedRow.id));
+      return originalRow;
+    }
+
     if (readOnly) {
       return updatedRow;
     }

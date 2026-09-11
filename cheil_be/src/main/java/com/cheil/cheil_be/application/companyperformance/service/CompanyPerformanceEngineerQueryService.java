@@ -33,7 +33,10 @@ public class CompanyPerformanceEngineerQueryService {
                         engineer.engineerId(),
                         engineer.name(),
                         engineer.department(),
-                        engineer.position()
+                        engineer.position(),
+                        engineer.dutyPart(),
+                        engineer.proPart(),
+                        engineer.designGrade()
                 ))
                 .toList();
     }
@@ -62,7 +65,6 @@ public class CompanyPerformanceEngineerQueryService {
                             h.duty,
                             h.jobpart,
                             h.propart,
-                            h.method,
                             h.remark
                         FROM pq_engineer_project_history h
                         LEFT JOIN pq_engineer_master m ON m.engr_id = h.engr_id
@@ -87,7 +89,6 @@ public class CompanyPerformanceEngineerQueryService {
                         rs.getString("duty"),
                         rs.getString("jobpart"),
                         rs.getString("propart"),
-                        rs.getString("method"),
                         rs.getString("remark")
                 ))
                 .list();
@@ -99,11 +100,11 @@ public class CompanyPerformanceEngineerQueryService {
         int updated = jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history (
                             engr_id, seq, startdt, enddt, jobclass, jobtag, joinyn, returnyn,
-                            englevel, compname, deptname, grade, duty, jobpart, propart, method, remark
+                            englevel, compname, deptname, grade, duty, jobpart, propart, remark
                         )
                         VALUES (
                             :engineerId, :seq, :startDt, :endDt, :jobClass, :jobTag, :joinYn, :returnYn,
-                            :engLevel, :compName, :deptName, :grade, :duty, :jobPart, :proPart, :method, :remark
+                            :engLevel, :compName, :deptName, :grade, :duty, :jobPart, :proPart, :remark
                         )
                         """)
                 .param("engineerId", engineerId)
@@ -121,7 +122,6 @@ public class CompanyPerformanceEngineerQueryService {
                 .param("duty", normalize(request.duty()))
                 .param("jobPart", normalize(request.jobField()))
                 .param("proPart", normalize(request.specialtyField()))
-                .param("method", normalize(request.method()))
                 .param("remark", normalize(request.remark()))
                 .update();
         if (updated != 1) {
@@ -149,7 +149,6 @@ public class CompanyPerformanceEngineerQueryService {
                             duty = :duty,
                             jobpart = :jobPart,
                             propart = :proPart,
-                            method = :method,
                             remark = :remark,
                             last_changed_at = CURRENT_TIMESTAMP
                         WHERE id = :id AND seq = :seq
@@ -170,7 +169,6 @@ public class CompanyPerformanceEngineerQueryService {
                 .param("duty", normalize(request.duty()))
                 .param("jobPart", normalize(request.jobField()))
                 .param("proPart", normalize(request.specialtyField()))
-                .param("method", normalize(request.method()))
                 .param("remark", normalize(request.remark()))
                 .update();
         if (updated != 1) {

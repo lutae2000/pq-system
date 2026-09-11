@@ -4,6 +4,9 @@ public record EngineerCandidate(
         String engineerId,
         String name,
         String department,
-        String position
+        String position,
+        String dutyPart,
+        String proPart,
+        String designGrade
 ) {
 }

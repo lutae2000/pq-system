@@ -210,13 +210,20 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceOutlineRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> => ({
+    (row: CompanyPerformanceOutlineRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+      const hasEditableValue = [row.ddlbGroupCode, row.outlineContent, row.subcategoryCode, row.subcategoryName, row.subcategoryUnit].some((value) => text(value));
+      if (row.isNew && !hasEditableValue) {
+        return null;
+      }
+
+      return {
         confirmColor: "primary",
         confirmLabel: row.isNew ? "등록" : "수정",
         message: row.isNew ? "공사개요를 등록하시겠습니까?" : "공사개요를 수정하시겠습니까?",
         targetLabel: displayTarget(row.subcategoryName || row.categoryName, row.isNew ? "신규 공사개요" : String(row.id)),
         title: row.isNew ? "공사개요 등록" : "공사개요 수정",
-      }),
+      };
+    },
     [],
   );
 
@@ -441,6 +448,17 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
   }, [columns]);
 
   const processRowUpdate = async (updatedRow: CompanyPerformanceOutlineRecord, originalRow: CompanyPerformanceOutlineRecord) => {
+    const hasEditableValue = [updatedRow.ddlbGroupCode, updatedRow.outlineContent, updatedRow.subcategoryCode, updatedRow.subcategoryName, updatedRow.subcategoryUnit].some((value) => text(value));
+    if (updatedRow.isNew && !hasEditableValue) {
+      setRowModesModel((current) => {
+        const next = { ...current };
+        delete next[String(updatedRow.id)];
+        return next;
+      });
+      setNewRows((current) => current.filter((row) => row.id !== updatedRow.id));
+      return originalRow;
+    }
+
     if (readOnly) {
       return updatedRow;
     }

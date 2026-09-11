@@ -25,7 +25,6 @@ public record EngineerProjectHistoryReviewResponse(
         String startDate,
         String endDate,
         String jobClass,
-        String method,
         String jobTag,
         String jobPart,
         String proPart,

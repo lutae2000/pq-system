@@ -66,6 +66,7 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
           attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PERFORMANCE" } : undefined}
           description="실적증명서 파일"
           multiple
+          showFileOrder
           title="실적증명서"
           uploadDisabled={readOnly || !record.seq}
           uploadLabel="파일 업로드"
@@ -74,6 +75,7 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
           attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PARTICIPANT_LIST" } : undefined}
           description="참여자 명단 파일"
           multiple
+          showFileOrder
           title="참여자 명단"
           uploadDisabled={readOnly || !record.seq}
           uploadLabel="파일 업로드"
