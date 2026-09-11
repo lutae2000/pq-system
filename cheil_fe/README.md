@@ -27,6 +27,30 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | `types/` | 전역 타입 |
 | `public/` | 정적 자산 |
 
+업무 화면은 `app/`의 라우트 파일이 `modules/`의 페이지 컴포넌트를 불러오는 구조입니다. 반복 조회용 reference API와 hook은 `modules/common/reference`에 두고, 인증·권한·HTTP·전역 provider는 `lib/`와 `shared/`에서 관리합니다.
+
+`shared/navigation/pageRegistry.generated.tsx`와 `pagePaths.generated.ts`는 `scripts/generate-page-registry.mjs`가 `app/**/page.tsx`를 읽어 생성합니다. 이 파일들은 직접 수정하지 말고 라우트 페이지를 수정한 뒤 `npm run generate:page-registry` 또는 `npm run build`를 실행합니다.
+
+## 업무 모듈 안내
+
+프론트 업무 모듈은 화면과 해당 화면의 API·상태·입력 모델을 가까이 두는 구조입니다. 새 기능은 먼저 같은 업무 영역의 `Page`, `api.ts`, 공통 컴포넌트 사용 방식을 확인한 뒤 추가합니다.
+
+| 영역 | 주요 모듈 | 책임 |
+| --- | --- | --- |
+| 인증·공통 | `auth`, `common/files`, `common/reference` | 로그인, 세션, 파일 첨부, 반복 조회 옵션과 코드명 변환 |
+| 대시보드 | `dashboard` | 월별 실적·수주·낙찰률, 일정과 요약 조회 |
+| 기준정보 | `code/*` | 공통코드, 부서, 본사, 거래처, 공사종류, 용역종류, 자격증, 사업장 관리 |
+| 입찰 | `bid/bid-results`, `bid/qualification-criteria`, `pq/bid-notice` | 입찰 결과, 적격심사 기준, PQ 공고와 기본 조건 |
+| 기술인 | `pq/engineers`, `pq/pq-participating-engineers` | 기술인 마스터·프로필, PQ 참여자 후보·선정·배치 |
+| 실적 | `pq/company-performance`, `pq/service-performance-management`, `pq/similar-service-performances` | 회사실적, 용역실적, 유사실적과 상세 하위 데이터 |
+| 실적 문서 | `pq/engineer-performance-docs`, `pq/company-performance-docs` | 기술인·회사 HWPX 양식 분석, 필드 매핑, 문서 생성과 실적증명서 |
+| 교육·인력 | `education-reminders`, `pq/education-reminders`, `pq/new-employment-rates` | 교육 대상·이수·발송 이력, 신규 고용률 관리 |
+| 신기술·신인도 | `pq/new-technology-*`, `pq/shinindo-management`, `pq/partnerCodes` | 신기술 개발·투자·활용, 신인도, 협력사 코드 관리 |
+| 업무중복 | `work-overlap/contracts`, `work-overlap/engineers`, `pq/work-overlap-docs` | 계약, 계약별 기술인, 문서 대상과 업무중복도 HWPX 생성 |
+| 시스템 | `system/menus`, `system/roles`, `system/user-management`, `system/notices`, `system/policies` | 메뉴, 역할·권한, 사용자, 공지와 시스템 정책 |
+
+업무 모듈 간 흐름은 공고가 기준이 됩니다. 공고(`bid-notice`)를 선택하면 참여 기술인, 회사·용역 실적, 관련 이력 조건이 연결되고, 문서 생성 화면은 이 데이터를 템플릿 매핑으로 조합합니다. 계약과 업무중복도는 별도 계약 식별자를 중심으로 계약·기술인·문서 대상 데이터를 연결합니다.
+
 ## 실행 방법
 
 | 명령어 | 설명 |
@@ -37,6 +61,9 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | `npm run build` | 프로덕션 빌드 |
 | `npm run start` | 빌드 결과 실행 |
 | `npm run lint` | ESLint 검사 |
+| `npm run generate:page-registry` | App Router 페이지 경로와 레지스트리 생성 |
+| `npm run storybook` | 공통 컴포넌트 Storybook 실행 |
+| `npm run build-storybook` | Storybook 정적 빌드 |
 
 기본 개발 서버는 `http://localhost:3000`에서 실행됩니다.
 
@@ -62,6 +89,8 @@ return apiRequest(
   "목록을 불러오지 못했습니다.",
 );
 ```
+
+`apiClient`의 base URL은 `/api`이며 요청 시 로그인 세션의 Bearer 토큰, 로그인 ID, 현재 메뉴 프로그램 코드를 자동으로 반영합니다. `FormData` 요청은 `Content-Type`을 직접 지정하지 않고 `apiClient`에 맡깁니다. 401 응답은 공통 interceptor가 세션을 정리하고 로그인 화면으로 이동시킵니다.
 
 ## 공통 Reference 조회 사용 가이드
 
@@ -241,3 +270,27 @@ export function ClientSelect({ params = {}, ...props }: ReferenceSelectProps & {
 - 검색 입력은 Enter 키로도 조회가 실행되도록 구성합니다.
 - 저장, 조회, 삭제, 신규 버튼은 메뉴 권한과 연결합니다.
 - 한글 문구가 들어간 파일은 UTF-8 인코딩이 깨지지 않도록 주의합니다.
+
+## 화면 상태와 권한
+
+- 서버 데이터는 TanStack Query를 사용하고, 전역 UI 알림은 `useAppSnackbar()`와 `AppSnackbarProvider`를 사용합니다.
+- 일반 업무 탭은 비활성 상태에서도 mount를 유지해 조회조건·선택 상태를 보존합니다. 비활성 탭의 무거운 조회는 `useTabQueryEnabled()` 또는 `useTabActivity()`로 중지합니다.
+- 대형 다이얼로그, 차트, 편집기, 엑셀 모듈은 `next/dynamic`을 우선 검토하고 닫힌 다이얼로그는 실제로 열릴 때 렌더링합니다.
+- 조회·신규·저장·삭제 동작은 현재 메뉴 권한의 `canRead`, `canCreate`, `canUpdate`, `canDelete`에 연결합니다.
+- 공통 그리드는 `EnterpriseDataGrid`를 우선 사용하며 대량 목록은 서버 페이지네이션과 안정적인 `useMemo` 변환을 사용합니다.
+
+## HWPX 문서 템플릿 매핑
+
+기술인실적 HWPX 양식은 업로드된 필드명을 PQ 공통코드와 매칭하여 문서를 생성합니다. 필드별 데이터 경로는 화면 코드에 두지 않고 공통코드 `ref_value1`에 저장합니다.
+
+기술인실적 필드 그룹은 다음과 같습니다.
+
+| 그룹 | 공통코드 경로 | 용도 |
+| --- | --- | --- |
+| 기본 | `PQ/HG` | 기본 정보 필드 |
+| 경력 | `PQ/HH` | 프로젝트 경력 필드 |
+| 이력 | `PQ/HI` | 회사 이력 필드 |
+
+`ref_value1`에는 `row.contractTerm`, `row.workTerm`, `row.jobClass`, `row.participationPeriods`와 같은 백엔드 데이터 경로를 저장합니다. `경력_용역기간(yy.mm.dd)(월)`처럼 날짜 형식과 단위가 필드명에 포함된 경우, 프론트는 같은 경로를 전달하고 백엔드 formatter가 필드명을 기준으로 출력 형식을 결정합니다. 새 매핑을 추가할 때는 공통코드의 `ref_value1`을 먼저 등록하고 HWPX 업로드 화면에서 매핑 경로가 표시되는지 확인합니다.
+
+회사실적과 업무중복도는 각 화면에 정의된 PQ 공통코드 그룹을 사용하며, 해당 그룹의 `ref_value1`을 같은 방식으로 매핑 경로로 사용합니다.
