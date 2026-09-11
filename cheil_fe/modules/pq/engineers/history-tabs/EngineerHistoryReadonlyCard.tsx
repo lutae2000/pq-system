@@ -243,6 +243,7 @@ export function EngineerHistoryReadonlyCard({ canRead = true, engineerId }: Engi
         handleEducationProcessRowUpdate={noopProcessRowUpdate}
         handleRowEditEnterKeyDown={noopKeyDown}
         handleRowEditStop={noopRowEditStop}
+        onNewRowEditCancel={() => undefined}
         handleTrainingProcessRowUpdate={noopProcessRowUpdate}
         onAttachmentUpload={() => undefined}
         onOpenAwardCreate={() => undefined}

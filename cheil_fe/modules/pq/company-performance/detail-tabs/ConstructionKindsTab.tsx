@@ -261,6 +261,27 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
     }
   };
 
+  const handleNewRowEditCancel = (
+    row: CompanyPerformanceConstructionKindRecord,
+    params: { reason?: GridRowEditStopReasons },
+  ) => {
+    if (params.reason !== GridRowEditStopReasons.rowFocusOut || !row.isNew) {
+      return;
+    }
+
+    if (text(row.level1Code) || text(row.level2Code) || text(row.level3Code)) {
+      return false;
+    }
+
+    setRowModesModel((current) => {
+      const next = { ...current };
+      delete next[String(row.id)];
+      return next;
+    });
+    setNewRows((current) => current.filter((item) => item.id !== row.id));
+    return true;
+  };
+
   const columns = useMemo<GridColDef<CompanyPerformanceConstructionKindRecord>[]>(
     () => [
       {
@@ -403,6 +424,7 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         confirmProcessRowUpdate={readOnly ? undefined : confirmProcessRowUpdate}
         editMode={readOnly ? undefined : "row"}
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
         loading={
           constructionKindsQuery.isLoading ||
@@ -413,6 +435,7 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
           deleteMutation.isPending
         }
         onProcessRowUpdateError={() => undefined}
+        onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
         processRowUpdate={readOnly ? undefined : processRowUpdate}

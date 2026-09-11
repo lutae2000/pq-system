@@ -164,8 +164,8 @@ public class PqParticipatingEngineerQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<EngineerDtos.Profile> findSelectedProfiles(Long bidSeq, String keyword) {
-        return findSelectedProfileIds(bidSeq, keyword).stream()
+    public List<EngineerDtos.Profile> findSelectedProfiles(Long bidSeq, String workDutyId, String keyword) {
+        return findSelectedProfileIds(bidSeq, workDutyId, keyword).stream()
                 .map(engineerAdminService::findByEngrId)
                 .toList();
     }
@@ -245,7 +245,7 @@ public class PqParticipatingEngineerQueryService {
                 .list();
     }
 
-    private List<String> findSelectedProfileIds(Long bidSeq, String keyword) {
+    private List<String> findSelectedProfileIds(Long bidSeq, String workDutyId, String keyword) {
         if (bidSeq == null) {
             return List.of();
         }
@@ -260,6 +260,10 @@ public class PqParticipatingEngineerQueryService {
                 """);
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
+        if (StringUtils.hasText(workDutyId)) {
+            sql.append(" AND s.work_duty_id = :workDutyId");
+            params.put("workDutyId", workDutyId.trim());
+        }
         if (StringUtils.hasText(keyword)) {
             sql.append("""
                      AND (

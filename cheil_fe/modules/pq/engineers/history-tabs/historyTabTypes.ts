@@ -1,6 +1,7 @@
-import type { DataGridProps, GridApi, GridColDef, GridRowId, GridRowModesModel } from "@mui/x-data-grid";
+import type { DataGridProps, GridApi, GridColDef, GridRowId, GridRowModesModel, GridValidRowModel } from "@mui/x-data-grid";
 import type { KeyboardEvent, RefObject } from "react";
 
+import type { EnterpriseDataGridProps } from "@/components/common/EnterpriseDataGrid";
 import type {
   AwardRecord,
   CareerRecord,
@@ -11,6 +12,7 @@ import type {
 } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 
 export type HistoryRowModesModel = Record<DetailTab, GridRowModesModel>;
+export type NewHistoryRowEditCancelHandler = NonNullable<EnterpriseDataGridProps<GridValidRowModel>["onNewRowEditCancel"]>;
 
 export type BaseHistoryTabProps = {
   canCreate: boolean;
@@ -18,6 +20,7 @@ export type BaseHistoryTabProps = {
   createDisabled: boolean;
   handleRowEditEnterKeyDown: (tab: DetailTab) => (event: KeyboardEvent<HTMLDivElement>) => void;
   handleRowEditStop: DataGridProps<CareerRecord>["onRowEditStop"];
+  onNewRowEditCancel: NewHistoryRowEditCancelHandler;
   onAttachmentUpload: (tab: DetailTab, recordId: string, files: File[]) => void;
   onRowModesModelChange: (tab: DetailTab, model: GridRowModesModel) => void;
   onStartRowEdit: (tab: DetailTab, id: GridRowId, fieldToFocus: string) => void;

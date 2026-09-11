@@ -255,11 +255,11 @@ export function CompanyPerformanceDocumentsPage() {
   };
 
   if (!canRead) {
-    return <><PageHeader title="회사 실적문서 생성" description="회사실적 문서 생성 대상과 조건을 관리합니다." /><Alert severity="warning">조회 권한이 없습니다.</Alert></>;
+    return <><PageHeader title="회사 실적문서 생성" /><Alert severity="warning">조회 권한이 없습니다.</Alert></>;
   }
   return (
     <Box>
-      <PageHeader title="회사 실적문서 생성" description="공고를 선택하고 회사실적 조건을 적용해 문서 생성 대상을 구성합니다." />
+      <PageHeader title="회사 실적문서 생성" />
       <Stack spacing={2}>
         <Card variant="outlined"><CardContent><Stack spacing={1.5}>
           <Grid container spacing={1.5}>

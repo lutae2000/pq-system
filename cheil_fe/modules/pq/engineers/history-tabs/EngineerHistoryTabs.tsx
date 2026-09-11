@@ -29,6 +29,7 @@ import { CareerHistoryTab } from "@/modules/pq/engineers/history-tabs/CareerHist
 import { CertificateHistoryTab } from "@/modules/pq/engineers/history-tabs/CertificateHistoryTab";
 import { EducationHistoryTab } from "@/modules/pq/engineers/history-tabs/EducationHistoryTab";
 import { TabPanel } from "@/modules/pq/engineers/history-tabs/historyTabCommon";
+import type { NewHistoryRowEditCancelHandler } from "@/modules/pq/engineers/history-tabs/historyTabTypes";
 import { PerformanceHistoryTab } from "@/modules/pq/engineers/history-tabs/PerformanceHistoryTab";
 import { TrainingHistoryTab } from "@/modules/pq/engineers/history-tabs/TrainingHistoryTab";
 
@@ -52,6 +53,7 @@ type HistoryTabsProps = {
   handleEducationProcessRowUpdate: DataGridProps<EducationRecord>["processRowUpdate"];
   handleRowEditEnterKeyDown: (tab: DetailTab) => (event: KeyboardEvent<HTMLDivElement>) => void;
   handleRowEditStop: DataGridProps<CareerRecord>["onRowEditStop"];
+  onNewRowEditCancel: NewHistoryRowEditCancelHandler;
   handleTrainingProcessRowUpdate: DataGridProps<TrainingRecord>["processRowUpdate"];
   onAttachmentUpload: (tab: DetailTab, recordId: string, files: File[]) => void;
   onOpenAwardCreate: () => void;
@@ -111,6 +113,7 @@ export function EngineerHistoryTabs({
   handleEducationProcessRowUpdate,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   handleTrainingProcessRowUpdate,
   onAttachmentUpload,
   onOpenAwardCreate,
@@ -160,6 +163,7 @@ export function EngineerHistoryTabs({
     createDisabled,
     handleRowEditEnterKeyDown,
     handleRowEditStop,
+    onNewRowEditCancel,
     onAttachmentUpload,
     onRowModesModelChange,
     onStartRowEdit,

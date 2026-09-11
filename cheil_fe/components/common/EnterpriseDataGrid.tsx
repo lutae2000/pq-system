@@ -55,7 +55,7 @@ export type EnterpriseDataGridProps<Row extends GridValidRowModel> = DataGridPro
     params: Parameters<NonNullable<DataGridProps<Row>["onRowEditStop"]>>[0],
     event: Parameters<NonNullable<DataGridProps<Row>["onRowEditStop"]>>[1],
     details: Parameters<NonNullable<DataGridProps<Row>["onRowEditStop"]>>[2],
-  ) => void;
+  ) => boolean | void;
   onExportPrint?: () => void;
   readOnly?: boolean;
   showPageInfo?: boolean;
@@ -925,6 +925,13 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
 
   const handleRowEditStop = useCallback<NonNullable<DataGridProps<Row>["onRowEditStop"]>>(
     (params, event, details) => {
+      if (params.reason === GridRowEditStopReasons.rowFocusOut && isNewEditableRow(params.row)) {
+        const handled = onNewRowEditCancel?.(params.row, params, event, details);
+        if (handled) {
+          return;
+        }
+      }
+
       if (params.reason === GridRowEditStopReasons.escapeKeyDown) {
         const nativeEvent = (event as unknown as { nativeEvent?: Event }).nativeEvent;
         (event as unknown as { stopPropagation?: () => void }).stopPropagation?.();

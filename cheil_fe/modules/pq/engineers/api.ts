@@ -517,12 +517,14 @@ export async function getEngineerProfile(engrId: string): Promise<EngineerProfil
 
 export async function listSelectedEngineerProfilesForBidNotice(params: {
   bidSeq: number;
+  workDutyId?: string;
   keyword?: string;
 }): Promise<EngineerProfileView[]> {
   const profiles = await apiRequest<BackendEngineerProfile[]>(
     apiClient.get("/pq/participating-engineers/profiles", {
       params: {
         bidSeq: params.bidSeq,
+        workDutyId: params.workDutyId?.trim() || undefined,
         keyword: params.keyword?.trim() || undefined,
       },
     }),

@@ -20,6 +20,8 @@ import {
   Grid,
   IconButton,
   Stack,
+  MenuItem,
+  Select,
   TextField,
   Tooltip,
   Typography,
@@ -40,6 +42,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { listCertifications } from "@/modules/code/certifications/api";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
@@ -55,10 +58,9 @@ import {
   updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
-import { getEngineerProfile, listSelectedEngineerProfileSummariesForBidNotice } from "@/modules/pq/engineers/api";
+import { getEngineerProfile, listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
 import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
-import type { EngineerDocumentValueSetting } from "@/modules/pq/engineer-performance-docs/EngineerDocumentValueSettingDialog";
 
 const BidNoticeSelectDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
@@ -76,10 +78,6 @@ const HwpxTemplateGenerationPanel = dynamic(
   () => import("@/modules/pq/engineer-performance-docs/HwpxTemplateGenerationPanel").then((module) => module.HwpxTemplateGenerationPanel),
   { ssr: false },
 );
-const EngineerDocumentValueSettingDialog = dynamic(
-  () => import("@/modules/pq/engineer-performance-docs/EngineerDocumentValueSettingDialog").then((module) => module.EngineerDocumentValueSettingDialog),
-  { ssr: false },
-);
 
 type EngineerDocumentRow = {
   birthDate: string;
@@ -92,6 +90,12 @@ type EngineerDocumentRow = {
   selectedCount: number;
   status: string;
   documentValueConfigured: boolean;
+};
+
+type InlineDocumentValueChange = {
+  educationId: number | null;
+  engineerId: string;
+  licenseId: number | null;
 };
 
 type PerformanceHistoryRow = EngineerProjectHistoryReviewRecord & {
@@ -118,7 +122,7 @@ const center = {
 const selectorGridHeight = { xs: 520, md: 580 } as const;
 const DEFAULT_SELECTOR_PANEL_WIDTH = 360;
 const SELECTOR_PANEL_MIN_WIDTH = 300;
-const SELECTOR_PANEL_MAX_WIDTH = 560;
+const SELECTOR_PANEL_MAX_WIDTH = 1000;
 const DEFAULT_HISTORY_CARD_HEIGHT = 520;
 const HISTORY_CARD_MIN_HEIGHT = 320;
 const HISTORY_CARD_MAX_HEIGHT = 900;
@@ -199,8 +203,6 @@ export function EngineerPerformanceDocumentsPage() {
   const [keyword, setKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
-  const [documentValueSettingOpen, setDocumentValueSettingOpen] = useState(false);
-  const [documentValueSetting, setDocumentValueSetting] = useState<EngineerDocumentValueSetting | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
@@ -231,7 +233,7 @@ export function EngineerPerformanceDocumentsPage() {
   const engineersQuery = useQuery({
     queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", workDutyId, keyword.trim()],
     queryFn: () =>
-      listSelectedEngineerProfileSummariesForBidNotice({
+      listSelectedEngineerProfilesForBidNotice({
         bidSeq: selectedBidNotice?.bidSeq ?? 0,
         workDutyId,
         keyword,
@@ -244,11 +246,24 @@ export function EngineerPerformanceDocumentsPage() {
     queryFn: () => listEngineerDocumentValueSettings(selectedBidNotice?.bidSeq ?? 0),
     enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
   });
+  const certificationsQuery = useQuery({
+    queryKey: ["code-certifications", "engineer-performance-docs"],
+    queryFn: listCertifications,
+    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
+  });
 
   const profiles = useMemo(() => engineersQuery.data ?? [], [engineersQuery.data]);
   const documentValueSettingsByEngineerId = useMemo(
     () => new Map((documentValueSettingsQuery.data ?? []).map((setting) => [setting.engineerId, setting])),
     [documentValueSettingsQuery.data],
+  );
+  const profilesByEngineerId = useMemo(
+    () => new Map(profiles.map((profile) => [profile.summary.id, profile])),
+    [profiles],
+  );
+  const certificateLabelByCode = useMemo(
+    () => Object.fromEntries((certificationsQuery.data ?? []).map((item) => [item.certCode, item.certName])),
+    [certificationsQuery.data],
   );
   const engineerRows = useMemo<EngineerDocumentRow[]>(
     () =>
@@ -262,7 +277,10 @@ export function EngineerPerformanceDocumentsPage() {
         specialtyField: profile.detail.specialtyField,
         selectedCount: profile.careerDetails.length,
         status: profile.summary.status,
-        documentValueConfigured: documentValueSettingsByEngineerId.has(profile.summary.id),
+        documentValueConfigured: (() => {
+          const setting = documentValueSettingsByEngineerId.get(profile.summary.id);
+          return setting?.educationId != null && setting.licenseId != null;
+        })(),
       })),
     [documentValueSettingsByEngineerId, profiles],
   );
@@ -272,31 +290,24 @@ export function EngineerPerformanceDocumentsPage() {
   const activeEngineerProfileQuery = useQuery({
     queryKey: ["engineer-performance-docs", "active-engineer-profile", activeEngineerId || "none"],
     queryFn: () => getEngineerProfile(activeEngineerId),
-    enabled: tabQueryEnabled && Boolean(activeEngineerId) && documentValueSettingOpen,
+    enabled: tabQueryEnabled && Boolean(activeEngineerId),
   });
   const activeEngineerProfile = activeEngineerProfileQuery.data
     ?? profiles.find((profile) => profile.summary.id === activeEngineerId)
     ?? null;
 
-  const saveDocumentValueSettingMutation = useMutation({
-    mutationFn: (value: EngineerDocumentValueSetting) => {
-      if (!selectedBidSeq || !activeEngineerProfile) {
-        throw new Error("공고와 기술인을 먼저 선택하세요.");
+  const saveInlineDocumentValueMutation = useMutation({
+    mutationFn: (change: InlineDocumentValueChange) => {
+      if (!selectedBidSeq) {
+        throw new Error("공고를 먼저 선택하세요.");
       }
-      return saveEngineerDocumentValueSetting({
-        bidSeq: selectedBidSeq,
-        engineerId: activeEngineerProfile.summary.id,
-        educationId: value.education?.id ? Number(value.education.id) : null,
-        licenseId: value.certificate?.id ? Number(value.certificate.id) : null,
-      });
+      return saveEngineerDocumentValueSetting({ bidSeq: selectedBidSeq, ...change });
     },
-    onSuccess: async (_saved, value) => {
-      setDocumentValueSetting(value);
-      setDocumentValueSettingOpen(false);
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "document-value-settings", selectedBidSeq ?? "none"] });
-      showSuccess("기술인 문서 작성값이 저장되었습니다.");
+      showSuccess("선택 학력·자격이 저장되었습니다.");
     },
-    onError: (error) => showError(error instanceof Error ? error.message : "기술인 문서 작성값을 저장하지 못했습니다."),
+    onError: (error) => showError(error instanceof Error ? error.message : "선택 학력·자격을 저장하지 못했습니다."),
   });
 
   const projectHistoryRowsQuery = useQuery({
@@ -525,8 +536,100 @@ export function EngineerPerformanceDocumentsPage() {
         ...center,
         valueFormatter: (value) => formatReferenceLabel(labelBySpecialtyField, value),
       },
+      {
+        field: "selectedEducation",
+        headerName: "선택 학력",
+        minWidth: 200,
+        flex: 1,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: ({ row }) => {
+          const profile = profilesByEngineerId.get(row.engineerId);
+          const saved = documentValueSettingsByEngineerId.get(row.engineerId);
+          const selectedId = saved?.educationId == null ? "" : String(saved.educationId);
+          return (
+            <Select
+              fullWidth
+              displayEmpty
+              size="small"
+              value={selectedId}
+              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.education.length || saveInlineDocumentValueMutation.isPending}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onChange={(event) => {
+                event.stopPropagation();
+                saveInlineDocumentValueMutation.mutate({
+                  educationId: event.target.value ? Number(event.target.value) : null,
+                  engineerId: row.engineerId,
+                  licenseId: saved?.licenseId ?? null,
+                });
+              }}
+              renderValue={(value) => {
+                if (!value) return "선택 안 함";
+                const education = profile?.education.find((item) => String(item.id) === String(value));
+                return education ? `${education.schoolName} / ${education.major}` : "선택 안 함";
+              }}
+              sx={{ "& .MuiSelect-select": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
+            >
+              <MenuItem value="">선택 안 함</MenuItem>
+              {(profile?.education ?? []).map((education) => (
+                <MenuItem key={education.id} value={education.id}>
+                  {education.schoolName} / {education.major} / {education.endDate}
+                </MenuItem>
+              ))}
+            </Select>
+          );
+        },
+      },
+      {
+        field: "selectedCertificate",
+        headerName: "선택 자격",
+        minWidth: 200,
+        flex: 1,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: ({ row }) => {
+          const profile = profilesByEngineerId.get(row.engineerId);
+          const saved = documentValueSettingsByEngineerId.get(row.engineerId);
+          const selectedId = saved?.licenseId == null ? "" : String(saved.licenseId);
+          return (
+            <Select
+              fullWidth
+              displayEmpty
+              size="small"
+              value={selectedId}
+              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.certificates.length || saveInlineDocumentValueMutation.isPending}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onChange={(event) => {
+                event.stopPropagation();
+                saveInlineDocumentValueMutation.mutate({
+                  educationId: saved?.educationId ?? null,
+                  engineerId: row.engineerId,
+                  licenseId: event.target.value ? Number(event.target.value) : null,
+                });
+              }}
+              renderValue={(value) => {
+                if (!value) return "선택 안 함";
+                const certificate = profile?.certificates.find((item) => String(item.id) === String(value));
+                return certificate ? `${certificateLabelByCode[certificate.certificateName] ?? certificate.certificateName} / ${certificate.licenseNo}` : "선택 안 함";
+              }}
+              sx={{ "& .MuiSelect-select": { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }}
+            >
+              <MenuItem value="">선택 안 함</MenuItem>
+              {(profile?.certificates ?? []).map((certificate) => (
+                <MenuItem key={certificate.id} value={certificate.id}>
+                  {certificateLabelByCode[certificate.certificateName] ?? certificate.certificateName} / {certificate.licenseNo} / {certificate.issueDate}
+                </MenuItem>
+              ))}
+            </Select>
+          );
+        },
+      },
     ],
-    [labelByJobField, labelBySpecialtyField],
+    [canUpdate, certificateLabelByCode, documentValueSettingsByEngineerId, documentValueSettingsQuery.isFetching, labelByJobField, labelBySpecialtyField, profilesByEngineerId, saveInlineDocumentValueMutation],
   );
 
   const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(
@@ -1141,30 +1244,12 @@ export function EngineerPerformanceDocumentsPage() {
                   loading={engineersQuery.isLoading || engineersQuery.isFetching}
                   onRowClick={(params: GridRowParams<EngineerDocumentRow>) => {
                     setActiveEngineerId(params.row.engineerId);
-                    setDocumentValueSettingOpen(false);
-                    setDocumentValueSetting(null);
                     setSelectedHistoryIds([]);
                     setHistorySelectionAnchorId(null);
                     setSelectedReviewIds([]);
                     setReviewSelectionAnchorId(null);
                     setPendingBulkDeleteReviewIds(null);
                     setPerformanceDetailSeq(null);
-                  }}
-                  onRowDoubleClick={(params: GridRowParams<EngineerDocumentRow>) => {
-                    const profile = profiles.find((item) => item.summary.id === params.row.engineerId) ?? null;
-                    if (profile) {
-                      const saved = documentValueSettingsByEngineerId.get(params.row.engineerId);
-                      setActiveEngineerId(params.row.engineerId);
-                      setDocumentValueSetting(
-                        saved
-                          ? {
-                              certificate: profile.certificates.find((item) => String(item.id) === String(saved.licenseId)) ?? null,
-                              education: profile.education.find((item) => String(item.id) === String(saved.educationId)) ?? null,
-                            }
-                          : null,
-                      );
-                      setDocumentValueSettingOpen(true);
-                    }
                   }}
                   getRowClassName={(params) =>
                     documentValueSettingsQuery.isSuccess && !params.row.documentValueConfigured
@@ -1179,7 +1264,7 @@ export function EngineerPerformanceDocumentsPage() {
                   rows={engineerRows}
                   rowSelectionModel={{ ids: new Set(selectedEngineerIds), type: "include" }}
                   columnHeaderHeight={36}
-                  rowHeight={30}
+                  rowHeight={35}
                   showToolbar={false}
                   wrapperMinHeight={{ ...selectorGridHeight, lg: "100%" }}
                   sx={{
@@ -1463,8 +1548,6 @@ export function EngineerPerformanceDocumentsPage() {
             setBidNoticeDialogOpen(false);
             setKeyword("");
             setActiveEngineerId("");
-            setDocumentValueSettingOpen(false);
-            setDocumentValueSetting(null);
             setPerformanceDetailSeq(null);
             setSelectedHistoryIds([]);
             setHistorySelectionAnchorId(null);
@@ -1526,14 +1609,6 @@ export function EngineerPerformanceDocumentsPage() {
         <CompanyPerformanceDetailPopup onClose={() => setPerformanceDetailSeq(null)} open seq={performanceDetailSeq} />
       ) : null}
       </Box>
-      <EngineerDocumentValueSettingDialog
-        engineer={activeEngineerProfile}
-        onClose={() => setDocumentValueSettingOpen(false)}
-        onConfirm={(value) => void saveDocumentValueSettingMutation.mutateAsync(value)}
-        open={documentValueSettingOpen}
-        projectName={selectedBidNotice?.projectName ?? ""}
-        value={documentValueSetting}
-      />
     </>
     );
 }

@@ -278,6 +278,33 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
     }
   };
 
+  const handleNewRowEditCancel = (
+    row: CompanyPerformanceOutlineRecord,
+    params: { reason?: GridRowEditStopReasons },
+  ) => {
+    if (params.reason !== GridRowEditStopReasons.rowFocusOut || !row.isNew) {
+      return;
+    }
+
+    if (
+      text(row.ddlbGroupCode) ||
+      text(row.outlineContent) ||
+      text(row.subcategoryCode) ||
+      text(row.subcategoryName) ||
+      text(row.subcategoryUnit)
+    ) {
+      return false;
+    }
+
+    setRowModesModel((current) => {
+      const next = { ...current };
+      delete next[String(row.id)];
+      return next;
+    });
+    setNewRows((current) => current.filter((item) => item.id !== row.id));
+    return true;
+  };
+
   const shouldShowGroupSeq = useCallback((row: CompanyPerformanceOutlineRecord) => {
     const rowIndex = rows.findIndex((item) => item.id === row.id);
     if (rowIndex <= 0) {
@@ -479,6 +506,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
         confirmProcessRowUpdate={readOnly ? undefined : confirmProcessRowUpdate}
         editMode={readOnly ? undefined : "row"}
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
         loading={
           outlinesQuery.isLoading ||
@@ -490,6 +518,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
           deleteMutation.isPending
         }
         onProcessRowUpdateError={() => undefined}
+        onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
         processRowUpdate={readOnly ? undefined : processRowUpdate}

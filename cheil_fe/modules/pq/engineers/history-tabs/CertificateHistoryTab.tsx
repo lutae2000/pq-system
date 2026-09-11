@@ -13,6 +13,7 @@ export function CertificateHistoryTab({
   handleCertificateProcessRowUpdate,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   onAttachmentUpload,
   onOpenCertificateCreate,
   onRowModesModelChange,
@@ -37,6 +38,7 @@ export function CertificateHistoryTab({
         editMode="row"
         disableVirtualization
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.id.startsWith("tmp-")}
         hideFooterSelectedRowCount
         processRowUpdate={handleCertificateProcessRowUpdate}
         onRowDoubleClick={(params) => {
@@ -45,6 +47,7 @@ export function CertificateHistoryTab({
           }
         }}
         onRowEditStop={handleRowEditStop}
+        onNewRowEditCancel={onNewRowEditCancel}
         onRowClick={(params) => setSelectedCertificateRowId(params.row.id)}
         rowModesModel={rowModesModel.certificate}
         onRowModesModelChange={(newModel) => onRowModesModelChange("certificate", newModel)}

@@ -13,6 +13,7 @@ export function AwardHistoryTab({
   handleAwardProcessRowUpdate,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   onAttachmentUpload,
   onOpenAwardCreate,
   onRowModesModelChange,
@@ -36,6 +37,7 @@ export function AwardHistoryTab({
         editMode="row"
         disableVirtualization
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.id.startsWith("tmp-")}
         hideFooterSelectedRowCount
         processRowUpdate={handleAwardProcessRowUpdate}
         onRowDoubleClick={(params) => {
@@ -44,6 +46,7 @@ export function AwardHistoryTab({
           }
         }}
         onRowEditStop={handleRowEditStop}
+        onNewRowEditCancel={onNewRowEditCancel}
         onRowClick={(params) => setSelectedAwardRowId(params.row.id)}
         rowModesModel={rowModesModel.award}
         onRowModesModelChange={(newModel) => onRowModesModelChange("award", newModel)}

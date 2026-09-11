@@ -10,6 +10,7 @@ export function TrainingHistoryTab({
   createDisabled,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   handleTrainingProcessRowUpdate,
   onAttachmentUpload,
   onOpenTrainingCreate,
@@ -36,6 +37,7 @@ export function TrainingHistoryTab({
         editMode="row"
         disableVirtualization
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.id.startsWith("tmp-")}
         hideFooterSelectedRowCount
         processRowUpdate={handleTrainingProcessRowUpdate}
         onRowDoubleClick={(params) => {
@@ -44,6 +46,7 @@ export function TrainingHistoryTab({
           }
         }}
         onRowEditStop={handleRowEditStop}
+        onNewRowEditCancel={onNewRowEditCancel}
         onRowClick={(params) => setSelectedTrainingRowId(params.row.id)}
         rowModesModel={rowModesModel.training}
         onRowModesModelChange={(newModel) => onRowModesModelChange("training", newModel)}

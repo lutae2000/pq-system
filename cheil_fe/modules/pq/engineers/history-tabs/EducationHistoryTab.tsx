@@ -13,6 +13,7 @@ export function EducationHistoryTab({
   handleEducationProcessRowUpdate,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   onAttachmentUpload,
   onOpenEducationCreate,
   onRowModesModelChange,
@@ -36,6 +37,7 @@ export function EducationHistoryTab({
         editMode="row"
         disableVirtualization
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.id.startsWith("tmp-")}
         hideFooterSelectedRowCount
         processRowUpdate={handleEducationProcessRowUpdate}
         onRowDoubleClick={(params) => {
@@ -44,6 +46,7 @@ export function EducationHistoryTab({
           }
         }}
         onRowEditStop={handleRowEditStop}
+        onNewRowEditCancel={onNewRowEditCancel}
         onRowClick={(params) => setSelectedEducationRowId(params.row.id)}
         rowModesModel={rowModesModel.education}
         onRowModesModelChange={(newModel) => onRowModesModelChange("education", newModel)}

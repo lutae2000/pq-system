@@ -78,6 +78,7 @@ import type {
   SelectedDetailRows,
   TrainingRecord,
 } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
+import type { NewHistoryRowEditCancelHandler } from "@/modules/pq/engineers/history-tabs/historyTabTypes";
 
 type EngineerFilterState = {
   assessmentDate: string;
@@ -1356,6 +1357,66 @@ export function EngineerPersonalInfoPage() {
     );
   };
 
+  const removeTemporaryHistoryRow = (tab: Exclude<DetailTab, "performance">, rowId: string) => {
+    if (!selectedEngineer || !isTemporaryRecordId(rowId)) {
+      return;
+    }
+
+    if (tab === "career") {
+      updateSelectedEngineerRecords("career", selectedEngineer.career.filter((record) => record.id !== rowId));
+    } else if (tab === "certificate") {
+      updateSelectedEngineerRecords("certificates", selectedEngineer.certificates.filter((record) => record.id !== rowId));
+    } else if (tab === "education") {
+      updateSelectedEngineerRecords("education", selectedEngineer.education.filter((record) => record.id !== rowId));
+    } else if (tab === "award") {
+      updateSelectedEngineerRecords("awards", selectedEngineer.awards.filter((record) => record.id !== rowId));
+    } else {
+      updateSelectedEngineerRecords("trainings", selectedEngineer.trainings.filter((record) => record.id !== rowId));
+    }
+    setRowModesModel((current) => {
+      const nextTabModes = { ...current[tab] };
+      delete nextTabModes[rowId];
+      return { ...current, [tab]: nextTabModes };
+    });
+  };
+
+  const isEmptyTemporaryHistoryRow = (row: Record<string, unknown>) =>
+    Object.entries(row).every(([key, value]) => {
+      if (key === "id" || key === "attachments" || key === "active") {
+        return true;
+      }
+      return value === "" || value === null || value === undefined || value === 0 || value === false || value === "N";
+    });
+
+  const handleNewHistoryRowEditCancel: NewHistoryRowEditCancelHandler = (row, params) => {
+    const rowId = String(row.id ?? "");
+    if (!isTemporaryRecordId(rowId)) {
+      return;
+    }
+
+    if (params.reason === "rowFocusOut" && !isEmptyTemporaryHistoryRow(row)) {
+      return false;
+    }
+
+    const tab = (["career", "certificate", "education", "award", "training"] as const).find((candidate) => {
+      const records = candidate === "career"
+        ? selectedEngineer?.career
+        : candidate === "certificate"
+          ? selectedEngineer?.certificates
+          : candidate === "education"
+            ? selectedEngineer?.education
+            : candidate === "award"
+              ? selectedEngineer?.awards
+              : selectedEngineer?.trainings;
+      return records?.some((record) => record.id === rowId);
+    });
+
+    if (tab) {
+      removeTemporaryHistoryRow(tab, rowId);
+    }
+    return true;
+  };
+
   const updateSelectedEngineerRetired = (retired: boolean) => {
     if (!selectedEngineer) {
       return;
@@ -2101,6 +2162,7 @@ export function EngineerPersonalInfoPage() {
               handleEducationProcessRowUpdate={handleEducationProcessRowUpdate}
               handleRowEditEnterKeyDown={handleRowEditEnterKeyDown}
               handleRowEditStop={handleRowEditStop}
+              onNewRowEditCancel={handleNewHistoryRowEditCancel}
               handleTrainingProcessRowUpdate={handleTrainingProcessRowUpdate}
               onOpenAwardCreate={openAwardDialogForCreate}
               onOpenCareerCreate={openCareerDialogForCreate}

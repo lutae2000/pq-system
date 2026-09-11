@@ -13,6 +13,7 @@ export function CareerHistoryTab({
   handleCareerProcessRowUpdate,
   handleRowEditEnterKeyDown,
   handleRowEditStop,
+  onNewRowEditCancel,
   onAttachmentUpload,
   onOpenCareerCreate,
   onRowModesModelChange,
@@ -32,6 +33,7 @@ export function CareerHistoryTab({
         editMode="row"
         disableVirtualization
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.id.startsWith("tmp-")}
         hideFooterSelectedRowCount
         processRowUpdate={handleCareerProcessRowUpdate}
         onRowDoubleClick={(params) => {
@@ -40,6 +42,7 @@ export function CareerHistoryTab({
           }
         }}
         onRowEditStop={handleRowEditStop}
+        onNewRowEditCancel={onNewRowEditCancel}
         onRowClick={(params) => setSelectedCareerRowId(params.row.id)}
         rowModesModel={rowModesModel.career}
         onRowModesModelChange={(newModel) => onRowModesModelChange("career", newModel)}

@@ -312,6 +312,44 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     }
   };
 
+  const handleNewRowEditCancel = (
+    row: CompanyPerformanceEngineerRecord,
+    params: { reason?: GridRowEditStopReasons },
+  ) => {
+    if (params.reason !== GridRowEditStopReasons.rowFocusOut || !row.isNew) {
+      return;
+    }
+
+    const hasInput = [
+      row.engineerId,
+      row.category,
+      row.companyAtParticipation,
+      row.departmentAtParticipation,
+      row.duty,
+      row.jobField,
+      row.method,
+      row.name,
+      row.participationEndDate,
+      row.participationFieldPosition,
+      row.participationStartDate,
+      row.positionAtParticipation,
+      row.remark,
+      row.specialtyField,
+    ].some((value) => text(value));
+
+    if (hasInput) {
+      return false;
+    }
+
+    setRowModesModel((current) => {
+      const next = { ...current };
+      delete next[String(row.id)];
+      return next;
+    });
+    setNewRows((current) => current.filter((item) => item.id !== row.id));
+    return true;
+  };
+
   const columns = useMemo<GridColDef<CompanyPerformanceEngineerRecord>[]>(
     () => [
       {
@@ -516,9 +554,11 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         confirmProcessRowUpdate={readOnly ? undefined : confirmProcessRowUpdate}
         editMode={readOnly ? undefined : "row"}
         getRowId={(row) => row.id}
+        isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
         loading={engineersQuery.isLoading || engineersQuery.isFetching || saveMutation.isPending || deleteMutation.isPending}
         onProcessRowUpdateError={() => undefined}
+        onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
         processRowUpdate={readOnly ? undefined : processRowUpdate}
