@@ -8,7 +8,8 @@ import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { useCommonCodeGroupOptions } from "@/modules/common/reference/useReferenceOptions";
+import type { CommonCodeRecord } from "@/modules/code/common-codes/api";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
@@ -24,218 +25,41 @@ type Props = {
 };
 
 type Mapping = HwpxTemplateFieldResponse & { path: string };
-type CommonCodeGridRow = { codeDetailName: string; id: number };
+type CommonCodeGridRow = { codeDetailName: string; id: number; path: string };
 
-const defaultMappings: Record<string, string> = {
-  "기본_학교": "basic.school",
-  "기본_학위": "basic.degree",
-  "기본_전공": "basic.major",
-  "기본_졸업일(yyyy-mm-dd)": "basic.graduationDate",
-  "기본_졸업일(yyyy.mm.dd)": "basic.graduationDateDot",
-  "기본_졸업일(yyyy-mm)": "basic.graduationMonth",
-  "기본_졸업일(yyyy년mm월)": "basic.graduationDateKorean",
-  "기본_생년월일(yyyy-mm-dd)(만나이)": "detail.birthDate",
-  "기본_생년월일(yy.mm.dd)(만나이)": "detail.birthDate",
-  "기본_자격증명칭": "basic.licenseName",
-  "기본_자격증취득일(yyyy-mm-dd)": "basic.licenseIssueDate",
-  "기본_자격증취득일(yyyy.mm.dd)": "basic.licenseIssueDateDot",
-  "기본_자격증등급": "basic.licenseGrade",
-  "기본_자격증번호": "basic.licenseNo",
-  "기본_자격취득후경력(년개월)": "basic.licenseCareer",
-  nameKor: "summary.name",
-  "기본_성명": "summary.name",
-  "기본_연령(만)": "detail.age",
-  "기본_연령(만나이)": "detail.age",
-  "기본_생년월일(yyyy.mm.dd)": "detail.birthDate",
-  "기본_회사명": "basic.companyName",
-  grade: "row.grade",
-  jobName: "row.jobName",
-  summary: "row.summary",
-  "경력_소속회사": "row.compName",
-  "경력_소속직위": "row.grade",
-  "경력_발주처명": "row.orderClient",
-  "경력_담당업무명": "row.duty",
-  "경력_용역개요": "row.summary",
-  "경력_용역명": "row.jobName",
-  "경력_용역일수(일)": "row.contractTerm",
-  "경력_용역일수(월)": "row.contractTerm",
-  "경력_용역일수(년)": "row.contractTerm",
-  "경력_참여일수(일)": "row.workTerm",
-  "경력_참여일수(월)": "row.workTerm",
-  "경력_참여일수(년)": "row.workTerm",
-  "경력_순번": "row.seq",
-  "경력_직무분야명": "row.jobPart",
-  "경력_전문분야명": "row.proPart",
-  "경력_총계약금액(백만)(당사금액)": "row.ownAmt",
-  "경력_당사금액(백만)(총계약금액)": "row.ownAmt",
-  "경력_PQ당사지분율(0.00%)": "row.divisionRate",
-  "경력_PQ당사지분율(100.00%)": "row.divisionRate",
-  "경력_PQ공동지분내역": "row.jobRatio",
-  "이력_직위": "history.grade",
-  "이력_부서명": "history.deptName",
-  "이력_근무처명": "history.compName",
-  contractAmt: "row.contractAmt",
-  ownAmt: "row.ownAmt",
-  contractTerm: "row.contractTerm",
-  workTerm: "row.workTerm",
-  contractFromDate: "row.contractFromDate",
-  contractToDate: "row.contractToDate",
-  startDate: "row.startDate",
-  endDate: "row.endDate",
-  compName: "row.compName",
-  orderClient: "row.orderClient",
-  duty: "row.duty",
-  proPart: "row.proPart",
+const ENGINEER_HWPX_REFERENCE_GROUPS = [
+  { key: "basicFields", codeLevel: 3 as const, level1Code: "PQ", level2Code: "HG", useYn: true, sort: "level3Code" as const },
+  { key: "careerFields", codeLevel: 3 as const, level1Code: "PQ", level2Code: "HH", useYn: true, sort: "level3Code" as const },
+  { key: "historyFields", codeLevel: 3 as const, level1Code: "PQ", level2Code: "HI", useYn: true, sort: "level3Code" as const },
+];
+const EMPTY_COMMON_CODE_ITEMS: CommonCodeRecord[] = [];
+
+const normalizedFieldName = (value: string | null | undefined) =>
+  value?.normalize("NFKC").replace(/[\s_\-./()[\]{}:：]/g, "").toLocaleLowerCase() ?? "";
+
+const referencePath = (refValue1: string | null | undefined) => {
+  const path = refValue1?.replace(/\s+/g, "").trim() ?? "";
+  return /^(basic|detail|summary|row|history)\.[a-zA-Z][\w]*$/.test(path) ? path : "";
 };
 
-const basicFieldPathsByCode: Record<string, string> = {
-  "01": "summary.id",
-  "04": "summary.department",
-  "05": "summary.position",
-  "06": "summary.name",
-  "08": "detail.birthDate",
-  "09": "detail.birthDate",
-  "10": "detail.birthDate",
-  "11": "detail.birthDate",
-  "12": "basic.school",
-  "13": "basic.degree",
-  "14": "basic.major",
-  "15": "basic.graduationDate",
-  "16": "basic.graduationDateDot",
-  "17": "basic.graduationMonth",
-  "18": "basic.graduationDateKorean",
-  "19": "detail.qualificationGrade",
-  "20": "basic.licenseName",
-  "21": "basic.licenseGrade",
-  "22": "basic.licenseIssueDate",
-  "23": "basic.licenseIssueDateDot",
-  "24": "basic.licenseIssueDateShort",
-  "25": "basic.licenseIssueDateMonth",
-  "26": "basic.licenseIssueDateKorean",
-  "27": "basic.licenseNo",
-  "30": "basic.licenseCareer",
-  "49": "detail.age",
+const findFieldReference = (fieldName: string, references: CommonCodeRecord[]) => {
+  const normalizedName = normalizedFieldName(fieldName);
+  return references
+    .map((reference) => {
+      const candidates = [reference.codeDetailName, reference.codeName, reference.level3Code]
+        .map(normalizedFieldName)
+        .filter(Boolean);
+      const exact = candidates.some((candidate) => candidate === normalizedName);
+      const suffix = [reference.codeDetailName, reference.codeName]
+        .map(normalizedFieldName)
+        .filter(Boolean)
+        .filter((candidate) => normalizedName.endsWith(candidate) || candidate.endsWith(normalizedName))
+        .sort((left, right) => right.length - left.length)[0];
+      return { reference, score: exact ? 3 : suffix ? 2 : 0, candidateLength: suffix?.length ?? 0 };
+    })
+    .filter((match) => match.score > 0)
+    .sort((left, right) => right.score - left.score || right.candidateLength - left.candidateLength)[0]?.reference;
 };
-
-const careerFieldPathsByCode: Record<string, string> = {
-  "01": "row.seq",
-  "03": "row.jobName",
-  "04": "row.summary",
-  "06": "row.ownAmt",
-  "07": "row.ownAmt",
-  "08": "row.ownAmt",
-  "09": "row.ownAmt",
-  "10": "row.ownAmt",
-  "12": "row.contractFromDate",
-  "13": "row.contractFromDate",
-  "14": "row.contractFromDate",
-  "15": "row.contractFromDate",
-  "16": "row.contractFromDate",
-  "17": "row.contractToDate",
-  "18": "row.contractToDate",
-  "19": "row.contractToDate",
-  "20": "row.contractToDate",
-  "21": "row.contractToDate",
-  "22": "row.contractTerm",
-  "23": "row.contractTerm",
-  "24": "row.contractTerm",
-  "25": "row.startDate",
-  "26": "row.startDate",
-  "27": "row.startDate",
-  "28": "row.startDate",
-  "29": "row.startDate",
-  "30": "row.endDate",
-  "31": "row.endDate",
-  "32": "row.endDate",
-  "33": "row.endDate",
-  "34": "row.endDate",
-  "35": "row.workTerm",
-  "36": "row.workTerm",
-  "37": "row.workTerm",
-  "38": "row.selectDay",
-  "39": "row.selectDay",
-  "40": "row.selectDay",
-  "41": "row.partDay",
-  "42": "row.partDay",
-  "43": "row.partDay",
-  "44": "row.jobClass",
-  "45": "row.orderClient",
-  "47": "row.jobTag",
-  "48": "row.duty",
-  "49": "row.compName",
-  "50": "row.grade",
-  "52": "row.engLevel",
-  "53": "row.contractAmt",
-  "54": "row.contractAmt",
-  "55": "row.contractAmt",
-  "56": "row.contractAmt",
-  "57": "row.contractAmt",
-  "58": "row.jobPart",
-  "59": "row.proPart",
-  "61": "row.divisionRate",
-  "62": "row.divisionRate",
-  "63": "row.remark",
-};
-
-const careerFieldPathByLabel = (label: string) => {
-  const normalizedLabel = label.startsWith("경력_") ? label.slice("경력_".length) : label;
-  if (normalizedLabel.includes("PQ당사지분율")) return "row.divisionRate";
-  if (normalizedLabel.includes("PQ공동지분내역")) return "row.jobRatio";
-  if (normalizedLabel.includes("직무분야명")) return "row.jobPart";
-  if (normalizedLabel.includes("전문분야명")) return "row.proPart";
-  if (normalizedLabel.includes("총계약금액") && normalizedLabel.includes("당사금액")) return "row.ownAmt";
-  if (normalizedLabel.includes("당사금액")) return "row.ownAmt";
-  if (normalizedLabel.includes("총계약금액")) return "row.contractAmt";
-  if (normalizedLabel.includes("용역시작일")) return "row.contractFromDate";
-  if (normalizedLabel.includes("용역종료일")) return "row.contractToDate";
-  if (normalizedLabel.includes("용역일수")) return "row.contractTerm";
-  if (normalizedLabel.includes("용역차수기간")) return "row.contractPeriods";
-  if (normalizedLabel.includes("참여차수기간")) return "row.participationPeriods";
-  if (normalizedLabel.includes("참여시작일")) return "row.startDate";
-  if (normalizedLabel.includes("참여종료일")) return "row.endDate";
-  if (normalizedLabel.includes("참여일수")) return "row.workTerm";
-  if (normalizedLabel.includes("선택기간")) return "row.selectDay";
-  if (normalizedLabel.includes("분야기간")) return "row.partDay";
-  return "";
-};
-
-const historyFieldPathsByCode: Record<string, string> = {
-  "01": "history.seq",
-  "02": "history.compName",
-  "03": "history.entryDate",
-  "04": "history.entryDate",
-  "05": "history.entryDate",
-  "06": "history.entryDate",
-  "07": "history.retireDate",
-  "08": "history.retireDate",
-  "09": "history.retireDate",
-  "10": "history.retireDate",
-  "11": "history.workTerm",
-  "12": "history.workTerm",
-  "13": "history.workTerm",
-  "14": "history.grade",
-  "15": "history.duty",
-  "16": "history.deptName",
-};
-
-const historyFieldPathByLabel = (label: string) => {
-  const normalizedLabel = label.startsWith("이력_") ? label.slice("이력_".length) : label;
-  if (normalizedLabel.includes("순번")) return "history.seq";
-  if (normalizedLabel.includes("근무처명")) return "history.compName";
-  if (normalizedLabel.includes("입사일")) return "history.entryDate";
-  if (normalizedLabel.includes("퇴사일")) return "history.retireDate";
-  if (normalizedLabel.includes("근무일") || normalizedLabel.includes("근무기간")) return "history.workTerm";
-  if (normalizedLabel.includes("직위")) return "history.grade";
-  if (normalizedLabel.includes("담당업무")) return "history.duty";
-  if (normalizedLabel.includes("부서명")) return "history.deptName";
-  return "";
-};
-
-const basicFieldPathByLabel = (label: string) => {
-  const normalizedLabel = label.startsWith("기본_") ? label.slice("기본_".length) : label;
-  return normalizedLabel.includes("생년월일") ? "detail.birthDate" : undefined;
-};
-
 const fieldNamesWithoutAdditionalLabel = new Set([
   "이력_근무일(일)",
   "이력_근무일(월)",
@@ -250,6 +74,7 @@ const fieldNamesWithoutAdditionalLabel = new Set([
 
 const commonCodeGridColumns: GridColDef<CommonCodeGridRow>[] = [
   { field: "codeDetailName", flex: 1, headerName: "필드명", minWidth: 180 },
+  { field: "path", flex: 0.8, headerName: "매핑 경로", minWidth: 190 },
 ];
 
 function CommonCodeGridCard({ autoCopyOnCellClick, loading, order, rows, title }: { autoCopyOnCellClick: boolean; loading: boolean; order?: number; rows: CommonCodeGridRow[]; title: string }) {
@@ -328,28 +153,23 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
   const [generating, setGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
   const [showMappings, setShowMappings] = useState(false);
-  const basicFieldsQuery = useCommonCodeLevel3Options("PQ", "HG", { useYn: "Y" }, { enabled: open }, "level3Code");
-  const careerFieldsQuery = useCommonCodeLevel3Options("PQ", "HH", { useYn: "Y" }, { enabled: open }, "level3Code");
-  const historyFieldsQuery = useCommonCodeLevel3Options("PQ", "HI", { useYn: "Y" }, { enabled: open }, "level3Code");
+  const fieldGroupsQuery = useCommonCodeGroupOptions(ENGINEER_HWPX_REFERENCE_GROUPS, { enabled: open });
+  const basicFieldsQuery = {
+    isLoading: fieldGroupsQuery.isLoading,
+    items: fieldGroupsQuery.groups.basicFields?.items ?? EMPTY_COMMON_CODE_ITEMS,
+  };
+  const careerFieldsQuery = {
+    isLoading: fieldGroupsQuery.isLoading,
+    items: fieldGroupsQuery.groups.careerFields?.items ?? EMPTY_COMMON_CODE_ITEMS,
+  };
+  const historyFieldsQuery = {
+    isLoading: fieldGroupsQuery.isLoading,
+    items: fieldGroupsQuery.groups.historyFields?.items ?? EMPTY_COMMON_CODE_ITEMS,
+  };
   const basicFieldRows = useMemo<CommonCodeGridRow[]>(
-    () => basicFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId })),
+    () => basicFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId, path: referencePath(item.refValue1) })),
     [basicFieldsQuery.items],
   );
-  const basicFieldAliases = useMemo(() => {
-    const aliases: Record<string, string> = {};
-    basicFieldsQuery.items.forEach((item) => {
-      const label = item.codeDetailName || item.codeName;
-      const path = basicFieldPathsByCode[item.level3Code];
-      if (!path) return;
-      aliases[item.level3Code] = path;
-      aliases[`HG${item.level3Code}`] = path;
-      aliases[`기본_${item.level3Code}`] = path;
-      aliases[`기본_HG${item.level3Code}`] = path;
-      aliases[label] = path;
-      aliases[`기본_${label}`] = path;
-    });
-    return aliases;
-  }, [basicFieldsQuery.items]);
   const basicFieldLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     basicFieldsQuery.items.forEach((item) => {
@@ -364,45 +184,13 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
     return labels;
   }, [basicFieldsQuery.items]);
   const careerFieldRows = useMemo<CommonCodeGridRow[]>(
-    () => careerFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId })),
+    () => careerFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId, path: referencePath(item.refValue1) })),
     [careerFieldsQuery.items],
   );
   const historyFieldRows = useMemo<CommonCodeGridRow[]>(
-    () => historyFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId })),
+    () => historyFieldsQuery.items.map((item) => ({ codeDetailName: item.codeDetailName || item.codeName, id: item.codeId, path: referencePath(item.refValue1) })),
     [historyFieldsQuery.items],
   );
-  const careerFieldAliases = useMemo(() => {
-    const aliases: Record<string, string> = {};
-    careerFieldsQuery.items.forEach((item) => {
-      const label = item.codeDetailName || item.codeName;
-      const path = careerFieldPathByLabel(label) || careerFieldPathsByCode[item.level3Code];
-      if (!path) return;
-      aliases[item.level3Code] = path;
-      aliases[`HH${item.level3Code}`] = path;
-      aliases[`경력_${item.level3Code}`] = path;
-      aliases[`경력_HH${item.level3Code}`] = path;
-      aliases[label] = path;
-      aliases[`경력_${label}`] = path;
-    });
-    return aliases;
-  }, [careerFieldsQuery.items]);
-
-  const historyFieldAliases = useMemo(() => {
-    const aliases: Record<string, string> = {};
-    historyFieldsQuery.items.forEach((item) => {
-      const label = item.codeDetailName || item.codeName;
-      const path = historyFieldPathByLabel(label) || historyFieldPathsByCode[item.level3Code];
-      if (!path) return;
-      aliases[item.level3Code] = path;
-      aliases[`HI${item.level3Code}`] = path;
-      aliases[`이력_${item.level3Code}`] = path;
-      aliases[`이력_HI${item.level3Code}`] = path;
-      aliases[label] = path;
-      aliases[`이력_${label}`] = path;
-    });
-    return aliases;
-  }, [historyFieldsQuery.items]);
-
   const careerFieldLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     careerFieldsQuery.items.forEach((item) => {
@@ -437,21 +225,28 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
       return;
     }
     try {
-      const fields = await inspectHwpxTemplate(file);
+      const [fields, referenceResult] = await Promise.all([
+        inspectHwpxTemplate(file),
+        fieldGroupsQuery.refetch(),
+      ]);
+      const groups = referenceResult.data ?? {};
+      const references = [
+        ...(groups.basicFields?.items ?? []),
+        ...(groups.careerFields?.items ?? []),
+        ...(groups.historyFields?.items ?? []),
+      ];
       setTemplate(file);
       setTemplateName(file.name);
-      setMappings(fields.map((field) => ({
-        ...field,
-        path: defaultMappings[field.name]
-          ?? basicFieldAliases[field.name]
-          ?? basicFieldPathByLabel(field.name)
-          ?? careerFieldAliases[field.name]
-          ?? historyFieldAliases[field.name]
-          ?? (careerFieldPathByLabel(field.name) || historyFieldPathByLabel(field.name) || "")
-          ?? "",
-      })));
+      setMappings(fields.map((field) => {
+        const reference = findFieldReference(field.name, references);
+        return { ...field, path: referencePath(reference?.refValue1) };
+      }));
       setShowMappings(false);
-      setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했습니다.` });
+      const mappedCount = fields.filter((field) => {
+        const reference = findFieldReference(field.name, references);
+        return Boolean(referencePath(reference?.refValue1));
+      }).length;
+      setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했고, ${mappedCount}개 필드를 매핑했습니다.` });
     } catch (error) {
       setMessage({ severity: "error", text: error instanceof Error ? error.message : "HWPX 양식을 읽지 못했습니다." });
     }
@@ -502,7 +297,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
                 filenamePrefix={bidNotice?.projectName ?? undefined}
                 includeParticipantList
-                label="참여자명단 + 실적증명서 생성"
+                label="참여자명단 + 실적증명서"
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}
                 relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}

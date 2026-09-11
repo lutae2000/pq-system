@@ -69,6 +69,24 @@ public class JpaCommonCodeRepository implements CommonCodeRepository {
     }
 
     @Override
+    public List<CommonCode> findAllByLevel1CodeAndLevel2Code(String level1Code, String level2Code, Boolean useYn) {
+        return commonCodeJpaRepository.findAllByLevel1CodeAndLevel2Code(
+                        level1Code,
+                        level2Code,
+                        useYn,
+                        Sort.by(
+                                Sort.Order.asc("codeLevel"),
+                                Sort.Order.asc("sortOrder"),
+                                Sort.Order.asc("level3Code"),
+                                Sort.Order.asc("codeId")
+                        )
+                )
+                .stream()
+                .map(CommonCodeEntity::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<CommonCode> findByCodeId(Long codeId) {
         return commonCodeJpaRepository.findByCodeId(codeId).map(CommonCodeEntity::toDomain);
     }

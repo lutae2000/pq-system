@@ -40,6 +40,9 @@ public class CompanyPerformanceHwpxGenerationService {
                 .sorted(java.util.Comparator.comparing(seq -> displayOrders.getOrDefault(seq, Integer.MAX_VALUE)))
                 .map(companyPerformanceAdminService::findById)
                 .toList();
+        if (performances.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "문서로 생성할 회사실적을 찾을 수 없습니다.");
+        }
         List<Long> performanceSeqs = performances.stream()
                 .map(CompanyPerformance::seq)
                 .toList();
@@ -82,7 +85,9 @@ public class CompanyPerformanceHwpxGenerationService {
                         WHERE seq IN (:seqs)
                         """)
                 .param("seqs", seqs)
-                .query((rs, rowNum) -> Map.entry(rs.getLong("seq"), rs.getString("job_ratio")))
+                .query((rs, rowNum) -> Map.entry(
+                        rs.getLong("seq"),
+                        rs.getString("job_ratio") == null ? "" : rs.getString("job_ratio")))
                 .list()
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (first, ignored) -> first));
@@ -103,7 +108,9 @@ public class CompanyPerformanceHwpxGenerationService {
                           AND level2_code IN (:codes)
                         """)
                 .param("codes", codes)
-                .query((rs, rowNum) -> Map.entry(rs.getString("level2_code"), rs.getString("code_name")))
+                .query((rs, rowNum) -> Map.entry(
+                        rs.getString("level2_code"),
+                        rs.getString("code_name") == null ? "" : rs.getString("code_name")))
                 .list()
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (first, ignored) -> first));

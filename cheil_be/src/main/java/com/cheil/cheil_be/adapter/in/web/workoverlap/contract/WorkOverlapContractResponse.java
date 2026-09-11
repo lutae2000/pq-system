@@ -17,6 +17,7 @@ public record WorkOverlapContractResponse(
         String restartDate,
         BigDecimal contractAmount,
         BigDecimal shareAmount,
+        String jointContractRatio,
         String performanceCertification,
         String participateListDocument,
         String cemsConfirm,

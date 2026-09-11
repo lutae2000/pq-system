@@ -474,6 +474,7 @@ public class WorkOverlapContractService {
                 date(request.restartDate(), "restartDate"),
                 nonNegative(request.contractAmount(), "contractAmount"),
                 nonNegative(request.shareAmount(), "shareAmount"),
+                limitedText(request.jointContractRatio(), SHORT_TEXT_MAX_LENGTH, "jointContractRatio"),
                 limitedText(request.performanceCertification(), STATUS_MAX_LENGTH, "performanceCertification"),
                 limitedText(request.participateListDocument(), STATUS_MAX_LENGTH, "participateListDocument"),
                 limitedText(request.cemsConfirm(), STATUS_MAX_LENGTH, "cemsConfirm"),

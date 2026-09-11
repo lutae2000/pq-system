@@ -197,3 +197,32 @@ export async function deleteWorkOverlapDocumentEngineer(bidSeq: number, workDuty
     "업무중복도 문서 대상 기술인을 삭제하지 못했습니다.",
   );
 }
+
+export async function generateWorkOverlapHwpxDocuments(requestBody: {
+  bidSeq: number;
+  workDutyId: string;
+  includeParticipantList: boolean;
+}): Promise<Blob> {
+  return apiRequest(
+    apiClient.post<Blob>("/work-overlap-docs/hwpx/generate", requestBody, { responseType: "blob" }),
+    "업무중복도 HWPX 문서 생성에 실패했습니다.",
+  );
+}
+
+export type WorkOverlapHwpxTemplateGenerateRequest = {
+  bidSeq: number;
+  engineerIds: string[];
+  referenceDate: string;
+  workDutyId: string;
+  mappings: Record<string, string>;
+};
+
+export function generateWorkOverlapHwpxTemplateDocument(template: File, requestBody: WorkOverlapHwpxTemplateGenerateRequest) {
+  const formData = new FormData();
+  formData.append("template", template);
+  formData.append("request", new Blob([JSON.stringify(requestBody)], { type: "application/json" }));
+  return apiRequest(
+    apiClient.post<Blob>("/work-overlap-docs/hwpx/template/generate", formData, { responseType: "blob" }),
+    "업무중복도 HWPX 문서 생성에 실패했습니다.",
+  );
+}

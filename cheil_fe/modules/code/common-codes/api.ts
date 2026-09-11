@@ -34,6 +34,19 @@ export type CommonCodeSearchParams = {
   bypassCache?: boolean;
 };
 
+export type CommonCodeBatchRequest = {
+  key: string;
+  codeLevel: CommonCodeLevel;
+  level1Code?: string;
+  level2Code?: string;
+  useYn?: boolean;
+};
+
+export type CommonCodeBatchResponse = {
+  key: string;
+  items: CommonCodeRecord[];
+};
+
 export type CommonCodeUpsertRequest = {
   codeLevel: CommonCodeLevel;
   level1Code: string;
@@ -74,6 +87,13 @@ export async function listCommonCodes(params: CommonCodeSearchParams = {}): Prom
         bypassCache: params.bypassCache || undefined,
       },
     }),
+    "공통코드 목록을 불러오지 못했습니다.",
+  );
+}
+
+export async function listCommonCodeBatch(requests: CommonCodeBatchRequest[]): Promise<CommonCodeBatchResponse[]> {
+  return apiRequest(
+    apiClient.post<CommonCodeBatchResponse[]>("/code/common-codes/batch", requests),
     "공통코드 목록을 불러오지 못했습니다.",
   );
 }

@@ -6,6 +6,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useReferenceQueryCacheHydrated } from "@/modules/common/reference/ReferenceQueryCacheProvider";
 import {
   getClientReferences,
+  getCommonCodeGroupReferences,
   getCommonCodeLevel1References,
   getCommonCodeLevel2References,
   getCommonCodeLevel3References,
@@ -14,6 +15,8 @@ import {
   getRoleReferences,
   getUserReferences,
   type CommonCodeReferenceSort,
+  type CommonCodeGroupReferenceRequest,
+  type CommonCodeGroupReferenceResult,
   type ClientReferenceSearchParams,
   type ReferenceQueryResult,
   type UserReferenceSearchParams,
@@ -111,7 +114,7 @@ export function useCommonCodeLevel2Options(
 export function useCommonCodeLevel3Options(
   level1Code: string,
   level2Code: string,
-  params: Omit<CommonCodeSearchParams, "level1Code" | "level2Code"> = { useYn: "Y" },
+  params: Omit<CommonCodeSearchParams, "codeLevel" | "level1Code" | "level2Code"> = { useYn: "Y" },
   options?: ReferenceQueryOptions<CommonCodeRecord>,
   sort: CommonCodeReferenceSort = "sortOrder",
 ) {
@@ -121,4 +124,29 @@ export function useCommonCodeLevel3Options(
     { enabled: Boolean(level1Code && level2Code), ...options },
     true,
   );
+}
+
+export function useCommonCodeGroupOptions(
+  requests: CommonCodeGroupReferenceRequest[],
+  options?: Omit<
+    UseQueryOptions<CommonCodeGroupReferenceResult, Error, CommonCodeGroupReferenceResult, QueryKey>,
+    "queryFn" | "queryKey" | "staleTime" | "gcTime"
+  >,
+) {
+  const enabledOption = options?.enabled;
+  const cacheHydrated = useReferenceQueryCacheHydrated();
+  const tabQueryEnabled = useTabQueryEnabled(typeof enabledOption === "boolean" ? enabledOption : true);
+  const query = useQuery({
+    staleTime: REFERENCE_STALE_TIME,
+    gcTime: REFERENCE_CACHE_TIME,
+    ...options,
+    enabled: cacheHydrated && tabQueryEnabled && requests.length > 0,
+    queryKey: ["references", "common-codes", "batch", requests],
+    queryFn: () => getCommonCodeGroupReferences(requests),
+  });
+
+  return {
+    ...query,
+    groups: query.data ?? {},
+  };
 }

@@ -19,6 +19,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.cache.port.out.CacheStore;
 import com.cheil.cheil_be.common.cache.CacheKeys;
@@ -71,11 +72,13 @@ public class CommonCodeCacheService {
         return readCachedCommonCodeList(cacheKey).orElseGet(() -> loadAndCache(cacheKey, dbLoader));
     }
 
-    /**
-     * codeLevel 기준 공통코드 묶음을 조회한다.
-     */
-    public List<CommonCode> getOrLoadByCodeLevel(Integer codeLevel, Boolean useYn, Supplier<List<CommonCode>> dbLoader) {
-        String cacheKey = CacheKeys.commonCodeLevel(codeLevel, useYn);
+    public List<CommonCode> getOrLoadByLevel2Code(
+            String level1Code,
+            String level2Code,
+            Boolean useYn,
+            Supplier<List<CommonCode>> dbLoader
+    ) {
+        String cacheKey = CacheKeys.commonCodeLevel2(level1Code, level2Code, useYn);
         return readCachedCommonCodeList(cacheKey).orElseGet(() -> loadAndCache(cacheKey, dbLoader));
     }
 
@@ -87,13 +90,8 @@ public class CommonCodeCacheService {
         return dbLoader.get();
     }
 
-    public List<CommonCode> getOrLoadLevel2Codes(Supplier<List<CommonCode>> dbLoader) {
-        return getOrLoadByCodeLevel(2, null, dbLoader);
-    }
-
     public void evictAfterCommit(CommonCode... commonCodes) {
         cacheAfterCompletion(() -> {
-            // 전체 목록 캐시를 먼저 비우고, 영향받는 세부 캐시를 추가로 제거한다.
             if (commonCodes == null) {
                 return;
             }
@@ -105,10 +103,12 @@ public class CommonCodeCacheService {
                 if (commonCode.codeId() != null) {
                     evictQuietly(CacheKeys.commonCodeById(commonCode.codeId()));
                 }
-                if (commonCode.codeLevel() != null) {
-                    evictAllVariantsForCodeLevel(commonCode.codeLevel());
-                }
                 scopeKeyForList(commonCode).ifPresent(this::evictAllVariantsForLevel1);
+                if (commonCode.codeLevel() != null && commonCode.codeLevel() >= 2
+                        && StringUtils.hasText(commonCode.level1Code())
+                        && StringUtils.hasText(commonCode.level2Code())) {
+                    evictAllVariantsForLevel2(commonCode.level1Code(), commonCode.level2Code());
+                }
             }
         });
     }
@@ -212,18 +212,17 @@ public class CommonCodeCacheService {
         return Optional.of(scopeKey);
     }
 
-    private void evictAllVariantsForCodeLevel(Integer codeLevel) {
-        // useYn 조합별 키까지 함께 비워야 이전 조회 결과가 남지 않는다.
-        evictQuietly(CacheKeys.commonCodeLevel(codeLevel));
-        evictQuietly(CacheKeys.commonCodeLevel(codeLevel, Boolean.TRUE));
-        evictQuietly(CacheKeys.commonCodeLevel(codeLevel, Boolean.FALSE));
-    }
-
     private void evictAllVariantsForLevel1(String level1Code) {
         // level1Code 기준 캐시도 useYn별로 모두 제거한다.
         evictQuietly(CacheKeys.commonCodeLevel1(level1Code));
         evictQuietly(CacheKeys.commonCodeLevel1(level1Code, Boolean.TRUE));
         evictQuietly(CacheKeys.commonCodeLevel1(level1Code, Boolean.FALSE));
+    }
+
+    private void evictAllVariantsForLevel2(String level1Code, String level2Code) {
+        evictQuietly(CacheKeys.commonCodeLevel2(level1Code, level2Code));
+        evictQuietly(CacheKeys.commonCodeLevel2(level1Code, level2Code, Boolean.TRUE));
+        evictQuietly(CacheKeys.commonCodeLevel2(level1Code, level2Code, Boolean.FALSE));
     }
 
     private void cacheAfterCompletion(Runnable action) {

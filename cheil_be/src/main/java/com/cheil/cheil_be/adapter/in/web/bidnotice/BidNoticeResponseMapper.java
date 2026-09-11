@@ -31,6 +31,15 @@ public class BidNoticeResponseMapper {
     private static final String BUSINESS_TYPE_GROUP = "CA";
     private static final String BUSINESS_SCOPE_GROUP = "T2";
     private static final String FINAL_PARTICIPATION_GROUP = "YA";
+    private static final List<String> BID_NOTICE_CODE_GROUPS = List.of(
+            BID_METHOD_GROUP,
+            BUSINESS_FIELD_GROUP,
+            ORDER_METHOD_GROUP,
+            BID_TYPE_GROUP,
+            BUSINESS_TYPE_GROUP,
+            BUSINESS_SCOPE_GROUP,
+            FINAL_PARTICIPATION_GROUP
+    );
 
     private final CommonDepartmentRepository commonDepartmentRepository;
     private final ClientRepository clientRepository;
@@ -41,7 +50,13 @@ public class BidNoticeResponseMapper {
         return new BidNoticeResponseLookup(
                 toLabelMap(commonDepartmentRepository.findAll(), Department::deptCode, Department::deptName),
                 toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderName),
-                commonCodeCacheService.getOrLoadByCodeLevel(2, null, () -> commonCodeRepository.findAllByCodeLevel(2, null)).stream()
+                BID_NOTICE_CODE_GROUPS.stream()
+                        .flatMap(level1Code -> commonCodeCacheService.getOrLoadByLevel1Code(
+                                level1Code,
+                                null,
+                                () -> commonCodeRepository.findAllByLevel1Code(level1Code, null)
+                        ).stream())
+                        .filter(code -> code.codeLevel() != null && code.codeLevel() == 2)
                         .filter(code -> StringUtils.hasText(code.level1Code()))
                         .collect(Collectors.groupingBy(
                                 code -> normalizeKey(code.level1Code()),

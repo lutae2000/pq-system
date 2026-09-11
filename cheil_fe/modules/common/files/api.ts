@@ -17,6 +17,7 @@ export type FileAttachmentRecord = {
   fileId: string;
   fileSize: number;
   originalFilename: string;
+  displayOrder?: number | null;
   ownerId: string;
   ownerType: string;
 };
@@ -37,6 +38,16 @@ export async function listFileAttachments(target: Pick<FileAttachmentTarget, "ow
 
 export async function createFileAttachment(requestBody: FileAttachmentRequest): Promise<FileAttachmentRecord> {
   return apiRequest(apiClient.post<FileAttachmentRecord>("/file-attachments", requestBody), "첨부파일을 저장하지 못했습니다.");
+}
+
+export async function updateFileAttachmentDisplayOrder(
+  attachmentId: number,
+  displayOrder: number | null,
+): Promise<FileAttachmentRecord> {
+  return apiRequest(
+    apiClient.patch<FileAttachmentRecord>(`/file-attachments/${attachmentId}/display-order`, { displayOrder }),
+    "첨부파일 순번을 저장하지 못했습니다.",
+  );
 }
 
 export async function deleteFileAttachment(attachmentId: number): Promise<void> {

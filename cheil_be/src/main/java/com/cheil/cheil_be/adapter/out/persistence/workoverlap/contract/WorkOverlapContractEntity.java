@@ -64,6 +64,9 @@ public class WorkOverlapContractEntity extends AuditEntity {
     @Column(name = "share_amount", precision = 18)
     private BigDecimal shareAmount;
 
+    @Column(name = "joint_contract_ratio", length = 100)
+    private String jointContractRatio;
+
     @Column(name = "performance_certification", length = 30)
     private String performanceCertification;
 
@@ -95,6 +98,7 @@ public class WorkOverlapContractEntity extends AuditEntity {
         restartDate = request.restartDate();
         contractAmount = request.contractAmount();
         shareAmount = request.shareAmount();
+        jointContractRatio = request.jointContractRatio();
         performanceCertification = request.performanceCertification();
         participateListDocument = request.participateListDocument();
         cemsConfirm = request.cemsConfirm();
@@ -117,6 +121,7 @@ public class WorkOverlapContractEntity extends AuditEntity {
                 restartDate,
                 contractAmount,
                 shareAmount,
+                jointContractRatio,
                 performanceCertification,
                 participateListDocument,
                 cemsConfirm,

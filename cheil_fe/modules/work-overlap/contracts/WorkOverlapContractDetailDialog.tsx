@@ -562,6 +562,7 @@ export function WorkOverlapContractDetailDialog({
   const [periodChangeReason, setPeriodChangeReason] = useState("");
   const isEdit = Boolean(draft.contractNo);
   const contractNo = draft.contractNo;
+  const contractTitlePrefix = toText(draft.serviceName).trim();
   const selectedDepartment = useMemo(
     () =>
       departmentOptions.find(
@@ -909,15 +910,19 @@ export function WorkOverlapContractDetailDialog({
   const submitChangeDialog = () => {
     if (
       !changeDraft?.beforeEngineer ||
-      !changeDraft.afterEngineer ||
-      !changeDraft.changeContent.trim()
+      !changeDraft.afterEngineer
     ) {
+      return;
+    }
+    const engineerChanged = changeDraft.beforeEngineer.engineerId !== changeDraft.afterEngineer.engineerId;
+    const changeContent = changeDraft.changeContent.trim();
+    if (engineerChanged && !changeContent) {
       return;
     }
     updateEngineerMutation.mutate({
       afterEngineerId: changeDraft.afterEngineer.engineerId,
       beforeEngineerId: changeDraft.beforeEngineer.engineerId,
-      changeContent: changeDraft.changeContent.trim(),
+      changeContent,
       field: toText(changeDraft.afterEngineer.field) || null,
       participationDate: normalizeDateValue(changeDraft.participationDate),
       participationType: toText(changeDraft.participationType) || null,
@@ -1089,7 +1094,7 @@ export function WorkOverlapContractDetailDialog({
     updateEngineerMutation.isPending ||
     !changeDraft?.beforeEngineer ||
     !changeDraft.afterEngineer ||
-    !changeDraft.changeContent.trim();
+    (changeDraft.beforeEngineer.engineerId !== changeDraft.afterEngineer.engineerId && !changeDraft.changeContent.trim());
 
   const evidenceContent = (
     <Section title="증빙 정보">
@@ -1216,6 +1221,7 @@ export function WorkOverlapContractDetailDialog({
                           : "계약 저장 후 계약서를 업로드할 수 있습니다."
                       }
                       multiple
+                      showFileOrder
                       showPdfPrintButton
                       title="계약서"
                       uploadDisabled={!contractNo}
@@ -1240,6 +1246,7 @@ export function WorkOverlapContractDetailDialog({
                           : "계약 저장 후 참여자 명단을 업로드할 수 있습니다."
                       }
                       multiple
+                      showFileOrder
                       showPdfPrintButton
                       title="참여자 명단"
                       uploadDisabled={!contractNo}
@@ -1278,7 +1285,14 @@ export function WorkOverlapContractDetailDialog({
         }}
       >
         <Typography component="div" sx={{ fontWeight: 800 }} variant="h6">
-          업무중복도 계약 {isEdit ? "수정" : "입력"}
+          {contractTitlePrefix ? (
+            <>
+              <Box component="span" sx={{ color: "primary.main", fontWeight: "inherit", lineHeight: "inherit" }}>
+                {contractTitlePrefix}
+              </Box>{" "}
+            </>
+          ) : null}
+          업무중복도 계약
         </Typography>
       </DialogTitle>
 
@@ -1300,10 +1314,11 @@ export function WorkOverlapContractDetailDialog({
                     <Box
                       sx={{
                         display: "grid",
-                        gap: 1.25,
+                        columnGap: 0.75,
+                        rowGap: 1.25,
                         gridTemplateColumns: {
                           xs: "1fr",
-                          md: "220px minmax(0, 1fr)",
+                          md: "110px minmax(0, 1fr) 150px",
                         },
                       }}
                     >
@@ -1324,6 +1339,27 @@ export function WorkOverlapContractDetailDialog({
                         sx={standardFieldSx}
                         value={draft.serviceName}
                       />
+                      <Box
+                        sx={{
+                          alignItems: "center",
+                          display: "flex",
+                          minHeight: 40,
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={draft.publicContractYn}
+                              onChange={(_event, checked) =>
+                                updateField("publicContractYn", checked)
+                              }
+                              size="small"
+                            />
+                          }
+                          label="공개계약 여부"
+                          sx={{ m: 0, width: "100%" }}
+                        />
+                      </Box>
                     </Box>
                     <Box
                       sx={{
@@ -1331,7 +1367,7 @@ export function WorkOverlapContractDetailDialog({
                         gap: 1.25,
                         gridTemplateColumns: {
                           xs: "1fr",
-                          sm: "repeat(2, minmax(0, 1fr))",
+                          md: "repeat(3, minmax(0, 1fr))",
                         },
                       }}
                     >
@@ -1353,6 +1389,28 @@ export function WorkOverlapContractDetailDialog({
                         sx={standardFieldSx}
                         value={toText(draft.clientName)}
                       />
+                        <Autocomplete
+                            loading={departmentsLoading}
+                            onChange={(_, option) =>
+                                updateField(
+                                    "supervisingDepartmentCode",
+                                    option?.value ?? null,
+                                )
+                            }
+                            options={departmentOptions}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="주관부서"
+                                    size="small"
+                                    sx={standardFieldSx}
+                                />
+                            )}
+                            value={selectedDepartment}
+                            isOptionEqualToValue={(option, value) =>
+                                option.value === value.value
+                            }
+                        />
                       <TextField
                         inputMode="numeric"
                         label="계약금액"
@@ -1391,49 +1449,16 @@ export function WorkOverlapContractDetailDialog({
                             : formatNumberText(draft.shareAmount)
                         }
                       />
-                        <Autocomplete
-                            loading={departmentsLoading}
-                            onChange={(_, option) =>
-                                updateField(
-                                    "supervisingDepartmentCode",
-                                    option?.value ?? null,
-                                )
-                            }
-                            options={departmentOptions}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="주관부서"
-                                    size="small"
-                                    sx={standardFieldSx}
-                                />
-                            )}
-                            value={selectedDepartment}
-                            isOptionEqualToValue={(option, value) =>
-                                option.value === value.value
-                            }
-                        />
-                        <Box
-                            sx={{
-                                alignItems: "center",
-                                display: "flex",
-                                minHeight: 40,
-                            }}
-                        >
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={draft.publicContractYn}
-                                        onChange={(_event, checked) =>
-                                            updateField("publicContractYn", checked)
-                                        }
-                                        size="small"
-                                    />
-                                }
-                                label="공개계약 여부"
-                                sx={{ m: 0, width: "100%" }}
-                            />
-                        </Box>
+                      <TextField
+                        label="공동도급비율"
+                        onChange={(event) =>
+                          updateField("jointContractRatio", event.target.value || null)
+                        }
+                        size="small"
+                        sx={standardFieldSx}
+                        value={toText(draft.jointContractRatio)}
+                      />
+
                     </Box>
                   </Box>
                 </Section>

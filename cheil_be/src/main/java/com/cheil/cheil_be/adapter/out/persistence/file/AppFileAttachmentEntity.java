@@ -54,6 +54,9 @@ public class AppFileAttachmentEntity extends AuditEntity {
     @Column(name = "download_url", nullable = false)
     private String downloadUrl;
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
     public static AppFileAttachmentEntity createUpload(
             String fileId,
             String originalFilename,
@@ -78,5 +81,12 @@ public class AppFileAttachmentEntity extends AuditEntity {
         this.ownerType = ownerType;
         this.ownerId = ownerId;
         this.attachmentType = attachmentType;
+    }
+
+    public void changeDisplayOrder(Integer displayOrder) {
+        if (displayOrder != null && (displayOrder < 1 || displayOrder > 99)) {
+            throw new IllegalArgumentException("첨부파일 순번은 1부터 99까지 입력할 수 있습니다.");
+        }
+        this.displayOrder = displayOrder;
     }
 }

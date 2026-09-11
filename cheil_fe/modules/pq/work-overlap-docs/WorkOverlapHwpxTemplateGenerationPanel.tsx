@@ -8,66 +8,84 @@ import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import type { CommonCodeRecord } from "@/modules/code/common-codes/api";
+import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { inspectHwpxTemplate, type HwpxTemplateFieldResponse } from "@/modules/pq/engineer-performance-docs/hwpxApi";
 import type { WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
+import { generateWorkOverlapHwpxDocuments, generateWorkOverlapHwpxTemplateDocument } from "@/modules/work-overlap/engineers/api";
 
 type Props = {
   bidNotice: BidNoticeApiRecord | null;
   engineer: EngineerProfile | null;
   contracts: WorkOverlapEngineerContractRecord[];
+  engineerIds: string[];
   open: boolean;
+  referenceDate: string;
+  workDutyId: string;
 };
 
 type MappingRow = HwpxTemplateFieldResponse & { path: string };
-type ContractFieldRow = { id: string; fieldName: string; path: string };
+type CommonCodeFieldRow = { id: string; fieldName: string; path: string };
 
-const workOverlapPath = (label: string) => {
-  const name = label.toLocaleLowerCase();
-  if (name.includes("engineer") || name.includes("기술인") || name.includes("성명")) return "engineer.name";
-  if (name.includes("birth") || name.includes("생년월일")) return "engineer.birthDate";
-  if (name.includes("contractno") || name.includes("계약번호")) return "row.contractNo";
-  if (name.includes("service") || name.includes("용역명")) return "row.serviceName";
-  if (name.includes("client") || name.includes("발주처")) return "row.clientName";
-  if (name.includes("amount") || name.includes("계약금액")) return "row.contractAmount";
-  if (name.includes("share") || name.includes("지분금액")) return "row.shareAmount";
-  if (name.includes("start") || name.includes("착수일")) return "row.constructionStartDate";
-  if (name.includes("complete") || name.includes("준공일")) return "row.constructionCompleteDate";
-  if (name.includes("participation") || name.includes("참여구분")) return "row.participationType";
-  if (name.includes("pq")) return "row.pqTargetYn";
-  return "";
+const normalizedFieldName = (value: string | null | undefined) =>
+  value?.normalize("NFKC").replace(/[\s_\-./()[\]{}:：]/g, "").toLocaleLowerCase() ?? "";
+
+const referenceWorkOverlapPath = (refValue1: string | null | undefined) => {
+  const referencePath = refValue1?.replace(/\s+/g, "").trim() ?? "";
+  return /^(engineer|row)\.[a-zA-Z][\w]*$/.test(referencePath) ? referencePath : "";
 };
 
-export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, engineer, contracts, open }: Props) {
+const findFieldReference = (fieldName: string, references: CommonCodeRecord[]) => {
+  const normalizedName = normalizedFieldName(fieldName);
+  return references
+    .map((reference) => {
+      const candidates = [reference.codeDetailName, reference.codeName, reference.level3Code]
+        .map(normalizedFieldName)
+        .filter(Boolean);
+      const exact = candidates.some((candidate) => candidate === normalizedName);
+      const suffix = [reference.codeDetailName, reference.codeName]
+        .map(normalizedFieldName)
+        .filter(Boolean)
+        .filter((candidate) => normalizedName.endsWith(candidate) || candidate.endsWith(normalizedName))
+        .sort((left, right) => right.length - left.length)[0];
+      return {
+        reference,
+        score: exact ? 3 : suffix ? 2 : 0,
+        candidateLength: suffix?.length ?? 0,
+      };
+    })
+    .filter((match) => match.score > 0)
+    .sort((left, right) => right.score - left.score || right.candidateLength - left.candidateLength)[0]?.reference;
+};
+
+export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, contracts, engineerIds, open, referenceDate, workDutyId }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const hjFields = useCommonCodeLevel3Options("PQ", "HJ", { useYn: "Y", bypassCache: true }, { enabled: open }, "level3Code");
   const [template, setTemplate] = useState<File | null>(null);
   const [mappings, setMappings] = useState<MappingRow[]>([]);
   const [message, setMessage] = useState<{ severity: "error" | "success" | "info"; text: string } | null>(null);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
   const [fieldKeywordDraft, setFieldKeywordDraft] = useState("");
   const [fieldKeyword, setFieldKeyword] = useState("");
+  const [generating, setGenerating] = useState(false);
 
-  const fieldRows = useMemo<ContractFieldRow[]>(() => [
-    { id: "engineer.name", fieldName: "기술인 성명", path: "engineer.name" },
-    { id: "engineer.birthDate", fieldName: "기술인 생년월일", path: "engineer.birthDate" },
-    { id: "row.contractNo", fieldName: "계약번호", path: "row.contractNo" },
-    { id: "row.serviceName", fieldName: "용역명", path: "row.serviceName" },
-    { id: "row.clientName", fieldName: "발주처", path: "row.clientName" },
-    { id: "row.contractAmount", fieldName: "계약금액", path: "row.contractAmount" },
-    { id: "row.shareAmount", fieldName: "지분금액", path: "row.shareAmount" },
-    { id: "row.constructionStartDate", fieldName: "착수일", path: "row.constructionStartDate" },
-    { id: "row.constructionCompleteDate", fieldName: "준공일", path: "row.constructionCompleteDate" },
-    { id: "row.participationType", fieldName: "참여구분", path: "row.participationType" },
-    { id: "row.pqTargetYn", fieldName: "PQ 대상 여부", path: "row.pqTargetYn" },
-  ], []);
+  const fieldRows = useMemo<CommonCodeFieldRow[]>(
+    () => hjFields.items.map((item) => ({
+      id: String(item.codeId ?? item.level3Code ?? item.codeName),
+      fieldName: item.codeDetailName?.trim() || item.codeName,
+      path: referenceWorkOverlapPath(item.refValue1),
+    })),
+    [hjFields.items],
+  );
   const filteredFieldRows = useMemo(() => {
     const keyword = fieldKeyword.trim().toLocaleLowerCase();
-    return keyword ? fieldRows.filter((row) => row.fieldName.toLocaleLowerCase().includes(keyword) || row.path.toLocaleLowerCase().includes(keyword)) : fieldRows;
+    return keyword ? fieldRows.filter((row) => row.fieldName.toLocaleLowerCase().includes(keyword)) : fieldRows;
   }, [fieldKeyword, fieldRows]);
-  const columns = useMemo<GridColDef<ContractFieldRow>[]>(() => [
-    { field: "fieldName", headerName: "필드명", minWidth: 180, flex: 1 },
-    { field: "path", headerName: "매핑 경로", minWidth: 210, flex: 1 },
+  const columns = useMemo<GridColDef<CommonCodeFieldRow>[]>(() => [
+    { field: "fieldName", headerName: "필드명", minWidth: 300, flex: 1 },
+    { field: "path", headerName: "매핑 경로", minWidth: 240, flex: 0.8 },
   ], []);
 
   if (!open) return null;
@@ -79,12 +97,72 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, engineer, co
       return;
     }
     try {
-      const fields = await inspectHwpxTemplate(file);
+      const [fields, referenceResult] = await Promise.all([
+        inspectHwpxTemplate(file),
+        hjFields.refetch(),
+      ]);
+      const referenceItems = referenceResult.data?.items ?? [];
       setTemplate(file);
-      setMappings(fields.map((field) => ({ ...field, path: workOverlapPath(field.name) })));
-      setMessage({ severity: "success", text: `서식 필드 ${fields.length}개를 추출했습니다.` });
+      setMappings(fields.map((field) => {
+        const reference = findFieldReference(field.name, referenceItems);
+        return {
+          ...field,
+          path: referenceWorkOverlapPath(reference?.refValue1),
+        };
+      }));
+      const mappedCount = fields.filter((field) => {
+        const reference = findFieldReference(field.name, referenceItems);
+        return Boolean(referenceWorkOverlapPath(reference?.refValue1));
+      }).length;
+      setMessage({ severity: "success", text: `서식 필드 ${fields.length}개를 추출했고, ${mappedCount}개 필드를 매핑했습니다.` });
     } catch (error) {
       setMessage({ severity: "error", text: error instanceof Error ? error.message : "HWPX 서식을 읽지 못했습니다." });
+    }
+  };
+
+  const handleDownload = async (includeParticipantList: boolean) => {
+    if (!bidNotice?.bidSeq || !workDutyId || engineerIds.length === 0) return;
+    setGenerating(true);
+    try {
+      const blob = await generateWorkOverlapHwpxDocuments({ bidSeq: bidNotice.bidSeq, workDutyId, includeParticipantList });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      const projectName = sanitizeDownloadFilename(bidNotice.projectName);
+      const prefix = projectName || "업무중복도";
+      anchor.download = `${prefix}_${includeParticipantList ? "업무중복도_계약서_참여자명단.zip" : "업무중복도_계약서.zip"}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setMessage({ severity: "success", text: "업무중복도 문서를 생성했습니다." });
+    } catch (error) {
+      setMessage({ severity: "error", text: error instanceof Error ? error.message : "업무중복도 문서 생성에 실패했습니다." });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleTemplateDownload = async () => {
+    if (!template || !bidNotice?.bidSeq || !workDutyId) return;
+    setGenerating(true);
+    try {
+      const blob = await generateWorkOverlapHwpxTemplateDocument(template, {
+        bidSeq: bidNotice.bidSeq,
+        engineerIds,
+        referenceDate,
+        workDutyId,
+        mappings: Object.fromEntries(mappings.filter((mapping) => mapping.path.trim()).map((mapping) => [mapping.name, mapping.path.trim()])),
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${sanitizeDownloadFilename(bidNotice.projectName) || "업무중복도"}_업무중복도.hwpx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setMessage({ severity: "success", text: "업무중복도 HWPX 문서를 생성했습니다." });
+    } catch (error) {
+      setMessage({ severity: "error", text: error instanceof Error ? error.message : "업무중복도 HWPX 문서 생성에 실패했습니다." });
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -98,36 +176,37 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, engineer, co
               <Typography color="text.secondary" variant="body2">선택한 기술인의 업무중복도 계약 내역을 HWPX 서식에 매핑합니다.</Typography>
             </Box>
             <Stack direction="row" spacing={1}>
-              <Button onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
-              <Button disabled startIcon={<DownloadOutlinedIcon />} variant="contained">문서 다운로드</Button>
+              <Button disabled={generating || !bidNotice || !workDutyId || engineerIds.length === 0} onClick={() => void handleDownload(false)} startIcon={<DownloadOutlinedIcon />} variant="contained">계약서</Button>
+              <Button disabled={generating || !bidNotice || !workDutyId || engineerIds.length === 0} onClick={() => void handleDownload(true)} startIcon={<DownloadOutlinedIcon />} variant="contained">계약서 + 참여자 명단</Button>
+              <Button onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
+              <Button disabled={generating || !template || !bidNotice || !workDutyId} onClick={() => void handleTemplateDownload()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
             </Stack>
             <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
           </Box>
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
           {template ? <Chip label={`${template.name} · ${mappings.length}개 필드 · ${contracts.length}건 계약`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
-          <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(280px, 0.75fr) minmax(0, 1.25fr)" } }}>
+          <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(280px, 1fr) minmax(0, 1fr)" } }}>
             <Stack spacing={1}>
               <Typography sx={{ fontWeight: 800 }} variant="subtitle1">업무중복도 문서 자동생성 안내</Typography>
-              <Alert severity="info">HWPX 파일을 업로드하면 서식의 필드명을 읽어 업무중복도 전용 데이터 항목과 연결합니다.</Alert>
-              <Alert severity="info">현재 선택된 기술인과 저장된 계약 내역을 기준으로 문서 데이터가 구성됩니다.</Alert>
-              <Alert severity="info">문서 다운로드 기능은 업무중복도 전용 생성 API 연결 후 활성화됩니다.</Alert>
-              <Typography color="text.secondary" variant="body2">
-                대상 기술인: {engineer?.summary.name ?? "선택되지 않음"} · 공고: {bidNotice?.projectName ?? "선택되지 않음"}
-              </Typography>
+              <Alert severity="info">HWPX 파일만 업로드할 수 있습니다. HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.</Alert>
+              <Alert severity="info">양식의 셀 필드명과 PQ/HJ 필드명이 일치해야 데이터가 정상적으로 맵핑됩니다.</Alert>
+              <Alert severity="info">HWPX 필드명에 xx가 포함되면 맵핑된 값의 줄바꿈이 제거되어 한 줄로 출력됩니다.</Alert>
+              <Alert severity="info">문서 다운로드 후 대상을 꼭 확인해 주세요</Alert>
               <FormControlLabel control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />} label="필드명 클릭 시 자동복사 (Ctrl+C)" />
             </Stack>
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 800, mb: 1 }} variant="subtitle1">업무중복도 필드</Typography>
+              <Typography sx={{ fontWeight: 800, mb: 1 }} variant="subtitle1">필드명 (PQ/HJ)</Typography>
               <Box component="form" onSubmit={(event) => { event.preventDefault(); setFieldKeyword(fieldKeywordDraft); }} sx={{ display: "flex", gap: 1, mb: 1 }}>
                 <TextField fullWidth label="필드명 조회" onChange={(event) => setFieldKeywordDraft(event.target.value)} placeholder="필드명 입력" size="small" value={fieldKeywordDraft} />
-                <Button aria-label="필드명 조회" startIcon={<SearchOutlinedIcon />} type="submit" variant="contained">조회</Button>
+                <Button aria-label="필드명 조회" startIcon={<SearchOutlinedIcon />} type="submit" variant="contained"></Button>
               </Box>
-              <EnterpriseDataGrid<ContractFieldRow>
+              <EnterpriseDataGrid<CommonCodeFieldRow>
                 autoCopyOnCellClick={autoCopyOnCellClick}
                 columns={columns}
                 disableRowSelectionOnClick
                 getRowId={(row) => row.id}
                 initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
+                loading={hjFields.isLoading}
                 pageSizeOptions={[50, 100]}
                 rows={filteredFieldRows}
                 rowHeight={30}
@@ -144,4 +223,8 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, engineer, co
       </CardContent>
     </Card>
   );
+}
+
+function sanitizeDownloadFilename(value: string | null | undefined) {
+  return (value ?? "").replace(/[\\/:*?"<>|]/g, "_").trim();
 }

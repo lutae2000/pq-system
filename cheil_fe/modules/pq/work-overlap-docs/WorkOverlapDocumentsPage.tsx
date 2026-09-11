@@ -30,7 +30,7 @@ import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
-import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { useCommonCodeGroupOptions } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { getEngineerProfile } from "@/modules/pq/engineers/api";
 import { deleteWorkOverlapDocumentTarget, deleteWorkOverlapDocumentEngineer, listWorkOverlapDocumentEngineerContracts, listWorkOverlapDocumentEngineers, replaceWorkOverlapDocumentEngineers, replaceWorkOverlapDocumentTargets, updateWorkOverlapDocumentEngineer, type WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
@@ -92,6 +92,11 @@ const DEFAULT_SAVED_CONTRACT_CARD_HEIGHT = 480;
 const SAVED_CONTRACT_CARD_MIN_HEIGHT = 320;
 const SAVED_CONTRACT_CARD_MAX_HEIGHT = 900;
 const selectorGridHeight = { xs: 520, md: 580 } as const;
+const WORK_OVERLAP_REFERENCE_GROUPS = [
+  { key: "jobFields", codeLevel: 3 as const, level1Code: "PQ", level2Code: "QA", useYn: true },
+  { key: "specialtyFields", codeLevel: 3 as const, level1Code: "PQ", level2Code: "PA", useYn: true },
+];
+const EMPTY_LABEL_BY_VALUE: Record<string, string> = {};
 
 const clampContractCardHeight = (height: number) => Math.min(Math.max(Math.round(height), CONTRACT_CARD_MIN_HEIGHT), CONTRACT_CARD_MAX_HEIGHT);
 const clampSavedContractCardHeight = (height: number) => Math.min(Math.max(Math.round(height), SAVED_CONTRACT_CARD_MIN_HEIGHT), SAVED_CONTRACT_CARD_MAX_HEIGHT);
@@ -175,8 +180,9 @@ export function WorkOverlapDocumentsPage() {
     [selectorPanelWidth],
   );
 
-  const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
-  const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
+  const commonCodeReferences = useCommonCodeGroupOptions(WORK_OVERLAP_REFERENCE_GROUPS, { enabled: canRead });
+  const jobFieldLabelByValue = commonCodeReferences.groups.jobFields?.labelByValue ?? EMPTY_LABEL_BY_VALUE;
+  const specialtyFieldLabelByValue = commonCodeReferences.groups.specialtyFields?.labelByValue ?? EMPTY_LABEL_BY_VALUE;
 
   const targetEngineersQuery = useQuery({
     queryKey: ["work-overlap-docs", "document-engineers", selectedBidNotice?.bidSeq ?? "none", currentSession?.loginId ?? "none", keyword.trim()],
@@ -290,9 +296,9 @@ export function WorkOverlapDocumentsPage() {
     },
     { field: "birthDate", headerName: "생년월일", width: 105, ...center },
     { field: "position", headerName: "직위", width: 90, ...center },
-    { field: "jobField", headerName: "직무분야", width: 110, ...center, valueFormatter: (value) => formatReferenceLabel(jobFieldReferences.labelByValue, value) },
-    { field: "specialtyField", headerName: "전문분야", width: 110, ...center, valueFormatter: (value) => formatReferenceLabel(specialtyFieldReferences.labelByValue, value) },
-  ], [canUpdate, jobFieldReferences.labelByValue, specialtyFieldReferences.labelByValue]);
+    { field: "jobField", headerName: "직무분야", width: 110, ...center, valueFormatter: (value) => formatReferenceLabel(jobFieldLabelByValue, value) },
+    { field: "specialtyField", headerName: "전문분야", width: 110, ...center, valueFormatter: (value) => formatReferenceLabel(specialtyFieldLabelByValue, value) },
+  ], [canUpdate, jobFieldLabelByValue, specialtyFieldLabelByValue]);
 
   const contractColumns = useMemo<GridColDef<WorkOverlapEngineerContractRecord>[]>(() => buildWorkOverlapContractColumns(referenceDate, taskPeriodDays), [referenceDate, taskPeriodDays]);
   const savedContractColumns = useMemo<GridColDef<SavedContractRow>[]>(() => [
@@ -952,13 +958,13 @@ export function WorkOverlapDocumentsPage() {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2 }} variant="caption">직무분야</Typography>
                       <Typography noWrap sx={{ color: "text.primary", fontSize: 13, fontWeight: 700, lineHeight: 1.25, mt: 0.25 }}>
-                        {activeEngineer ? formatReferenceLabel(jobFieldReferences.labelByValue, activeEngineer.detail.jobField || activeEngineer.summary.workField) : "-"}
+                        {activeEngineer ? formatReferenceLabel(jobFieldLabelByValue, activeEngineer.detail.jobField || activeEngineer.summary.workField) : "-"}
                       </Typography>
                     </Box>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2 }} variant="caption">전문분야</Typography>
                       <Typography noWrap sx={{ color: "text.primary", fontSize: 13, fontWeight: 700, lineHeight: 1.25, mt: 0.25 }}>
-                        {activeEngineer ? formatReferenceLabel(specialtyFieldReferences.labelByValue, activeEngineer.detail.specialtyField || activeEngineer.summary.specialtyField) : "-"}
+                        {activeEngineer ? formatReferenceLabel(specialtyFieldLabelByValue, activeEngineer.detail.specialtyField || activeEngineer.summary.specialtyField) : "-"}
                       </Typography>
                     </Box>
                   </Box>
@@ -1003,12 +1009,17 @@ export function WorkOverlapDocumentsPage() {
             </ResizableCard>
           </Box>
           </Box>
-          <WorkOverlapHwpxTemplateGenerationPanel
-            bidNotice={selectedBidNotice}
-            contracts={savedContractNos?.length ? visibleSavedContractRows : contractRows.filter((row) => selectedContractNos.includes(row.contractNo))}
-            engineer={activeEngineer}
-            open={Boolean(selectedBidNotice)}
-          />
+          {selectedBidNotice ? (
+            <WorkOverlapHwpxTemplateGenerationPanel
+              bidNotice={selectedBidNotice}
+              contracts={savedContractNos?.length ? visibleSavedContractRows : contractRows.filter((row) => selectedContractNos.includes(row.contractNo))}
+              engineer={activeEngineer}
+              engineerIds={engineerRows.map((row) => row.engineerId)}
+              open
+              referenceDate={referenceDate}
+              workDutyId={workDutyId}
+            />
+          ) : null}
         </Stack>
       )}
       {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} stateCacheKey="work-overlap-docs:bid-notice-select" onSelect={handleSelectBidNotice} /> : null}

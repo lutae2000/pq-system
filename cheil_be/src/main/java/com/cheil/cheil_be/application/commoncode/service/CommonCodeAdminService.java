@@ -49,8 +49,8 @@ public class CommonCodeAdminService {
         String refValue1Contains = StringValues.normalize(condition.refValue1Contains());
         String sort = StringValues.normalize(condition.sort());
         List<CommonCode> commonCodes = condition.bypassCache()
-                ? findDirectCommonCodes(codeLevel, level1Code, useYn)
-                : findCachedCommonCodes(codeLevel, level1Code, useYn);
+                ? findDirectCommonCodes(codeLevel, level1Code, level2Code, useYn)
+                : findCachedCommonCodes(codeLevel, level1Code, level2Code, useYn);
 
         return commonCodes.stream()
                 .filter(item -> matchesKeyword(item, keyword))
@@ -65,7 +65,21 @@ public class CommonCodeAdminService {
                 .toList();
     }
 
-    private List<CommonCode> findCachedCommonCodes(Integer codeLevel, String level1Code, Boolean useYn) {
+    @Transactional(readOnly = true)
+    public List<List<CommonCode>> findAllBatch(List<CommonCodeSearchCondition> conditions) {
+        return conditions.stream().map(this::findAll).toList();
+    }
+
+    private List<CommonCode> findCachedCommonCodes(Integer codeLevel, String level1Code, String level2Code, Boolean useYn) {
+        if (level1Code != null && !level1Code.isBlank() && level2Code != null && !level2Code.isBlank()) {
+            return commonCodeCacheService.getOrLoadByLevel2Code(
+                    level1Code,
+                    level2Code,
+                    useYn,
+                    () -> commonCodeRepository.findAllByLevel1CodeAndLevel2Code(level1Code, level2Code, useYn)
+            );
+        }
+
         if (level1Code != null && !level1Code.isBlank()) {
             return commonCodeCacheService.getOrLoadByLevel1Code(
                     level1Code,
@@ -75,17 +89,17 @@ public class CommonCodeAdminService {
         }
 
         if (codeLevel != null) {
-            return commonCodeCacheService.getOrLoadByCodeLevel(
-                    codeLevel,
-                    useYn,
-                    () -> commonCodeRepository.findAllByCodeLevel(codeLevel, useYn)
-            );
+            return commonCodeRepository.findAllByCodeLevel(codeLevel, useYn);
         }
 
         return commonCodeCacheService.getOrLoadAll(commonCodeRepository::findAll);
     }
 
-    private List<CommonCode> findDirectCommonCodes(Integer codeLevel, String level1Code, Boolean useYn) {
+    private List<CommonCode> findDirectCommonCodes(Integer codeLevel, String level1Code, String level2Code, Boolean useYn) {
+        if (level1Code != null && !level1Code.isBlank() && level2Code != null && !level2Code.isBlank()) {
+            return commonCodeRepository.findAllByLevel1CodeAndLevel2Code(level1Code, level2Code, useYn);
+        }
+
         if (level1Code != null && !level1Code.isBlank()) {
             return commonCodeRepository.findAllByLevel1Code(level1Code, useYn);
         }

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,15 @@ public class FileAttachmentController {
     @PostMapping("/file-attachments")
     public ResponseEntity<FileAttachmentResponse> add(@RequestBody FileAttachmentRequest request) {
         return ResponseEntity.ok(FileAttachmentResponse.from(fileAttachmentService.add(request)));
+    }
+
+    @PatchMapping("/file-attachments/{attachmentId}/display-order")
+    public ResponseEntity<FileAttachmentResponse> updateDisplayOrder(
+            @PathVariable Long attachmentId,
+            @RequestBody FileAttachmentOrderRequest request
+    ) {
+        return ResponseEntity.ok(FileAttachmentResponse.from(
+                fileAttachmentService.updateDisplayOrder(attachmentId, request)));
     }
 
     @DeleteMapping("/file-attachments/{attachmentId}")

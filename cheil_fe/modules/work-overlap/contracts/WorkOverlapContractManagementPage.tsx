@@ -423,6 +423,7 @@ export function WorkOverlapContractManagementPage() {
     },
     { field: "contractAmount", headerName: "계약금액", width: 135, align: "right", headerAlign: "center", valueFormatter: (value) => formatNumberText(value as number | null) },
     { field: "shareAmount", headerName: "지분금액", width: 135, align: "right", headerAlign: "center", valueFormatter: (value) => formatNumberText(value as number | null) },
+    { field: "jointContractRatio", headerName: "공동도급비율", width: 120, align: "center", headerAlign: "center", valueGetter: (_value, row) => displayText(row.jointContractRatio) },
     { field: "remark", headerName: "비고", minWidth: 180, flex: 0.8, valueGetter: (_value, row) => displayText(row.remark) },
     {
       field: "performanceCertification",

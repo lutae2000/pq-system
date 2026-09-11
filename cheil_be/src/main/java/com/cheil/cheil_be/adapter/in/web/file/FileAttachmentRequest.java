@@ -8,6 +8,7 @@ public record FileAttachmentRequest(
         String originalFilename,
         String contentType,
         Long fileSize,
-        String downloadUrl
+        String downloadUrl,
+        Integer displayOrder
 ) {
 }

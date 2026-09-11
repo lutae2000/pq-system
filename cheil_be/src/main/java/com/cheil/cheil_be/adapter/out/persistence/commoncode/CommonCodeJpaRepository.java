@@ -53,4 +53,18 @@ interface CommonCodeJpaRepository extends JpaRepository<CommonCodeEntity, Long> 
             @Param("useYn") Boolean useYn,
             Sort sort
     );
+
+    @Query("""
+            select c
+            from CommonCodeEntity c
+            where c.level1Code = :level1Code
+            and c.level2Code = :level2Code
+            and (:useYn is null or c.useYn = :useYn)
+            """)
+    java.util.List<CommonCodeEntity> findAllByLevel1CodeAndLevel2Code(
+            @Param("level1Code") String level1Code,
+            @Param("level2Code") String level2Code,
+            @Param("useYn") Boolean useYn,
+            Sort sort
+    );
 }

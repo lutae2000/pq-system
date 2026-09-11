@@ -4,7 +4,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Box, Button, Checkbox, CircularProgress, IconButton, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Button, Checkbox, CircularProgress, IconButton, LinearProgress, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
@@ -13,10 +13,12 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { fileUploadConfig } from "@/lib/config/fileUpload";
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createFileAttachment,
   deleteFileAttachment,
   listFileAttachments,
+  updateFileAttachmentDisplayOrder,
   type FileAttachmentTarget,
 } from "@/modules/common/files/api";
 
@@ -26,6 +28,7 @@ export type FileActionCardFileItem = {
   downloadUrl?: string;
   fileId?: string;
   fileName: string;
+  displayOrder?: number | null;
   size?: number;
 };
 
@@ -47,6 +50,9 @@ export type FileActionCardProps = {
   deleteDisabled?: boolean;
   description?: string;
   files?: FileActionCardFile[];
+  fileOrderByFileName?: Record<string, number | null | undefined>;
+  onFileOrderChange?: (fileName: string, order: number | null, file: FileActionCardFile) => void;
+  showFileOrder?: boolean;
   maxFilenameLength?: number;
   maxSizeBytes?: number;
   onCheckedChange?: (checked: boolean) => void;
@@ -74,6 +80,9 @@ export function FileActionCard({
   deleteDisabled = false,
   description = "No attached files.",
   files = [],
+  fileOrderByFileName,
+  onFileOrderChange,
+  showFileOrder = false,
   maxFilenameLength = fileUploadConfig.maxFilenameLength,
   maxSizeBytes = fileUploadConfig.maxSizeBytes,
   onCheckedChange,
@@ -93,8 +102,10 @@ export function FileActionCard({
   const tabQueryEnabled = useTabQueryEnabled(Boolean(attachmentTarget?.ownerType && attachmentTarget?.ownerId));
   const inputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
+  const { showError, showSuccess } = useAppSnackbar();
   const [localFiles, setLocalFiles] = useState<FileActionCardFile[]>(files);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<FileActionCardFile | null>(null);
+  const [localFileOrders, setLocalFileOrders] = useState<Record<string, number | null>>({});
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const accept = allowedExtensions.length > 0 ? allowedExtensions.map((extension) => `.${normalizeExtension(extension)}`).join(",") : undefined;
@@ -130,6 +141,7 @@ export function FileActionCard({
             downloadUrl: attachment.downloadUrl,
             fileId: attachment.fileId,
             fileName: attachment.originalFilename,
+            displayOrder: attachment.displayOrder,
             size: attachment.fileSize,
           })),
       );
@@ -156,6 +168,7 @@ export function FileActionCard({
         downloadUrl: attachment.downloadUrl,
         fileId: attachment.fileId,
         fileName: attachment.originalFilename,
+        displayOrder: attachment.displayOrder,
         size: attachment.fileSize,
       };
       setLocalFiles((current) => [nextFile, ...current]);
@@ -172,6 +185,21 @@ export function FileActionCard({
       setLocalFiles((current) =>
         current.filter((file) => typeof file === "string" || file.attachmentId !== attachmentId),
       );
+      if (attachmentQueryKey) {
+        queryClient.invalidateQueries({ queryKey: attachmentQueryKey });
+      }
+    },
+  });
+
+  const attachmentOrderMutation = useMutation({
+    mutationFn: ({ attachmentId, displayOrder }: { attachmentId: number; displayOrder: number | null }) =>
+      updateFileAttachmentDisplayOrder(attachmentId, displayOrder),
+    onSuccess: (attachment) => {
+      setLocalFiles((current) => current.map((file) =>
+        typeof file === "string" || file.attachmentId !== attachment.attachmentId
+          ? file
+          : { ...file, displayOrder: attachment.displayOrder },
+      ));
       if (attachmentQueryKey) {
         queryClient.invalidateQueries({ queryKey: attachmentQueryKey });
       }
@@ -378,6 +406,29 @@ export function FileActionCard({
     }
   };
 
+  const getSavedFileOrder = (fileName: string, file: FileActionCardFile) => {
+    if (fileOrderByFileName && Object.prototype.hasOwnProperty.call(fileOrderByFileName, fileName)) {
+      return fileOrderByFileName[fileName] ?? null;
+    }
+
+    return typeof file !== "string" ? file.displayOrder ?? null : null;
+  };
+
+  const saveFileOrder = async (fileName: string, order: number, file: FileActionCardFile) => {
+    onFileOrderChange?.(fileName, order, file);
+
+    if (!attachmentTarget || typeof file === "string" || !file.attachmentId) {
+      return;
+    }
+
+    try {
+      await attachmentOrderMutation.mutateAsync({ attachmentId: file.attachmentId, displayOrder: order });
+      showSuccess("파일 순번을 저장했습니다.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "파일 순번을 저장하지 못했습니다.");
+    }
+  };
+
   const requestDeleteFile = (file: FileActionCardFile) => {
     setPendingDeleteFile(file);
   };
@@ -485,6 +536,52 @@ export function FileActionCard({
                       py: 0.5,
                     }}
                   >
+                    {showFileOrder ? (
+                      <TextField
+                        aria-label={`${fileName} 순번`}
+                        slotProps={{ htmlInput: { inputMode: "numeric", max: 99, maxLength: 2, min: 1 } }}
+                        onChange={(event) => {
+                          const value = event.target.value.replace(/\D/g, "").slice(0, 2);
+                          const order = value ? Number(value) : null;
+                          setLocalFileOrders((current) => ({ ...current, [fileName]: order }));
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setLocalFileOrders((current) => ({
+                              ...current,
+                              [fileName]: getSavedFileOrder(fileName, file),
+                            }));
+                            return;
+                          }
+
+                          if (event.key !== "Enter") {
+                            return;
+                          }
+
+                          event.preventDefault();
+                          const value = (event.target as HTMLInputElement).value.replace(/\D/g, "").slice(0, 2);
+                          const order = value ? Number(value) : null;
+                          if (order === null) {
+                            return;
+                          }
+                          void saveFileOrder(fileName, order, file);
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                        size="small"
+                        sx={{ flex: "0 0 30px", "& .MuiInputBase-input": { px: 0.5, py: 0.5, textAlign: "center" } }}
+                        value={
+                          fileOrderByFileName && Object.prototype.hasOwnProperty.call(fileOrderByFileName, fileName)
+                            ? fileOrderByFileName[fileName] ?? ""
+                            : Object.prototype.hasOwnProperty.call(localFileOrders, fileName)
+                              ? localFileOrders[fileName] ?? ""
+                              : typeof file !== "string"
+                                ? file.displayOrder ?? ""
+                                : ""
+                        }
+                      />
+                    ) : null}
                     <Button
                       onClick={() => void handleFileClick(file)}
                       size="small"
@@ -500,9 +597,11 @@ export function FileActionCard({
                       variant="text"
                     >
                       <Box sx={{ minWidth: 0, textAlign: "left", width: "100%" }}>
-                        <Typography noWrap sx={{ fontSize: 13, fontWeight: 600 }}>
-                          {fileName}
-                        </Typography>
+                        <Tooltip title={fileName}>
+                          <Typography noWrap sx={{ fontSize: 13, fontWeight: 600 }}>
+                            {fileName}
+                          </Typography>
+                        </Tooltip>
                         {typeof file !== "string" && typeof file.size === "number" ? (
                           <Typography noWrap sx={{ color: "text.secondary", fontSize: 11 }}>
                             {formatFileSize(file.size)}

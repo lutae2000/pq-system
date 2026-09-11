@@ -202,7 +202,11 @@ export function WorkOverlapContractEngineerChangeDialog({
             multiline
             minRows={3}
             onChange={(event) => onDraftChange((current) => (current ? { ...current, changeContent: event.target.value } : current))}
-            required
+            required={Boolean(
+              draft?.beforeEngineer &&
+                draft.afterEngineer &&
+                draft.beforeEngineer.engineerId !== draft.afterEngineer.engineerId,
+            )}
             size="small"
             sx={standardFieldSx}
             value={draft?.changeContent ?? ""}

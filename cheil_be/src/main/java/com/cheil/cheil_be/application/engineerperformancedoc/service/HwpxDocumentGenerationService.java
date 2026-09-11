@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -128,6 +131,498 @@ public class HwpxDocumentGenerationService {
                 mappings);
     }
 
+    public byte[] renderWorkOverlap(
+            MultipartFile template,
+            Long bidSeq,
+            String workDutyId,
+            List<String> engineerIds,
+            String referenceDate,
+            Map<String, String> mappings
+    ) {
+        if (template == null || template.isEmpty() || bidSeq == null || !StringUtils.hasText(workDutyId)
+                || engineerIds == null || engineerIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식과 업무중복도 계약 데이터를 확인해 주세요.");
+        }
+        List<Map<String, String>> rows = findWorkOverlapRows(bidSeq, workDutyId, engineerIds, referenceDate);
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택된 기술인의 업무중복도 계약을 확인해 주세요.");
+        }
+        byte[] source = readBytes(template);
+        Map<String, byte[]> packageEntries = readZip(template);
+        Map<String, String> boldCharPrByBase = findBoldCharPrByBase(packageEntries.get("Contents/header.xml"));
+        Map<String, String> mappingValues = mappings == null ? Map.of() : mappings;
+        try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
+             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             ZipOutputStream output = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                byte[] content = input.readAllBytes();
+                if (isSection(entry.getName())) {
+                    content = renderWorkOverlapSection(content, rows, mappingValues, boldCharPrByBase);
+                }
+                writeZipEntry(output, entry.getName(), content, "mimetype".equals(entry.getName()));
+            }
+            output.finish();
+            byte[] result = bytes.toByteArray();
+            validateGeneratedPackage(result);
+            return result;
+        } catch (Exception exception) {
+            throw new IllegalStateException("업무중복도 HWPX 문서 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private List<Map<String, String>> findWorkOverlapRows(Long bidSeq, String workDutyId, List<String> engineerIds, String referenceDate) {
+        String normalizedReferenceDate = StringUtils.hasText(referenceDate)
+                ? referenceDate.replaceAll("[^0-9]", "")
+                : LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+        LocalDate baseDate;
+        try {
+            baseDate = LocalDate.parse(normalizedReferenceDate, DateTimeFormatter.BASIC_ISO_DATE);
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기준일은 yyyy-MM-dd 형식이어야 합니다.");
+        }
+        List<Map<String, String>> rows = jdbcClient.sql("""
+                        SELECT w.engr_id, COALESCE(de.responsibility, w.responsibility) AS responsibility,
+                               m.namekor, m.birthday, m.propart,
+                               COALESCE(specialty.code_detail_name, specialty.code_name, m.propart) AS specialty,
+                               c.contract_no, c.service_type, c.client_name, c.service_name,
+                               c.contract_amount, c.share_amount,
+                               c.joint_contract_ratio,
+                               c.construction_start_date, c.construction_complete_date,
+                               c.construction_stop_from_date,
+                               c.management_service_complete_date,
+                               w.display_order,
+                               c.remark, e.participation_type, e.pq_target_yn
+                        FROM work_overlap_document_targets w
+                        JOIN work_overlap_contracts c ON c.contract_no = w.contract_no
+                        LEFT JOIN pq_engineer_master m ON m.engr_id = w.engr_id
+                        LEFT JOIN work_overlap_document_engineers de
+                               ON de.bid_seq = w.bid_seq AND de.work_duty_id = w.work_duty_id AND de.engr_id = w.engr_id
+                        LEFT JOIN common_codes specialty
+                               ON specialty.code_level = 3 AND specialty.level1_code = 'PQ'
+                              AND specialty.level2_code = 'PA' AND specialty.level3_code = m.propart
+                        LEFT JOIN work_overlap_contract_engineers e
+                               ON e.contract_no = w.contract_no AND e.engr_id = w.engr_id
+                        WHERE w.bid_seq = :bidSeq
+                          AND w.work_duty_id = :workDutyId
+                          AND w.engr_id IN (:engineerIds)
+                        ORDER BY w.engr_id, w.display_order NULLS LAST, w.target_id
+                        """)
+                .param("bidSeq", bidSeq)
+                .param("workDutyId", workDutyId.trim())
+                .param("engineerIds", engineerIds.stream().filter(StringUtils::hasText).map(String::trim).distinct().toList())
+                .query((rs, rowNum) -> {
+                    Map<String, String> row = new LinkedHashMap<>();
+                    row.put("engineer.id", string(rs.getString("engr_id")));
+                    row.put("row.seq", string(rs.getObject("display_order")));
+                    String engineerName = string(rs.getString("namekor"));
+                    String responsibility = string(rs.getString("responsibility"));
+                    String specialty = string(rs.getString("specialty"));
+                    String specialtyLabel = StringUtils.hasText(specialty) ? specialty + "분야" : "";
+                    String engineerLabel = "사업책임".equals(responsibility.replaceAll("\\s+", ""))
+                            ? "사업책임기술인 : " + engineerName
+                            : specialtyLabel + " " + responsibility + "기술인 : " + engineerName;
+                    row.put("engineer.name", "□ " + engineerLabel.trim());
+                    row.put("engineer.birthDate", string(rs.getString("birthday")));
+                    row.put("engineer.specialtyField", specialty);
+                    row.put("engineer.responsibility", responsibility);
+                    row.put("row.contractNo", string(rs.getString("contract_no")));
+                    row.put("row.serviceType", string(rs.getString("service_type")));
+                    row.put("row.serviceName", string(rs.getString("service_name")));
+                    row.put("row.clientName", string(rs.getString("client_name")));
+                    row.put("row.contractAmount", string(rs.getBigDecimal("contract_amount")));
+                    row.put("row.shareAmount", string(rs.getBigDecimal("share_amount")));
+                    row.put("row.jointContractRatio", string(rs.getString("joint_contract_ratio")));
+                    row.put("row.constructionStartDate", string(rs.getString("construction_start_date")));
+                    row.put("row.constructionCompleteDate", string(rs.getString("construction_complete_date")));
+                    row.put("row.constructionStopFromDate", string(rs.getString("construction_stop_from_date")));
+                    row.put("row.managementServiceCompleteDate", string(rs.getString("management_service_complete_date")));
+                    row.put("row.participationType", string(rs.getString("participation_type")));
+                    row.put("row.pqTargetYn", rs.getObject("pq_target_yn") == null ? "" : (rs.getBoolean("pq_target_yn") ? "Y" : "N"));
+                    row.put("row.remark", string(rs.getString("remark")));
+                    String completeDate = rs.getString("construction_complete_date");
+                    row.put("row.remainingPeriod", formatRemainingPeriod(completeDate, baseDate));
+                    return row;
+                })
+                .list();
+        Map<String, Integer> fallbackSequences = new HashMap<>();
+        rows.forEach(row -> {
+            if (!StringUtils.hasText(row.get("row.seq"))) {
+                String engineerId = row.getOrDefault("engineer.id", "");
+                int sequence = fallbackSequences.merge(engineerId, 1, Integer::sum);
+                row.put("row.seq", String.valueOf(sequence));
+            }
+        });
+        Map<String, BigDecimal> contractTotals = rows.stream().collect(java.util.stream.Collectors.groupingBy(
+                row -> row.getOrDefault("engineer.id", ""), LinkedHashMap::new,
+                java.util.stream.Collectors.reducing(BigDecimal.ZERO,
+                        row -> parseDecimal(row.get("row.contractAmount")), BigDecimal::add)));
+        rows.forEach(row -> {
+            String engineerId = row.get("engineer.id");
+            BigDecimal contractTotal = contractTotals.getOrDefault(engineerId, BigDecimal.ZERO);
+            row.put("row.totalContractAmount", row.getOrDefault("row.contractAmount", ""));
+            row.put("row.totalShareAmount", row.getOrDefault("row.shareAmount", ""));
+            row.put("row.totalContractAmountMillion", formatMillion(contractTotal));
+        });
+        return rows;
+    }
+
+    private boolean isWorkOverlapDetailPath(String path) {
+        return StringUtils.hasText(path) && path.startsWith("row.") && !"row.totalContractAmountMillion".equals(path);
+    }
+
+    private String resolveWorkOverlapValue(String path, String fieldName, Map<String, String> row) {
+        if ("row.servicePeriod".equals(path)) {
+            return formatWorkOverlapPeriod(fieldName, row);
+        }
+        if ("row.totalServiceDays".equals(path)) {
+            return formatTotalServiceDays(row);
+        }
+        if ("row.jointContractRatioWithTotalContract".equals(path)
+                || isJointContractRatioAmountField(fieldName)) {
+            return formatJointContractRatioWithTotalContract(fieldName, row);
+        }
+        if (isWorkOverlapDatePath(path)) {
+            return formatWorkOverlapDate(row.get(path), fieldName);
+        }
+        if (isWorkOverlapAmountPath(path)) {
+            return formatWorkOverlapAmount(path, fieldName, row);
+        }
+        return row.getOrDefault(path, "");
+    }
+
+    private boolean isJointContractRatioAmountField(String fieldName) {
+        String normalized = fieldName == null
+                ? ""
+                : fieldName.replaceAll("[\\s_\\-./()\\[\\]{}:：]", "").toLowerCase(Locale.ROOT);
+        return normalized.contains("pq공동지분내역") && normalized.contains("총계약금액");
+    }
+
+    private boolean isWorkOverlapDatePath(String path) {
+        return Set.of(
+                "row.constructionStartDate",
+                "row.constructionCompleteDate",
+                "row.constructionStopFromDate",
+                "row.managementServiceCompleteDate"
+        ).contains(path);
+    }
+
+    private boolean isWorkOverlapAmountPath(String path) {
+        return Set.of(
+                "row.contractAmount",
+                "row.shareAmount",
+                "row.totalContractAmount",
+                "row.shareAmountWithTotalContract",
+                "row.totalContractAmountWithShare",
+                "row.jointContractRatioWithTotalContract"
+        ).contains(path);
+    }
+
+    private String formatWorkOverlapPeriod(String fieldName, Map<String, String> row) {
+        String pattern = workOverlapDatePattern(fieldName, "yy.MM.dd");
+        String startDate = formatWorkOverlapDatePattern(row.get("row.constructionStartDate"), pattern);
+        String completeDate = formatWorkOverlapDatePattern(row.get("row.constructionCompleteDate"), pattern);
+        if (!StringUtils.hasText(startDate) && !StringUtils.hasText(completeDate)) {
+            return "";
+        }
+
+        String period = startDate + "\n~\n" + completeDate;
+        String stopDate = formatWorkOverlapDatePattern(row.get("row.constructionStopFromDate"), pattern);
+        return StringUtils.hasText(stopDate) ? period + "\n(" + stopDate + ")" : period;
+    }
+
+    private String formatWorkOverlapDatePattern(String value, String pattern) {
+        LocalDate date = parseDate(value);
+        return date == null ? "" : date.format(DateTimeFormatter.ofPattern(pattern));
+    }
+
+    private String formatWorkOverlapDate(String value, String fieldName) {
+        String pattern = workOverlapDatePattern(fieldName, null);
+        return pattern == null ? string(value) : formatWorkOverlapDatePattern(value, pattern);
+    }
+
+    private String workOverlapDatePattern(String fieldName, String defaultPattern) {
+        String normalized = fieldName == null ? "" : fieldName.toLowerCase(Locale.ROOT).replaceAll("\\s+", "");
+        if (normalized.contains("yyyy-mm-dd")) return "yyyy-MM-dd";
+        if (normalized.contains("yy.mm.dd")) return "yy.MM.dd";
+        return defaultPattern;
+    }
+
+    private String formatTotalServiceDays(Map<String, String> row) {
+        LocalDate startDate = parseDate(row.get("row.constructionStartDate"));
+        LocalDate completeDate = parseDate(row.get("row.constructionCompleteDate"));
+        if (startDate == null || completeDate == null) return "";
+        return String.valueOf(java.time.temporal.ChronoUnit.DAYS.between(startDate, completeDate) + 1);
+    }
+
+    private String formatWorkOverlapAmount(String path, String fieldName, Map<String, String> row) {
+        String primaryPath = switch (path) {
+            case "row.shareAmount", "row.shareAmountWithTotalContract" -> "row.shareAmount";
+            default -> "row.contractAmount";
+        };
+        String primary = formatWorkOverlapAmount(row.get(primaryPath), fieldName);
+        if ("row.shareAmountWithTotalContract".equals(path)) {
+            return primary + "\n(" + formatWorkOverlapAmount(row.get("row.contractAmount"), fieldName) + ")";
+        }
+        if ("row.totalContractAmountWithShare".equals(path)) {
+            return primary + "\n(" + formatWorkOverlapAmount(row.get("row.shareAmount"), fieldName) + ")";
+        }
+        return primary;
+    }
+
+    private String formatWorkOverlapAmount(String value, String fieldName) {
+        BigDecimal amount = parseDecimal(value);
+        String normalized = fieldName == null ? "" : fieldName.replaceAll("\\s+", "");
+        BigDecimal divisor = normalized.contains("백만") ? BigDecimal.valueOf(1_000_000L)
+                : normalized.contains("억") ? BigDecimal.valueOf(100_000_000L)
+                : normalized.contains("만") ? BigDecimal.valueOf(10_000L)
+                : normalized.contains("천") ? BigDecimal.valueOf(1_000L)
+                : BigDecimal.ONE;
+        return NumberFormat.getIntegerInstance(Locale.KOREA)
+                .format(amount.divide(divisor, 0, RoundingMode.DOWN));
+    }
+
+    private String formatJointContractRatioWithTotalContract(String fieldName, Map<String, String> row) {
+        String ratio = row.getOrDefault("row.jointContractRatio", "");
+        String amount = formatWorkOverlapAmount(row.get("row.contractAmount"), fieldName);
+        String unit = workOverlapAmountUnit(fieldName);
+        if (!StringUtils.hasText(ratio)) {
+            return StringUtils.hasText(amount) ? "총계약금액\n" + amount + unit : "";
+        }
+        return ratio + "\n총계약금액\n" + amount + unit;
+    }
+
+    private String workOverlapAmountUnit(String fieldName) {
+        String normalized = fieldName == null ? "" : fieldName.replaceAll("\\s+", "");
+        if (normalized.contains("\uBC31\uB9CC")) return "백만원";
+        if (normalized.contains("\uC5B5")) return "억원";
+        if (normalized.contains("\uB9CC")) return "만원";
+        if (normalized.contains("\uCC9C")) return "천원";
+        return "원";
+    }
+
+    private BigDecimal parseDecimal(String value) {
+        try { return value == null || value.isBlank() ? BigDecimal.ZERO : new BigDecimal(value); }
+        catch (NumberFormatException exception) { return BigDecimal.ZERO; }
+    }
+
+    private String formatMillion(BigDecimal value) {
+        return NumberFormat.getIntegerInstance(Locale.KOREA).format(value.divide(BigDecimal.valueOf(1_000_000L), 0, RoundingMode.DOWN));
+    }
+
+    private String formatRemainingPeriod(String completeDate, LocalDate baseDate) {
+        try {
+            LocalDate complete = LocalDate.parse(completeDate.replaceAll("[^0-9]", ""), DateTimeFormatter.BASIC_ISO_DATE);
+            long days = java.time.temporal.ChronoUnit.DAYS.between(baseDate, complete) + 1;
+            BigDecimal months = BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30L), 1, RoundingMode.DOWN);
+            return days + "일\n(" + months.toPlainString() + "개월)";
+        } catch (Exception exception) {
+            return "";
+        }
+    }
+
+    private byte[] renderWorkOverlapSection(
+            byte[] source,
+            List<Map<String, String>> rows,
+            Map<String, String> mappings,
+            Map<String, String> boldCharPrByBase
+    ) throws Exception {
+        Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
+        NodeList cells = document.getElementsByTagNameNS("*", "tc");
+        Set<Element> mappedTables = new LinkedHashSet<>();
+        for (int index = 0; index < cells.getLength(); index++) {
+            Element cell = (Element) cells.item(index);
+            if (!StringUtils.hasText(mappings.get(cell.getAttribute("name")))) continue;
+            Node parent = cell.getParentNode();
+            while (parent instanceof Element && !"tbl".equals(parent.getLocalName())) parent = parent.getParentNode();
+            if (parent instanceof Element table) mappedTables.add(table);
+        }
+        Map<String, List<Map<String, String>>> rowsByEngineer = rows.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        row -> row.getOrDefault("engineer.id", ""),
+                        LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
+        for (Element templateTable : mappedTables) {
+            Node parent = templateTable.getParentNode();
+            Node nextSibling = templateTable.getNextSibling();
+            for (List<Map<String, String>> engineerRows : rowsByEngineer.values()) {
+                Element renderedTable = (Element) templateTable.cloneNode(true);
+                Map<String, String> engineerRow = engineerRows.get(0);
+                List<Element> detailRows = elements(renderedTable.getElementsByTagNameNS("*", "tr")).stream()
+                        .filter(row -> directChildren(row, "tc").stream()
+                                .map(cell -> mappings.get(cell.getAttribute("name")))
+                                .anyMatch(this::isWorkOverlapDetailPath))
+                        .toList();
+                Set<Element> detailRowSet = Collections.newSetFromMap(new IdentityHashMap<>());
+                detailRowSet.addAll(detailRows);
+                NodeList renderedCells = renderedTable.getElementsByTagNameNS("*", "tc");
+                for (int cellIndex = 0; cellIndex < renderedCells.getLength(); cellIndex++) {
+                    Element cell = (Element) renderedCells.item(cellIndex);
+                    String field = cell.getAttribute("name");
+                    String path = mappings.get(field);
+                    if (StringUtils.hasText(path) && !isInsideWorkOverlapDetailRow(cell, detailRowSet)) {
+                        setWorkOverlapCellText(cell, field, path, resolveWorkOverlapValue(path, field, engineerRow), boldCharPrByBase);
+                    }
+                }
+                for (Element detailRow : detailRows) {
+                    Node rowParent = detailRow.getParentNode();
+                    Node rowNextSibling = detailRow.getNextSibling();
+                    for (Map<String, String> contractRow : engineerRows) {
+                        Element renderedRow = (Element) detailRow.cloneNode(true);
+                        NodeList rowCells = renderedRow.getElementsByTagNameNS("*", "tc");
+                        for (int cellIndex = 0; cellIndex < rowCells.getLength(); cellIndex++) {
+                            Element cell = (Element) rowCells.item(cellIndex);
+                            String field = cell.getAttribute("name");
+                            String path = mappings.get(field);
+                            if (StringUtils.hasText(path)) {
+                                setWorkOverlapCellText(cell, field, path, resolveWorkOverlapValue(path, field, contractRow), boldCharPrByBase);
+                            }
+                        }
+                        rowParent.insertBefore(renderedRow, rowNextSibling);
+                    }
+                    rowParent.removeChild(detailRow);
+                }
+                parent.insertBefore(renderedTable, nextSibling);
+            }
+            parent.removeChild(templateTable);
+        }
+        normalizeTables(document);
+        var transformer = TransformerFactory.newInstance().newTransformer();
+        transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        transformer.transform(new DOMSource(document), new StreamResult(output));
+        return output.toByteArray();
+    }
+
+    private boolean isInsideWorkOverlapDetailRow(Element cell, Set<Element> detailRows) {
+        for (Node parent = cell.getParentNode(); parent != null; parent = parent.getParentNode()) {
+            if (parent instanceof Element element && "tr".equals(element.getLocalName())) {
+                return detailRows.contains(element);
+            }
+        }
+        return false;
+    }
+
+    private void setWorkOverlapCellText(
+            Element cell,
+            String fieldName,
+            String path,
+            String value,
+            Map<String, String> boldCharPrByBase
+    ) {
+        if ("row.servicePeriod".equals(path)
+                && StringUtils.hasText(value)
+                && value.contains("\n(")
+                && !boldCharPrByBase.isEmpty()) {
+            setCellTextWithBoldSuffix(cell, value, boldCharPrByBase);
+            return;
+        }
+        setMappedCellText(cell, fieldName, value);
+    }
+
+    private void setCellTextWithBoldSuffix(Element cell, String value, Map<String, String> boldCharPrByBase) {
+        NodeList subLists = cell.getElementsByTagNameNS("*", "subList");
+        if (subLists.getLength() == 0) return;
+        NodeList paragraphs = ((Element) subLists.item(0)).getElementsByTagNameNS("*", "p");
+        if (paragraphs.getLength() == 0) return;
+        Element paragraph = (Element) paragraphs.item(0);
+        List<Element> runs = directChildren(paragraph, "run");
+        Element templateRun = runs.isEmpty()
+                ? paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:run")
+                : (Element) runs.get(0).cloneNode(false);
+        String baseCharPrId = templateRun.getAttribute("charPrIDRef");
+        String boldCharPrId = boldCharPrByBase.get(baseCharPrId);
+        if (!StringUtils.hasText(boldCharPrId)) {
+            setCellText(cell, value);
+            return;
+        }
+
+        runs.forEach(paragraph::removeChild);
+        int boldStart = value.lastIndexOf("\n(");
+        appendTextRun(paragraph, templateRun, value.substring(0, boldStart + 1), baseCharPrId);
+        appendTextRun(paragraph, templateRun, value.substring(boldStart + 1), boldCharPrId);
+        removeLineSegments(paragraph);
+    }
+
+    private void appendTextRun(Element paragraph, Element templateRun, String value, String charPrId) {
+        if (value.isEmpty()) return;
+        Element run = (Element) templateRun.cloneNode(false);
+        if (StringUtils.hasText(charPrId)) {
+            run.setAttribute("charPrIDRef", charPrId);
+        }
+        Element text = paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:t");
+        text.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        String[] lines = value.split("\\r\\n|\\r|\\n", -1);
+        for (int index = 0; index < lines.length; index++) {
+            text.appendChild(paragraph.getOwnerDocument().createTextNode(lines[index]));
+            if (index < lines.length - 1) {
+                text.appendChild(paragraph.getOwnerDocument().createElementNS(HWP_NS, "hp:lineBreak"));
+            }
+        }
+        run.appendChild(text);
+        paragraph.appendChild(run);
+    }
+
+    private void removeLineSegments(Element paragraph) {
+        List<Node> lineSegments = new ArrayList<>();
+        for (Node child = paragraph.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE && "linesegarray".equals(child.getLocalName())) {
+                lineSegments.add(child);
+            }
+        }
+        lineSegments.forEach(paragraph::removeChild);
+    }
+
+    private Map<String, String> findBoldCharPrByBase(byte[] headerSource) {
+        if (headerSource == null || headerSource.length == 0) return Map.of();
+        try {
+            Document header = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(headerSource));
+            List<Element> charProperties = elements(header.getElementsByTagNameNS("*", "charPr"));
+            List<Element> boldProperties = charProperties.stream()
+                    .filter(this::hasBoldChild)
+                    .toList();
+            Map<String, String> result = new LinkedHashMap<>();
+            for (Element bold : boldProperties) {
+                charProperties.stream()
+                        .filter(candidate -> !hasBoldChild(candidate))
+                        .filter(candidate -> charPrSignature(candidate).equals(charPrSignature(bold)))
+                        .findFirst()
+                        .ifPresent(base -> result.putIfAbsent(base.getAttribute("id"), bold.getAttribute("id")));
+            }
+            return result;
+        } catch (Exception exception) {
+            return Map.of();
+        }
+    }
+
+    private boolean hasBoldChild(Element charPr) {
+        return elements(charPr.getChildNodes()).stream().anyMatch(child -> "bold".equals(child.getLocalName()));
+    }
+
+    private String charPrSignature(Element charPr) {
+        Map<String, String> attributes = new TreeMap<>();
+        for (int index = 0; index < charPr.getAttributes().getLength(); index++) {
+            Node attribute = charPr.getAttributes().item(index);
+            if (!"id".equals(attribute.getNodeName())) attributes.put(attribute.getNodeName(), attribute.getNodeValue());
+        }
+        StringBuilder signature = new StringBuilder(attributes.toString());
+        for (Element child : elements(charPr.getChildNodes())) {
+            if ("bold".equals(child.getLocalName())) continue;
+            signature.append('|').append(child.getLocalName()).append(attributesSignature(child));
+        }
+        return signature.toString();
+    }
+
+    private String attributesSignature(Element element) {
+        Map<String, String> attributes = new TreeMap<>();
+        for (int index = 0; index < element.getAttributes().getLength(); index++) {
+            Node attribute = element.getAttributes().item(index);
+            attributes.put(attribute.getNodeName(), attribute.getNodeValue());
+        }
+        return attributes.toString();
+    }
+
     private byte[] renderCompanies(
             byte[] source,
             List<CompanyPerformance> performances,
@@ -168,7 +663,7 @@ public class HwpxDocumentGenerationService {
             Map<String, String> mappings
     ) throws Exception {
         Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(source));
-        NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+        NodeList cells = document.getElementsByTagNameNS("*", "tc");
         Set<Element> mappedRows = new LinkedHashSet<>();
         for (int index = 0; index < cells.getLength(); index++) {
             Element cell = (Element) cells.item(index);
@@ -190,7 +685,7 @@ public class HwpxDocumentGenerationService {
             Node nextSibling = templateRow.getNextSibling();
             for (CompanyPerformance performance : performances) {
                 Element renderedRow = (Element) templateRow.cloneNode(true);
-                NodeList renderedCells = renderedRow.getElementsByTagNameNS(HWP_NS, "tc");
+                NodeList renderedCells = renderedRow.getElementsByTagNameNS("*", "tc");
                 for (int cellIndex = 0; cellIndex < renderedCells.getLength(); cellIndex++) {
                     Element cell = (Element) renderedCells.item(cellIndex);
                     String field = cell.getAttribute("name");
@@ -302,8 +797,8 @@ public class HwpxDocumentGenerationService {
         long days = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1;
         String duration = switch (companyPeriodUnit(fieldName)) {
             case "일" -> days + "일";
-            case "월" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 1, RoundingMode.DOWN).toPlainString() + "개월";
-            case "년" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 1, RoundingMode.DOWN).toPlainString() + "년";
+            case "월" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(30), 2, RoundingMode.DOWN).toPlainString() + "개월";
+            case "년" -> BigDecimal.valueOf(days).divide(BigDecimal.valueOf(365), 2, RoundingMode.DOWN).toPlainString() + "년";
             case "년월" -> formatCompanyYearMonth(days);
             default -> "";
         };
@@ -312,10 +807,10 @@ public class HwpxDocumentGenerationService {
 
     private String companyPeriodUnit(String fieldName) {
         String normalized = fieldName == null ? "" : fieldName.replaceAll("\\s+", "");
-        if (normalized.contains("(일)") || normalized.contains("용역일수")) return "일";
-        if (normalized.contains("(월)") || normalized.contains("(개월)") || normalized.contains("용역월수") || normalized.contains("용역개월수")) return "월";
         if (normalized.contains("(년월)") || normalized.contains("용역년월") || normalized.contains("용역년월수")) return "년월";
+        if (normalized.contains("(월)") || normalized.contains("(개월)") || normalized.contains("용역월수") || normalized.contains("용역개월수")) return "월";
         if (normalized.contains("(년)") || normalized.contains("용역년수")) return "년";
+        if (normalized.contains("(일)") || normalized.contains("용역일수")) return "일";
         return "";
     }
 
@@ -1066,10 +1561,17 @@ public class HwpxDocumentGenerationService {
             if (!isSection(name)) return;
             try {
                 Document document = documentBuilder().newDocumentBuilder().parse(new ByteArrayInputStream(content));
-                NodeList cells = document.getElementsByTagNameNS(HWP_NS, "tc");
+                NodeList cells = document.getElementsByTagNameNS("*", "tc");
                 for (int index = 0; index < cells.getLength(); index++) {
                     String field = ((Element) cells.item(index)).getAttribute("name");
                     if (StringUtils.hasText(field)) fields.add(field);
+                }
+                if (fields.isEmpty()) {
+                    NodeList namedElements = document.getElementsByTagName("*");
+                    for (int index = 0; index < namedElements.getLength(); index++) {
+                        String field = ((Element) namedElements.item(index)).getAttribute("name");
+                        if (StringUtils.hasText(field)) fields.add(field);
+                    }
                 }
             } catch (Exception exception) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "HWPX 양식의 XML을 읽을 수 없습니다.", exception);

@@ -14,6 +14,7 @@ public record FileAttachmentResponse(
         String contentType,
         Long fileSize,
         String downloadUrl,
+        Integer displayOrder,
         Instant createdAt,
         String createdId
 ) {
@@ -29,6 +30,7 @@ public record FileAttachmentResponse(
                 entity.getContentType(),
                 entity.getFileSize(),
                 entity.getDownloadUrl(),
+                entity.getDisplayOrder(),
                 entity.getCreatedAt(),
                 entity.getCreatedId()
         );

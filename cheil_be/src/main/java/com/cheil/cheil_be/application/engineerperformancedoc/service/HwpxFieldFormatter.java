@@ -72,10 +72,10 @@ final class HwpxFieldFormatter {
         if (label.contains("참여종료일")) {
             return formatDate(review.endDate(), label);
         }
-        if (label.contains("용역일수")) {
+        if (label.contains("용역기간") || label.contains("용역일수")) {
             return formatPeriod(review.contractFromDate(), review.contractToDate(), label, true);
         }
-        if (label.contains("참여일수")) {
+        if (label.contains("참여기간") || label.contains("참여일수")) {
             return formatPeriod(review.startDate(), review.endDate(), label, true);
         }
         if (label.contains("선택기간")) {

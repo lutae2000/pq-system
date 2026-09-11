@@ -19,6 +19,7 @@ import javax.imageio.ImageIO;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.PerformanceCertificateGenerateRequest;
+import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapHwpxGenerateRequest;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentEntity;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentJpaRepository;
 import com.cheil.cheil_be.common.file.FileDownloadResult;
@@ -45,6 +47,7 @@ public class PerformanceCertificateGenerationService {
     private final EngineerPerformanceDocumentService performanceDocumentService;
     private final AppFileAttachmentJpaRepository attachmentRepository;
     private final FileStorageService fileStorageService;
+    private final JdbcClient jdbcClient;
 
     public byte[] generate(PerformanceCertificateGenerateRequest request) {
         return generateDocument(request, false);
@@ -70,6 +73,83 @@ public class PerformanceCertificateGenerationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "첨부파일이 있는 기술인의 실적증명서가 없습니다.");
         }
         return buildZip(documents, request.engineerNames(), request.includeParticipantList() == Boolean.TRUE);
+    }
+
+    public byte[] generateWorkOverlapBatch(WorkOverlapHwpxGenerateRequest request) {
+        if (request == null || request.bidSeq() == null || !StringUtils.hasText(request.workDutyId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "공고와 업무 담당자가 필요합니다.");
+        }
+        boolean includeParticipantList = request.includeParticipantList() == Boolean.TRUE;
+        Map<String, WorkOverlapEngineer> engineers = new LinkedHashMap<>();
+        jdbcClient.sql("""
+                        SELECT w.engr_id, w.contract_no, m.namekor
+                        FROM work_overlap_document_targets w
+                        LEFT JOIN pq_engineer_master m ON m.engr_id = w.engr_id
+                        WHERE w.bid_seq = :bidSeq AND w.work_duty_id = :workDutyId
+                        ORDER BY w.engr_id, w.display_order NULLS LAST, w.target_id
+                        """)
+                .param("bidSeq", request.bidSeq())
+                .param("workDutyId", request.workDutyId().trim())
+                .query((rs, rowNum) -> new String[] { rs.getString("engr_id"), rs.getString("contract_no"), rs.getString("namekor") })
+                .list()
+                .forEach(row -> engineers.computeIfAbsent(row[0], id -> new WorkOverlapEngineer(id, row[2]))
+                        .contractNos().add(row[1]));
+
+        List<BatchDocument> documents = new ArrayList<>();
+        for (WorkOverlapEngineer engineer : engineers.values()) {
+            List<RenderedImage> pages = new ArrayList<>();
+            for (String contractNo : engineer.contractNos()) {
+                attachmentRepository.findByOwnerTypeAndOwnerIdOrderByCreatedAtAsc("WORK_OVERLAP_CONTRACT", contractNo)
+                        .stream()
+                        .filter(attachment -> "EVIDENCE".equalsIgnoreCase(attachment.getAttachmentType())
+                                || (includeParticipantList && "PARTICIPANT_LIST".equalsIgnoreCase(attachment.getAttachmentType())))
+                        .sorted(java.util.Comparator.comparing(AppFileAttachmentEntity::getDisplayOrder,
+                                        java.util.Comparator.nullsLast(Integer::compareTo))
+                                .thenComparing(AppFileAttachmentEntity::getCreatedAt,
+                                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                        .forEach(attachment -> pages.addAll(renderAttachment(attachment)));
+            }
+            if (!pages.isEmpty()) {
+                documents.add(new BatchDocument(engineer.engineerId(), buildHwpx(pages)));
+            }
+        }
+        if (documents.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택 기술인의 계약서 첨부파일이 없습니다.");
+        }
+        return buildWorkOverlapZip(documents, includeParticipantList, engineers);
+    }
+
+    public String findProjectName(Long bidSeq) {
+        return jdbcClient.sql("SELECT project_name FROM bid_notices WHERE bid_seq = :bidSeq")
+                .param("bidSeq", bidSeq)
+                .query(String.class)
+                .optional()
+                .orElse("업무중복도");
+    }
+
+    private byte[] buildWorkOverlapZip(List<BatchDocument> documents, boolean includeParticipantList,
+                                        Map<String, WorkOverlapEngineer> engineers) {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            String suffix = includeParticipantList ? "업무중복도_계약서_참여자명단.hwpx" : "업무중복도_계약서.hwpx";
+            for (BatchDocument document : documents) {
+                WorkOverlapEngineer engineer = engineers.get(document.engineerId());
+                String prefix = engineer != null && StringUtils.hasText(engineer.name()) ? engineer.name() : document.engineerId();
+                zip.putNextEntry(new ZipEntry(safeFilename(prefix) + "_" + suffix));
+                zip.write(document.content());
+                zip.closeEntry();
+            }
+            zip.finish();
+            return output.toByteArray();
+        } catch (IOException exception) {
+            throw new IllegalStateException("업무중복도 HWPX ZIP 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private record WorkOverlapEngineer(String engineerId, String name, List<String> contractNos) {
+        private WorkOverlapEngineer(String engineerId, String name) {
+            this(engineerId, name, new ArrayList<>());
+        }
     }
 
     private byte[] generateDocument(PerformanceCertificateGenerateRequest request, boolean allowEmpty) {

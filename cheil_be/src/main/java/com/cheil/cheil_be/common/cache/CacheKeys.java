@@ -36,20 +36,6 @@ public class CacheKeys {
         return "cache:common-codes:by-id:%s".formatted(codeId);
     }
 
-    public String commonCodeLevel(Integer codeLevel) {
-        if (codeLevel == null) {
-            throw new IllegalArgumentException("codeLevel must not be null");
-        }
-        return commonCodeLevel(codeLevel, null);
-    }
-
-    public String commonCodeLevel(Integer codeLevel, Boolean useYn) {
-        if (codeLevel == null) {
-            throw new IllegalArgumentException("codeLevel must not be null");
-        }
-        return "cache:common-codes:level:%s:use:%s".formatted(codeLevel, cacheFlag(useYn));
-    }
-
     public String commonCodeLevel1(String level1Code) {
         if (!StringUtils.hasText(level1Code)) {
             throw new IllegalArgumentException("level1Code must not be blank");
@@ -62,6 +48,21 @@ public class CacheKeys {
             throw new IllegalArgumentException("level1Code must not be blank");
         }
         return "cache:common-codes:level1:%s:use:%s".formatted(normalize(level1Code), cacheFlag(useYn));
+    }
+
+    public String commonCodeLevel2(String level1Code, String level2Code) {
+        return commonCodeLevel2(level1Code, level2Code, null);
+    }
+
+    public String commonCodeLevel2(String level1Code, String level2Code, Boolean useYn) {
+        if (!StringUtils.hasText(level1Code)) {
+            throw new IllegalArgumentException("level1Code must not be blank");
+        }
+        if (!StringUtils.hasText(level2Code)) {
+            throw new IllegalArgumentException("level2Code must not be blank");
+        }
+        return "cache:common-codes:level1:%s:level2:%s:use:%s"
+                .formatted(normalize(level1Code), normalize(level2Code), cacheFlag(useYn));
     }
 
     private static String normalize(String value) {

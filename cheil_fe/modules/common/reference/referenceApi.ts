@@ -1,4 +1,10 @@
-import { listCommonCodes, type CommonCodeRecord, type CommonCodeSearchParams } from "@/modules/code/common-codes/api";
+import {
+  listCommonCodeBatch,
+  listCommonCodes,
+  type CommonCodeBatchRequest,
+  type CommonCodeRecord,
+  type CommonCodeSearchParams,
+} from "@/modules/code/common-codes/api";
 import { listClientCodes, type ClientCodeRecord, type ClientCodeSearchParams } from "@/modules/code/clients/api";
 import {
   listConstructionTypes,
@@ -61,6 +67,12 @@ const sortByValue = <TItem>(left: ReferenceOption<TItem>, right: ReferenceOption
 
 export type CommonCodeReferenceSort = "label" | "level2Code" | "level3Code" | "sortOrder";
 
+export type CommonCodeGroupReferenceRequest = CommonCodeBatchRequest & {
+  sort?: CommonCodeReferenceSort;
+};
+
+export type CommonCodeGroupReferenceResult = Record<string, ReferenceQueryResult<CommonCodeRecord>>;
+
 const commonCodeSort = (sort: CommonCodeReferenceSort) => {
   if (sort === "label") {
     return sortByLabel<CommonCodeRecord>;
@@ -95,6 +107,32 @@ const toResult = <TItem>(
     options,
   };
 };
+
+const commonCodeOption = (code: CommonCodeRecord) => ({
+  label: code.codeLevel === 3 ? code.codeDetailName || code.codeName : code.codeName,
+  value: code.codeLevel === 1 ? code.level2Code : code.codeLevel === 2 ? code.level2Code : code.level3Code,
+});
+
+export async function getCommonCodeGroupReferences(
+  requests: CommonCodeGroupReferenceRequest[],
+): Promise<CommonCodeGroupReferenceResult> {
+  const responses = await listCommonCodeBatch(requests.map((request) => ({
+    key: request.key,
+    codeLevel: request.codeLevel,
+    level1Code: request.level1Code,
+    level2Code: request.level2Code,
+    useYn: request.useYn,
+  })));
+  const requestByKey = new Map(requests.map((request) => [request.key, request]));
+
+  return Object.fromEntries(responses.map((response) => {
+    const request = requestByKey.get(response.key);
+    return [
+      response.key,
+      toResult(response.items, commonCodeOption, commonCodeSort(request?.sort ?? "sortOrder")),
+    ];
+  }));
+}
 
 export async function getRoleReferences(params: SystemRoleSearchParams = { useYn: true }) {
   const items = await listSystemRoles(params);
@@ -200,10 +238,10 @@ export async function getCommonCodeLevel2References(
 export async function getCommonCodeLevel3References(
   level1Code: string,
   level2Code: string,
-  params: Omit<CommonCodeSearchParams, "level1Code" | "level2Code"> = { useYn: "Y" },
+  params: Omit<CommonCodeSearchParams, "codeLevel" | "level1Code" | "level2Code"> = { useYn: "Y" },
   sort: CommonCodeReferenceSort = "sortOrder",
 ) {
-  const items = (await listCommonCodes({ ...params, level1Code, level2Code })).filter((code) => code.codeLevel === 3);
+  const items = await listCommonCodes({ ...params, codeLevel: 3, level1Code, level2Code });
   return toResult<CommonCodeRecord>(
     items,
     (code) => ({ label: code.codeDetailName || code.codeName, value: code.level3Code }),

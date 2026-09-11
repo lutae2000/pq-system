@@ -20,6 +20,7 @@ export type WorkOverlapContractRecord = {
   restartDate: string | null;
   contractAmount: number | null;
   shareAmount: number | null;
+  jointContractRatio?: string | null;
   performanceCertification: string | null;
   participateListDocument: string | null;
   cemsConfirm: string | null;

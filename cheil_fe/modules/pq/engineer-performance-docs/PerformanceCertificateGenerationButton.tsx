@@ -16,26 +16,39 @@ type Props = PerformanceCertificateGenerateRequest & {
   onSuccess?: (message: string) => void;
 };
 
-export function PerformanceCertificateGenerationButton({ disabled, engineerNames, filenamePrefix, label, onError, onSuccess, ...request }: Props) {
+export function PerformanceCertificateGenerationButton({
+  disabled,
+  engineerNames,
+  filenamePrefix,
+  label,
+  onError,
+  onSuccess,
+  ...request
+}: Props) {
   const [generating, setGenerating] = useState(false);
+
   const handleClick = async () => {
     setGenerating(true);
+
     try {
       const engineerIds = request.engineerIds ?? [];
       const requests = engineerIds.length > 0
-        ? engineerIds.map((engineerId) => ({ ...request, engineerIds: [engineerId] }))
+        ? engineerIds.map((engineerId) => ({
+            ...request,
+            engineerIds: [engineerId],
+          }))
         : [request];
       const safePrefix = filenamePrefix?.trim().replace(/[\\/:*?"<>|]/g, "_");
       const baseFilename = request.includeParticipantList
-        ? "\uC2E4\uC801\uC99D\uBA85\uC11C_\uCC38\uC5EC\uC790\uBA85\uB2E8.hwpx"
-        : "\uC2E4\uC801\uC99D\uBA85\uC11C.hwpx";
+        ? "실적증명서_참여자명단.hwpx"
+        : "실적증명서.hwpx";
 
       if (engineerIds.length > 0) {
         const blob = await generatePerformanceCertificateBatch({ ...request, engineerNames });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = safePrefix ? `${safePrefix}_\uC2E4\uC801\uC99D\uBA85\uC11C.zip` : "\uC2E4\uC801\uC99D\uBA85\uC11C.zip";
+        anchor.download = safePrefix ? `${safePrefix}_실적증명서.zip` : "실적증명서.zip";
         anchor.click();
         URL.revokeObjectURL(url);
       } else {
@@ -56,14 +69,27 @@ export function PerformanceCertificateGenerationButton({ disabled, engineerNames
           }
         }
       }
-      onSuccess?.(engineerIds.length > 0
-        ? "\uCCA8\uBD80\uD30C\uC77C\uC774 \uC788\uB294 \uAE30\uC220\uC778\uBCC4 \uC2E4\uC801\uC99D\uBA85\uC11C\uB97C ZIP\uC73C\uB85C \uB2E4\uC6B4\uB85C\uB4DC\uD588\uC2B5\uB2C8\uB2E4."
-        : `${requests.length}\uAC1C\uC758 \uC2E4\uC801\uC99D\uBA85\uC11C\uB97C \uB2E4\uC6B4\uB85C\uB4DC\uD588\uC2B5\uB2C8\uB2E4.`);
+      onSuccess?.(
+        engineerIds.length > 0
+          ? "첨부파일이 있는 기술인별 실적증명서를 ZIP으로 다운로드했습니다."
+          : `${requests.length}개의 실적증명서를 다운로드했습니다.`,
+      );
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : "\uC2E4\uC801\uC99D\uBA85\uC11C \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+      onError?.(error instanceof Error ? error.message : "실적증명서 생성에 실패했습니다.");
     } finally {
       setGenerating(false);
     }
   };
-  return <Button disabled={disabled || generating} onClick={() => void handleClick()} startIcon={<DownloadOutlinedIcon />} sx={{ minWidth: label ? 230 : 150, whiteSpace: "nowrap" }} variant="contained">{generating ? "\uC0DD\uC131 \uC911..." : label ?? "\uC2E4\uC801\uC99D\uBA85\uC11C \uC0DD\uC131"}</Button>;
+
+  return (
+    <Button
+      disabled={disabled || generating}
+      onClick={() => void handleClick()}
+      startIcon={<DownloadOutlinedIcon />}
+      sx={{ minWidth: label ? 230 : 150, whiteSpace: "nowrap" }}
+      variant="contained"
+    >
+      {generating ? "생성 중..." : label ?? "실적증명서"}
+    </Button>
+  );
 }

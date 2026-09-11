@@ -13,6 +13,8 @@ public interface CommonCodeRepository {
 
     List<CommonCode> findAllByLevel1Code(String level1Code, Boolean useYn);
 
+    List<CommonCode> findAllByLevel1CodeAndLevel2Code(String level1Code, String level2Code, Boolean useYn);
+
     Optional<CommonCode> findByCodeId(Long codeId);
 
     boolean existsByNaturalKey(Integer codeLevel, String level1Code, String level2Code, String level3Code);

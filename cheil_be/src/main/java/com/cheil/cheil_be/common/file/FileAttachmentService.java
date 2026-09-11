@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.file.FileAttachmentRequest;
+import com.cheil.cheil_be.adapter.in.web.file.FileAttachmentOrderRequest;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentEntity;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentJpaRepository;
 import com.cheil.cheil_be.common.text.StringValues;
@@ -44,6 +45,23 @@ public class FileAttachmentService {
                 StringValues.required(request.ownerId(), "ownerId"),
                 StringValues.required(request.attachmentType(), "attachmentType")
         );
+        attachment.changeDisplayOrder(request.displayOrder());
+        return attachment;
+    }
+
+    @Transactional
+    public AppFileAttachmentEntity updateDisplayOrder(Long attachmentId, FileAttachmentOrderRequest request) {
+        if (attachmentId == null || attachmentId <= 0 || request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "첨부파일 순번 요청이 필요합니다.");
+        }
+        AppFileAttachmentEntity attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "첨부파일을 찾을 수 없습니다."));
+        requireWriteAccess(attachment.getOwnerType());
+        try {
+            attachment.changeDisplayOrder(request.displayOrder());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
         return attachment;
     }
 

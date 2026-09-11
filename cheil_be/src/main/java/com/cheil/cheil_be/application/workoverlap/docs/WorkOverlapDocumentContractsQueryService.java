@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageImpl;
@@ -46,9 +47,9 @@ public class WorkOverlapDocumentContractsQueryService {
 
         List<DocumentContractRow> allRows = jdbcClient.sql("""
                         SELECT
-                            t.target_id,
-                            t.display_order,
-                            t.responsibility,
+                            NULL::BIGINT AS target_id,
+                            NULL::INTEGER AS display_order,
+                            NULL::VARCHAR AS responsibility,
                             c.contract_no,
                             c.service_type,
                             c.client_name,
@@ -85,12 +86,15 @@ public class WorkOverlapDocumentContractsQueryService {
                         FROM work_overlap_contracts c
                         INNER JOIN work_overlap_contract_engineers e
                                 ON e.contract_no = c.contract_no
-                        LEFT JOIN work_overlap_document_targets t
-                               ON t.bid_seq = :bidSeq
-                              AND t.work_duty_id = :workDutyId
-                              AND t.engr_id = :engineerId
-                              AND t.contract_no = c.contract_no
+                               AND e.engr_id = :engineerId
                         WHERE e.engr_id = :engineerId
+                          AND c.contract_no NOT IN (
+                              SELECT d.contract_no
+                              FROM work_overlap_document_targets d
+                              WHERE d.bid_seq = :bidSeq
+                                AND d.work_duty_id = :workDutyId
+                                AND d.engr_id = :engineerId
+                          )
                         ORDER BY c.contract_no
                         """)
                 .param("bidSeq", bidSeq)
@@ -136,7 +140,67 @@ public class WorkOverlapDocumentContractsQueryService {
                 ))
                 .list();
 
-        List<DocumentContractRow> availableRows = allRows.stream().filter(row -> row.targetId() == null).toList();
+        List<DocumentContractRow> savedRows = jdbcClient.sql("""
+                        SELECT
+                            t.target_id,
+                            t.display_order,
+                            t.responsibility,
+                            c.contract_no,
+                            c.service_type,
+                            c.client_name,
+                            c.supervising_department_code,
+                            c.public_contract_yn,
+                            c.service_name,
+                            c.construction_start_date,
+                            c.construction_complete_date,
+                            c.management_service_complete_date,
+                            c.construction_stop_from_date,
+                            c.construction_stop_to_date,
+                            c.restart_date,
+                            c.contract_amount,
+                            c.share_amount,
+                            c.performance_certification,
+                            c.participate_list_document,
+                            c.cems_confirm,
+                            c.remark,
+                            c.created_at,
+                            c.created_id,
+                            c.last_changed_at,
+                            c.last_changed_id,
+                            NULL::VARCHAR AS participation_type,
+                            NULL::BOOLEAN AS pq_target_yn,
+                            CASE
+                                WHEN c.construction_complete_date IS NULL THEN NULL
+                                ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') + 1
+                            END AS remain_date,
+                            CASE
+                                WHEN c.public_contract_yn = false THEN false
+                                WHEN c.construction_complete_date IS NULL THEN false
+                                ELSE to_date(c.construction_complete_date, 'YYYYMMDD') - to_date(:referenceDate, 'YYYYMMDD') + 1 > :remainingDays
+                                     AND c.service_type = '설계'
+                            END AS check_yn
+                        FROM work_overlap_document_targets t
+                        LEFT JOIN work_overlap_contracts c ON t.contract_no = c.contract_no
+                        WHERE t.engr_id = :engineerId
+                          AND t.work_duty_id = :workDutyId
+                          AND t.bid_seq = :bidSeq
+                          AND c.contract_no IS NOT NULL
+                        ORDER BY t.display_order NULLS LAST, t.target_id
+                        """)
+                .param("engineerId", normalizedEngineerId)
+                .param("workDutyId", normalizedWorkDutyId)
+                .param("bidSeq", bidSeq)
+                .param("referenceDate", normalizedReferenceDate)
+                .param("remainingDays", normalizedRemainingDays)
+                .query((rs, rowNum) -> new DocumentContractRow(
+                        rs.getObject("target_id", Long.class),
+                        rs.getObject("display_order", Integer.class),
+                        rs.getString("responsibility"),
+                        toContract(rs)
+                ))
+                .list();
+
+        List<DocumentContractRow> availableRows = allRows;
         List<WorkOverlapEngineerContractResponse> pageRows = availableRows.stream()
                 .skip(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -145,8 +209,7 @@ public class WorkOverlapDocumentContractsQueryService {
         PageResponse<WorkOverlapEngineerContractResponse> availableContracts = PageResponse.from(
                 new PageImpl<>(pageRows, pageable, availableRows.size())
         );
-        List<WorkOverlapDocumentSavedContractResponse> savedContracts = allRows.stream()
-                .filter(row -> row.targetId() != null)
+        List<WorkOverlapDocumentSavedContractResponse> savedContracts = savedRows.stream()
                 .sorted(Comparator.comparing(DocumentContractRow::displayOrder, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(DocumentContractRow::targetId))
                 .map(row -> new WorkOverlapDocumentSavedContractResponse(
@@ -188,6 +251,22 @@ public class WorkOverlapDocumentContractsQueryService {
     private Integer nullableInteger(java.sql.ResultSet rs, String columnLabel) throws java.sql.SQLException {
         int value = rs.getInt(columnLabel);
         return rs.wasNull() ? null : value;
+    }
+
+    private WorkOverlapEngineerContractResponse toContract(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new WorkOverlapEngineerContractResponse(
+                rs.getString("contract_no"), rs.getString("service_type"), rs.getString("client_name"),
+                rs.getString("supervising_department_code"), nullableBoolean(rs, "public_contract_yn"),
+                rs.getString("service_name"), rs.getString("construction_start_date"),
+                rs.getString("construction_complete_date"), rs.getString("management_service_complete_date"),
+                rs.getString("construction_stop_from_date"), rs.getString("construction_stop_to_date"),
+                rs.getString("restart_date"), rs.getBigDecimal("contract_amount"), rs.getBigDecimal("share_amount"),
+                rs.getString("performance_certification"), rs.getString("participate_list_document"),
+                rs.getString("cems_confirm"), rs.getString("remark"), rs.getString("created_at"),
+                rs.getString("created_id"), rs.getString("last_changed_at"), rs.getString("last_changed_id"),
+                rs.getString("participation_type"), nullableBoolean(rs, "pq_target_yn"),
+                nullableInteger(rs, "remain_date"), nullableBoolean(rs, "check_yn"), null, null, false
+        );
     }
 
     private record DocumentContractRow(

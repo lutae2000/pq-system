@@ -8,6 +8,7 @@ import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import type { CommonCodeRecord } from "@/modules/code/common-codes/api";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { CompanyPerformanceDocumentTarget } from "@/modules/pq/company-performance/api";
@@ -16,29 +17,33 @@ import { PerformanceCertificateGenerationButton } from "@/modules/pq/engineer-pe
 
 type Props = { bidNotice: BidNoticeApiRecord | null; targets: CompanyPerformanceDocumentTarget[]; open: boolean };
 type MappingRow = HwpxTemplateFieldResponse & { path: string };
-type CommonCodeFieldRow = { id: number; fieldName: string };
+type CommonCodeFieldRow = { id: number; fieldName: string; path: string };
 
-const companyPath = (label: string) => {
-  const name = label.replace(/^회사실적[_-]?/, "");
-  if (name === "순번") return "row.seq";
-  if (name.includes("사업명") || name.includes("용역명")) return "row.jobName";
-  if (name.includes("용역코드")) return "row.code";
-  if (name.includes("발주처")) return "row.orderClient";
-  if (name.includes("용역기간") || name.includes("계약기간")) return "row.contractPeriod";
-  if (name.includes("계약시작") || name.includes("용역시작")) return "row.contractFromDate";
-  if (name.includes("계약종료") || name.includes("용역종료")) return "row.contractToDate";
-  if (name.includes("용역일수") || name.includes("용역월수") || name.includes("용역년월")) return "row.contractPeriod";
-  if (name.includes("총계약") || name.includes("총금액")) return "row.contractAmt";
-  if (name.includes("당사금액")) return "row.ownAmt";
-  if (name.includes("공동도급")) return "row.jobRatio";
-  if (name.includes("PQ공동지분내역")) return "row.jobRatio";
-  if (name.includes("지분율")) return "row.divisionRate";
-  if (name.includes("용역구분")) return "row.jobType";
-  if (name.includes("총괄")) return "row.generalManagementYn";
-  if (name.includes("개요")) return "row.summary";
-  if (name.includes("중지일")) return "row.stopDate";
-  if (name.includes("비고")) return "row.remark";
-  return "";
+const normalizedFieldName = (value: string | null | undefined) =>
+  value?.normalize("NFKC").replace(/[\s_\-./()[\]{}:：]/g, "").toLocaleLowerCase() ?? "";
+
+const referenceCompanyPath = (refValue1: string | null | undefined) => {
+  const path = refValue1?.replace(/\s+/g, "").trim() ?? "";
+  return /^row\.[a-zA-Z][\w]*$/.test(path) ? path : "";
+};
+
+const findFieldReference = (fieldName: string, references: CommonCodeRecord[]) => {
+  const normalizedName = normalizedFieldName(fieldName);
+  return references
+    .map((reference) => {
+      const candidates = [reference.codeDetailName, reference.codeName, reference.level3Code]
+        .map(normalizedFieldName)
+        .filter(Boolean);
+      const exact = candidates.some((candidate) => candidate === normalizedName);
+      const suffix = [reference.codeDetailName, reference.codeName]
+        .map(normalizedFieldName)
+        .filter(Boolean)
+        .filter((candidate) => normalizedName.endsWith(candidate) || candidate.endsWith(normalizedName))
+        .sort((left, right) => right.length - left.length)[0];
+      return { reference, score: exact ? 3 : suffix ? 2 : 0, candidateLength: suffix?.length ?? 0 };
+    })
+    .filter((match) => match.score > 0)
+    .sort((left, right) => right.score - left.score || right.candidateLength - left.candidateLength)[0]?.reference;
 };
 
 function download(blob: Blob, filename: string) {
@@ -52,7 +57,7 @@ function download(blob: Blob, filename: string) {
 
 export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const hbFields = useCommonCodeLevel3Options("PQ", "HB", { useYn: "Y" }, { enabled: open }, "level3Code");
+  const hbFields = useCommonCodeLevel3Options("PQ", "HB", { useYn: "Y", bypassCache: true }, { enabled: open }, "level3Code");
   const [template, setTemplate] = useState<File | null>(null);
   const [mappings, setMappings] = useState<MappingRow[]>([]);
   const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
@@ -61,7 +66,11 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
   const [fieldKeywordDraft, setFieldKeywordDraft] = useState("");
   const [fieldKeyword, setFieldKeyword] = useState("");
   const fieldRows = useMemo<CommonCodeFieldRow[]>(
-    () => hbFields.items.map((item) => ({ id: item.codeId, fieldName: item.codeDetailName || item.codeName })),
+    () => hbFields.items.map((item) => ({
+      id: item.codeId,
+      fieldName: item.codeDetailName || item.codeName,
+      path: referenceCompanyPath(item.refValue1),
+    })),
     [hbFields.items],
   );
   const filteredFieldRows = useMemo(() => {
@@ -70,6 +79,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
   }, [fieldKeyword, fieldRows]);
   const columns = useMemo<GridColDef<CommonCodeFieldRow>[]>(() => [
     { field: "fieldName", headerName: "필드명", minWidth: 300, flex: 1 },
+    { field: "path", headerName: "매핑 경로", minWidth: 240, flex: 0.8 },
   ], []);
 
   if (!open) return null;
@@ -77,10 +87,18 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".hwpx")) { setMessage({ severity: "error", text: "HWPX 파일만 업로드할 수 있습니다." }); return; }
     try {
-      const fields = await inspectHwpxTemplate(file);
+      const [fields, referenceResult] = await Promise.all([inspectHwpxTemplate(file), hbFields.refetch()]);
+      const references = referenceResult.data?.items ?? [];
       setTemplate(file);
-      setMappings(fields.map((field) => ({ ...field, path: companyPath(field.name) })));
-      setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했습니다.` });
+      setMappings(fields.map((field) => {
+        const reference = findFieldReference(field.name, references);
+        return { ...field, path: referenceCompanyPath(reference?.refValue1) };
+      }));
+      const mappedCount = fields.filter((field) => {
+        const reference = findFieldReference(field.name, references);
+        return Boolean(referenceCompanyPath(reference?.refValue1));
+      }).length;
+      setMessage({ severity: "success", text: `양식 필드 ${fields.length}개를 추출했고, ${mappedCount}개 필드를 매핑했습니다.` });
     } catch (error) { setMessage({ severity: "error", text: error instanceof Error ? error.message : "HWPX 양식을 읽지 못했습니다." }); }
   };
   const handleGenerate = async () => {
@@ -109,7 +127,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
           onError={(text) => setMessage({ severity: "error", text })}
           onSuccess={(text) => setMessage({ severity: "success", text })}
         />
-        <Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">HWPX 업로드</Button>
+        <Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
         <Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
       </Stack>
       <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
