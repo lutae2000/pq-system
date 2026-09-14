@@ -27,12 +27,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  redis:
-    image: 'redis:latest'
+  valkey:
+    image: 'valkey/valkey:9.1.2'
     ports:
       - '6379:6379'
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "valkey-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5

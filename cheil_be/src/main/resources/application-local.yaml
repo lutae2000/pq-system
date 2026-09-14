@@ -21,8 +21,8 @@ spring:
     password: ${POSTGRES_PASSWORD:cheil}
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
 
 logging:
   file:

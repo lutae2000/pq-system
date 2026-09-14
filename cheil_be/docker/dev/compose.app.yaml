@@ -5,7 +5,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: dev
@@ -15,8 +15,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-cheil_local}
       POSTGRES_USER: ${POSTGRES_USER:-cheil}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cheil}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       APP_FILE_STORAGE_ROOT: /data/cheil-be/files/dev
       LOGGING_FILE_NAME: /var/log/cheil-be/app-1.log
@@ -32,7 +32,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
+      valkey:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: dev
@@ -42,8 +42,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-cheil_local}
       POSTGRES_USER: ${POSTGRES_USER:-cheil}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cheil}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
       APP_FILE_STORAGE_ROOT: /data/cheil-be/files/dev
       LOGGING_FILE_NAME: /var/log/cheil-be/app-2.log

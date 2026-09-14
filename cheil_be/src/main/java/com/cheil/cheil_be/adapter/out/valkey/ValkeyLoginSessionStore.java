@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.out.redis;
+package com.cheil.cheil_be.adapter.out.valkey;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -13,7 +13,7 @@ import com.cheil.cheil_be.application.userauth.port.out.LoginSessionStore;
 
 @Repository
 @RequiredArgsConstructor
-public class RedisLoginSessionStore implements LoginSessionStore {
+public class ValkeyLoginSessionStore implements LoginSessionStore {
 
     private static final String KEY_PREFIX = "login:session:current:";
 

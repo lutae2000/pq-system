@@ -65,10 +65,10 @@ services:
       - '8081:8080'
     restart: unless-stopped
 
-  redis-exporter:
+  valkey-exporter:
     image: 'oliver006/redis_exporter:v1.86.0'
     environment:
-      REDIS_ADDR: redis://redis:6379
+      REDIS_ADDR: redis://valkey:6379
     ports:
       - '9121:9121'
     restart: unless-stopped

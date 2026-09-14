@@ -878,7 +878,7 @@ export function WorkOverlapDocumentsPage() {
                     <Typography noWrap sx={{ fontWeight: 700, ml: "auto" }} variant="body2">{overlapRate === null ? "-" : `${overlapRate.toFixed(1)}%`}</Typography>
                   </Box>
                 </Box>
-                {activeEngineer ? <Box sx={{ height: contractGridHeight, minHeight: 240, minWidth: 0 }}>
+                {activeEngineer ? <Box sx={{ height: contractGridHeight, minHeight: 240, minWidth: 0, pb: 0.75 }}>
                   <EnterpriseDataGrid<WorkOverlapEngineerContractRecord>
                     checkboxSelection
                     columns={contractColumns}
@@ -970,7 +970,7 @@ export function WorkOverlapDocumentsPage() {
                   </Box>
                 ) : null}
                 {savedContractRows.length ? (
-                  <Box sx={{ flex: 1, minHeight: 140, minWidth: 0 }}>
+                  <Box sx={{ flex: 1, minHeight: 140, minWidth: 0, pb: 0.75 }}>
                     <EnterpriseDataGrid<SavedContractRow>
                     checkboxSelection
                     apiRef={savedContractGridApiRef}

@@ -53,8 +53,7 @@ public class BidNoticeResponseMapper {
                 BID_NOTICE_CODE_GROUPS.stream()
                         .flatMap(level1Code -> commonCodeCacheService.getOrLoadByLevel1Code(
                                 level1Code,
-                                null,
-                                () -> commonCodeRepository.findAllByLevel1Code(level1Code, null)
+                                () -> commonCodeRepository.findAllByLevel1Code(level1Code, Boolean.TRUE)
                         ).stream())
                         .filter(code -> code.codeLevel() != null && code.codeLevel() == 2)
                         .filter(code -> StringUtils.hasText(code.level1Code()))

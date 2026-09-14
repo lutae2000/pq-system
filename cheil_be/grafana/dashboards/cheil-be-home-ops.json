@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "운영 핵심 지표 대시보드. 상태 카드와 애플리케이션, 인프라, Database, Redis 지표를 영역별로 제공합니다.",
+  "description": "운영 핵심 지표 대시보드. 상태 카드와 애플리케이션, 인프라, Database, Valkey 지표를 영역별로 제공합니다.",
   "editable": true,
   "graphTooltip": 0,
   "panels": [
@@ -499,11 +499,11 @@
           "id": 15,
           "targets": [
             {
-              "expr": "min(redis_up{instance=~\"$redis_instance\"})",
+              "expr": "min(redis_up{instance=~\"$valkey_instance\"})",
               "refId": "A"
             }
           ],
-          "title": "Redis Up",
+          "title": "Valkey Up",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -560,11 +560,11 @@
           "id": 16,
           "targets": [
             {
-              "expr": "max(redis_connected_clients{instance=~\"$redis_instance\"})",
+              "expr": "max(redis_connected_clients{instance=~\"$valkey_instance\"})",
               "refId": "A"
             }
           ],
-          "title": "Redis Clients",
+          "title": "Valkey Clients",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -621,12 +621,12 @@
           "id": 17,
           "targets": [
             {
-              "expr": "100 * max by (name) (container_memory_working_set_bytes{name=~\".*-redis-1$\"}) / scalar(max(machine_memory_bytes))",
+              "expr": "100 * max by (name) (container_memory_working_set_bytes{name=~\".*-valkey-1$\"}) / scalar(max(machine_memory_bytes))",
               "legendFormat": "{{name}}",
               "refId": "A"
             }
           ],
-          "title": "Redis Memory %",
+          "title": "Valkey Memory %",
           "type": "stat",
           "options": {
             "colorMode": "value",
@@ -1176,7 +1176,7 @@
       },
       "id": 25,
       "panels": [],
-      "title": "Redis",
+      "title": "Valkey",
       "type": "row"
     },
     {
@@ -1198,12 +1198,12 @@
       "id": 18,
       "targets": [
         {
-          "expr": "sum by (instance) (rate(redis_commands_total{instance=~\"$redis_instance\"}[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(redis_commands_total{instance=~\"$valkey_instance\"}[$__rate_interval]))",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ],
-      "title": "Redis Command Rate",
+      "title": "Valkey Command Rate",
       "type": "timeseries"
     },
     {
@@ -1225,12 +1225,12 @@
       "id": 19,
       "targets": [
         {
-          "expr": "100 * sum(rate(redis_keyspace_hits_total{instance=~\"$redis_instance\"}[$__rate_interval])) / clamp_min(sum(rate(redis_keyspace_hits_total{instance=~\"$redis_instance\"}[$__rate_interval])) + sum(rate(redis_keyspace_misses_total{instance=~\"$redis_instance\"}[$__rate_interval])), 1)",
+          "expr": "100 * sum(rate(redis_keyspace_hits_total{instance=~\"$valkey_instance\"}[$__rate_interval])) / clamp_min(sum(rate(redis_keyspace_hits_total{instance=~\"$valkey_instance\"}[$__rate_interval])) + sum(rate(redis_keyspace_misses_total{instance=~\"$valkey_instance\"}[$__rate_interval])), 1)",
           "legendFormat": "hit ratio",
           "refId": "A"
         }
       ],
-      "title": "Redis Keyspace Hit Ratio",
+      "title": "Valkey Keyspace Hit Ratio",
       "type": "timeseries"
     },
     {
@@ -1252,17 +1252,17 @@
       "id": 20,
       "targets": [
         {
-          "expr": "rate(redis_evicted_keys_total{instance=~\"$redis_instance\"}[$__rate_interval])",
+          "expr": "rate(redis_evicted_keys_total{instance=~\"$valkey_instance\"}[$__rate_interval])",
           "legendFormat": "evictions",
           "refId": "A"
         },
         {
-          "expr": "redis_blocked_clients{instance=~\"$redis_instance\"}",
+          "expr": "redis_blocked_clients{instance=~\"$valkey_instance\"}",
           "legendFormat": "blocked clients",
           "refId": "B"
         }
       ],
-      "title": "Redis Evictions and Blocked Clients",
+      "title": "Valkey Evictions and Blocked Clients",
       "type": "timeseries"
     },
     {
@@ -1284,12 +1284,12 @@
       "id": 21,
       "targets": [
         {
-          "expr": "sum(redis_db_keys{instance=~\"$redis_instance\"}) by (instance)",
+          "expr": "sum(redis_db_keys{instance=~\"$valkey_instance\"}) by (instance)",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ],
-      "title": "Redis Key Count",
+      "title": "Valkey Key Count",
       "type": "timeseries"
     }
   ],
@@ -1403,12 +1403,12 @@
         },
         "definition": "label_values(redis_up, instance)",
         "includeAll": true,
-        "label": "Redis Instance",
+        "label": "Valkey Instance",
         "multi": true,
-        "name": "redis_instance",
+        "name": "valkey_instance",
         "query": {
           "query": "label_values(redis_up, instance)",
-          "refId": "RedisInstance"
+          "refId": "ValkeyInstance"
         },
         "refresh": 1,
         "type": "query"

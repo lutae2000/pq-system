@@ -10,8 +10,8 @@ spring:
       ddl-auto: validate
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT:6379}
+      host: ${VALKEY_HOST}
+      port: ${VALKEY_PORT:6379}
 
 logging:
   level:

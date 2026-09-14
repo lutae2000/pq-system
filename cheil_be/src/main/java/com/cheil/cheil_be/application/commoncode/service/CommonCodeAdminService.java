@@ -40,7 +40,7 @@ public class CommonCodeAdminService {
     @Transactional(readOnly = true)
     public List<CommonCode> findAll(CommonCodeSearchCondition condition) {
         String keyword = StringValues.normalize(condition.keyword()).toLowerCase(Locale.ROOT);
-        Boolean useYn = condition.useYn();
+        Boolean useYn = Boolean.TRUE;
         Integer codeLevel = condition.codeLevel();
         String level1Code = StringValues.normalize(condition.level1Code());
         String level2Code = StringValues.normalize(condition.level2Code());
@@ -75,7 +75,6 @@ public class CommonCodeAdminService {
             return commonCodeCacheService.getOrLoadByLevel2Code(
                     level1Code,
                     level2Code,
-                    useYn,
                     () -> commonCodeRepository.findAllByLevel1CodeAndLevel2Code(level1Code, level2Code, useYn)
             );
         }
@@ -83,7 +82,6 @@ public class CommonCodeAdminService {
         if (level1Code != null && !level1Code.isBlank()) {
             return commonCodeCacheService.getOrLoadByLevel1Code(
                     level1Code,
-                    useYn,
                     () -> commonCodeRepository.findAllByLevel1Code(level1Code, useYn)
             );
         }

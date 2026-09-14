@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.out.redis;
+package com.cheil.cheil_be.adapter.out.valkey;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,7 +20,7 @@ import com.cheil.cheil_be.domain.auth.IssuedToken;
 
 @Repository
 @RequiredArgsConstructor
-public class RedisTokenIssueHistoryRecorder implements TokenIssueHistoryRecorder {
+public class ValkeyTokenIssueHistoryRecorder implements TokenIssueHistoryRecorder {
 
     private static final String HISTORY_KEY_PREFIX = "token:issue-history:";
     private static final String SERVICE_HISTORY_KEY_PREFIX = "token:issue-history:service:";
@@ -33,7 +33,7 @@ public class RedisTokenIssueHistoryRecorder implements TokenIssueHistoryRecorder
     private static final String FIELD_EXPIRES_AT = "expires_at";
     private static final String FIELD_SCOPES = "scopes";
 
-    private final StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate valkeyTemplate;
 
     @Override
     public void record(String issuer, String serviceId, Set<String> scopes, IssuedToken issuedToken, Instant issuedAt) {
@@ -60,12 +60,12 @@ public class RedisTokenIssueHistoryRecorder implements TokenIssueHistoryRecorder
         record.put(FIELD_EXPIRES_AT, issuedToken.expiresAt().toString());
         record.put(FIELD_SCOPES, formatScopes(scopes));
 
-        redisTemplate.opsForHash().putAll(historyKey, record);
-        redisTemplate.opsForZSet().add(serviceHistoryKey, tokenHash, issuedAt.toEpochMilli());
+        valkeyTemplate.opsForHash().putAll(historyKey, record);
+        valkeyTemplate.opsForZSet().add(serviceHistoryKey, tokenHash, issuedAt.toEpochMilli());
 
         if (!ttl.isZero() && !ttl.isNegative()) {
-            redisTemplate.expire(historyKey, ttl);
-            redisTemplate.expire(serviceHistoryKey, ttl);
+            valkeyTemplate.expire(historyKey, ttl);
+            valkeyTemplate.expire(serviceHistoryKey, ttl);
         }
     }
 

@@ -35,9 +35,9 @@ spring:
     redis:
       repositories:
         enabled: false
-      # Redis 연결과 요청 대기를 짧게 잡아서 일시 장애 복구를 빨리 감지
-      connect-timeout: ${SPRING_DATA_REDIS_CONNECT_TIMEOUT:3s}
-      timeout: ${SPRING_DATA_REDIS_TIMEOUT:3s}
+      # Valkey 연결과 요청 대기를 짧게 잡아서 일시 장애 복구를 빨리 감지
+      connect-timeout: ${SPRING_DATA_VALKEY_CONNECT_TIMEOUT:3s}
+      timeout: ${SPRING_DATA_VALKEY_TIMEOUT:3s}
   servlet:
     multipart:
       max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:20MB}
@@ -115,13 +115,10 @@ app:
       - fn_user_menu_permissions
   common-code-cache:
     ttl: ${APP_COMMON_CODE_CACHE_TTL:1d}
-    read-timeout: ${APP_COMMON_CODE_CACHE_READ_TIMEOUT:1s}
   department-cache:
     ttl: ${APP_DEPARTMENT_CACHE_TTL:1d}
-    read-timeout: ${APP_DEPARTMENT_CACHE_READ_TIMEOUT:1s}
   system-policy-cache:
     ttl: ${APP_SYSTEM_POLICY_CACHE_TTL:1d}
-    read-timeout: ${APP_SYSTEM_POLICY_CACHE_READ_TIMEOUT:1s}
   file:
     storage-root: ${APP_FILE_STORAGE_ROOT:${java.io.tmpdir}/cheil-be/files}
     download-path: /files
