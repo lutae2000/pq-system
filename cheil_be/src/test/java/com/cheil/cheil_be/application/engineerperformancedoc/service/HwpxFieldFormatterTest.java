@@ -161,7 +161,6 @@ class HwpxFieldFormatterTest {
                 "",
                 "",
                 "",
-                "",
                 60,
                 60,
                 60,

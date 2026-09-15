@@ -57,9 +57,9 @@ class PqParticipatingEngineerControllerRestDocsTest {
 
     @Test
     void listSelectedProfilesDocumentsQueryContract() throws Exception {
-        when(queryService.findSelectedProfiles(20261072L, null)).thenReturn(List.of());
+        when(queryService.findSelectedProfiles(20261072L, null, null)).thenReturn(List.of());
         mockMvc.perform(get("/pq/participating-engineers/profiles").param("bidSeq", "20261072"))
-                .andExpect(status().isOk()).andDo(document("pq-participating-engineers-profiles", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), queryParameters(parameterWithName("bidSeq").description("Bid notice sequence."), parameterWithName("keyword").description("Optional name or ID search.").optional()), responseFields(fieldWithPath("[]").description("Selected engineer profiles."))));
+                .andExpect(status().isOk()).andDo(document("pq-participating-engineers-profiles", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), queryParameters(parameterWithName("bidSeq").description("Bid notice sequence."), parameterWithName("workDutyId").description("Optional work duty identifier.").optional(), parameterWithName("keyword").description("Optional name or ID search.").optional()), responseFields(fieldWithPath("[]").description("Selected engineer profiles."))));
     }
 
     @Test

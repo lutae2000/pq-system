@@ -81,4 +81,30 @@ class EngineerProjectHistoryEntity extends AuditEntity {
                 remark
         );
     }
+
+    static EngineerProjectHistoryEntity from(EngineerDtos.CareerDetail dto, String engrId) {
+        EngineerProjectHistoryEntity entity = new EngineerProjectHistoryEntity();
+        entity.engrId = engrId;
+        entity.updateFrom(dto);
+        return entity;
+    }
+
+    void updateFrom(EngineerDtos.CareerDetail dto) {
+        jobName = EngineerEntityUtils.clean(dto.jobName());
+        seq = dto.seq();
+        startDt = EngineerEntityUtils.date(dto.startDt());
+        endDt = EngineerEntityUtils.date(dto.endDt());
+        jobClass = EngineerEntityUtils.clean(dto.jobClass());
+        jobTag = EngineerEntityUtils.clean(dto.jobTag());
+        jobPart = EngineerEntityUtils.clean(dto.jobPart());
+        proPart = EngineerEntityUtils.clean(dto.proPart());
+        engLevel = EngineerEntityUtils.clean(dto.engLevel());
+        compName = EngineerEntityUtils.clean(dto.compName());
+        deptName = EngineerEntityUtils.clean(dto.deptName());
+        grade = EngineerEntityUtils.clean(dto.grade());
+        duty = EngineerEntityUtils.clean(dto.duty());
+        returnYn = EngineerEntityUtils.yn(dto.returnYn());
+        joinYn = EngineerEntityUtils.yn(dto.joinYn());
+        remark = EngineerEntityUtils.clean(dto.remark());
+    }
 }

@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface EngineerMasterRepository extends JpaRepository<EngineerMasterEntity, String> {
+    List<EngineerMasterEntity> findByNameKorIgnoreCaseAndBirthdayOrderByEngrId(String nameKor, String birthday);
+
     @Query("""
             select count(e) > 0
             from EngineerMasterEntity e

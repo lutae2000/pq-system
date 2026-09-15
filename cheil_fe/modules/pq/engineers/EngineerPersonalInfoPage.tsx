@@ -35,6 +35,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { useEnterpriseRowActionConfirm } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -44,6 +45,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { createCompanyPerformances, type CompanyPerformanceUpsertRequest } from "@/modules/pq/company-performance/api";
 import { EngineerHistoryTabs } from "@/modules/pq/engineers/history-tabs/EngineerHistoryTabs";
 import { listCertifications } from "@/modules/code/certifications/api";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
@@ -57,6 +59,7 @@ import {
   deleteEngineerPrize,
   deleteEngineerSchool,
   saveEngineerCareers,
+  saveEngineerCareerDetails,
   saveEngineerEducations,
   saveEngineerLicenses,
   saveEngineerMaster,
@@ -79,6 +82,7 @@ import type {
   TrainingRecord,
 } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { NewHistoryRowEditCancelHandler } from "@/modules/pq/engineers/history-tabs/historyTabTypes";
+import { EngineerPdfExtractionReviewDialog, type EngineerPdfExtraction, type EngineerPdfExtractionRow, PDF_RECORD_ID_FIELD } from "@/modules/pq/engineers/pdf-extraction";
 
 type EngineerFilterState = {
   assessmentDate: string;
@@ -232,11 +236,10 @@ const relatedMajorOptions = [
 ];
 
 const DEFAULT_SUMMARY_PANEL_WIDTH = 420;
-const DEFAULT_SUMMARY_PANEL_HEIGHT = 1200;
+const DEFAULT_SUMMARY_PANEL_HEIGHT = 1150;
 const SUMMARY_PANEL_MIN_WIDTH = 320;
 const SUMMARY_PANEL_MAX_WIDTH = 620;
 const SUMMARY_PANEL_MIN_HEIGHT = 820;
-const SUMMARY_PANEL_MAX_HEIGHT = 1600;
 const SUMMARY_PANEL_RIGHT_MIN_WIDTH = 720;
 
 function formatAwardCategory(value: unknown) {
@@ -550,7 +553,7 @@ function getNextSelectedId<T extends { id: string }>(rows: T[], deletedId: strin
 export function EngineerPersonalInfoPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const { showError } = useAppSnackbar();
+  const { showError, showSuccess } = useAppSnackbar();
   const careerGridApiRef = useGridApiRef();
   const certificateGridApiRef = useGridApiRef();
   const educationGridApiRef = useGridApiRef();
@@ -576,6 +579,10 @@ export function EngineerPersonalInfoPage() {
     [jobFieldLabelByCode, specialtyFieldLabelByCode],
   );
   const degreeLabelByCode = degreeReferences.labelByValue;
+  const degreeNameByCode = useMemo(
+    () => new Map(Object.entries(degreeLabelByCode)),
+    [degreeLabelByCode],
+  );
   const certificationsQuery = useQuery({
     queryKey: ["code-certifications"],
     queryFn: listCertifications,
@@ -616,9 +623,12 @@ export function EngineerPersonalInfoPage() {
     training: {},
   });
   const [summaryPanelWidth, setSummaryPanelWidth] = useState(DEFAULT_SUMMARY_PANEL_WIDTH);
-  const [summaryPanelHeight, setSummaryPanelHeight] = useState(DEFAULT_SUMMARY_PANEL_HEIGHT);
+  const summaryPanelHeight = DEFAULT_SUMMARY_PANEL_HEIGHT;
   const historyCardRef = useRef<HTMLDivElement | null>(null);
   const [historyCardHeight, setHistoryCardHeight] = useState(0);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const historyCard = historyCardRef.current;
@@ -934,6 +944,259 @@ export function EngineerPersonalInfoPage() {
     setSelectedTrainingRowId("");
   };
 
+  const handlePdfFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    if (file.type !== "application/pdf") {
+      showError("PDF 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setPdfFile(file);
+    setPdfDialogOpen(true);
+  };
+
+  const createProfileFromPdfExtraction = (extraction: EngineerPdfExtraction) => {
+    const nextId = createNewEngineerId(profiles.map((profile) => profile.summary.id));
+    const nextProfile = createEmptyEngineerProfile(nextId, filters);
+    const birthDate = formatDate8(extraction.basic.birthDate);
+    nextProfile.summary.name = extraction.basic.name || nextProfile.summary.name;
+    nextProfile.summary.workField = extraction.basic.workField || nextProfile.summary.workField;
+    nextProfile.detail.birthDate = birthDate;
+    nextProfile.detail.age = calculateAge(birthDate) ?? 0;
+    nextProfile.detail.jobField = extraction.basic.workField || nextProfile.detail.jobField;
+    nextProfile.detail.specialtyField = extraction.basic.specialtyField || nextProfile.detail.specialtyField;
+    nextProfile.detail.technicalField = extraction.basic.designGrade || nextProfile.detail.technicalField;
+    nextProfile.detail.supervisionQualification = extraction.basic.constructionManagementGrade || nextProfile.detail.supervisionQualification;
+    nextProfile.detail.title = nextProfile.summary.name;
+    const sectionRows = (key: string) => extraction.sections[key] ?? [];
+    nextProfile.certificates = sectionRows("licenses").map((row, index) => {
+      const values = row.values;
+      return {
+        ...createEmptyCertificateRecord(values[PDF_RECORD_ID_FIELD] || `tmp-pdf-license-${index + 1}`),
+        certificateName: values.license_code ?? "",
+        issueDate: formatDate8(values.date_of_issue),
+        licenseNo: values.license_no ?? "",
+      };
+    });
+    nextProfile.education = sectionRows("education").map((row, index) => {
+      const values = row.values;
+      return {
+        ...createEmptyEducationRecord(values[PDF_RECORD_ID_FIELD] || `tmp-pdf-education-${index + 1}`),
+        endDate: formatDate8(values.graduation_date),
+        schoolName: values.schname ?? "",
+        major: values.major ?? "",
+        degree: values.career ?? "",
+        validMajorYn: values.valid_major_yn ?? "N",
+      };
+    });
+    nextProfile.trainings = sectionRows("training").map((row, index) => {
+      const values = row.values;
+      return {
+        ...createEmptyTrainingRecord(values[PDF_RECORD_ID_FIELD] || `tmp-pdf-training-${index + 1}`),
+        startDate: formatDate8(values.startdt),
+        endDate: formatDate8(values.enddt),
+        trainingName: values.eduname ?? "",
+        institution: values.organname ?? "",
+      };
+    });
+    nextProfile.awards = sectionRows("awards").map((row, index) => {
+      const values = row.values;
+      return {
+        ...createEmptyAwardRecord(values[PDF_RECORD_ID_FIELD] || `tmp-pdf-award-${index + 1}`),
+        issueDate: formatDate8(values.dt),
+        category: values.prizetag ?? "",
+        kind: values.kind ?? "",
+        agency: values.organname ?? "",
+        businessName: values.jobname ?? "",
+        basis: values.spec ?? "",
+        remark: values.remark ?? "",
+      };
+    });
+    nextProfile.career = sectionRows("career").map((row, index) => {
+      const values = row.values;
+      return {
+        ...createEmptyCareerRecord(values[PDF_RECORD_ID_FIELD] || `tmp-pdf-career-${index + 1}`),
+        startDate: formatDate8(values.entrydt),
+        endDate: formatDate8(values.retiredt),
+        company: values.compname ?? "",
+        department: values.deptname ?? "",
+        position: values.grade ?? "",
+        jobDuty: values.duty ?? "",
+      };
+    });
+    nextProfile.careerDetails = sectionRows("projectHistories").map((row, index) => {
+      const values = row.values;
+      return {
+        active: true,
+        attachments: [],
+        compName: values.compname ?? "",
+        deptName: values.deptname ?? "",
+        duty: values.duty ?? "",
+        engLevel: Number(values.englevel) || 0,
+        endDate: formatDate8(values.enddt),
+        grade: values.grade ?? "",
+        id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,
+        jobClass: values.jobclass ?? "",
+        jobName: values.jobname ?? "",
+        jobPart: values.jobpart ?? "",
+        jobTag: values.jobtag ?? "",
+        joinDay: 0,
+        joinYn: values.joinyn ?? "Y",
+        method: "",
+        partDay: 0,
+        proPart: values.propart ?? "",
+        recordId: /^\d+$/.test(values[PDF_RECORD_ID_FIELD] ?? "") ? Number(values[PDF_RECORD_ID_FIELD]) : null,
+        remark: values.remark ?? "",
+        returnYn: values.returnyn?.trim() || "Y",
+        selectDay: 0,
+        seq: Number(values.seq) || index + 1,
+        startDate: formatDate8(values.startdt),
+      };
+    });
+    return nextProfile;
+  };
+
+  const handleRegisterPdfPersonnel = async (extraction: EngineerPdfExtraction, allowDuplicate: boolean) => {
+    const profile = createProfileFromPdfExtraction(extraction);
+    const personnelProfile = { ...profile, careerDetails: [] };
+    let saved = await saveEngineerMaster(personnelProfile.summary.id, personnelProfile, { allowDuplicate });
+    const engineerId = saved.summary.id;
+    if (profile.certificates.length > 0) saved = await saveEngineerLicenses(engineerId, profile.certificates);
+    if (profile.education.length > 0) saved = await saveEngineerSchools(engineerId, profile.education);
+    if (profile.career.length > 0) saved = await saveEngineerCareers(engineerId, profile.career);
+    if (profile.trainings.length > 0) saved = await saveEngineerEducations(engineerId, profile.trainings);
+    if (profile.awards.length > 0) saved = await saveEngineerPrizes(engineerId, profile.awards);
+    setProfiles((current) => [saved, ...current.filter((item) => item.summary.id !== engineerId)]);
+    setSelectedEngineerId(engineerId);
+    setSelectedTab("career");
+    showSuccess("기술인 인사정보를 등록했습니다.");
+    return engineerId;
+  };
+
+  const handleUpdatePdfPersonnelBasic = async (engineerId: string, extraction: EngineerPdfExtraction) => {
+    const current = await getEngineerProfile(engineerId);
+    const parsed = createProfileFromPdfExtraction(extraction);
+    const nextProfile: EngineerProfile = {
+      ...current,
+      summary: {
+        ...current.summary,
+        name: parsed.summary.name,
+        workField: parsed.summary.workField,
+      },
+      detail: {
+        ...current.detail,
+        birthDate: parsed.detail.birthDate,
+        jobField: parsed.detail.jobField,
+        specialtyField: parsed.detail.specialtyField,
+        technicalField: parsed.detail.technicalField,
+        supervisionQualification: parsed.detail.supervisionQualification,
+      },
+    };
+    const saved = await saveEngineerMaster(engineerId, nextProfile);
+    replaceProfile(saved);
+    setSelectedEngineerId(engineerId);
+    showSuccess("기술인 기본정보를 업데이트했습니다.");
+  };
+
+  const handleUpsertPdfPersonnelSection = async (engineerId: string, sectionKey: string, rows: EngineerPdfExtractionRow[]) => {
+    const sectionExtraction: EngineerPdfExtraction = {
+      basic: { name: "", birthDate: "", workField: "", specialtyField: "", designGrade: "", constructionManagementGrade: "" },
+      extractedText: "",
+      fileName: "",
+      sections: { [sectionKey]: rows },
+      warnings: [],
+    };
+    const parsed = createProfileFromPdfExtraction(sectionExtraction);
+    let saved: EngineerProfile;
+    if (sectionKey === "licenses") saved = await saveEngineerLicenses(engineerId, parsed.certificates);
+    else if (sectionKey === "education") saved = await saveEngineerSchools(engineerId, parsed.education);
+    else if (sectionKey === "career") saved = await saveEngineerCareers(engineerId, parsed.career);
+    else if (sectionKey === "training") saved = await saveEngineerEducations(engineerId, parsed.trainings);
+    else if (sectionKey === "awards") saved = await saveEngineerPrizes(engineerId, parsed.awards);
+    else throw new Error("저장을 지원하지 않는 PDF 추출 항목입니다.");
+    replaceProfile(saved);
+    setSelectedEngineerId(engineerId);
+    showSuccess(`${sectionKey === "licenses" ? "자격증" : sectionKey === "education" ? "학력" : sectionKey === "career" ? "근무처·경력" : sectionKey === "training" ? "교육훈련" : "상훈"} 정보를 업데이트했습니다.`);
+  };
+
+  const handleRegisterPdfProjectHistories = async (engineerId: string, rows: EngineerPdfExtractionRow[]) => {
+    const careerDetails = rows.map((row, index) => {
+      const values = row.values;
+      return {
+        active: true,
+        attachments: [],
+        compName: values.compname ?? "",
+        deptName: values.deptname ?? "",
+        duty: values.duty ?? "",
+        engLevel: Number(values.englevel) || 0,
+        endDate: formatDate8(values.enddt),
+        grade: values.grade ?? "",
+        id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,
+        jobClass: values.jobclass ?? "",
+        jobName: values.jobname ?? "",
+        jobPart: values.jobpart ?? "",
+        jobTag: values.jobtag ?? "",
+        joinDay: 0,
+        joinYn: values.joinyn ?? "Y",
+        method: "",
+        partDay: 0,
+        proPart: values.propart ?? "",
+        recordId: /^\d+$/.test(values[PDF_RECORD_ID_FIELD] ?? "") ? Number(values[PDF_RECORD_ID_FIELD]) : null,
+        remark: values.remark ?? "",
+        returnYn: values.returnyn?.trim() || "Y",
+        selectDay: 0,
+        seq: Number(values.seq) || 0,
+        startDate: formatDate8(values.startdt),
+      };
+    });
+    const saved = await saveEngineerCareerDetails(engineerId, careerDetails);
+    setProfiles((current) => current.map((profile) => profile.summary.id === engineerId ? saved : profile));
+    setSelectedEngineerId(engineerId);
+    setSelectedTab("performance");
+    showSuccess("기술경력을 등록했습니다.");
+  };
+
+  const handleRegisterPdfCompanyPerformances = async (rows: EngineerPdfExtractionRow[]) => {
+    const newRows = rows.filter((row) => row.values._excluded !== "Y" && !/^\d+$/.test(row.values._existing_seq ?? ""));
+    const requests: CompanyPerformanceUpsertRequest[] = newRows.map((row) => {
+      const values = row.values;
+      const amountInMillions = Number((values.contract_amt_million ?? "").replace(/,/g, ""));
+      return {
+        businessType: values.business_type?.trim() || null,
+        clientKind: null,
+        contractAmt: Number.isFinite(amountInMillions) && amountInMillions !== 0 ? Math.round(amountInMillions * 1_000_000) : null,
+        contractFromDate: null,
+        contractToDate: null,
+        createdId: null,
+        divisionRate: null,
+        generalManagementYn: false,
+        jobFinishYn: null,
+        jobOwnYn: values.job_own_yn?.trim().toUpperCase() === "Y",
+        jobRatio: null,
+        jobSeq: null,
+        jobType: values.job_type?.trim() || null,
+        jobName: values.job_name?.trim() || null,
+        lastChangedId: null,
+        orderClient: values.order_client?.trim() || null,
+        overseeYn: false,
+        ownAmt: null,
+        remark: values.remark?.trim() || null,
+        stopDate: null,
+        summary: values.summary?.trim() || null,
+      };
+    });
+    const saved = requests.length > 0 ? await createCompanyPerformances(requests) : [];
+    const existingLinks = rows.flatMap((row) => /^\d+$/.test(row.values._existing_seq ?? "")
+      ? [{ companyRowNumber: row.rowNumber, jobName: row.values.job_name?.trim() || undefined, seq: Number(row.values._existing_seq) }]
+      : []);
+    const newLinks = saved.map((record, index) => ({ companyRowNumber: newRows[index].rowNumber, jobName: newRows[index].values.job_name?.trim() || undefined, seq: record.seq }));
+    showSuccess(`회사 실적 신규 ${saved.length}건을 등록하고 기존 ${existingLinks.length}건을 연결했습니다.`);
+    return [...existingLinks, ...newLinks];
+  };
+
   const handleSaveMaster = async () => {
     if (!selectedEngineer) {
       return;
@@ -981,11 +1244,6 @@ export function EngineerPersonalInfoPage() {
 
     return Math.min(Math.max(Math.round(nextWidth), SUMMARY_PANEL_MIN_WIDTH), Math.min(SUMMARY_PANEL_MAX_WIDTH, maxWidthFromViewport));
   }, []);
-
-  const clampSummaryPanelHeight = useCallback(
-    (nextHeight: number) => Math.min(Math.max(Math.round(nextHeight), SUMMARY_PANEL_MIN_HEIGHT), SUMMARY_PANEL_MAX_HEIGHT),
-    [],
-  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -1924,14 +2182,18 @@ export function EngineerPersonalInfoPage() {
       >
         <ResizableCard
           height={summaryPanelHeight}
-          maxHeight={SUMMARY_PANEL_MAX_HEIGHT}
           minWidth={SUMMARY_PANEL_MIN_WIDTH}
-          minHeight={SUMMARY_PANEL_MIN_HEIGHT}
           maxWidth={SUMMARY_PANEL_MAX_WIDTH}
-          onHeightChange={(nextHeight) => setSummaryPanelHeight(clampSummaryPanelHeight(nextHeight))}
           onWidthChange={(nextWidth) => setSummaryPanelWidth(clampSummaryPanelWidth(nextWidth))}
-          resizeEdges={["right", "bottom"]}
-          sx={{ alignSelf: "stretch", height: { xs: summaryPanelHeight, lg: historyCardHeight || "auto" }, minHeight: { xs: SUMMARY_PANEL_MIN_HEIGHT, lg: 0 } }}
+          resizeEdges={["right"]}
+          sx={{
+            alignSelf: "stretch",
+            height: {
+              xs: summaryPanelHeight,
+              lg: historyCardHeight || summaryPanelHeight,
+            },
+            minHeight: { xs: SUMMARY_PANEL_MIN_HEIGHT, lg: 0 },
+          }}
           width={summaryPanelWidth}
         >
           <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -1971,7 +2233,7 @@ export function EngineerPersonalInfoPage() {
         </ResizableCard>
 
         <Box sx={{ minWidth: 0 }}>
-          <Stack spacing={2}>
+          <Stack ref={historyCardRef} spacing={2}>
             <Card>
               <CardContent>
                 <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
@@ -1987,6 +2249,15 @@ export function EngineerPersonalInfoPage() {
                   </Box>
                   {selectedEngineer ? (
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <input ref={pdfInputRef} accept="application/pdf,.pdf" hidden type="file" onChange={handlePdfFileChange} />
+                      <Button
+                        disabled={(!canCreate && !canUpdate) || Boolean(selectedEngineer.summary.isNew)}
+                        onClick={() => pdfInputRef.current?.click()}
+                        startIcon={<UploadFileOutlinedIcon />}
+                        variant="outlined"
+                      >
+                        PDF 업로드
+                      </Button>
                       <Button
                         disabled={!canCreate || Boolean(selectedEngineer.summary.isNew)}
                         onClick={handleNew}
@@ -2140,7 +2411,29 @@ export function EngineerPersonalInfoPage() {
 
             {confirmationDialog}
 
-            <Box ref={historyCardRef}>
+            {pdfDialogOpen ? (
+              <EngineerPdfExtractionReviewDialog
+                key={pdfFile?.name ?? "pdf-extraction"}
+                canCreate={canCreate}
+                canUpdate={canUpdate}
+                certificationNameByCode={certificationNameByCode}
+                degreeNameByCode={degreeNameByCode}
+                file={pdfFile}
+                onClose={() => {
+                  setPdfDialogOpen(false);
+                  setPdfFile(null);
+                }}
+                onRegisterCompanyPerformances={handleRegisterPdfCompanyPerformances}
+                onRegisterPersonnel={handleRegisterPdfPersonnel}
+                onRegisterProjectHistories={handleRegisterPdfProjectHistories}
+                onUpdatePersonnelBasic={handleUpdatePdfPersonnelBasic}
+                onUpsertPersonnelSection={handleUpsertPdfPersonnelSection}
+                open={pdfDialogOpen}
+                selectedEngineer={selectedEngineer}
+              />
+            ) : null}
+
+            <Box>
             <EngineerHistoryTabs
               awardGridApiRef={awardGridApiRef}
               awardGridColumns={awardGridColumns}

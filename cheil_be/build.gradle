@@ -48,6 +48,9 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-webmvc:${springBootVersion}"
     implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
     implementation "org.apache.pdfbox:pdfbox:${pdfboxVersion}"
+    implementation("technology.tabula:tabula:1.0.5") {
+        exclude group: "org.slf4j", module: "slf4j-simple"
+    }
     implementation "net.ttddyy.observation:datasource-micrometer:${datasourceMicrometerVersion}"
     implementation "org.aspectj:aspectjweaver:${aspectjVersion}"
     implementation "com.google.code.gson:gson:${gsonVersion}"

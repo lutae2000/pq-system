@@ -488,6 +488,33 @@ function mapSchoolRowsToRequest(engrId: string, rows: EngineerProfileView["educa
   }));
 }
 
+function mapCareerDetailRowsToRequest(engrId: string, rows: EngineerProfileView["careerDetails"]): BackendEngineerCareerDetail[] {
+  return (rows ?? []).map((row) => ({
+    compName: row.compName || null,
+    deptName: row.deptName || null,
+    duty: row.duty || null,
+    engLevel: row.engLevel || null,
+    engrId,
+    endDt: normalizeRequestDate(row.endDate),
+    grade: row.grade || null,
+    jobClass: row.jobClass || null,
+    jobName: row.jobName || null,
+    jobPart: row.jobPart || null,
+    jobTag: row.jobTag || null,
+    joinDay: row.joinDay || null,
+    joinYn: row.joinYn || null,
+    method: null,
+    partDay: row.partDay || null,
+    proPart: row.proPart || null,
+    recordId: row.recordId ?? numericRecordId(row.id),
+    remark: row.remark || null,
+    returnYn: row.returnYn || null,
+    selectDay: row.selectDay || null,
+    seq: row.seq || null,
+    startDt: normalizeRequestDate(row.startDate),
+  }));
+}
+
 export async function listEngineerProfiles(filters: EngineerProfileListFilters = {}): Promise<EngineerProfileView[]> {
   const pageSize = 1000;
   const requestPage = (page: number) =>
@@ -513,6 +540,14 @@ export async function getEngineerProfile(engrId: string): Promise<EngineerProfil
     "Failed to load the engineer profile.",
   );
   return mapProfile(profile);
+}
+
+export async function findEngineerIdentityMatches(nameKor: string, birthday: string): Promise<EngineerProfileView[]> {
+  const profiles = await apiRequest<BackendEngineerProfile[]>(
+    apiClient.get("/pq/engineers/identity-matches", { params: { nameKor, birthday } }),
+    "동일한 기술인 정보를 확인하지 못했습니다.",
+  );
+  return profiles.map(mapProfile);
 }
 
 export async function listSelectedEngineerProfilesForBidNotice(params: {
@@ -555,10 +590,17 @@ export async function saveEngineerProfile(profile: EngineerProfileView): Promise
   return saveEngineerMaster(profile.summary.id, profile);
 }
 
-export async function saveEngineerMaster(engrId: string, profile: EngineerProfileView): Promise<EngineerProfileView> {
+export async function saveEngineerMaster(
+  engrId: string,
+  profile: EngineerProfileView,
+  options: { allowDuplicate?: boolean } = {},
+): Promise<EngineerProfileView> {
   const requestBody = mapProfileToRequest(profile);
   const saved = profile.summary?.isNew
-    ? await apiRequest<BackendEngineerProfile>(apiClient.post("/pq/engineers", requestBody), "Failed to save engineer profile.")
+    ? await apiRequest<BackendEngineerProfile>(
+        apiClient.post("/pq/engineers", requestBody, { params: { allowDuplicate: Boolean(options.allowDuplicate) } }),
+        "Failed to save engineer profile.",
+      )
     : await apiRequest<BackendEngineerProfile>(
         apiClient.put(`/pq/engineers/${encodeURIComponent(engrId)}/master`, requestBody.basic),
         "Failed to save engineer profile.",
@@ -602,6 +644,14 @@ export async function saveEngineerSchools(engrId: string, educations: EngineerPr
   const saved = await apiRequest<BackendEngineerProfile>(
     apiClient.put(`/pq/engineers/${encodeURIComponent(engrId)}/schools`, mapSchoolRowsToRequest(engrId, educations)),
     "Failed to save engineer profile.",
+  );
+  return mapProfile(saved);
+}
+
+export async function saveEngineerCareerDetails(engrId: string, rows: EngineerProfileView["careerDetails"]): Promise<EngineerProfileView> {
+  const saved = await apiRequest<BackendEngineerProfile>(
+    apiClient.put(`/pq/engineers/${encodeURIComponent(engrId)}/career-details`, mapCareerDetailRowsToRequest(engrId, rows)),
+    "기술경력을 저장하지 못했습니다.",
   );
   return mapProfile(saved);
 }

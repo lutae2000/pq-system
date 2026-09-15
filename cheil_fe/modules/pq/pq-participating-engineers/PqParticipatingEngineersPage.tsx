@@ -1111,6 +1111,15 @@ export function PqParticipatingEngineersPage() {
           onChange={(_, option) => setFilters((current) => ({ ...current, designGrade: option?.value ?? "" }))}
           renderInput={(params) => <TextField {...params} label="설계등급" size="small" sx={standardFieldSx} />}
         />
+        <Autocomplete
+          options={gradeOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.value === value.value}
+          sx={filterAutocompleteSx}
+          value={gradeOptions.find((option) => option.value === filters.constructionManagementGrade) ?? null}
+          onChange={(_, option) => setFilters((current) => ({ ...current, constructionManagementGrade: option?.value ?? "" }))}
+          renderInput={(params) => <TextField {...params} label="건설사업 관리 등급" size="small" sx={standardFieldSx} />}
+        />
 
         <Box sx={companyPerformanceRowSx}>
           <Box sx={{ display: "grid", gap: 0.75, width: "100%" }}>

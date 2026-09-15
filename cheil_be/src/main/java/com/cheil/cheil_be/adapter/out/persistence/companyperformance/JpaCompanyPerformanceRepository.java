@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceSearchCondition;
@@ -35,8 +36,9 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
         if (condition != null) {
             if (StringUtils.hasText(condition.keyword())) {
                 String keyword = "%" + condition.keyword().trim().toLowerCase(Locale.ROOT) + "%";
+                String compactKeyword = "%" + condition.keyword().trim().replaceAll("\\s+", "").toLowerCase(Locale.ROOT) + "%";
                 where.and(
-                        companyPerformanceEntity.jobName.lower().like(keyword)
+                        Expressions.stringTemplate("replace({0}, ' ', '')", companyPerformanceEntity.jobName).lower().like(compactKeyword)
                                 .or(companyPerformanceEntity.orderClient.lower().like(keyword))
                                 .or(companyPerformanceEntity.summary.lower().like(keyword))
                                 .or(companyPerformanceEntity.remark.lower().like(keyword))

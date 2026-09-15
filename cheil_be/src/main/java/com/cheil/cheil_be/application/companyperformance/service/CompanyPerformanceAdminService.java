@@ -2,6 +2,7 @@ package com.cheil.cheil_be.application.companyperformance.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,14 @@ public class CompanyPerformanceAdminService {
         return companyPerformanceRepository.save(
                 toDomain(command, null, now, createdId, now, lastChangedId)
         );
+    }
+
+    @Transactional
+    public List<CompanyPerformance> createAll(List<CompanyPerformanceUpsertCommand> commands) {
+        if (commands == null || commands.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "등록할 회사 실적이 없습니다.");
+        }
+        return commands.stream().map(this::create).toList();
     }
 
     @Transactional

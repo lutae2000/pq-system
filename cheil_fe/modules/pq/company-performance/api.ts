@@ -59,6 +59,23 @@ export type CompanyPerformanceUpsertRequest = Omit<
   "seq" | "createdAt" | "lastChangedAt"
 >;
 
+export type CompanyPerformanceMatchCandidate = {
+  seq: number;
+  jobOwnYn: boolean;
+  jobName: string;
+  similarity: number;
+  summary: string | null;
+  orderClient: string | null;
+  jobType: string | null;
+  contractAmt: number | null;
+  remark: string | null;
+};
+
+export type CompanyPerformanceMatchResult = {
+  sourceJobName: string;
+  candidates: CompanyPerformanceMatchCandidate[];
+};
+
 export type CompanyPerformanceEngineerRecord = {
   id: number;
   isNew?: boolean;
@@ -423,6 +440,20 @@ export async function deleteCompanyPerformanceOutline(seq: number, outlineId: nu
 
 export async function createCompanyPerformance(requestBody: CompanyPerformanceUpsertRequest): Promise<CompanyPerformanceRecord> {
   return apiRequest(apiClient.post<CompanyPerformanceRecord>(COMPANY_PERFORMANCES_API, requestBody), "회사실적 정보를 저장하지 못했습니다.");
+}
+
+export async function createCompanyPerformances(requestBody: CompanyPerformanceUpsertRequest[]): Promise<CompanyPerformanceRecord[]> {
+  return apiRequest(
+    apiClient.post<CompanyPerformanceRecord[]>(`${COMPANY_PERFORMANCES_API}/batch`, requestBody),
+    "회사실적 정보를 일괄 저장하지 못했습니다.",
+  );
+}
+
+export async function findCompanyPerformanceMatchCandidates(jobNames: string[], threshold = 0.8): Promise<CompanyPerformanceMatchResult[]> {
+  return apiRequest(
+    apiClient.post<CompanyPerformanceMatchResult[]>(`${COMPANY_PERFORMANCES_API}/match-candidates`, { jobNames, threshold }),
+    "기존 회사실적의 유사 사업명을 확인하지 못했습니다.",
+  );
 }
 
 export async function updateCompanyPerformance(

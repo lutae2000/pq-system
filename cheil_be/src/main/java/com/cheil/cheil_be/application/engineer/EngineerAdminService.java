@@ -70,14 +70,32 @@ public class EngineerAdminService {
         return toProfile(findMaster(engrId));
     }
 
+    @Transactional(readOnly = true)
+    public List<EngineerDtos.Profile> findIdentityMatches(String nameKor, String birthday) {
+        String normalizedName = EngineerEntityUtils.clean(nameKor);
+        String normalizedBirthday = EngineerEntityUtils.date(birthday);
+        if (normalizedName == null || normalizedBirthday == null) {
+            return List.of();
+        }
+        return masterRepository.findByNameKorIgnoreCaseAndBirthdayOrderByEngrId(normalizedName, normalizedBirthday)
+                .stream()
+                .map(this::toProfile)
+                .toList();
+    }
+
     @Transactional
     public EngineerDtos.Profile create(EngineerDtos.Profile request) {
+        return create(request, false);
+    }
+
+    @Transactional
+    public EngineerDtos.Profile create(EngineerDtos.Profile request, boolean allowDuplicate) {
         EngineerDtos.Basic basic = requireBasic(request);
         String engrId = requireEngrId(basic.engrId());
         if (masterRepository.existsById(engrId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Engineer already exists.");
         }
-        validateDuplicate(basic, engrId);
+        if (!allowDuplicate) validateDuplicate(basic, engrId);
         masterRepository.save(EngineerMasterEntity.from(basic, engrId));
         return findByEngrId(engrId);
     }
@@ -116,7 +134,7 @@ public class EngineerAdminService {
         }
 
         if (masterRepository.existsDuplicate(nameKor, birthday, engrId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "중복된 기술인이 있습니다.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 기술인이 있습니다.");
         }
     }
 
@@ -186,7 +204,18 @@ public class EngineerAdminService {
 
     @Transactional
     public EngineerDtos.Profile saveCareerDetails(String engrId, List<EngineerDtos.CareerDetail> rows) {
-        return findByEngrId(requireExistingEngrId(engrId));
+        String id = requireExistingEngrId(engrId);
+        syncChildRows(
+                id,
+                rows,
+                projectHistoryRepository::findByEngrIdOrderByStartDtDescIdDesc,
+                projectHistoryRepository,
+                entity -> entity.id,
+                EngineerDtos.CareerDetail::recordId,
+                EngineerProjectHistoryEntity::from,
+                EngineerProjectHistoryEntity::updateFrom
+        );
+        return findByEngrId(id);
     }
 
     @Transactional
@@ -231,7 +260,8 @@ public class EngineerAdminService {
 
     @Transactional
     public EngineerDtos.Profile deleteCareerDetail(String engrId, Long recordId) {
-        return findByEngrId(requireExistingEngrId(engrId));
+        deleteChild(engrId, recordId, projectHistoryRepository);
+        return findByEngrId(engrId);
     }
 
     @Transactional

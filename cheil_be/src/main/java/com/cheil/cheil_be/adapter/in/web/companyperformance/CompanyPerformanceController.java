@@ -20,6 +20,7 @@ import com.cheil.cheil_be.application.companyperformance.service.CompanyPerforma
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceContractPeriodQueryService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceConstructionKindQueryService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceEngineerQueryService;
+import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceMatchService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceOutlineQueryService;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
@@ -34,6 +35,7 @@ public class CompanyPerformanceController {
     private final CompanyPerformanceContractPeriodQueryService companyPerformanceContractPeriodQueryService;
     private final CompanyPerformanceConstructionKindQueryService companyPerformanceConstructionKindQueryService;
     private final CompanyPerformanceEngineerQueryService companyPerformanceEngineerQueryService;
+    private final CompanyPerformanceMatchService companyPerformanceMatchService;
     private final CompanyPerformanceOutlineQueryService companyPerformanceOutlineQueryService;
 
     /**
@@ -116,6 +118,13 @@ public class CompanyPerformanceController {
     @GetMapping("/{seq}")
     public ResponseEntity<CompanyPerformanceResponse> get(@PathVariable Long seq) {
         return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminService.findById(seq)));
+    }
+
+    @PostMapping("/match-candidates")
+    public ResponseEntity<List<CompanyPerformanceMatchResponse>> matchCandidates(
+            @RequestBody CompanyPerformanceMatchRequest request
+    ) {
+        return ResponseEntity.ok(companyPerformanceMatchService.findMatches(request.jobNames(), request.threshold()));
     }
 
     /**
@@ -307,6 +316,16 @@ public class CompanyPerformanceController {
         companyPerformanceAdminService.findById(seq);
         companyPerformanceOutlineQueryService.delete(seq, outlineId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 회사 실적을 일괄 신규 등록한다.
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<CompanyPerformanceResponse>> createAll(@RequestBody List<CompanyPerformanceUpsertRequest> requests) {
+        return ResponseEntity.ok(companyPerformanceAdminService.createAll(
+                requests.stream().map(CompanyPerformanceUpsertRequest::toCommand).toList()
+        ).stream().map(CompanyPerformanceResponse::from).toList());
     }
 
     /**

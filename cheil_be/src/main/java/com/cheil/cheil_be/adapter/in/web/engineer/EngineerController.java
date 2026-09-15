@@ -67,12 +67,23 @@ public class EngineerController {
         return ResponseEntity.ok(engineerAdminService.findByEngrId(engrId));
     }
 
+    @GetMapping("/identity-matches")
+    public ResponseEntity<List<EngineerDtos.Profile>> findIdentityMatches(
+            @RequestParam String nameKor,
+            @RequestParam String birthday
+    ) {
+        return ResponseEntity.ok(engineerAdminService.findIdentityMatches(nameKor, birthday));
+    }
+
     /**
      * 기술자를 신규 등록한다.
      */
     @PostMapping
-    public ResponseEntity<EngineerDtos.Profile> create(@RequestBody EngineerDtos.Profile request) {
-        return ResponseEntity.ok(engineerAdminService.create(request));
+    public ResponseEntity<EngineerDtos.Profile> create(
+            @RequestParam(required = false, defaultValue = "false") boolean allowDuplicate,
+            @RequestBody EngineerDtos.Profile request
+    ) {
+        return ResponseEntity.ok(engineerAdminService.create(request, allowDuplicate));
     }
 
     /**
