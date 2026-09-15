@@ -13,13 +13,19 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
+import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
+
 @Service
 @RequiredArgsConstructor
 public class ProjectHistoryConditionMetadataService {
 
+    private static final String CONDITION_CODE_GROUP = "PQCT";
     private static final String IDENTIFIER_PATTERN = "[a-zA-Z_][a-zA-Z0-9_]*";
 
     private final JdbcClient jdbcClient;
+    private final CommonCodeRepository commonCodeRepository;
+    private final CommonCodeCacheService commonCodeCacheService;
     private final Gson gson = new Gson();
 
     public Map<String, ProjectHistoryConditionMetadata> findAll() {
@@ -34,23 +40,21 @@ public class ProjectHistoryConditionMetadataService {
                 .list()
                 .stream()
                 .collect(java.util.stream.Collectors.toCollection(HashSet::new));
-        jdbcClient.sql("""
-                SELECT level2_code, level3_code, ref_value1
-                FROM common_codes
-                WHERE level1_code = 'PQCT'
-                  AND use_yn = TRUE
-                  AND level3_code IS NOT NULL
-                  AND level3_code <> ''
-                """)
-                .query((rs, rowNum) -> new String[]{
-                        rs.getString("level2_code"), rs.getString("level3_code"), rs.getString("ref_value1")
-                })
-                .list()
-                .forEach(row -> {
-                    ProjectHistoryConditionMetadata metadata = parse(row[2]);
+        commonCodeCacheService.getOrLoadByLevel1Code(
+                        CONDITION_CODE_GROUP,
+                        () -> commonCodeRepository.findAllByLevel1Code(CONDITION_CODE_GROUP, Boolean.TRUE)
+                )
+                .items()
+                .stream()
+                .filter(commonCode -> StringUtils.hasText(commonCode.level3Code()))
+                .forEach(commonCode -> {
+                    ProjectHistoryConditionMetadata metadata = parse(commonCode.refValue1());
                     if (metadata != null && existingColumns.contains(metadata.table().toLowerCase(Locale.ROOT)
                             + ":" + metadata.column().toLowerCase(Locale.ROOT))) {
-                        result.putIfAbsent(normalize(row[0]) + normalize(row[1]), metadata);
+                        result.putIfAbsent(
+                                normalize(commonCode.level2Code()) + normalize(commonCode.level3Code()),
+                                metadata
+                        );
                     }
                 });
         return result;

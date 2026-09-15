@@ -175,6 +175,7 @@ export function TopHeader({
                   borderColor: "divider",
                   flex: "0 0 auto",
                   height: 32,
+                  ml: -1,
                   p: 0,
                   width: 32,
                   "&:hover": {

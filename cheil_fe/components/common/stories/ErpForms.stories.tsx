@@ -40,7 +40,6 @@ function FormsExample() {
           />
         }
         columns={3}
-        description="ERP 상세 화면에서 반복되는 섹션 레이아웃입니다."
         title="기본 정보"
       >
         <TextField fullWidth label="프로젝트 코드" size="small" sx={standardFieldSx} value="PJ-2026-001" />

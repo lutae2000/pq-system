@@ -76,14 +76,14 @@ public class CommonCodeAdminService {
                     level1Code,
                     level2Code,
                     () -> commonCodeRepository.findAllByLevel1CodeAndLevel2Code(level1Code, level2Code, useYn)
-            );
+            ).items();
         }
 
         if (level1Code != null && !level1Code.isBlank()) {
             return commonCodeCacheService.getOrLoadByLevel1Code(
                     level1Code,
                     () -> commonCodeRepository.findAllByLevel1Code(level1Code, useYn)
-            );
+            ).items();
         }
 
         if (codeLevel != null) {

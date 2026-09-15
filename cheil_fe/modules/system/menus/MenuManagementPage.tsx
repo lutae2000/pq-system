@@ -402,7 +402,6 @@ export function MenuManagementPage() {
     <Box>
       <PageHeader
         title="메뉴 관리"
-        description="시스템 메뉴 구조를 트리로 보고, 오른쪽에서 바로 추가·수정·삭제할 수 있습니다."
       />
 
       <SearchPanel

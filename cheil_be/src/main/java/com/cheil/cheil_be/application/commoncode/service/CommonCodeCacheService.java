@@ -41,23 +41,23 @@ public class CommonCodeCacheService {
             cacheNames = LEVEL1_CACHE,
             key = "T(com.cheil.cheil_be.common.cache.CacheKeys).commonCodeLevel1(#level1Code)"
     )
-    public List<CommonCode> getOrLoadByLevel1Code(
+    public CachedCommonCodes getOrLoadByLevel1Code(
             String level1Code,
             Supplier<List<CommonCode>> dbLoader
     ) {
-        return dbLoader.get();
+        return new CachedCommonCodes(dbLoader.get());
     }
 
     @Cacheable(
             cacheNames = LEVEL2_CACHE,
             key = "T(com.cheil.cheil_be.common.cache.CacheKeys).commonCodeLevel2(#level1Code, #level2Code)"
     )
-    public List<CommonCode> getOrLoadByLevel2Code(
+    public CachedCommonCodes getOrLoadByLevel2Code(
             String level1Code,
             String level2Code,
             Supplier<List<CommonCode>> dbLoader
     ) {
-        return dbLoader.get();
+        return new CachedCommonCodes(dbLoader.get());
     }
 
     public List<CommonCode> getOrLoadAll(Supplier<List<CommonCode>> dbLoader) {
@@ -111,6 +111,13 @@ public class CommonCodeCacheService {
             }
         } catch (RuntimeException ex) {
             log.debug("Failed to evict common code cache. cache={}, key={}", cacheName, key, ex);
+        }
+    }
+
+    public record CachedCommonCodes(List<CommonCode> items) {
+
+        public CachedCommonCodes {
+            items = items == null ? List.of() : List.copyOf(items);
         }
     }
 }
