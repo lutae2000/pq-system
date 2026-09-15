@@ -12,6 +12,8 @@ export type EngineerPdfExtraction = {
   basic: {
     name: string;
     birthDate: string;
+    department: string;
+    position: string;
     workField: string;
     specialtyField: string;
     designGrade: string;

@@ -230,6 +230,8 @@ export function mergePdfExtractionWithProfile(
     basic: {
       name: normalizedExtraction.basic.name || profile.summary.name,
       birthDate: normalizedExtraction.basic.birthDate || profile.detail.birthDate,
+      department: profile.summary.department,
+      position: profile.summary.position,
       workField: normalizedExtraction.basic.workField || profile.detail.jobField || profile.summary.workField,
       specialtyField: normalizedExtraction.basic.specialtyField || profile.detail.specialtyField,
       designGrade: normalizedExtraction.basic.designGrade || profile.detail.technicalField,

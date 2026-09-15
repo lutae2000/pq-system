@@ -963,6 +963,8 @@ export function EngineerPersonalInfoPage() {
     const nextProfile = createEmptyEngineerProfile(nextId, filters);
     const birthDate = formatDate8(extraction.basic.birthDate);
     nextProfile.summary.name = extraction.basic.name || nextProfile.summary.name;
+    nextProfile.summary.department = extraction.basic.department || "";
+    nextProfile.summary.position = extraction.basic.position || "";
     nextProfile.summary.workField = extraction.basic.workField || nextProfile.summary.workField;
     nextProfile.detail.birthDate = birthDate;
     nextProfile.detail.age = calculateAge(birthDate) ?? 0;
@@ -1084,6 +1086,8 @@ export function EngineerPersonalInfoPage() {
       summary: {
         ...current.summary,
         name: parsed.summary.name,
+        department: parsed.summary.department,
+        position: parsed.summary.position,
         workField: parsed.summary.workField,
       },
       detail: {
@@ -1103,7 +1107,7 @@ export function EngineerPersonalInfoPage() {
 
   const handleUpsertPdfPersonnelSection = async (engineerId: string, sectionKey: string, rows: EngineerPdfExtractionRow[]) => {
     const sectionExtraction: EngineerPdfExtraction = {
-      basic: { name: "", birthDate: "", workField: "", specialtyField: "", designGrade: "", constructionManagementGrade: "" },
+      basic: { name: "", birthDate: "", department: "", position: "", workField: "", specialtyField: "", designGrade: "", constructionManagementGrade: "" },
       extractedText: "",
       fileName: "",
       sections: { [sectionKey]: rows },
@@ -2256,7 +2260,7 @@ export function EngineerPersonalInfoPage() {
                         startIcon={<UploadFileOutlinedIcon />}
                         variant="outlined"
                       >
-                        PDF 업로드
+                        경력증명서 PDF 자동입력
                       </Button>
                       <Button
                         disabled={!canCreate || Boolean(selectedEngineer.summary.isNew)}

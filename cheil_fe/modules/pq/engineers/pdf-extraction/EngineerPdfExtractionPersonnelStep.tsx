@@ -32,6 +32,8 @@ type Props = {
 const emptyBasic: EngineerPdfExtraction["basic"] = {
   name: "",
   birthDate: "",
+  department: "",
+  position: "",
   workField: "",
   specialtyField: "",
   designGrade: "",
@@ -76,8 +78,7 @@ export function EngineerPdfExtractionPersonnelStep({ active, certificationNameBy
   const reviewedResult = (): EngineerPdfExtraction => ({
       ...result,
       basic: {
-        ...result.basic,
-        ...basic,
+        ...displayBasic,
         designGrade: matchedDesignGrade?.value ?? "",
         constructionManagementGrade: matchedConstructionManagementGrade?.value ?? "",
         workField: matchedJobField?.value ?? "",
@@ -130,15 +131,17 @@ export function EngineerPdfExtractionPersonnelStep({ active, certificationNameBy
     {hasReferenceMismatch ? <Alert severity="warning" sx={{ mb: 1.25 }}>등급, 직무분야 또는 전문분야의 추출값과 일치하는 공통코드가 없습니다. 해당 항목을 직접 선택해 주세요.</Alert> : null}
     <SectionFrame
       title="기본정보"
-      actions={mode === "update" ? <Button disabled={disabled || savingSection !== "" || hasReferenceMismatch || !displayBasic.name || !displayBasic.birthDate} size="small" startIcon={<SaveOutlinedIcon />} variant="contained" onClick={() => setPendingUpdate({ key: "basic", label: "기본정보" })}>기본정보 업데이트</Button> : undefined}
+      actions={mode === "update" ? <Button disabled={disabled || savingSection !== "" || !displayBasic.name || !displayBasic.birthDate} size="small" startIcon={<SaveOutlinedIcon />} variant="contained" onClick={() => setPendingUpdate({ key: "basic", label: "기본정보" })}>기본정보 업데이트</Button> : undefined}
     >
       <Grid container spacing={0.75} sx={{ p: 0.75 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth label="성명" size="small" value={displayBasic.name} onChange={(event) => updateBasic("name", event.target.value)} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><TextField fullWidth label="생년월일" size="small" type="date" value={displayBasic.birthDate} onChange={(event) => updateBasic("birthDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><Autocomplete fullWidth options={jobFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedJobField} onChange={(_, option) => updateBasic("workField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.workField && !matchedJobField)} helperText={displayBasic.workField && !matchedJobField ? `추출값: ${displayBasic.workField}` : undefined} label="직무분야" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><Autocomplete fullWidth options={specialtyFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedSpecialtyField} onChange={(_, option) => updateBasic("specialtyField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.specialtyField && !matchedSpecialtyField)} helperText={displayBasic.specialtyField && !matchedSpecialtyField ? `추출값: ${displayBasic.specialtyField}` : undefined} label="전문분야" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedDesignGrade} onChange={(_, option) => updateBasic("designGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.designGrade && !matchedDesignGrade)} helperText={displayBasic.designGrade && !matchedDesignGrade ? `추출값: ${displayBasic.designGrade}` : undefined} label="설계 등급" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedConstructionManagementGrade} onChange={(_, option) => updateBasic("constructionManagementGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade)} helperText={displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade ? `추출값: ${displayBasic.constructionManagementGrade}` : undefined} label="건설사업관리 등급" size="small" />} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="성명" size="small" value={displayBasic.name} onChange={(event) => updateBasic("name", event.target.value)} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="생년월일" size="small" type="date" value={displayBasic.birthDate} onChange={(event) => updateBasic("birthDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="부서" size="small" value={displayBasic.department} onChange={(event) => updateBasic("department", event.target.value)} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="직위" size="small" value={displayBasic.position} onChange={(event) => updateBasic("position", event.target.value)} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={jobFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedJobField} onChange={(_, option) => updateBasic("workField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.workField && !matchedJobField)} helperText={displayBasic.workField && !matchedJobField ? `추출값: ${displayBasic.workField}` : undefined} label="직무분야" size="small" />} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={specialtyFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedSpecialtyField} onChange={(_, option) => updateBasic("specialtyField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.specialtyField && !matchedSpecialtyField)} helperText={displayBasic.specialtyField && !matchedSpecialtyField ? `추출값: ${displayBasic.specialtyField}` : undefined} label="전문분야" size="small" />} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedDesignGrade} onChange={(_, option) => updateBasic("designGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.designGrade && !matchedDesignGrade)} helperText={displayBasic.designGrade && !matchedDesignGrade ? `추출값: ${displayBasic.designGrade}` : undefined} label="설계 등급" size="small" />} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedConstructionManagementGrade} onChange={(_, option) => updateBasic("constructionManagementGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade)} helperText={displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade ? `추출값: ${displayBasic.constructionManagementGrade}` : undefined} label="건설사업관리 등급" size="small" />} /></Grid>
       </Grid>
     </SectionFrame>
     <Grid container spacing={1.25} sx={{ mt: 0 }}>
