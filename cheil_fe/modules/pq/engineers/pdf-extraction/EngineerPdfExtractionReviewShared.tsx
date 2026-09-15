@@ -306,8 +306,9 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
       processRowUpdate={processRowUpdate}
       rows={gridRows}
       getRowHeight={() => rowHeight}
-      getRowClassName={({ row }) => row.values[PDF_MERGE_STATUS_FIELD] === "update"
-        ? "pdf-merge-update"
+      getRowClassName={({ row }) => sectionKey === "projectHistories" && row.comparisonSide !== "db" && row.values.compname_uncertain === "Y"
+        ? "pdf-project-review-needed"
+        : row.values[PDF_MERGE_STATUS_FIELD] === "update" ? "pdf-merge-update"
         : row.comparisonSide === "db" ? "pdf-merge-db"
         : sectionKey === "companyPerformances" && Boolean(row.values._existing_seq) && row.values._manual_link !== "Y" ? "pdf-merge-review-needed"
         : row.values[PDF_MERGE_STATUS_FIELD] === "insert" ? "pdf-merge-insert" : ""}
@@ -325,6 +326,10 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
         "& .MuiDataGrid-row.pdf-merge-db > .MuiDataGrid-cell": { backgroundColor: "rgba(33, 150, 243, 0.09) !important" },
         "& .MuiDataGrid-row.pdf-merge-insert > .MuiDataGrid-cell": { backgroundColor: "rgba(255, 193, 7, 0.2) !important" },
         "& .MuiDataGrid-row.pdf-merge-review-needed > .MuiDataGrid-cell": { backgroundColor: "rgba(198, 40, 40, 0.28) !important" },
+        "& .MuiDataGrid-row.pdf-project-review-needed > .MuiDataGrid-cell": {
+          backgroundColor: "rgba(123, 31, 162, 0.2) !important",
+          borderBottomColor: "rgba(123, 31, 162, 0.45)",
+        },
         "& .MuiDataGrid-cell.pdf-field-changed": {
           backgroundColor: "rgba(244, 67, 54, 0.24) !important",
           boxShadow: "inset 3px 0 0 #d32f2f",

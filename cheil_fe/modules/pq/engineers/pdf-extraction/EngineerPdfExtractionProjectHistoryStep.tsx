@@ -59,7 +59,7 @@ export function EngineerPdfExtractionProjectHistoryStep({ active, companyPerform
     {missingCompanyPerformanceCount > 0 ? <Alert severity="warning" sx={{ mb: 1.25 }}>회사 실적과 연결되지 않은 기술경력이 {missingCompanyPerformanceCount}건 있습니다.</Alert> : null}
     {uncertainCompanyCount > 0 ? (
       <Alert severity="warning" sx={{ mb: 1.25 }}>
-        노란색 참여회사 셀 {uncertainCompanyCount}건은 기술경력 참여기간과 근무처 재직기간이 정확히 대응되지 않아 확인이 필요합니다. 참여회사를 직접 수정하면 표시가 해제됩니다.
+        보라색 행 {uncertainCompanyCount}건은 기술경력 참여기간과 근무처 재직기간이 정확히 대응되지 않아 확인이 필요합니다. 참여회사를 직접 수정하면 표시가 해제됩니다.
       </Alert>
     ) : null}
     <SectionFrame title="기술경력" count={linkedRows.length}>
