@@ -12,6 +12,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function FilledStory() {
+  const [value, setValue] = useState<KakaoPostcodeResult>({
+    address: "서울특별시 용산구 한강대로 100",
+    addressDetail: "10층",
+    postalCode: "04386",
+  });
+
+  return (
+    <Box sx={{ width: 560 }}>
+      <KakaoPostcodeFields address={value.address} addressDetail={value.addressDetail} onChange={setValue} postalCode={value.postalCode} />
+    </Box>
+  );
+}
+
 export const Filled: Story = {
   args: {
     address: "서울특별시 용산구 한강대로 100",
@@ -19,22 +33,5 @@ export const Filled: Story = {
     onChange: () => undefined,
     postalCode: "04386",
   },
-  render: () => {
-    const [value, setValue] = useState<KakaoPostcodeResult>({
-      address: "서울특별시 용산구 한강대로 100",
-      addressDetail: "10층",
-      postalCode: "04386",
-    });
-
-    return (
-      <Box sx={{ width: 560 }}>
-        <KakaoPostcodeFields
-          address={value.address}
-          addressDetail={value.addressDetail}
-          onChange={setValue}
-          postalCode={value.postalCode}
-        />
-      </Box>
-    );
-  },
+  render: () => <FilledStory />,
 };

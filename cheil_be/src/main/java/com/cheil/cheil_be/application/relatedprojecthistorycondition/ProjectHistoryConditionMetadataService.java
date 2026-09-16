@@ -1,7 +1,6 @@
 package com.cheil.cheil_be.application.relatedprojecthistorycondition;
 
 import java.util.LinkedHashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -9,12 +8,12 @@ import java.util.Set;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.port.out.SchemaMetadataRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -23,23 +22,14 @@ public class ProjectHistoryConditionMetadataService {
     private static final String CONDITION_CODE_GROUP = "PQCT";
     private static final String IDENTIFIER_PATTERN = "[a-zA-Z_][a-zA-Z0-9_]*";
 
-    private final JdbcClient jdbcClient;
+    private final SchemaMetadataRepository schemaMetadataRepository;
     private final CommonCodeRepository commonCodeRepository;
     private final CommonCodeCacheService commonCodeCacheService;
     private final Gson gson = new Gson();
 
     public Map<String, ProjectHistoryConditionMetadata> findAll() {
         Map<String, ProjectHistoryConditionMetadata> result = new LinkedHashMap<>();
-        Set<String> existingColumns = jdbcClient.sql("""
-                SELECT table_name, column_name
-                FROM information_schema.columns
-                WHERE table_schema = current_schema()
-                """)
-                .query((rs, rowNum) -> rs.getString("table_name").toLowerCase(Locale.ROOT)
-                        + ":" + rs.getString("column_name").toLowerCase(Locale.ROOT))
-                .list()
-                .stream()
-                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+        Set<String> existingColumns = schemaMetadataRepository.findExistingColumns();
         commonCodeCacheService.getOrLoadByLevel1Code(
                         CONDITION_CODE_GROUP,
                         () -> commonCodeRepository.findAllByLevel1Code(CONDITION_CODE_GROUP, Boolean.TRUE)

@@ -58,7 +58,9 @@ public class EducationReminderController {
 
     @GetMapping("/basic-infos/{code}/engineers")
     public ResponseEntity<List<EducationReminderBasicInfoEngineerResponse>> listBasicInfoEngineers(@PathVariable String code) {
-        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.findAssignedEngineers(code));
+        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.findAssignedEngineers(code).stream()
+                .map(EducationReminderBasicInfoEngineerResponse::from)
+                .toList());
     }
 
     @PostMapping("/basic-infos/{code}/engineers")
@@ -66,7 +68,9 @@ public class EducationReminderController {
             @PathVariable String code,
             @RequestBody EducationReminderBasicInfoEngineerAssignRequest request
     ) {
-        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.addAssignments(code, request));
+        return ResponseEntity.ok(educationReminderBasicInfoEngineerService.addAssignments(code, request).stream()
+                .map(EducationReminderBasicInfoEngineerResponse::from)
+                .toList());
     }
 
     @DeleteMapping("/basic-infos/{code}/engineers/{engrId}")

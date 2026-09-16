@@ -1,10 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
-import { useMounted } from "@/hooks/useMounted";
-import { readAuthSessionSnapshot, type MenuPermission } from "@/lib/auth/authSession";
+import {
+  getAuthSessionStorageSnapshot,
+  readAuthSessionSnapshot,
+  subscribeAuthSession,
+  type MenuPermission,
+} from "@/lib/auth/authSession";
 
 const matchesPath = (pathname: string, permission: MenuPermission) => {
   if (!permission.menuPath) {
@@ -16,16 +20,11 @@ const matchesPath = (pathname: string, permission: MenuPermission) => {
 
 export function useCurrentMenuPermission() {
   const pathname = usePathname();
-  const mounted = useMounted();
-  const [permissions, setPermissions] = useState<MenuPermission[] | null>(null);
-
-  useEffect(() => {
-    if (!mounted) {
-      return;
-    }
-
-    setPermissions(readAuthSessionSnapshot()?.permissions ?? []);
-  }, [mounted]);
+  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
+  const permissions = useMemo(
+    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
+    [sessionSnapshot],
+  );
 
   return useMemo(() => {
     const permission = permissions
@@ -45,16 +44,11 @@ export function useCurrentMenuPermission() {
 }
 
 export function useMenuPermission(menuCode: string) {
-  const mounted = useMounted();
-  const [permissions, setPermissions] = useState<MenuPermission[] | null>(null);
-
-  useEffect(() => {
-    if (!mounted) {
-      return;
-    }
-
-    setPermissions(readAuthSessionSnapshot()?.permissions ?? []);
-  }, [mounted]);
+  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
+  const permissions = useMemo(
+    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
+    [sessionSnapshot],
+  );
 
   return useMemo(() => {
     const permission = permissions?.find((item) => item.menuCode === menuCode);

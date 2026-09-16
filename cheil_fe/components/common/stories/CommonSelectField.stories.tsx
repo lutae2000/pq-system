@@ -23,6 +23,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function QueryOptionsStory() {
+  const [value, setValue] = useState<"" | Department["code"]>("pq");
+
+  return (
+    <Box sx={{ width: 320 }}>
+      <CommonSelectField
+        label="부서"
+        mapOption={(item: Department) => ({ label: item.name, value: item.code })}
+        onChange={setValue}
+        queryFn={async () => departments}
+        queryKey={["storybook", "departments"]}
+        value={value}
+      />
+    </Box>
+  );
+}
+
 export const QueryOptions: Story = {
   args: {
     label: "부서",
@@ -32,20 +49,5 @@ export const QueryOptions: Story = {
     queryKey: ["storybook", "departments"],
     value: "pq",
   },
-  render: () => {
-    const [value, setValue] = useState<"" | Department["code"]>("pq");
-
-    return (
-      <Box sx={{ width: 320 }}>
-        <CommonSelectField
-          label="부서"
-          mapOption={(item: Department) => ({ label: item.name, value: item.code })}
-          onChange={setValue}
-          queryFn={async () => departments}
-          queryKey={["storybook", "departments"]}
-          value={value}
-        />
-      </Box>
-    );
-  },
+  render: () => <QueryOptionsStory />,
 };

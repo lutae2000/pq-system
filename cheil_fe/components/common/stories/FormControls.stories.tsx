@@ -22,35 +22,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const BasicInputs: Story = {
-  render: () => {
-    const [form, setForm] = useState({ name: "제일엔지니어링", status: "Y" as "Y" | "N", roles: ["admin"] });
+function BasicInputsStory() {
+  const [form, setForm] = useState({ name: "제일엔지니어링", status: "Y" as "Y" | "N", roles: ["admin"] });
 
-    return (
-      <Box sx={{ width: 420 }}>
-        <Stack spacing={2}>
-          <TextInput
-            label="업체명"
-            name="name"
-            onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))}
-            value={form.name}
-          />
-          <SelectInput
-            label="상태"
-            name="status"
-            onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))}
-            options={[...statusOptions]}
-            value={form.status}
-          />
-          <CheckboxListInput
-            label="역할"
-            name="roles"
-            onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))}
-            options={[...roleOptions]}
-            value={form.roles}
-          />
-        </Stack>
-      </Box>
-    );
-  },
+  return (
+    <Box sx={{ width: 420 }}>
+      <Stack spacing={2}>
+        <TextInput label="업체명" name="name" onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))} value={form.name} />
+        <SelectInput label="상태" name="status" onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))} options={[...statusOptions]} value={form.status} />
+        <CheckboxListInput label="역할" name="roles" onChange={(name, value) => setForm((current) => ({ ...current, [name]: value }))} options={[...roleOptions]} value={form.roles} />
+      </Stack>
+    </Box>
+  );
+}
+
+export const BasicInputs: Story = {
+  render: () => <BasicInputsStory />,
 };

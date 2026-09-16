@@ -29,6 +29,7 @@ export type MenuPermission = {
 
 export const AUTH_SESSION_STORAGE_KEY = "cheil-pq-auth-session";
 export const AUTH_NOTICE_STORAGE_KEY = "cheil-pq-auth-notice";
+export const AUTH_SESSION_CHANGE_EVENT = "cheil-pq-auth-session-change";
 
 const normalizeBooleanEnv = (value: string | undefined) => {
   const normalized = value?.trim().toLowerCase();
@@ -78,6 +79,27 @@ export const readAuthSessionSnapshot = (): AuthSession | null => {
   return parseSession(window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY));
 };
 
+export const getAuthSessionStorageSnapshot = () =>
+  isBrowser() ? window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY) ?? "" : "";
+
+export const subscribeAuthSession = (onStoreChange: () => void) => {
+  if (!isBrowser()) {
+    return () => undefined;
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === AUTH_SESSION_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(AUTH_SESSION_CHANGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(AUTH_SESSION_CHANGE_EVENT, onStoreChange);
+  };
+};
+
 export const readAuthSession = (): AuthSession | null => {
   if (!isBrowser()) {
     return null;
@@ -104,6 +126,7 @@ export const writeAuthSession = (session: AuthSession) => {
   }
 
   window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGE_EVENT));
 };
 
 export const clearAuthSession = () => {
@@ -112,6 +135,7 @@ export const clearAuthSession = () => {
   }
 
   window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGE_EVENT));
 };
 
 export const redirectToLogin = (path = "/login") => {

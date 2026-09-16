@@ -239,11 +239,6 @@ export function NewTechnologyInvestmentManagementPage() {
     <Box>
       <PageHeader
         title="신기술 투자실적"
-        action={
-          <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="contained">
-            신규
-          </Button>
-        }
       />
 
       <SearchPanel
@@ -340,6 +335,9 @@ export function NewTechnologyInvestmentManagementPage() {
                     상세 정보
                   </Typography>
                   <Stack direction="row" spacing={1}>
+                    <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="outlined">
+                      신규
+                    </Button>
                     <Button disabled={!canSave || saveMutation.isPending} onClick={handleSaveClick} startIcon={<SaveOutlinedIcon />} variant="contained">
                       저장
                     </Button>

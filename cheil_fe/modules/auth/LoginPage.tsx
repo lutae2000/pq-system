@@ -24,6 +24,7 @@ import { SignupDialog } from "@/modules/auth/SignupDialog";
 import { useLoginMutation } from "@/modules/auth/authMutations";
 import { listMyMenuPermissions } from "@/modules/auth/authApi";
 import { PasswordChangeDialog } from "@/modules/auth/PasswordChangeDialog";
+import { useBrandingSettings } from "@/modules/system/branding/useBrandingSettings";
 import { useLayoutStore } from "@/store/layoutStore";
 
 const removeWhitespace = (value: string) => value.replace(/\s/g, "");
@@ -38,6 +39,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const loginMutation = useLoginMutation();
+  const { settings: brandingSettings } = useBrandingSettings();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -103,7 +105,7 @@ export function LoginPage() {
         aria-hidden
         component="img"
         alt=""
-        src="/login/login-light-hero-balanced-v2.png"
+        src={brandingSettings.loginBackgroundUrl}
         sx={{
           inset: 0,
           height: "100%",

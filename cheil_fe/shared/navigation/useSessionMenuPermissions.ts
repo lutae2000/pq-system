@@ -1,21 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
-import { readAuthSessionSnapshot, type MenuPermission } from "@/lib/auth/authSession";
-import { useMounted } from "@/hooks/useMounted";
+import { getAuthSessionStorageSnapshot, readAuthSessionSnapshot, subscribeAuthSession } from "@/lib/auth/authSession";
 
 export function useSessionMenuPermissions() {
-  const [permissions, setPermissions] = useState<MenuPermission[]>([]);
-  const mounted = useMounted();
-
-  useEffect(() => {
-    if (!mounted) {
-      return;
-    }
-
-    setPermissions(readAuthSessionSnapshot()?.permissions ?? []);
-  }, [mounted]);
-
-  return permissions;
+  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
+  return useMemo(
+    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
+    [sessionSnapshot],
+  );
 }

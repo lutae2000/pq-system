@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";
@@ -19,6 +20,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { createTechnologyNotice } from "@/modules/system/notices/api";
 import {
   createNewTechnologyDevelopment,
   deleteNewTechnologyDevelopment,
@@ -199,13 +201,23 @@ export function NewTechnologyDevelopmentManagementPage() {
       if (request.applicantCount === null || request.applicantCount <= 0) {
         throw new Error("출원인수는 0보다 커야 합니다.");
       }
-      return draft.id > 0 ? updateNewTechnologyDevelopment(draft.id, request) : createNewTechnologyDevelopment(request);
+      const created = draft.id === 0;
+      const saved = created ? await createNewTechnologyDevelopment(request) : await updateNewTechnologyDevelopment(draft.id, request);
+      return { created, saved };
     },
-    onSuccess: async (saved) => {
+    onSuccess: async ({ created, saved }) => {
       setDraft(saved);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-developments"] });
       await queryClient.invalidateQueries({ queryKey: ["new-technology-development", saved.id] });
       showSnackbar({ message: "신기술 개발실적을 저장했습니다.", severity: "success" });
+      if (created) {
+        try {
+          await createTechnologyNotice({ title: "신기술 개발실적 신규 등록", content: `${saved.title} 개발실적이 등록되었습니다.`, targetPath: "/pq/new-technology-developments" });
+          await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
+        } catch {
+          showSnackbar({ message: "실적은 저장되었지만 알림 생성에 실패했습니다.", severity: "warning" });
+        }
+      }
     },
     onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
@@ -361,14 +373,7 @@ export function NewTechnologyDevelopmentManagementPage() {
 
   return (
     <Box>
-      <PageHeader
-        title="신기술 개발실적"
-        action={
-          <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="contained">
-            신규
-          </Button>
-        }
-      />
+      <PageHeader title="신기술 개발실적" action={<NotificationPreferenceButton menuPath="/pq/new-technology-developments" />} />
 
       <SearchPanel
         keyword={keyword}
@@ -462,6 +467,9 @@ export function NewTechnologyDevelopmentManagementPage() {
                     상세 정보
                   </Typography>
                   <Stack direction="row" spacing={1}>
+                    <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="outlined">
+                      신규
+                    </Button>
                     <Button disabled={!canSave || saveMutation.isPending} onClick={handleSave} startIcon={<SaveOutlinedIcon />} variant="contained">
                       저장
                     </Button>

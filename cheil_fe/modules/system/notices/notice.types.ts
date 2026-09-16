@@ -7,5 +7,5 @@ export type NoticeRecord = {
   important: boolean;
   publishAt: string;
   title: string;
+  targetPath?: string | null;
 };
-

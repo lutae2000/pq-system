@@ -14,6 +14,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function SearchSelectStory({ initialValue }: { initialValue: string }) {
+  const [value, setValue] = useState(initialValue);
+
+  return (
+    <Box sx={{ width: 320 }}>
+      <SearchSelectInput label="업체명" onChange={setValue} options={companyOptions} value={value} />
+    </Box>
+  );
+}
+
 export const Empty: Story = {
   args: {
     label: "업체명",
@@ -21,15 +31,7 @@ export const Empty: Story = {
     options: companyOptions,
     value: "",
   },
-  render: (args) => {
-    const [value, setValue] = useState(args.value);
-
-    return (
-      <Box sx={{ width: 320 }}>
-        <SearchSelectInput {...args} onChange={setValue} value={value} />
-      </Box>
-    );
-  },
+  render: (args) => <SearchSelectStory initialValue={args.value} />,
 };
 
 export const Selected: Story = {
@@ -39,13 +41,5 @@ export const Selected: Story = {
     options: companyOptions,
     value: "제일엔지니어링",
   },
-  render: (args) => {
-    const [value, setValue] = useState(args.value);
-
-    return (
-      <Box sx={{ width: 320 }}>
-        <SearchSelectInput {...args} onChange={setValue} value={value} />
-      </Box>
-    );
-  },
+  render: (args) => <SearchSelectStory initialValue={args.value} />,
 };

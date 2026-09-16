@@ -12,6 +12,24 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function ControlledStory() {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <Box>
+      <Button onClick={() => setOpen(true)} variant="contained">
+        모달 열기
+      </Button>
+      <AppModal maxWidth="sm" onClose={() => setOpen(false)} open={open} title="상세 정보">
+        <Stack spacing={2}>
+          <TextField label="이름" size="small" value="홍길동" />
+          <TextField label="부서" size="small" value="PQ팀" />
+        </Stack>
+      </AppModal>
+    </Box>
+  );
+}
+
 export const Controlled: Story = {
   args: {
     children: null,
@@ -19,21 +37,5 @@ export const Controlled: Story = {
     open: true,
     title: "상세 정보",
   },
-  render: () => {
-    const [open, setOpen] = useState(true);
-
-    return (
-      <Box>
-        <Button onClick={() => setOpen(true)} variant="contained">
-          모달 열기
-        </Button>
-        <AppModal maxWidth="sm" onClose={() => setOpen(false)} open={open} title="상세 정보">
-          <Stack spacing={2}>
-            <TextField label="이름" size="small" value="홍길동" />
-            <TextField label="부서" size="small" value="PQ팀" />
-          </Stack>
-        </AppModal>
-      </Box>
-    );
-  },
+  render: () => <ControlledStory />,
 };

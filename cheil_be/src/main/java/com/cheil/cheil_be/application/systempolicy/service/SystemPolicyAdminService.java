@@ -104,6 +104,27 @@ public class SystemPolicyAdminService {
         return systemPolicyRepository.findById(policyKey).filter(SystemPolicyEntity::isUseYn);
     }
 
+    public SystemPolicyEntity upsertTextPolicy(
+            String policyKey,
+            String policyName,
+            String policyValue,
+            int sortSeq,
+            String description
+    ) {
+        String normalizedKey = requireText(policyKey, "policyKey");
+        SystemPolicyEntity policy = systemPolicyRepository.findById(normalizedKey)
+                .orElseGet(() -> SystemPolicyEntity.builder().policyKey(normalizedKey).build());
+        policy.setPolicyName(requireText(policyName, "policyName"));
+        policy.setPolicyValue(requireText(policyValue, "policyValue"));
+        policy.setValueType("TEXT");
+        policy.setSortSeq(sortSeq);
+        policy.setUseYn(true);
+        policy.setDescription(trimToNull(description));
+        SystemPolicyEntity saved = systemPolicyRepository.save(policy);
+        systemPolicyCacheService.refresh(normalizedKey, saved);
+        return saved;
+    }
+
     private static void validatePolicy(SystemPolicyEntity policy) {
         if (policy == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "policy is required");

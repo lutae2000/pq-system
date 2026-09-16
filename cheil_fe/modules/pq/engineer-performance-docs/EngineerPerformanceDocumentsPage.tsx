@@ -29,13 +29,14 @@ import {
 import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
-import { ResizeHandle } from "@/components/common/ResizeHandle";
+import { ResizableCard } from "@/components/common/ResizableCard";
+import { attachedVerticalResizeHandleSx } from "@/components/common/ResizeHandle";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -184,12 +185,6 @@ const compareHistoryRowsForDisplayOrder = (left: PerformanceHistoryRow, right: P
   dateSortValue(left.contractFromDate) - dateSortValue(right.contractFromDate) ||
   dateSortValue(left.startDate) - dateSortValue(right.startDate);
 
-const clampHistoryCardHeight = (height: number) =>
-  Math.min(Math.max(Math.round(height), HISTORY_CARD_MIN_HEIGHT), HISTORY_CARD_MAX_HEIGHT);
-
-const clampSelectorPanelWidth = (width: number) =>
-  Math.min(Math.max(Math.round(width), SELECTOR_PANEL_MIN_WIDTH), SELECTOR_PANEL_MAX_WIDTH);
-
 export function EngineerPerformanceDocumentsPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showError, showSuccess } = useAppSnackbar();
@@ -219,11 +214,7 @@ export function EngineerPerformanceDocumentsPage() {
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [selectorPanelCollapsed, setSelectorPanelCollapsed] = useState(false);
   const reviewGridApiRef = useGridApiRef();
-  const selectorResizeStartXRef = useRef(0);
-  const selectorResizeStartWidthRef = useRef(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [historyCardHeight, setHistoryCardHeight] = useState(DEFAULT_HISTORY_CARD_HEIGHT);
-  const historyResizeStartYRef = useRef(0);
-  const historyResizeStartHeightRef = useRef(DEFAULT_HISTORY_CARD_HEIGHT);
   const historyGridHeight = Math.max(160, historyCardHeight - HISTORY_CARD_RESERVED_HEIGHT);
 
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
@@ -403,78 +394,6 @@ export function EngineerPerformanceDocumentsPage() {
     setSelectedReviewIds(reviewAllSelected ? [] : reviewRowIds);
     setReviewSelectionAnchorId(null);
   }, [reviewAllSelected, reviewRowIds]);
-
-  const handleHistoryResizePointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
-        return;
-      }
-
-      event.preventDefault();
-      historyResizeStartYRef.current = event.clientY;
-      historyResizeStartHeightRef.current = historyCardHeight;
-
-      const abortController = new AbortController();
-      const previousCursor = document.body.style.cursor;
-      const previousUserSelect = document.body.style.userSelect;
-      document.body.style.cursor = "ns-resize";
-      document.body.style.userSelect = "none";
-
-      const stopResize = () => {
-        document.body.style.cursor = previousCursor;
-        document.body.style.userSelect = previousUserSelect;
-        abortController.abort();
-      };
-
-      window.addEventListener(
-        "pointermove",
-        (moveEvent) => {
-          const deltaY = moveEvent.clientY - historyResizeStartYRef.current;
-          setHistoryCardHeight(clampHistoryCardHeight(historyResizeStartHeightRef.current + deltaY));
-        },
-        { signal: abortController.signal },
-      );
-      window.addEventListener("pointerup", stopResize, { once: true, signal: abortController.signal });
-      window.addEventListener("pointercancel", stopResize, { once: true, signal: abortController.signal });
-    },
-    [historyCardHeight],
-  );
-
-  const handleSelectorResizePointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) {
-        return;
-      }
-
-      event.preventDefault();
-      selectorResizeStartXRef.current = event.clientX;
-      selectorResizeStartWidthRef.current = selectorPanelWidth;
-
-      const abortController = new AbortController();
-      const previousCursor = document.body.style.cursor;
-      const previousUserSelect = document.body.style.userSelect;
-      document.body.style.cursor = "ew-resize";
-      document.body.style.userSelect = "none";
-
-      const stopResize = () => {
-        document.body.style.cursor = previousCursor;
-        document.body.style.userSelect = previousUserSelect;
-        abortController.abort();
-      };
-
-      window.addEventListener(
-        "pointermove",
-        (moveEvent) => {
-          const deltaX = moveEvent.clientX - selectorResizeStartXRef.current;
-          setSelectorPanelWidth(clampSelectorPanelWidth(selectorResizeStartWidthRef.current + deltaX));
-        },
-        { signal: abortController.signal },
-      );
-      window.addEventListener("pointerup", stopResize, { once: true, signal: abortController.signal });
-      window.addEventListener("pointercancel", stopResize, { once: true, signal: abortController.signal });
-    },
-    [selectorPanelWidth],
-  );
 
   const handleReviewSelection = useCallback(
     (reviewId: string, event?: ReviewSelectionClickEvent, source: "row" | "checkbox" = "row") => {
@@ -1202,7 +1121,16 @@ export function EngineerPerformanceDocumentsPage() {
               gridTemplateColumns: { xs: "1fr", lg: selectorPanelCollapsed ? "minmax(0, 1fr)" : `${selectorPanelWidth}px minmax(0, 1fr)` },
             }}
           >
-            {!selectorPanelCollapsed ? <Card sx={{ display: "flex", flexDirection: "column", height: { xs: "auto", lg: "100%" }, minWidth: 0, position: "relative" }} variant="outlined">
+            {!selectorPanelCollapsed ? <ResizableCard
+              maxWidth={SELECTOR_PANEL_MAX_WIDTH}
+              minWidth={SELECTOR_PANEL_MIN_WIDTH}
+              onWidthChange={setSelectorPanelWidth}
+              resizeEdges={["right"]}
+              handleSx={attachedVerticalResizeHandleSx}
+              width={selectorPanelWidth}
+              sx={{ display: "flex", flexDirection: "column", height: { xs: "auto", lg: "100%" }, width: { xs: "100%", lg: selectorPanelWidth } }}
+              variant="outlined"
+            >
               <CardContent sx={{ display: "flex", flex: 1, flexDirection: "column", minHeight: 0 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
@@ -1286,23 +1214,7 @@ export function EngineerPerformanceDocumentsPage() {
                 />
                 </Box>
               </CardContent>
-              <ResizeHandle
-                ariaLabel="선택 기술인 목록 너비 조절"
-                orientation="vertical"
-                sx={{ display: { xs: "none", lg: "flex" } }}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowLeft") {
-                    event.preventDefault();
-                    setSelectorPanelWidth((width) => clampSelectorPanelWidth(width - 10));
-                  }
-                  if (event.key === "ArrowRight") {
-                    event.preventDefault();
-                    setSelectorPanelWidth((width) => clampSelectorPanelWidth(width + 10));
-                  }
-                }}
-                onPointerDown={handleSelectorResizePointerDown}
-              />
-            </Card> : null}
+            </ResizableCard> : null}
 
             <Box
               sx={{
@@ -1312,12 +1224,15 @@ export function EngineerPerformanceDocumentsPage() {
                 minWidth: 0,
               }}
             >
-              <Card
+              <ResizableCard
+                height={historyCardHeight}
+                maxHeight={HISTORY_CARD_MAX_HEIGHT}
+                minHeight={HISTORY_CARD_MIN_HEIGHT}
+                onHeightChange={setHistoryCardHeight}
+                resizeEdges={["bottom"]}
                 sx={{
-                  height: historyCardHeight,
-                  minHeight: HISTORY_CARD_MIN_HEIGHT,
+                  height: { xs: "auto", lg: historyCardHeight },
                   minWidth: 0,
-                  position: "relative",
                 }}
                 variant="outlined"
               >
@@ -1393,22 +1308,7 @@ export function EngineerPerformanceDocumentsPage() {
                     />
                   </Box>
                 </CardContent>
-                <ResizeHandle
-                  ariaLabel="프로젝트 이력 높이 조절"
-                  orientation="horizontal"
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowUp") {
-                      event.preventDefault();
-                      setHistoryCardHeight((height) => clampHistoryCardHeight(height - 10));
-                    }
-                    if (event.key === "ArrowDown") {
-                      event.preventDefault();
-                      setHistoryCardHeight((height) => clampHistoryCardHeight(height + 10));
-                    }
-                  }}
-                  onPointerDown={handleHistoryResizePointerDown}
-                />
-              </Card>
+              </ResizableCard>
 
               <Card variant="outlined">
                 <CardContent sx={{ "&:last-child": { pb: 0 } }}>

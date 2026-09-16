@@ -37,18 +37,22 @@ public class ShinindoManagementController {
                 clientCode,
                 referenceDate,
                 PageRequests.of(page, size)
-        );
+        ).map(ShinindoManagementResponse::from);
         return ResponseEntity.ok(PageResponse.from(result));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ShinindoManagementResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(shinindoManagementService.findById(id));
+        return ResponseEntity.ok(ShinindoManagementResponse.from(
+                shinindoManagementService.findById(id)
+        ));
     }
 
     @PostMapping
     public ResponseEntity<ShinindoManagementResponse> create(@RequestBody ShinindoManagementRequest request) {
-        return ResponseEntity.ok(shinindoManagementService.create(request));
+        return ResponseEntity.ok(ShinindoManagementResponse.from(
+                shinindoManagementService.create(request)
+        ));
     }
 
     @PutMapping("/{id}")
@@ -56,7 +60,9 @@ public class ShinindoManagementController {
             @PathVariable Long id,
             @RequestBody ShinindoManagementRequest request
     ) {
-        return ResponseEntity.ok(shinindoManagementService.update(id, request));
+        return ResponseEntity.ok(ShinindoManagementResponse.from(
+                shinindoManagementService.update(id, request)
+        ));
     }
 
     @DeleteMapping("/{id}")

@@ -29,4 +29,17 @@
 cache:common-codes:level1:pq:level2:hh:use:y
 ```
 
+## Hexagonal architecture layer rules
+
+- `adapter.in` is the inbound adapter. Controllers, request/response DTOs, HTTP status handling, and request binding belong here. It may call an application use case, but it must not call `JdbcClient`, JPA repositories, Redis clients, or SQL directly.
+- `application` is the use-case layer. Application services coordinate transactions, authorization, validation, domain rules, and calls to ports. Services must depend on interfaces under `application/**/port/in` or `application/**/port/out`, never on classes under `adapter/out`.
+- `application` services must not contain SQL, `JdbcClient`, `JdbcTemplate`, `EntityManager`, JPA query annotations, ResultSet mapping, database table names, Redis commands, or file-system client code. Query construction and persistence mapping belong in an output adapter.
+- `application/**/port/out` contains the persistence or integration contracts required by a use case. Port methods should express business operations and use application/domain types; do not expose `JdbcClient`, `ResultSet`, JPA entities, SQL strings, or infrastructure-specific types in a port.
+- `domain` contains business concepts and rules. Domain classes must not depend on Spring, web DTOs, JPA entities, JDBC, Redis, or file clients.
+- `adapter.out` implements output ports. JDBC, JPA, Redis, external HTTP clients, file storage, SQL, entity mapping, and infrastructure-specific error translation belong here. An adapter may depend on a port and domain/application models, but the application layer must not depend on the adapter.
+- DTO conversion is explicit at the boundary: inbound DTOs are converted before entering the use-case logic, and domain/application results are converted to outbound DTOs in the inbound adapter or a dedicated mapper. Do not make application ports return web-layer DTOs when a domain or application result type can be used.
+- A service such as `NotificationPreferenceService` should only resolve the current actor, validate and normalize the use-case input, apply the transaction boundary, and call `NotificationPreferenceRepository`. SQL belongs in `NotificationPreferenceJdbcRepository`, which is the output adapter.
+- When adding or changing a feature, create or find the use-case port and output port first, then implement the application service, then implement or update the adapter. Do not place a query temporarily in the service as a shortcut.
+- Before submitting backend changes, verify the dependency direction: `adapter.in -> application -> domain`, and `adapter.out -> application/domain`. A dependency from `application` or `domain` to `adapter.out`, web DTOs, JPA entities, or infrastructure clients is an architecture violation and must be removed.
+
 HWPX 생성 요청은 multipart의 `template`과 JSON `request`로 전달되며, `request.mappings`는 HWPX 필드명과 `ref_value1` 경로의 매핑이다. 프론트의 경로가 비어 있는 필드는 생성 요청에 포함하지 않는다.

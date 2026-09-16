@@ -187,7 +187,7 @@ export async function updateWorkOverlapDocumentEngineer(requestBody: {
 }): Promise<void> {
   await apiRequest(
     apiClient.patch("/pq/work-overlap-document-engineers", requestBody),
-    "?낅Т以묐났??臾몄꽌 ???湲곗닠???뺣낫瑜??섏젙?섏? 紐삵뻽?듬땲??",
+    "업무중복도 문서 대상 기술인 정보를 수정하지 못했습니다.",
   );
 }
 

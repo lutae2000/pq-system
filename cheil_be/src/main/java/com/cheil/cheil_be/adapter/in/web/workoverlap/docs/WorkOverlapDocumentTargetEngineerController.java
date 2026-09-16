@@ -23,12 +23,16 @@ public class WorkOverlapDocumentTargetEngineerController {
 
     @GetMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetEngineerResponse>> list(@RequestParam Long bidSeq, @RequestParam String workDutyId, @RequestParam(required = false) String keyword) {
-        return ResponseEntity.ok(service.find(bidSeq, workDutyId, keyword));
+        return ResponseEntity.ok(service.find(bidSeq, workDutyId, keyword).stream()
+                .map(WorkOverlapDocumentTargetEngineerResponse::from)
+                .toList());
     }
 
     @PutMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetEngineerResponse>> replace(@RequestBody WorkOverlapDocumentTargetEngineerRequest request) {
-        return ResponseEntity.ok(service.replace(request));
+        return ResponseEntity.ok(service.replace(request).stream()
+                .map(WorkOverlapDocumentTargetEngineerResponse::from)
+                .toList());
     }
 
     @PatchMapping

@@ -20,4 +20,5 @@ public class Notice {
     private boolean important;
     private String publishAt;
     private String title;
+    private String targetPath;
 }

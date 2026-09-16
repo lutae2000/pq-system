@@ -17,6 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
+import dynamic from "next/dynamic";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -28,10 +29,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import {
-  CompanyPerformanceDetailDialog,
-  type CompanyPerformanceCodeOption,
-} from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
+import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import {
   COMPANY_PERFORMANCE_PAGE_SIZE,
   createCompanyPerformance,
@@ -46,6 +44,10 @@ import {
 } from "@/modules/pq/company-performance/api";
 
 const EMPTY_ROWS: CompanyPerformanceRecord[] = [];
+const CompanyPerformanceDetailDialog = dynamic(
+  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailDialog").then((module) => module.CompanyPerformanceDetailDialog),
+  { ssr: false },
+);
 
 const emptyDraft = (): CompanyPerformanceRecord => ({
   seq: 0,
@@ -387,7 +389,7 @@ export function CompanyPerformanceManagementPage() {
 
   const handleNew = () => {
     if (!canCreate) {
-      setNotice({ message: "?깅줉 沅뚰븳???놁뒿?덈떎.", severity: "error" });
+      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
       return;
     }
     setDraft(emptyDraft());
@@ -396,15 +398,15 @@ export function CompanyPerformanceManagementPage() {
 
   const handleSave = () => {
     if (draft.seq && !canUpdate) {
-      setNotice({ message: "?섏젙 沅뚰븳???놁뒿?덈떎.", severity: "error" });
+      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
       return;
     }
     if (!draft.seq && !canCreate) {
-      setNotice({ message: "?깅줉 沅뚰븳???놁뒿?덈떎.", severity: "error" });
+      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
       return;
     }
     if (!text(draft.jobName).trim()) {
-      setNotice({ message: "?⑹뿭紐낆? ?꾩닔?낅땲??", severity: "error" });
+      setNotice({ message: "용역명은 필수입니다.", severity: "error" });
       return;
     }
     saveMutation.mutate(toRequest(draft));
@@ -524,7 +526,7 @@ export function CompanyPerformanceManagementPage() {
         />
       </Box>
 
-      <CompanyPerformanceDetailDialog
+      {detailOpen ? <CompanyPerformanceDetailDialog
         businessTypeOptions={businessTypeOptions}
         clientKindOptions={clientKindOptions}
         jobFinishOptions={jobFinishOptions}
@@ -542,7 +544,7 @@ export function CompanyPerformanceManagementPage() {
         open={detailOpen}
         record={draft}
         saveDisabled={saveMutation.isPending || detailMutation.isPending || (draft.seq ? !canUpdate : !canCreate)}
-      />
+      /> : null}
 
       <Dialog onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
         <DialogTitle>회사 실적 삭제</DialogTitle>

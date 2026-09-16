@@ -15,7 +15,7 @@ import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
 @Table(name = "pq_engineer_master")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SuperBuilder
-class EngineerMasterEntity extends AuditEntity {
+public class EngineerMasterEntity extends AuditEntity {
     @Id
     @Column(name = "engr_id")
     String engrId;

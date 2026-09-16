@@ -126,19 +126,25 @@ public class WorkOverlapContractController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer limit
     ) {
-        return ResponseEntity.ok(workOverlapContractEngineerService.findEngineerCandidates(keyword, limit));
+        return ResponseEntity.ok(workOverlapContractEngineerService.findEngineerCandidates(keyword, limit).stream()
+                .map(WorkOverlapContractEngineerCandidateResponse::from)
+                .toList());
     }
 
     @GetMapping("/{contractNo}/engineers")
     public ResponseEntity<List<WorkOverlapContractEngineerResponse>> listEngineers(@PathVariable String contractNo) {
         workOverlapContractService.findByContractNo(contractNo);
-        return ResponseEntity.ok(workOverlapContractEngineerService.findByContractNo(contractNo));
+        return ResponseEntity.ok(workOverlapContractEngineerService.findByContractNo(contractNo).stream()
+                .map(WorkOverlapContractEngineerResponse::from)
+                .toList());
     }
 
     @GetMapping("/{contractNo}/engineer-histories")
     public ResponseEntity<List<WorkOverlapContractEngineerHistoryResponse>> listEngineerHistories(@PathVariable String contractNo) {
         workOverlapContractService.findByContractNo(contractNo);
-        return ResponseEntity.ok(workOverlapContractEngineerService.findHistoriesByContractNo(contractNo));
+        return ResponseEntity.ok(workOverlapContractEngineerService.findHistoriesByContractNo(contractNo).stream()
+                .map(WorkOverlapContractEngineerHistoryResponse::from)
+                .toList());
     }
 
     @GetMapping("/{contractNo}/period-histories")
@@ -173,7 +179,9 @@ public class WorkOverlapContractController {
             @RequestBody WorkOverlapContractEngineerRequest request
     ) {
         workOverlapContractService.findByContractNo(contractNo);
-        return ResponseEntity.ok(workOverlapContractEngineerService.create(contractNo, request));
+        return ResponseEntity.ok(WorkOverlapContractEngineerResponse.from(
+                workOverlapContractEngineerService.create(contractNo, request)
+        ));
     }
 
     @PutMapping("/{contractNo}/engineers/{engineerId}")
@@ -183,7 +191,9 @@ public class WorkOverlapContractController {
             @RequestBody WorkOverlapContractEngineerChangeRequest request
     ) {
         workOverlapContractService.findByContractNo(contractNo);
-        return ResponseEntity.ok(workOverlapContractEngineerService.update(contractNo, engineerId, request));
+        return ResponseEntity.ok(WorkOverlapContractEngineerResponse.from(
+                workOverlapContractEngineerService.update(contractNo, engineerId, request)
+        ));
     }
 
     @DeleteMapping("/{contractNo}/engineers/{engineerId}")

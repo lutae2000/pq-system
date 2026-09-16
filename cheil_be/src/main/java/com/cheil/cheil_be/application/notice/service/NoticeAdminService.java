@@ -115,6 +115,7 @@ public class NoticeAdminService {
         normalized.setImportant(request.isImportant());
         normalized.setPublishAt(StringValues.required(request.getPublishAt(), "publishAt"));
         normalized.setTitle(StringValues.required(request.getTitle(), "title"));
+        normalized.setTargetPath(StringValues.normalize(request.getTargetPath()));
         return normalized;
     }
 

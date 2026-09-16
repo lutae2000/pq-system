@@ -66,7 +66,7 @@ const pageEntries = await Promise.all(
 
     return {
       exportName,
-      importAlias: `GeneratedPageComponent${index}`,
+      componentName: `GeneratedPageComponent${index}`,
       modulePath,
       routePath,
     };
@@ -91,14 +91,15 @@ ${pathEntries}
 export type GeneratedPagePath = (typeof generatedPagePaths)[number];
 `);
 
-const registryImports = pageEntries
+const registryComponents = pageEntries
   .map(
-    ({ exportName, importAlias, modulePath }) => `import { ${exportName} as ${importAlias} } from "${modulePath}";`,
+    ({ componentName, exportName, modulePath }) =>
+      `const ${componentName} = dynamic(() => import("${modulePath}").then((module) => module.${exportName}), { ssr: false });`,
   )
   .join("\n");
 
 const registryEntries = pageEntries
-  .map(({ importAlias, routePath }) => `  "${routePath}": ${importAlias},`)
+  .map(({ componentName, routePath }) => `  "${routePath}": ${componentName},`)
   .join("\n");
 
 const generatedRegistry = normalizeSource(`
@@ -110,7 +111,9 @@ const generatedRegistry = normalizeSource(`
  */
 
 import type { ComponentType } from "react";
-${registryImports}
+import dynamic from "next/dynamic";
+
+${registryComponents}
 
 import type { GeneratedPagePath } from "@/shared/navigation/pagePaths.generated";
 

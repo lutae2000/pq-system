@@ -159,6 +159,7 @@ app:
         - /actuator/health/**
         - /actuator/prometheus
         - /docs/**
+        - /public/branding
         - /files/**
         - /error
         - /api/auth/login
@@ -170,6 +171,7 @@ app:
         - /api/actuator/health/**
         - /api/actuator/prometheus
         - /api/docs/**
+        - /api/public/branding
         - /api/files/**
         - /api/error
       login-excluded-paths:

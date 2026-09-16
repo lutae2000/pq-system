@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.relatedprojecthistorycondition;
 
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.RelatedProjectHistoryConditionData;
+
 import java.time.Instant;
 
 public record RelatedProjectHistoryConditionResponse(
@@ -10,4 +12,14 @@ public record RelatedProjectHistoryConditionResponse(
         Instant lastChangedAt,
         String lastChangedId
 ) {
+    public static RelatedProjectHistoryConditionResponse from(RelatedProjectHistoryConditionData data) {
+        return new RelatedProjectHistoryConditionResponse(
+                data.bidSeq(),
+                data.conditionsJson(),
+                data.createdAt(),
+                data.createdId(),
+                data.lastChangedAt(),
+                data.lastChangedId()
+        );
+    }
 }

@@ -53,13 +53,13 @@ public class FileController {
         try (var inputStream = result.resource().getInputStream()) {
             body = inputStream.readAllBytes();
         }
+        ContentDisposition contentDisposition = result.mediaType().getType().equals("image")
+                ? ContentDisposition.inline().filename(result.originalFilename(), StandardCharsets.UTF_8).build()
+                : ContentDisposition.attachment().filename(result.originalFilename(), StandardCharsets.UTF_8).build();
         return ResponseEntity.ok()
                 .contentType(result.mediaType())
                 .contentLength(body.length)
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(result.originalFilename(), StandardCharsets.UTF_8)
-                        .build()
-                        .toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .body(body);
     }
 }

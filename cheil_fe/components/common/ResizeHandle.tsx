@@ -13,6 +13,11 @@ type ResizeHandleProps = {
   sx?: SxProps<Theme>;
 };
 
+export const attachedVerticalResizeHandleSx = {
+  "&::before": { clipPath: "inset(0 50% 0 0)" },
+  "&::after": { clipPath: "inset(0 50% 0 0)" },
+} as const;
+
 export function ResizeHandle({ ariaLabel, orientation, onClick, onKeyDown, onPointerDown, sx }: ResizeHandleProps) {
   const vertical = orientation === "vertical";
   const movedRef = useRef(false);

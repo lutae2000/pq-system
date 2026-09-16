@@ -5,20 +5,29 @@ import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 import MonetizationOnOutlinedIcon from "@mui/icons-material/MonetizationOnOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Box, Card, CardContent, Grid, LinearProgress, Stack, Typography } from "@mui/material";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { DashboardChartCard } from "./DashboardChartCard";
-import { DashboardScheduleCalendar, type DashboardScheduleEvent } from "./DashboardScheduleCalendar";
 import { MonthlyAwardAmountChart } from "./MonthlyAwardAmountChart";
 import { MonthlyAwardRateChart } from "./MonthlyAwardRateChart";
 import { MonthlyCategoryStackedChart } from "./MonthlyCategoryStackedChart";
 import type { CategoryMonthlySeries, DashboardCategory, MonthlyAwardAmountRecord, MonthlyBidRecord } from "./dashboard.types";
-import { BidNoticeDetailDialog } from "@/modules/pq/bid-notice/BidNoticeDetailDialog";
+import type { DashboardScheduleEvent } from "./dashboardSchedule.data";
 import type { BidNoticeAttachmentState, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import { getBidNotice, type BidNoticeDetailOptions, type BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
+
+const DashboardScheduleCalendar = dynamic(
+  () => import("./DashboardScheduleCalendar").then((module) => module.DashboardScheduleCalendar),
+  { ssr: false },
+);
+const BidNoticeDetailDialog = dynamic(
+  () => import("@/modules/pq/bid-notice/BidNoticeDetailDialog").then((module) => module.BidNoticeDetailDialog),
+  { ssr: false },
+);
 
 const categories: DashboardCategory[] = [
   { key: "design", label: "설계", color: "#2563eb" },

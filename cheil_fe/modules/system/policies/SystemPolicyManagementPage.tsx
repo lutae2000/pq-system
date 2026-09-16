@@ -2,21 +2,25 @@
 
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Snackbar, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, MenuItem, Stack, Switch, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 import { createSystemPolicy, listSystemPolicies, updateSystemPolicy, type SystemPolicyRecord, type SystemPolicyWriteRequest } from "./api";
+import { BrandingImageSettingsCard } from "./BrandingImageSettingsCard";
 
 const isBooleanPolicy = (valueType: SystemPolicyRecord["valueType"]) => valueType === "BOOLEAN";
+const brandingPolicyKeys = new Set(["BRANDING_LOGIN_BACKGROUND_URL", "BRANDING_COMPANY_LOGO_URL", "BRANDING_FAVICON_URL"]);
 
 export function SystemPolicyManagementPage() {
   const { canRead, canUpdate } = useCurrentMenuPermission();
+  const { showSnackbar } = useAppSnackbar();
   const [records, setRecords] = useState<SystemPolicyRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -28,10 +32,11 @@ export function SystemPolicyManagementPage() {
     useYn: true,
     valueType: "NUMBER",
   });
-  const [notice, setNotice] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
 
   const sortedRecords = useMemo(
-    () => [...records].sort((left, right) => left.sortSeq - right.sortSeq || left.policyKey.localeCompare(right.policyKey)),
+    () => records
+      .filter((record) => !brandingPolicyKeys.has(record.policyKey))
+      .sort((left, right) => left.sortSeq - right.sortSeq || left.policyKey.localeCompare(right.policyKey)),
     [records],
   );
 
@@ -50,7 +55,7 @@ export function SystemPolicyManagementPage() {
         }
       } catch (error) {
         if (active) {
-          setNotice({ message: error instanceof Error ? error.message : "시스템 정책을 불러오지 못했습니다.", severity: "error" });
+          showSnackbar({ message: error instanceof Error ? error.message : "시스템 정책을 불러오지 못했습니다.", severity: "error" });
         }
       } finally {
         if (active) {
@@ -64,15 +69,15 @@ export function SystemPolicyManagementPage() {
     return () => {
       active = false;
     };
-  }, [canRead]);
+  }, [canRead, showSnackbar]);
 
-  const updateRecord = (policyKey: string, updater: (record: SystemPolicyRecord) => SystemPolicyRecord) => {
+  const updateRecord = useCallback((policyKey: string, updater: (record: SystemPolicyRecord) => SystemPolicyRecord) => {
     setRecords((current) => current.map((record) => (record.policyKey === policyKey ? updater(record) : record)));
-  };
+  }, []);
 
-  const persistPolicy = async (policy: SystemPolicyRecord) => {
+  const persistPolicy = useCallback(async (policy: SystemPolicyRecord) => {
     if (policy.useYn && (!policy.policyValue.trim() || (policy.valueType === "NUMBER" && !/^\d{1,3}$/.test(policy.policyValue)))) {
-      setNotice({ message: `${policy.policyName}의 설정값을 확인해 주세요.`, severity: "error" });
+      showSnackbar({ message: `${policy.policyName}의 설정값을 확인해 주세요.`, severity: "error" });
       const data = await listSystemPolicies();
       setRecords(data);
       return;
@@ -80,20 +85,20 @@ export function SystemPolicyManagementPage() {
     try {
       await updateSystemPolicy(policy.policyKey, policy);
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "시스템 정책을 수정하지 못했습니다.", severity: "error" });
+      showSnackbar({ message: error instanceof Error ? error.message : "시스템 정책을 수정하지 못했습니다.", severity: "error" });
       const data = await listSystemPolicies();
       setRecords(data);
     }
-  };
+  }, [showSnackbar]);
 
   const handleCreate = async () => {
     const policyKey = newPolicy.policyKey?.trim() ?? "";
     if (!policyKey || !newPolicy.policyName.trim()) {
-      setNotice({ message: "정책 코드와 정책명을 입력해 주세요.", severity: "error" });
+      showSnackbar({ message: "정책 코드와 정책명을 입력해 주세요.", severity: "error" });
       return;
     }
     if (newPolicy.useYn && (!newPolicy.policyValue.trim() || (newPolicy.valueType === "NUMBER" && !/^\d{1,3}$/.test(newPolicy.policyValue)))) {
-      setNotice({ message: "사용 중인 정책의 설정값을 확인해 주세요.", severity: "error" });
+      showSnackbar({ message: "사용 중인 정책의 설정값을 확인해 주세요.", severity: "error" });
       return;
     }
 
@@ -103,9 +108,9 @@ export function SystemPolicyManagementPage() {
       setRecords(await listSystemPolicies());
       setAddOpen(false);
       setNewPolicy({ description: "", policyKey: "", policyName: "", policyValue: "", sortSeq: 0, useYn: true, valueType: "NUMBER" });
-      setNotice({ message: "시스템 정책을 추가했습니다.", severity: "success" });
+      showSnackbar({ message: "시스템 정책을 추가했습니다.", severity: "success" });
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "시스템 정책을 추가하지 못했습니다.", severity: "error" });
+      showSnackbar({ message: error instanceof Error ? error.message : "시스템 정책을 추가하지 못했습니다.", severity: "error" });
     } finally {
       setLoading(false);
     }
@@ -194,7 +199,7 @@ export function SystemPolicyManagementPage() {
       },
       { field: "description", flex: 1.5, headerName: "설명", minWidth: 300 },
     ],
-    [canUpdate, records],
+    [canUpdate, persistPolicy, records, updateRecord],
   );
 
   if (!canRead) {
@@ -208,7 +213,7 @@ export function SystemPolicyManagementPage() {
 
   return (
     <Box>
-      <PageHeader title="시스템 정책 관리" description="세션, 로그인, 비밀번호 및 감사 로그 정책을 관리합니다." />
+      <PageHeader title="시스템 정책 관리"  />
 
       <Stack spacing={2}>
         <Card sx={{ borderRadius: 1 }}>
@@ -235,7 +240,7 @@ export function SystemPolicyManagementPage() {
                         const data = await listSystemPolicies();
                         setRecords(data);
                       } catch (error) {
-                        setNotice({
+                        showSnackbar({
                           message: error instanceof Error ? error.message : "시스템 정책을 불러오지 못했습니다.",
                           severity: "error",
                         });
@@ -265,6 +270,12 @@ export function SystemPolicyManagementPage() {
             />
           </CardContent>
         </Card>
+        <BrandingImageSettingsCard
+          canUpdate={canUpdate}
+          onUploaded={async () => {
+            setRecords(await listSystemPolicies());
+          }}
+        />
       </Stack>
 
       <Dialog fullWidth maxWidth="sm" onClose={() => setAddOpen(false)} open={addOpen}>
@@ -336,13 +347,6 @@ export function SystemPolicyManagementPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        autoHideDuration={2500}
-        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
-        onClose={() => setNotice(null)}
-        open={Boolean(notice)}
-        message={notice?.message}
-      />
     </Box>
   );
 }

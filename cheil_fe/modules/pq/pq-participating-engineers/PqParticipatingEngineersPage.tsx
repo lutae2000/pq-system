@@ -11,7 +11,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Card,
   CardContent,
   Chip,
   Checkbox,
@@ -27,11 +26,12 @@ import {
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import { ResizableCard } from "@/components/common/ResizableCard";
+import { attachedVerticalResizeHandleSx } from "@/components/common/ResizeHandle";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
@@ -181,7 +181,7 @@ const formatBirthDate = (value: string | null | undefined) => {
 const SELECTED_ENGINEER_CARD_DEFAULT_HEIGHT = 320;
 const SELECTED_ENGINEER_CARD_MIN_HEIGHT = 240;
 const SELECTED_ENGINEER_CARD_MAX_HEIGHT = 560;
-const SELECTED_ENGINEER_CARD_GRID_OFFSET = 104;
+const SELECTED_ENGINEER_CARD_GRID_OFFSET = 96;
 const CANDIDATE_CARD_DEFAULT_WIDTH = 420;
 const CANDIDATE_CARD_MIN_WIDTH = 320;
 const CANDIDATE_CARD_MAX_WIDTH = 760;
@@ -191,11 +191,19 @@ const PERFORMANCE_CARD_EXPANDED_HEIGHT = 920;
 const PERFORMANCE_CARD_MIN_HEIGHT = 360;
 const PERFORMANCE_CARD_MAX_HEIGHT = 1300;
 const selectedEngineerActionButtonSx = { minWidth: 128 } as const;
+const selectedEngineerHeightHandleSx = {
+  "&::before": {
+    clipPath: "inset(0 0 50% 0)",
+  },
+} as const;
 
 const gridSx = {
   border: 0,
   height: panelScrollHeight,
   "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
+  "& .MuiDataGrid-columnHeader": { overflow: "hidden" },
+  "& .MuiDataGrid-columnHeaderTitleContainer": { minWidth: 0, overflow: "hidden" },
+  "& .MuiDataGrid-sortIcon": { flexShrink: 0, marginLeft: 0.5 },
   "& .MuiDataGrid-main": { overflow: "hidden" },
   "& .MuiDataGrid-virtualScroller": {
     overflowY: "auto",
@@ -893,38 +901,17 @@ export function PqParticipatingEngineersPage() {
   );
   const candidateCardHeight = selectedEngineerCardHeight + performanceCardHeight + 16;
   const candidateGridHeight = Math.max(180, candidateCardHeight - CANDIDATE_CARD_GRID_OFFSET);
-  const handleSelectedEngineerResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      const startY = event.clientY;
-      const startHeight = selectedEngineerCardHeight;
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        const nextHeight = Math.min(
-          SELECTED_ENGINEER_CARD_MAX_HEIGHT,
-          Math.max(SELECTED_ENGINEER_CARD_MIN_HEIGHT, startHeight + moveEvent.clientY - startY),
-        );
-        setSelectedEngineerCardHeight(nextHeight);
-      };
-      const handlePointerUp = () => {
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-      };
-
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-    },
-    [selectedEngineerCardHeight],
-  );
-
   const renderSelectedEngineerCard = () => (
     <ResizableCard
       height={performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight}
+      maxHeight={SELECTED_ENGINEER_CARD_MAX_HEIGHT}
       maxWidth={CANDIDATE_CARD_MAX_WIDTH}
+      minHeight={SELECTED_ENGINEER_CARD_MIN_HEIGHT}
       minWidth={CANDIDATE_CARD_MIN_WIDTH}
+      onHeightChange={setSelectedEngineerCardHeight}
       onWidthChange={setCandidateCardWidth}
-      resizeEdges={performanceFocusMode ? ["right"] : []}
-      handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
+      resizeEdges={performanceFocusMode ? ["right"] : ["bottom"]}
+      handleSx={performanceFocusMode ? undefined : selectedEngineerHeightHandleSx}
       width={performanceFocusMode ? candidateCardWidth : undefined}
       sx={{ height: { lg: performanceFocusMode ? performanceCardHeight : selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative", width: { xs: "100%", lg: performanceFocusMode ? candidateCardWidth : "100%" } }}
     >
@@ -1003,33 +990,6 @@ export function PqParticipatingEngineersPage() {
           }}
         />
       </CardContent>
-      <Box
-        aria-label="선정 기술인 영역 높이 조정"
-        onPointerDown={handleSelectedEngineerResizeStart}
-        role="separator"
-        sx={{
-          alignItems: "center",
-          bottom: 0,
-          cursor: "row-resize",
-          display: { xs: "none", lg: performanceFocusMode ? "none" : "flex" },
-          height: 14,
-          justifyContent: "center",
-          left: 0,
-          position: "absolute",
-          right: 0,
-          touchAction: "none",
-          "&::before": {
-            bgcolor: "divider",
-            borderRadius: 1,
-            content: '""',
-            height: 3,
-            width: 48,
-          },
-          "&:hover::before": {
-            bgcolor: "primary.main",
-          },
-        }}
-      />
     </ResizableCard>
   );
 
@@ -1198,7 +1158,7 @@ export function PqParticipatingEngineersPage() {
               minWidth={CANDIDATE_CARD_MIN_WIDTH}
               onWidthChange={setCandidateCardWidth}
               resizeEdges={["right"]}
-              handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
+              handleSx={attachedVerticalResizeHandleSx}
               width={candidateCardWidth}
               sx={{ boxSizing: "border-box", height: { xs: "auto", lg: candidateCardHeight }, overflow: "visible", width: { xs: "100%", lg: candidateCardWidth } }}
             >
@@ -1274,7 +1234,15 @@ export function PqParticipatingEngineersPage() {
                 minHeight: 0,
               }}
             >
-              {!performanceFocusMode ? <Card sx={{ height: { lg: selectedEngineerCardHeight }, minHeight: SELECTED_ENGINEER_CARD_MIN_HEIGHT, minWidth: 0, position: "relative" }}>
+              {!performanceFocusMode ? <ResizableCard
+                height={selectedEngineerCardHeight}
+                maxHeight={SELECTED_ENGINEER_CARD_MAX_HEIGHT}
+                minHeight={SELECTED_ENGINEER_CARD_MIN_HEIGHT}
+                onHeightChange={setSelectedEngineerCardHeight}
+                resizeEdges={["bottom"]}
+                handleSx={selectedEngineerHeightHandleSx}
+                sx={{ height: { xs: "auto", lg: selectedEngineerCardHeight }, minWidth: 0 }}
+              >
                 <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%", pb: 2.5 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                     <Box>
@@ -1342,34 +1310,7 @@ export function PqParticipatingEngineersPage() {
                     }}
                   />
                 </CardContent>
-                <Box
-                  aria-label="선정 기술인 영역 높이 조정"
-                  onPointerDown={handleSelectedEngineerResizeStart}
-                  role="separator"
-                  sx={{
-                    alignItems: "center",
-                    bottom: 0,
-                    cursor: "row-resize",
-                    display: { xs: "none", lg: "flex" },
-                    height: 14,
-                    justifyContent: "center",
-                    left: 0,
-                    position: "absolute",
-                    right: 0,
-                    touchAction: "none",
-                    "&::before": {
-                      bgcolor: "divider",
-                      borderRadius: 1,
-                      content: '""',
-                      height: 3,
-                      width: 48,
-                    },
-                    "&:hover::before": {
-                      bgcolor: "primary.main",
-                    },
-                  }}
-                />
-              </Card> : null}
+              </ResizableCard> : null}
 
               <ResizableCard
                 height={performanceCardHeight}
@@ -1387,7 +1328,6 @@ export function PqParticipatingEngineersPage() {
                   );
                 }}
                 resizeEdges={["bottom"]}
-                handleSx={{ display: { xs: "none", lg: "flex" }, zIndex: 4 }}
                 sx={{ height: { xs: "auto", lg: performanceFocusMode ? "100%" : performanceCardHeight }, minHeight: 0, minWidth: 0 }}
               >
                   <CardContent

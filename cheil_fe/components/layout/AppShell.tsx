@@ -12,13 +12,25 @@ import { useIdleLogout } from "@/hooks/useIdleLogout";
 import { ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
 import { frontendIdleTimeoutMs } from "@/lib/config/timeouts";
 import { NoticeLayerDialog } from "@/modules/system/notices/NoticeLayerDialog";
-import { listNoticesDashboard } from "@/modules/system/notices/api";
+import { NotificationCenterDialog } from "@/modules/system/notices/NotificationCenterDialog";
+import { getNotificationPreferences, listNoticesDashboard, saveNotificationPreference } from "@/modules/system/notices/api";
 import { findMenuPermissionByPath, getReadableMenuPermissions } from "@/shared/navigation/menuPermissionUtils";
 import { useMounted } from "@/hooks/useMounted";
 import { useLayoutStore } from "@/store/layoutStore";
+import { BrandingFavicon } from "@/modules/system/branding/BrandingFavicon";
 
 const drawerWidth = 280;
 const noticeDismissKey = "system-notice-dismiss-date";
+const noticeReadKey = "system-notice-read";
+const notificationRetentionMs = 7 * 24 * 60 * 60 * 1000;
+
+const readStoredIds = (key: string) => {
+  try {
+    return new Set<string>(JSON.parse(window.localStorage.getItem(key) ?? "[]"));
+  } catch {
+    return new Set<string>();
+  }
+};
 
 const isPublicPath = (pathname: string) => pathname === "/" || pathname === "/login" || pathname.startsWith("/login/");
 
@@ -62,7 +74,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const shouldLoadNotices = !isPublicRoute && !isNotificationManagementRoute;
   const isSidebarOpen = useLayoutStore((state) => state.isSidebarOpen);
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
-  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [systemNoticeOpen, setSystemNoticeOpen] = useState(false);
+  const [notificationRetentionStart] = useState(() => Date.now() - notificationRetentionMs);
+  const [readNoticeIds, setReadNoticeIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") {
+      return new Set();
+    }
+    const session = readAuthSession();
+    const userKey = session?.employeeNo ?? session?.userName ?? "anonymous";
+    return readStoredIds(`${noticeReadKey}:${userKey}`);
+  });
   const [authState, dispatchAuthState] = useReducer(
     (_state: "checking" | "allowed" | "blocked", nextState: "checking" | "allowed" | "blocked") => nextState,
     ROUTE_GUARD_ENABLED && !isPublicRoute ? "checking" : "allowed",
@@ -70,6 +92,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const noticesQuery = useQuery({
     queryKey: ["system-notices"],
     queryFn: listNoticesDashboard,
+    enabled: shouldLoadNotices && authState === "allowed",
+  });
+  const notificationPreferencesQuery = useQuery({
+    queryKey: ["notification-preferences"],
+    queryFn: getNotificationPreferences,
     enabled: shouldLoadNotices && authState === "allowed",
   });
 
@@ -81,13 +108,40 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
   const effectiveDrawerWidth = isSidebarOpen ? drawerWidth : 0;
 
-  const activeNotices = useMemo(() => {
+  const businessNotifications = useMemo(() => {
     if (!shouldLoadNotices) {
       return [];
     }
 
-    return (noticesQuery.data ?? []).filter((notice) => notice.active);
-  }, [noticesQuery.data, shouldLoadNotices]);
+    const preferences = notificationPreferencesQuery.data ?? {};
+    return (noticesQuery.data ?? []).filter((notice) => {
+      if (!notice.active || !notice.targetPath || preferences[notice.targetPath] !== true) {
+        return false;
+      }
+      const publishedAt = new Date(notice.publishAt.replace(" ", "T")).getTime();
+      return !Number.isNaN(publishedAt) && publishedAt >= notificationRetentionStart;
+    });
+  }, [notificationPreferencesQuery.data, noticesQuery.data, notificationRetentionStart, shouldLoadNotices]);
+
+  const unreadNotificationCount = useMemo(
+    () => businessNotifications.filter((notice) => !readNoticeIds.has(notice.id)).length,
+    [businessNotifications, readNoticeIds],
+  );
+  const systemNotices = useMemo(() => (noticesQuery.data ?? []).filter((notice) => notice.active && !notice.targetPath), [noticesQuery.data]);
+
+  const markNoticeRead = (noticeId: string) => {
+    const userKey = readAuthSession()?.employeeNo ?? readAuthSession()?.userName ?? "anonymous";
+    const key = `${noticeReadKey}:${userKey}`;
+    const current = readStoredIds(key);
+    current.add(noticeId);
+    window.localStorage.setItem(key, JSON.stringify([...current]));
+    setReadNoticeIds(current);
+  };
+
+  const muteNoticeMenu = async (targetPath: string) => {
+    await saveNotificationPreference(targetPath, false);
+    await notificationPreferencesQuery.refetch();
+  };
   useEffect(() => {
     if (!ROUTE_GUARD_ENABLED || isPublicRoute) {
       dispatchAuthState("allowed");
@@ -115,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (activeNotices.length === 0) {
+    if (systemNotices.length === 0) {
       return;
     }
 
@@ -125,15 +179,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     const timer = window.setTimeout(() => {
-      setNoticeOpen(true);
+      setSystemNoticeOpen(true);
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [activeNotices.length, authState, isPublicRoute, shouldLoadNotices]);
+  }, [authState, isPublicRoute, shouldLoadNotices, systemNotices.length]);
 
   const handleDismissToday = () => {
     window.localStorage.setItem(noticeDismissKey, getSeoulDateKey());
-    setNoticeOpen(false);
+    setSystemNoticeOpen(false);
   };
 
   if (ROUTE_GUARD_ENABLED && !isPublicRoute && authState === "checking") {
@@ -156,7 +210,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   if (isPublicRoute) {
-    return <>{children}</>;
+    return (
+      <>
+        <BrandingFavicon />
+        {children}
+      </>
+    );
   }
 
   if (ROUTE_GUARD_ENABLED && authState === "blocked") {
@@ -164,44 +223,63 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Box sx={{ bgcolor: "background.default", display: "flex", height: "100vh", overflow: "hidden" }}>
-      {effectiveDrawerWidth > 0 ? <Sidebar drawerWidth={effectiveDrawerWidth} /> : null}
-      <TopHeader
-        drawerWidth={effectiveDrawerWidth}
-        noticeCount={shouldLoadNotices ? activeNotices.length : 0}
-        onNoticeClick={shouldLoadNotices ? () => setNoticeOpen(true) : undefined}
-        onSidebarToggle={toggleSidebar}
-        sidebarCollapsed={!isSidebarOpen}
-        sessionRemainingMs={sessionEnabled ? remainingMs : undefined}
-      />
-      <Box
-        component="main"
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          flexGrow: 1,
-          height: "100vh",
-          minWidth: 0,
-          overflow: "hidden",
-          p: 0,
-          pt: 0,
-        }}
-      >
-        <Toolbar sx={{ flexShrink: 0, height: TOP_HEADER_HEIGHT, minHeight: `${TOP_HEADER_HEIGHT}px !important` }} />
-        <TabFrameOutlet>
-          {children}
-        </TabFrameOutlet>
-      </Box>
+    <>
+      <BrandingFavicon />
+      <Box sx={{ bgcolor: "background.default", display: "flex", height: "100vh", overflow: "hidden" }}>
+        {effectiveDrawerWidth > 0 ? <Sidebar drawerWidth={effectiveDrawerWidth} /> : null}
+        <TopHeader
+          drawerWidth={effectiveDrawerWidth}
+          noticeCount={shouldLoadNotices ? unreadNotificationCount : 0}
+          onNoticeClick={shouldLoadNotices ? () => setNotificationOpen(true) : undefined}
+          onSidebarToggle={toggleSidebar}
+          sidebarCollapsed={!isSidebarOpen}
+          sessionRemainingMs={sessionEnabled ? remainingMs : undefined}
+        />
+        <Box
+          component="main"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            flexGrow: 1,
+            height: "100vh",
+            minWidth: 0,
+            overflow: "hidden",
+            p: 0,
+            pt: 0,
+          }}
+        >
+          <Toolbar sx={{ flexShrink: 0, height: TOP_HEADER_HEIGHT, minHeight: `${TOP_HEADER_HEIGHT}px !important` }} />
+          <TabFrameOutlet>
+            {children}
+          </TabFrameOutlet>
+        </Box>
 
       {shouldLoadNotices ? (
+        <NotificationCenterDialog
+          notices={businessNotifications}
+          onClose={() => setNotificationOpen(false)}
+          onMuteMenu={muteNoticeMenu}
+          onNoticeClick={(notice) => {
+            markNoticeRead(notice.id);
+            setNotificationOpen(false);
+            if (notice.targetPath) {
+              router.push(notice.targetPath);
+            }
+          }}
+          open={notificationOpen}
+          readNoticeIds={readNoticeIds}
+        />
+      ) : null}
+      {shouldLoadNotices ? (
         <NoticeLayerDialog
-          notices={activeNotices}
-          onClose={() => setNoticeOpen(false)}
+          notices={systemNotices}
+          onClose={() => setSystemNoticeOpen(false)}
           onDismissToday={handleDismissToday}
-          open={noticeOpen}
+          open={systemNoticeOpen}
           showTodayHideOption
         />
       ) : null}
-    </Box>
+      </Box>
+    </>
   );
 }

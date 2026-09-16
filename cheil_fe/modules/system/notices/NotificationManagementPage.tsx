@@ -17,7 +17,6 @@ import {
   DialogTitle,
   Grid,
   MenuItem,
-  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -32,6 +31,7 @@ import { DateTimeInput } from "@/components/common/DateTimeInput";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { NoticeLayerDialog } from "./NoticeLayerDialog";
 import { createNotice, deleteNotice, listNoticesAdmin, updateNotice } from "./api";
 import type { NoticeRecord } from "./notice.types";
@@ -77,6 +77,7 @@ const noticeColumns: GridColDef<NoticeRecord>[] = [
 
 export function NotificationManagementPage() {
   const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
+  const { showSnackbar } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled();
   const queryClient = useQueryClient();
   const noticesQuery = useQuery({
@@ -89,7 +90,6 @@ export function NotificationManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<NoticeDraft | null>(null);
   const [saveTarget, setSaveTarget] = useState<NoticeDraft | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
 
   const records = useMemo(() => noticesQuery.data ?? EMPTY_NOTICES, [noticesQuery.data]);
   const effectiveSelectedId = selectedId || records[0]?.id || "";
@@ -114,7 +114,7 @@ export function NotificationManagementPage() {
 
   const buildNextRecord = (): NoticeRecord | null => {
     if (!draft?.title.trim() || !draft.content.trim() || !draft.publishAt || !draft.exposureStartAt || !draft.exposureEndAt) {
-      setSnackbar({ message: "제목, 내용, 게시 시각, 노출 시작/종료 시각을 모두 입력해 주세요.", severity: "error" });
+      showSnackbar({ message: "제목, 내용, 게시 시각, 노출 시작/종료 시각을 모두 입력해 주세요.", severity: "error" });
       return null;
     }
 
@@ -145,7 +145,7 @@ export function NotificationManagementPage() {
     setSelectedId(saved.id);
     setDraft(saved);
     setSaveTarget(null);
-    setSnackbar({ message: "공지사항이 저장되었습니다.", severity: "success" });
+    showSnackbar({ message: "공지사항이 저장되었습니다.", severity: "success" });
     await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
   };
 
@@ -189,7 +189,7 @@ export function NotificationManagementPage() {
     }
     setDraft(null);
     setDeleteTarget(null);
-    setSnackbar({ message: "공지사항이 삭제되었습니다.", severity: "success" });
+    showSnackbar({ message: "공지사항이 삭제되었습니다.", severity: "success" });
     await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
   };
 
@@ -408,8 +408,6 @@ export function NotificationManagementPage() {
       </Dialog>
 
       <NoticeLayerDialog notices={activeNotices} onClose={() => setPreviewOpen(false)} open={previewOpen} />
-
-      <Snackbar autoHideDuration={2200} message={snackbar?.message} onClose={() => setSnackbar(null)} open={Boolean(snackbar)} />
 
       <Typography color="text.secondary" sx={{ mt: 1.5 }} variant="caption">
         선택 항목: {selectedRecord ? selectedRecord.title : "-"}

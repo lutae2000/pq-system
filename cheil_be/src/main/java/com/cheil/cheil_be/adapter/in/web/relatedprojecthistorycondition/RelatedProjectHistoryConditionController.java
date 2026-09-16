@@ -20,7 +20,7 @@ public class RelatedProjectHistoryConditionController {
 
     @GetMapping("/{bidSeq}")
     public ResponseEntity<RelatedProjectHistoryConditionResponse> get(@PathVariable Long bidSeq) {
-        return ResponseEntity.ok(service.findByBidSeq(bidSeq));
+        return ResponseEntity.ok(RelatedProjectHistoryConditionResponse.from(service.findByBidSeq(bidSeq)));
     }
 
     @PutMapping("/{bidSeq}")
@@ -28,6 +28,8 @@ public class RelatedProjectHistoryConditionController {
             @PathVariable Long bidSeq,
             @RequestBody RelatedProjectHistoryConditionRequest request
     ) {
-        return ResponseEntity.ok(service.save(bidSeq, request.conditionsJson()));
+        return ResponseEntity.ok(RelatedProjectHistoryConditionResponse.from(
+                service.save(bidSeq, request.conditionsJson())
+        ));
     }
 }

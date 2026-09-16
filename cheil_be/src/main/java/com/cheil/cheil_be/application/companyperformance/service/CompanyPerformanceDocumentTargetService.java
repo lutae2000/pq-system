@@ -1,9 +1,6 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
-import java.util.ArrayList;
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -20,7 +17,8 @@ import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDo
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetDisplayOrderRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceResponse;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetCondition;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository.Condition;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
 
 @Service
@@ -29,12 +27,8 @@ public class CompanyPerformanceDocumentTargetService {
 
     private final CompanyPerformanceDocumentTargetJpaRepository targetRepository;
     private final CompanyPerformanceRepository companyPerformanceRepository;
-    private final JdbcClient jdbcClient;
+    private final CompanyPerformanceDocumentTargetQueryRepository targetQueryRepository;
 
-    private static final Map<String, String> GENERAL_COLUMNS = Map.of(
-            "C0101C1", "cp.job_name", "C0102C1", "cp.client_kind", "C0104C1", "cp.contract_from_date",
-            "C0105C1", "cp.contract_to_date", "C0107C1", "cp.contract_amt", "C0108C1", "cp.own_amt",
-            "C0109C1", "cp.job_type", "C0110C1", "cp.summary");
     @Transactional(readOnly = true)
     public List<CompanyPerformanceDocumentTargetResponse> findByBidSeq(Long bidSeq) {
         var targets = targetRepository.findByBidSeqOrderByTargetId(requiredBidSeq(bidSeq));
@@ -91,58 +85,35 @@ public class CompanyPerformanceDocumentTargetService {
     @Transactional
     public List<CompanyPerformanceDocumentTargetResponse> addByConditions(Long bidSeq, List<CompanyPerformanceDocumentTargetCondition> conditions) {
         Long requiredBidSeq = requiredBidSeq(bidSeq);
-        if (conditions == null || conditions.isEmpty()) return findByBidSeq(requiredBidSeq);
-        Map<String, Object> params = new java.util.HashMap<>();
-        List<String> fragments = new ArrayList<>();
-        for (int i = 0; i < conditions.size(); i++) {
-            CompanyPerformanceDocumentTargetCondition condition = conditions.get(i);
-            String fragment = conditionFragment(condition, params, i);
-            if (!fragment.isBlank()) {
-                if (!fragments.isEmpty()) fragments.add(" " + ("OR".equalsIgnoreCase(condition.logicalOperator()) ? "OR" : "AND") + " ");
-                fragments.add(fragment);
-            }
+        if (conditions == null || conditions.isEmpty()) {
+            return findByBidSeq(requiredBidSeq);
         }
-        if (fragments.isEmpty()) return findByBidSeq(requiredBidSeq);
-        String sql = "SELECT cp.seq FROM company_performances cp WHERE NOT EXISTS (SELECT 1 FROM pq_company_performance_document_targets t WHERE t.bid_seq = :bidSeq AND t.company_performance_seq = cp.seq) AND (" + String.join("", fragments) + ")";
-        params.put("bidSeq", requiredBidSeq);
-        List<Long> seqs = jdbcClient.sql(sql).params(params).query(Long.class).list();
+
+        List<Condition> queryConditions = conditions.stream()
+                .map(this::toQueryCondition)
+                .toList();
+        List<Long> seqs = targetQueryRepository.findUnselectedPerformanceSeqs(
+                requiredBidSeq,
+                queryConditions
+        );
         return add(requiredBidSeq, seqs);
     }
 
-    private String conditionFragment(CompanyPerformanceDocumentTargetCondition c, Map<String, Object> params, int i) {
-        String type = c.conditionType() == null ? "" : c.conditionType();
-        if ("constructionKind".equals(type)) {
-            if (c.level1Code() == null || c.level1Code().isBlank()) return "";
-            params.put("l1" + i, c.level1Code()); params.put("l2" + i, c.level2Code()); params.put("l3" + i, c.level3Code());
-            return "EXISTS (SELECT 1 FROM company_performance_construction_kinds k" + i + " WHERE k" + i + ".seq = cp.seq AND k" + i + ".level1_code = :l1" + i + " AND (:l2" + i + " IS NULL OR k" + i + ".level2_code = :l2" + i + ") AND (:l3" + i + " IS NULL OR k" + i + ".level3_code = :l3" + i + ") )";
-        }
-        if ("outline".equals(type)) {
-            if ((c.outlineCategoryCode() == null || c.outlineCategoryCode().isBlank()) && (c.outlineSubcategoryCode() == null || c.outlineSubcategoryCode().isBlank())) return "";
-            params.put("oc" + i, c.outlineCategoryCode()); params.put("os" + i, c.outlineSubcategoryCode());
-            String comparison = comparison("o" + i + ".otln_cont", c, params, i);
-            return "EXISTS (SELECT 1 FROM company_performance_outlines o" + i + " WHERE o" + i + ".seq = cp.seq AND (:oc" + i + " IS NULL OR o" + i + ".cate_code = :oc" + i + ") AND (:os" + i + " IS NULL OR o" + i + ".subcate_code = :os" + i + ")" + (comparison.isBlank() ? "" : " AND " + comparison) + ")";
-        }
-        String column = GENERAL_COLUMNS.get(c.generalCode());
-        return column == null ? "" : comparison(column, c, params, i);
-    }
-
-    private String comparison(String column, CompanyPerformanceDocumentTargetCondition c, Map<String, Object> params, int i) {
-        String value = c.value() == null ? "" : c.value().trim();
-        String operator = c.operator() == null ? "=" : c.operator().toUpperCase(Locale.ROOT);
-        if (value.isBlank()) return "";
-        String left = "number".equals(c.valueType()) ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)" : column;
-        Object typedValue = "number".equals(c.valueType())
-                ? new BigDecimal(value.replace(",", ""))
-                : "LIKE".equals(operator) ? "%" + value.toLowerCase(Locale.ROOT) + "%" : value;
-        params.put("v" + i, typedValue);
-        if ("BETWEEN".equals(operator)) {
-            Object typedValueTo = "number".equals(c.valueType())
-                    ? new BigDecimal((c.valueTo() == null ? "" : c.valueTo()).replace(",", ""))
-                    : c.valueTo();
-            params.put("vt" + i, typedValueTo);
-            return left + " BETWEEN :v" + i + " AND :vt" + i;
-        }
-        return "LIKE".equals(operator) ? "LOWER(CAST(" + column + " AS TEXT)) LIKE :v" + i : left + " " + operator + " :v" + i;
+    private Condition toQueryCondition(CompanyPerformanceDocumentTargetCondition condition) {
+        return new Condition(
+                condition.conditionType(),
+                condition.logicalOperator(),
+                condition.level1Code(),
+                condition.level2Code(),
+                condition.level3Code(),
+                condition.generalCode(),
+                condition.outlineCategoryCode(),
+                condition.outlineSubcategoryCode(),
+                condition.operator(),
+                condition.value(),
+                condition.valueTo(),
+                condition.valueType()
+        );
     }
 
     @Transactional

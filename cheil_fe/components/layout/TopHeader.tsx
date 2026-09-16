@@ -126,10 +126,6 @@ export function TopHeader({
   };
 
   const handleNoticeClick = () => {
-    if (noticeCount < 1) {
-      return;
-    }
-
     onNoticeClick?.();
   };
 

@@ -19,7 +19,6 @@ import javax.imageio.ImageIO;
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,6 +30,7 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.PerformanceCerti
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapHwpxGenerateRequest;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentEntity;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentJpaRepository;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository;
 import com.cheil.cheil_be.common.file.FileDownloadResult;
 import com.cheil.cheil_be.common.file.FileStorageService;
 
@@ -47,7 +47,7 @@ public class PerformanceCertificateGenerationService {
     private final EngineerPerformanceDocumentService performanceDocumentService;
     private final AppFileAttachmentJpaRepository attachmentRepository;
     private final FileStorageService fileStorageService;
-    private final JdbcClient jdbcClient;
+    private final PerformanceCertificateQueryRepository queryRepository;
 
     public byte[] generate(PerformanceCertificateGenerateRequest request) {
         return generateDocument(request, false);
@@ -81,20 +81,13 @@ public class PerformanceCertificateGenerationService {
         }
         boolean includeParticipantList = request.includeParticipantList() == Boolean.TRUE;
         Map<String, WorkOverlapEngineer> engineers = new LinkedHashMap<>();
-        jdbcClient.sql("""
-                        SELECT w.engr_id, w.contract_no, m.namekor
-                        FROM work_overlap_document_targets w
-                        LEFT JOIN pq_engineer_master m ON m.engr_id = w.engr_id
-                        WHERE w.bid_seq = :bidSeq AND w.work_duty_id = :workDutyId
-                        ORDER BY w.engr_id, w.display_order NULLS LAST, w.target_id
-                        """)
-                .param("bidSeq", request.bidSeq())
-                .param("workDutyId", request.workDutyId().trim())
-                .query((rs, rowNum) -> new String[] { rs.getString("engr_id"), rs.getString("contract_no"), rs.getString("namekor") })
-                .list()
-                .forEach(row -> engineers.computeIfAbsent(row[0], id -> new WorkOverlapEngineer(id, row[2]))
-                        .contractNos().add(row[1]));
-
+        queryRepository.findWorkOverlapTargets(request.bidSeq(), request.workDutyId().trim())
+                .forEach(target -> engineers.computeIfAbsent(
+                                target.engineerId(),
+                                id -> new WorkOverlapEngineer(id, target.engineerName())
+                        )
+                        .contractNos()
+                        .add(target.contractNo()));
         List<BatchDocument> documents = new ArrayList<>();
         for (WorkOverlapEngineer engineer : engineers.values()) {
             List<RenderedImage> pages = new ArrayList<>();
@@ -120,10 +113,7 @@ public class PerformanceCertificateGenerationService {
     }
 
     public String findProjectName(Long bidSeq) {
-        return jdbcClient.sql("SELECT project_name FROM bid_notices WHERE bid_seq = :bidSeq")
-                .param("bidSeq", bidSeq)
-                .query(String.class)
-                .optional()
+        return queryRepository.findProjectName(bidSeq)
                 .orElse("업무중복도");
     }
 

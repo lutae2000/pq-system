@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
+import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -19,6 +20,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { createTechnologyNotice } from "@/modules/system/notices/api";
 import {
   createNewTechnologyUsage,
   deleteNewTechnologyUsage,
@@ -160,14 +162,24 @@ export function NewTechnologyUsageManagementPage() {
       if (!request.title) {
         throw new Error("명칭을 입력해 주세요.");
       }
-      return draft.id > 0 ? updateNewTechnologyUsage(draft.id, request) : createNewTechnologyUsage(request);
+      const created = draft.id === 0;
+      const saved = created ? await createNewTechnologyUsage(request) : await updateNewTechnologyUsage(draft.id, request);
+      return { created, saved };
     },
-    onSuccess: async (saved) => {
+    onSuccess: async ({ created, saved }) => {
       setDraft(saved);
       setSaveConfirmOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["new-technology-usages"] });
       await queryClient.invalidateQueries({ queryKey: ["new-technology-usage", saved.id] });
       showSnackbar({ message: "신인도 사용실적이 저장되었습니다.", severity: "success" });
+      if (created) {
+        try {
+          await createTechnologyNotice({ title: "신기술 활용실적 신규 등록", content: `${saved.title} 활용실적이 등록되었습니다.`, targetPath: "/pq/new-technology-usages" });
+          await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
+        } catch {
+          showSnackbar({ message: "실적은 저장되었지만 알림 생성에 실패했습니다.", severity: "warning" });
+        }
+      }
     },
     onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
   });
@@ -268,9 +280,7 @@ export function NewTechnologyUsageManagementPage() {
 
   return (
     <Box>
-      <PageHeader
-        title="신규 사용실적"
-      />
+      <PageHeader title="신기술 활용실적" action={<NotificationPreferenceButton menuPath="/pq/new-technology-usages" />} />
 
       <SearchPanel
         keyword={keyword}
@@ -387,7 +397,7 @@ export function NewTechnologyUsageManagementPage() {
                   deleteDisabled={!canDelete}
                   description={fileOwnerId ? "신인도 사용실적 첨부파일을 관리합니다." : "저장 후 첨부파일을 등록할 수 있습니다."}
                   multiple
-        title="신규 사용실적"
+                  title="신기술 활용실적"
                   uploadDisabled={!fileOwnerId || (!canCreate && !canUpdate)}
                   uploadLabel="파일 추가"
                 />
@@ -412,7 +422,7 @@ export function NewTechnologyUsageManagementPage() {
         onConfirm={() => saveMutation.mutate()}
         open={saveConfirmOpen}
         targetLabel={draft.title}
-        title="신규 사용실적"
+        title="신기술 활용실적"
       />
       <ConfirmDeleteDialog
         loading={deleteMutation.isPending}
