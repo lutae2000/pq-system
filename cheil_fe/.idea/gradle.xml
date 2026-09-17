@@ -30,6 +30,10 @@
           </set>
         </option>
       </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/../platform-infra" />
+        <option name="gradleJvm" value="25" />
+      </GradleProjectSettings>
     </option>
   </component>
 </project>
