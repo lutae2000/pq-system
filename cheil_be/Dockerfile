@@ -1,4 +1,4 @@
-FROM amazoncorretto:25-al2023-jre
+FROM amazoncorretto:25-al2023
 
 WORKDIR /app
 
