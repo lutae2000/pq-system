@@ -2,7 +2,7 @@ spring:
   datasource:
     # 개발 DB 연결 정보.
     driver-class-name: com.p6spy.engine.spy.P6SpyDriver
-    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
+    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:merp-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
     username: ${POSTGRES_USER:cheil}
     password: ${POSTGRES_PASSWORD:cheil}
   jpa:
