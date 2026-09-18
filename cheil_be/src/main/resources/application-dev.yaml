@@ -8,7 +8,7 @@ spring:
   jpa:
     # 개발은 스키마를 검증만 하고, 부팅 시 데이터 주입은 하지 않는다.
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true
