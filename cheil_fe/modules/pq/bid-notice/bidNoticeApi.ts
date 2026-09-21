@@ -8,6 +8,7 @@ export type BidNoticeApiRecord = {
   announceDate: string | null;
   bidClosingDate: string | null;
   bidDate: string | null;
+  interviewDate: string | null;
   bidMethod: string | null;
   bidMethodLabel?: string | null;
   bidSeq: number | null;

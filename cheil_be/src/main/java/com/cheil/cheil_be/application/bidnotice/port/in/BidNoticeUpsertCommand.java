@@ -20,6 +20,7 @@ public record BidNoticeUpsertCommand(
         LocalDateTime pqSubmitDate,
         String orderMethod,
         LocalDateTime bidDate,
+        LocalDate interviewDate,
         String bidSuccessYn,
         String pqDecideEmpno,
         LocalDate pqDecideDate,

@@ -687,7 +687,7 @@ export function BidNoticeDetailDialog({
               <SectionCard title="일정 정보">
                 <Stack spacing={1}>
                   <CategoryBlock title="공고일자">
-                    <DateYmdField label="공고일자" onChange={(value) => onFieldChange("noticeDate", value)} readOnly={readOnly} value={record.noticeDate} />
+                    <DateYmdField onChange={(value) => onFieldChange("noticeDate", value)} readOnly={readOnly} value={record.noticeDate} />
                   </CategoryBlock>
 
                   <CategoryBlock title="PQ / TP 일정">
@@ -704,6 +704,14 @@ export function BidNoticeDetailDialog({
                       <DateTimeField label="입찰일자" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
                       <DateTimeField label="투찰마감일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
                     </Box>
+                  </CategoryBlock>
+
+                  <CategoryBlock title="면접 일정">
+                    <DateYmdField
+                      onChange={(value) => onFieldChange("interviewDate", value)}
+                      readOnly={readOnly}
+                      value={record.interviewDate}
+                    />
                   </CategoryBlock>
 
                 </Stack>

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS bid_notices (
     pq_submit_date VARCHAR(12),
     order_method VARCHAR(50),
     bid_date VARCHAR(12),
+    interview_date VARCHAR(8),
     bid_sucess_yn VARCHAR(1),
     pq_decide_empno VARCHAR(50),
     pq_decide_date VARCHAR(8),
@@ -57,6 +58,7 @@ COMMENT ON COLUMN bid_notices.pq_submit_date IS 'PQ제출일';
 COMMENT ON COLUMN bid_notices.order_method IS '발주 방법';
 COMMENT ON COLUMN bid_notices.bid_sucess_yn IS '낙찰 여부';
 COMMENT ON COLUMN bid_notices.bid_date IS '입찰 날짜';
+COMMENT ON COLUMN bid_notices.interview_date IS '면접 일정';
 COMMENT ON COLUMN bid_notices.pq_decide_empno IS NULL;
 COMMENT ON COLUMN bid_notices.pq_decide_date IS NULL;
 COMMENT ON COLUMN bid_notices.super_decide_empno IS '작성자';

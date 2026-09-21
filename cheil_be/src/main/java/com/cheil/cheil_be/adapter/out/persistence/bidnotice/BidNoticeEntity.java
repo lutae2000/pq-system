@@ -72,6 +72,9 @@ class BidNoticeEntity {
     @Column(name = "bid_date", length = 12)
     private String bidDate;
 
+    @Column(name = "interview_date", length = 8)
+    private String interviewDate;
+
     @Column(name = "bid_sucess_yn", length = 1)
     private String bidSuccessYn;
 
@@ -151,6 +154,7 @@ class BidNoticeEntity {
                 .pqSubmitDate(formatDateTime(bidNotice.pqSubmitDate()))
                 .orderMethod(bidNotice.orderMethod())
                 .bidDate(formatDateTime(bidNotice.bidDate()))
+                .interviewDate(formatDate(bidNotice.interviewDate()))
                 .bidSuccessYn(bidNotice.bidSuccessYn())
                 .pqDecideEmpno(bidNotice.pqDecideEmpno())
                 .pqDecideDate(formatDate(bidNotice.pqDecideDate()))
@@ -187,6 +191,7 @@ class BidNoticeEntity {
         pqSubmitDate = formatDateTime(bidNotice.pqSubmitDate());
         orderMethod = bidNotice.orderMethod();
         bidDate = formatDateTime(bidNotice.bidDate());
+        interviewDate = formatDate(bidNotice.interviewDate());
         bidSuccessYn = bidNotice.bidSuccessYn();
         pqDecideEmpno = bidNotice.pqDecideEmpno();
         pqDecideDate = formatDate(bidNotice.pqDecideDate());
@@ -225,6 +230,7 @@ class BidNoticeEntity {
                 parseDateTime(pqSubmitDate),
                 orderMethod,
                 parseDateTime(bidDate),
+                parseDate(interviewDate),
                 bidSuccessYn,
                 pqDecideEmpno,
                 parseDate(pqDecideDate),

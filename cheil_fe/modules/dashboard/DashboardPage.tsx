@@ -172,6 +172,7 @@ const emptyBidNoticeRecord = (): BidNoticeRecord => ({
   active: true,
   baseAmount: 0,
   bidDate: "",
+  interviewDate: "",
   bidStyle: "",
   bidMethod: "",
   bidNo: "",

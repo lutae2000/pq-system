@@ -16,6 +16,7 @@ export type BidNoticeRecord = {
   active: boolean;
   baseAmount: number;
   bidDate: string;
+  interviewDate: string;
   bidStyle: string;
   bidMethod: BidMethod;
   bidNo: string;
