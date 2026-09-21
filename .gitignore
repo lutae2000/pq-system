@@ -1,0 +1,52 @@
+# IDE and editor metadata
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Java / Gradle / Maven build output
+.gradle/
+**/build/
+**/out/
+**/target/
+*.class
+
+# Node.js / Next.js
+**/node_modules/
+**/.next/
+**/coverage/
+**/dist/
+**/storybook-static/
+**/.turbo/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python build and cache files
+pdfToExcel/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+*.secret.yaml
+*.secret.yml
+*-password.txt
+*-password.b64
+*.pem
+
+# Generated/local files
+*-rendered.yaml
+*.log
+.DS_Store
+Thumbs.db
