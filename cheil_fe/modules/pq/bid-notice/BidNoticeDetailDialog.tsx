@@ -366,26 +366,26 @@ function DateYmdField({
   readOnly = false,
   value,
 }: {
-  label: string;
+  label?: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
   value: string;
 }) {
   const inputValue = /^\d{8}$/.test(value) ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}` : value.slice(0, 10);
 
-  return (
-    <LabeledField label={label}>
-      <TextField
-        fullWidth
-        onChange={(event) => onChange(event.target.value.replaceAll("-", ""))}
-        size="small"
-        slotProps={{ htmlInput: { readOnly } }}
-        sx={standardFieldSx}
-        type="date"
-        value={inputValue}
-      />
-    </LabeledField>
+  const field = (
+    <TextField
+      fullWidth
+      onChange={(event) => onChange(event.target.value.replaceAll("-", ""))}
+      size="small"
+      slotProps={{ htmlInput: { readOnly } }}
+      sx={standardFieldSx}
+      type="date"
+      value={inputValue}
+    />
   );
+
+  return label ? <LabeledField label={label}>{field}</LabeledField> : field;
 }
 
 function AttachmentCard({
