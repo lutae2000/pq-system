@@ -17,6 +17,10 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # Instant 컬럼을 PostgreSQL timestamp with time zone이 아닌
+        # timestamp without time zone으로 매핑한다.
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
   datasource:
     hikari:
       # DB 연결을 잡을 때 너무 오래 기다리지 않도록 제한

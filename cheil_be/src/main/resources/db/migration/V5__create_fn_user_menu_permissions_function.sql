@@ -1,5 +1,5 @@
 CREATE OR REPLACE FUNCTION fn_user_menu_permissions(
-    p_login_id VARCHAR,
+    p_login_id VARCHAR
 )
 RETURNS TABLE (
     menu_code VARCHAR,

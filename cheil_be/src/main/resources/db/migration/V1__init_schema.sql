@@ -1,3 +1,5 @@
+-- 초기 스키마 생성을 위해 기존 테이블을 정리한다.
+-- CASCADE 옵션으로 종속된 외래 키도 함께 제거한 후 테이블을 다시 생성한다.
 DROP TABLE IF EXISTS user_menu_permissions CASCADE;
 DROP TABLE IF EXISTS role_permissions CASCADE;
 DROP TABLE IF EXISTS system_notices CASCADE;
@@ -8,6 +10,7 @@ DROP TABLE IF EXISTS department CASCADE;
 DROP TABLE IF EXISTS auth_users CASCADE;
 DROP TABLE IF EXISTS api_call_logs CASCADE;
 
+-- 장애 추적 및 모니터링에 사용하는 API 요청·응답 감사 로그.
 CREATE TABLE api_call_logs (
     id BIGSERIAL PRIMARY KEY,
     request_id UUID NOT NULL,
@@ -30,6 +33,7 @@ CREATE TABLE api_call_logs (
 );
 
 
+-- API 로그 검색 및 트레이스 연계를 위한 인덱스.
 CREATE INDEX idx_api_call_logs_occurred_at
     ON api_call_logs (occurred_at);
 
@@ -39,6 +43,7 @@ CREATE INDEX idx_api_call_logs_service_id
 CREATE INDEX idx_api_call_logs_trace_id
     ON api_call_logs (trace_id);
 
+-- 애플리케이션 사용자 및 인증 정보.
 CREATE TABLE auth_users (
     login_id VARCHAR(100) PRIMARY KEY,
     employee_no VARCHAR(20) NOT NULL UNIQUE,
@@ -61,6 +66,7 @@ CREATE TABLE auth_users (
 );
 
 
+-- 사용자와 업무 화면에서 사용하는 조직 부서 정보.
 CREATE TABLE department (
     dept_code VARCHAR(20) PRIMARY KEY,
     dept_name VARCHAR(100) NOT NULL,
@@ -81,6 +87,7 @@ CREATE TABLE department (
 
 CREATE INDEX idx_department_headquater_code ON department (headquater_code);
 
+-- 권한 검사에 사용하는 역할 정보.
 CREATE TABLE auth_roles (
     role_code VARCHAR(50) PRIMARY KEY,
     role_name VARCHAR(100) NOT NULL UNIQUE,
@@ -94,6 +101,8 @@ CREATE TABLE auth_roles (
 );
 
 
+-- 시스템 메뉴 및 화면 정보.
+-- 감사 시간 컬럼은 NULL을 허용하며, 값을 생략하면 현재 시간이 자동 입력된다.
 CREATE TABLE system_menus (
     menu_code VARCHAR(50) PRIMARY KEY,
     menu_name VARCHAR(100) NOT NULL,
@@ -111,6 +120,7 @@ CREATE TABLE system_menus (
 );
 
 
+-- 사용자에게 표시되는 시스템 공지사항.
 CREATE TABLE system_notices (
     notice_id VARCHAR(50) PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
@@ -127,6 +137,7 @@ CREATE TABLE system_notices (
 );
 
 
+-- 애플리케이션 공통 정책 및 정책 값.
 CREATE TABLE system_policies (
     policy_key VARCHAR(100) PRIMARY KEY,
     policy_name VARCHAR(150) NOT NULL,
@@ -148,6 +159,7 @@ CREATE TABLE system_policies (
 );
 
 
+-- 역할별 시스템 메뉴 권한.
 CREATE TABLE role_permissions (
     role_code VARCHAR(50) NOT NULL,
     menu_code VARCHAR(50) NOT NULL,
@@ -155,9 +167,9 @@ CREATE TABLE role_permissions (
     create_yn BOOLEAN NOT NULL DEFAULT FALSE,
     update_yn BOOLEAN NOT NULL DEFAULT FALSE,
     delete_yn BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100) NOT NULL DEFAULT 'system',
-    last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100) NOT NULL DEFAULT 'system',
     PRIMARY KEY (role_code, menu_code),
     CONSTRAINT fk_role_permissions_role
@@ -167,6 +179,7 @@ CREATE TABLE role_permissions (
 );
 
 
+-- 사용자별 시스템 메뉴 권한.
 CREATE TABLE user_menu_permissions (
     login_id VARCHAR(100) NOT NULL,
     menu_code VARCHAR(50) NOT NULL,
@@ -182,12 +195,26 @@ CREATE TABLE user_menu_permissions (
 );
 
 
+-- 스키마 문서화를 위한 PostgreSQL 테이블 코멘트.
+COMMENT ON TABLE api_call_logs IS 'API 요청 및 응답 감사 로그';
+COMMENT ON TABLE auth_users IS '애플리케이션 사용자 및 인증 정보';
+COMMENT ON TABLE department IS '조직 부서 기준 정보';
+COMMENT ON TABLE auth_roles IS '애플리케이션 권한 역할';
+COMMENT ON TABLE system_menus IS '시스템 메뉴 및 화면 정보';
+COMMENT ON TABLE system_notices IS '사용자에게 표시되는 시스템 공지사항';
+COMMENT ON TABLE system_policies IS '애플리케이션 공통 정책 설정';
+COMMENT ON TABLE role_permissions IS '역할별 시스템 메뉴 권한';
+COMMENT ON TABLE user_menu_permissions IS '사용자별 시스템 메뉴 권한';
+
+
+-- 초기 애플리케이션 실행에 필요한 기본 역할.
 INSERT INTO auth_roles (role_code, role_name, use_yn, description, sort_seq)
 VALUES
     ('100', 'Basic User', TRUE, 'Basic role', 1),
     ('ADMIN', 'System Admin', TRUE, 'Full permission role', 0)
 ON CONFLICT (role_code) DO NOTHING;
 
+-- 초기 시스템 메뉴 계층.
 INSERT INTO system_menus (menu_code, menu_name, parent_menu_code, menu_path, menu_type, sort_seq, use_yn, visible_yn, description)
 VALUES
     ('system-root', '시스템 관리', NULL, NULL, 'GROUP', 100, TRUE, TRUE, '시스템 관리 메뉴'),
@@ -210,6 +237,7 @@ VALUES
     ('pq-announcements', '공고문', 'pq-management', '/pq/announcements', 'PAGE', 310, TRUE, TRUE, 'PQ 공고문 관리 화면')
 ON CONFLICT (menu_code) DO NOTHING;
 
+-- 기본 보안 및 세션 정책.
 INSERT INTO system_policies (policy_key, policy_name, policy_value, value_type, sort_seq, use_yn, description)
 VALUES
     ('PASSWORD_CHANGE_PERIOD_DAYS', 'Password Change Period Days', '90', 'NUMBER', 10, TRUE, 'Recommended password change period'),
@@ -227,6 +255,7 @@ VALUES
     ('MAX_CONCURRENT_SESSIONS', 'Max Concurrent Sessions', '1', 'NUMBER', 130, TRUE, 'Allowed concurrent sessions per account')
 ON CONFLICT (policy_key) DO NOTHING;
 
+-- ADMIN 역할에 초기 메뉴 전체 권한을 부여한다.
 INSERT INTO role_permissions (role_code, menu_code, read_yn, create_yn, update_yn, delete_yn)
 SELECT
     'ADMIN',
