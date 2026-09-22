@@ -21,9 +21,13 @@ spring:
 logging:
   level:
     SQL_COMPLETED: DEBUG
-    com.p6spy: INFO
+    p6spy: OFF
+    com.p6spy: OFF
     org.hibernate.SQL: OFF
     org.hibernate.orm.jdbc.bind: OFF
+    org.springframework.boot.actuate: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
 
 management:
   endpoints:
@@ -38,6 +42,11 @@ management:
     health:
       show-details: always
       show-components: always
+  health:
+    mail:
+      # The development cluster does not run an SMTP server by default.
+      # Mail is optional, so it must not make aggregate health return 503.
+      enabled: false
 
 server:
   error:
