@@ -189,7 +189,7 @@ export function LoginPage() {
               <LockOutlinedIcon />
             </Avatar>
             <Typography component="h1" sx={{ fontSize: 24, fontWeight: 900, mt: 2 }}>
-              로그인
+              로그인(테스트)
             </Typography>
           </Box>
 
@@ -263,7 +263,7 @@ export function LoginPage() {
                 },
               }}
             >
-              {loginMutation.isPending ? "로그인 중..." : "로그인(테스트)"}
+              {loginMutation.isPending ? "로그인 중..." : "로그인"}
             </Button>
 
             <Button
