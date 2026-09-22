@@ -263,7 +263,7 @@ export function LoginPage() {
                 },
               }}
             >
-              {loginMutation.isPending ? "로그인 중..." : "로그인"}
+              {loginMutation.isPending ? "로그인 중..." : "로그인(테스트)"}
             </Button>
 
             <Button
