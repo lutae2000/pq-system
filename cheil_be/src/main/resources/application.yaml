@@ -16,7 +16,8 @@ spring:
     properties:
       hibernate:
         jdbc:
-          time_zone: UTC
+          # TIMESTAMP 컬럼은 KST 기준으로 저장하며 환경변수로 변경할 수 있다.
+          time_zone: ${APP_JPA_JDBC_TIME_ZONE:Asia/Seoul}
         # Instant 컬럼을 PostgreSQL timestamp with time zone이 아닌
         # timestamp without time zone으로 매핑한다.
         type:
