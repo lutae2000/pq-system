@@ -73,6 +73,14 @@ services:
       - '9121:9121'
     restart: unless-stopped
 
+  postgres-exporter:
+    image: 'quay.io/prometheuscommunity/postgres-exporter:v0.19.1'
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-cheil}:${POSTGRES_PASSWORD:-cheil}@postgres:5432/${POSTGRES_DB:-cheil_local}?sslmode=disable
+    ports:
+      - '9187:9187'
+    restart: unless-stopped
+
   alloy:
     image: 'grafana/alloy:latest'
     command:
