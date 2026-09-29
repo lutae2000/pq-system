@@ -59,9 +59,9 @@ CREATE TABLE auth_users (
     pic_yn BOOLEAN NOT NULL,
     wrong_password_count INTEGER NOT NULL DEFAULT 0,
     email VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
-    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100)
 );
 
@@ -94,9 +94,9 @@ CREATE TABLE auth_roles (
     use_yn BOOLEAN NOT NULL DEFAULT TRUE,
     description VARCHAR(500),
     sort_seq INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
-    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100)
 );
 
@@ -113,9 +113,9 @@ CREATE TABLE system_menus (
     use_yn BOOLEAN NOT NULL DEFAULT TRUE,
     visible_yn BOOLEAN NOT NULL DEFAULT TRUE,
     description VARCHAR(500),
-    created_at TIMESTAMP  DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
-    last_changed_at TIMESTAMP  DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100)
 );
 
@@ -130,9 +130,9 @@ CREATE TABLE system_notices (
     publish_at TIMESTAMP NOT NULL,
     important BOOLEAN NOT NULL DEFAULT FALSE,
     active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
-    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100)
 );
 
@@ -146,9 +146,9 @@ CREATE TABLE system_policies (
     sort_seq INTEGER NOT NULL DEFAULT 0,
     use_yn BOOLEAN NOT NULL DEFAULT TRUE,
     description VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
-    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
     CONSTRAINT ck_system_policies_value_type
         CHECK (value_type IN ('BOOLEAN', 'NUMBER', 'TEXT')),
@@ -167,9 +167,9 @@ CREATE TABLE role_permissions (
     create_yn BOOLEAN NOT NULL DEFAULT FALSE,
     update_yn BOOLEAN NOT NULL DEFAULT FALSE,
     delete_yn BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100) NOT NULL DEFAULT 'system',
-    last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100) NOT NULL DEFAULT 'system',
     PRIMARY KEY (role_code, menu_code),
     CONSTRAINT fk_role_permissions_role
