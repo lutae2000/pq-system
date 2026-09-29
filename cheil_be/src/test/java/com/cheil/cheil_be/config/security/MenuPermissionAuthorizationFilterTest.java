@@ -27,7 +27,7 @@ class MenuPermissionAuthorizationFilterTest {
             null,
             Map.of(),
             new AppSecurityProperties.Filter(
-                    List.of(), List.of(), List.of("/pq/bid-notice/*", "/auth/users", "/file-attachments")),
+                    List.of(), List.of(), List.of("/pq/bid-notice/*", "/auth/users", "/auth/password", "/file-attachments")),
             null);
 
     @Test
@@ -67,6 +67,21 @@ class MenuPermissionAuthorizationFilterTest {
         filter().doFilter(request, response, chain);
 
         verify(chain).doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void allowsAuthenticatedPasswordChangeWithoutMenuPermission() throws Exception {
+        MenuPermissionQueryUseCase permissions = mock(MenuPermissionQueryUseCase.class);
+        FilterChain chain = mock(FilterChain.class);
+        var request = request("PATCH", "/api/auth/password");
+        var response = new MockHttpServletResponse();
+
+        new MenuPermissionAuthorizationFilter(permissions, PROPERTIES, new ObjectMapper(), Clock.systemUTC())
+                .doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verifyNoInteractions(permissions);
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
     }
 

@@ -115,8 +115,7 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
     }
 
     private boolean isAuthenticatedOnlyRequest(HttpServletRequest request) {
-        return (HttpMethod.GET.matches(request.getMethod()) || HttpMethod.HEAD.matches(request.getMethod()))
-                && isAuthenticatedOnlyPath(request.getRequestURI());
+        return isAuthenticatedOnlyPath(request.getRequestURI());
     }
 
     private static boolean hasPermission(MenuPermissionResult permission, String method) {
