@@ -28,6 +28,7 @@ import { useBrandingSettings } from "@/modules/system/branding/useBrandingSettin
 import { useLayoutStore } from "@/store/layoutStore";
 
 const removeWhitespace = (value: string) => value.replace(/\s/g, "");
+const showTestLabel = process.env.NEXT_PUBLIC_APP_PROFILE !== "prod";
 
 export function LoginPage() {
   const router = useRouter();
@@ -189,7 +190,7 @@ export function LoginPage() {
               <LockOutlinedIcon />
             </Avatar>
             <Typography component="h1" sx={{ fontSize: 24, fontWeight: 900, mt: 2 }}>
-              로그인(테스트)
+              로그인{showTestLabel ? "(테스트)" : ""}
             </Typography>
           </Box>
 
