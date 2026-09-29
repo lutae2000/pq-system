@@ -14,7 +14,6 @@ export function AwardHistoryTab({
   handleRowEditEnterKeyDown,
   handleRowEditStop,
   onNewRowEditCancel,
-  onAttachmentUpload,
   onOpenAwardCreate,
   onRowModesModelChange,
   onStartRowEdit,
@@ -56,7 +55,6 @@ export function AwardHistoryTab({
       />
       <AttachmentPanel
         attachments={selectedAwardRow?.attachments ?? []}
-        onAttachmentUpload={onAttachmentUpload}
         readOnly={readOnly}
         recordId={selectedAwardRow?.id}
         selectedLabel={selectedAwardRow?.kind || selectedAwardRow?.basis}

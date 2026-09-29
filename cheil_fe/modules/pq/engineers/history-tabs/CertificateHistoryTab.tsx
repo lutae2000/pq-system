@@ -14,7 +14,6 @@ export function CertificateHistoryTab({
   handleRowEditEnterKeyDown,
   handleRowEditStop,
   onNewRowEditCancel,
-  onAttachmentUpload,
   onOpenCertificateCreate,
   onRowModesModelChange,
   onStartRowEdit,
@@ -57,7 +56,6 @@ export function CertificateHistoryTab({
       />
       <AttachmentPanel
         attachments={selectedCertificateRow?.attachments ?? []}
-        onAttachmentUpload={onAttachmentUpload}
         readOnly={readOnly}
         recordId={selectedCertificateRow?.id}
         selectedLabel={selectedCertificateLabel ?? selectedCertificateRow?.certificateName}

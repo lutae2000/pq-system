@@ -14,7 +14,6 @@ export function EducationHistoryTab({
   handleRowEditEnterKeyDown,
   handleRowEditStop,
   onNewRowEditCancel,
-  onAttachmentUpload,
   onOpenEducationCreate,
   onRowModesModelChange,
   onStartRowEdit,
@@ -56,7 +55,6 @@ export function EducationHistoryTab({
       />
       <AttachmentPanel
         attachments={selectedEducationRow?.attachments ?? []}
-        onAttachmentUpload={onAttachmentUpload}
         readOnly={readOnly}
         recordId={selectedEducationRow?.id}
         selectedLabel={selectedEducationRow?.schoolName}

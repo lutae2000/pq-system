@@ -12,7 +12,6 @@ export function TrainingHistoryTab({
   handleRowEditStop,
   onNewRowEditCancel,
   handleTrainingProcessRowUpdate,
-  onAttachmentUpload,
   onOpenTrainingCreate,
   onRowModesModelChange,
   onStartRowEdit,
@@ -56,7 +55,6 @@ export function TrainingHistoryTab({
       />
       <AttachmentPanel
         attachments={selectedTrainingRow?.attachments ?? []}
-        onAttachmentUpload={onAttachmentUpload}
         readOnly={readOnly}
         recordId={selectedTrainingRow?.id}
         selectedLabel={selectedTrainingRow?.trainingName}

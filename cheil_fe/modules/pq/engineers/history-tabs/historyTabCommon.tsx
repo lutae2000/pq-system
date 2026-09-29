@@ -9,7 +9,6 @@ import type { AttachmentItem, DetailTab } from "@/modules/pq/engineers/EngineerP
 
 type AttachmentPanelProps = {
   attachments: AttachmentItem[];
-  onAttachmentUpload: (tab: DetailTab, recordId: string, files: File[]) => void;
   readOnly?: boolean;
   recordId?: string;
   selectedLabel?: string;
@@ -22,6 +21,16 @@ type HistoryTabHeaderProps = {
   hideCreateButton?: boolean;
   onCreate: () => void;
 };
+
+const HISTORY_ATTACHMENT_OWNER_TYPE: Record<Exclude<DetailTab, "performance">, string> = {
+  award: "PQ_ENGINEER_AWARD",
+  career: "PQ_ENGINEER_CAREER",
+  certificate: "PQ_ENGINEER_CERTIFICATE",
+  education: "PQ_ENGINEER_EDUCATION",
+  training: "PQ_ENGINEER_TRAINING",
+};
+
+const HISTORY_ATTACHMENT_TYPE = "EVIDENCE";
 
 export function TabPanel({
   children,
@@ -57,7 +66,15 @@ function mapAttachmentFiles(attachments: AttachmentItem[]): FileActionCardFileIt
   }));
 }
 
-export function AttachmentPanel({ attachments, onAttachmentUpload, readOnly = false, recordId, selectedLabel, tab, title }: AttachmentPanelProps) {
+export function AttachmentPanel({ attachments, readOnly = false, recordId, selectedLabel, tab, title }: AttachmentPanelProps) {
+  const attachmentTarget = recordId && !recordId.startsWith("tmp-")
+    ? {
+        attachmentType: HISTORY_ATTACHMENT_TYPE,
+        ownerId: recordId,
+        ownerType: HISTORY_ATTACHMENT_OWNER_TYPE[tab as Exclude<DetailTab, "performance">],
+      }
+    : undefined;
+
   return (
     <Box sx={{ mt: 2 }}>
       <FileActionCard
@@ -68,9 +85,9 @@ export function AttachmentPanel({ attachments, onAttachmentUpload, readOnly = fa
         }
         files={mapAttachmentFiles(attachments)}
         multiple
-        onFilesSelected={(files) => recordId && onAttachmentUpload(tab, recordId, files)}
+        attachmentTarget={attachmentTarget}
         title={`${title} 파일`}
-        uploadDisabled={readOnly || !selectedLabel}
+        uploadDisabled={readOnly || !selectedLabel || !attachmentTarget}
         uploadLabel="파일 업로드"
       />
     </Box>

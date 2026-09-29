@@ -14,7 +14,6 @@ export function CareerHistoryTab({
   handleRowEditEnterKeyDown,
   handleRowEditStop,
   onNewRowEditCancel,
-  onAttachmentUpload,
   onOpenCareerCreate,
   onRowModesModelChange,
   onStartRowEdit,
@@ -52,7 +51,6 @@ export function CareerHistoryTab({
       />
       <AttachmentPanel
         attachments={selectedCareerRow?.attachments ?? []}
-        onAttachmentUpload={onAttachmentUpload}
         readOnly={readOnly}
         recordId={selectedCareerRow?.id}
         selectedLabel={selectedCareerRow?.company}
