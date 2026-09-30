@@ -83,4 +83,4 @@ app:
       ttl: ${APP_USER_SESSION_TTL:9h}
   file:
     # 로컬 파일 저장 위치와 공개 경로.
-    storage-root: ${APP_FILE_STORAGE_ROOT:E:/cheil-be/files/local}
+    storage-root: ${APP_FILE_STORAGE_ROOT:E:/data/files}

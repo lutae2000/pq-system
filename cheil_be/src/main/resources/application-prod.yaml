@@ -41,4 +41,4 @@ app:
         api-key: ${APP_APPLICATION_API_KEY:ca9f7161483a1a35e43048c1ddc1a4a6ad803c1a5f527777871aca6682179712}
   file:
     # 운영 파일 저장 경로.
-    storage-root: ${APP_FILE_STORAGE_ROOT:/data/cheil-be/files/prod}
+    storage-root: ${APP_FILE_STORAGE_ROOT:/data/files}
