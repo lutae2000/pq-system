@@ -125,7 +125,7 @@ app:
   system-policy-cache:
     ttl: ${APP_SYSTEM_POLICY_CACHE_TTL:1d}
   file:
-    storage-root: ${APP_FILE_STORAGE_ROOT:${java.io.tmpdir}/cheil-be/files}
+    storage-root: ${APP_FILE_STORAGE_ROOT:E:/data/files}
     download-path: /files
     public-base-url: ${APP_FILE_PUBLIC_BASE_URL:}
     create-directories: true
