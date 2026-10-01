@@ -442,7 +442,7 @@
               "refId": "A"
             }
           ],
-          "title": "Waiting Lock Sessions",
+          "title": "Waiting Lock",
           "type": "stat",
           "options": {
             "colorMode": "value",
