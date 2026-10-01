@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.newtechnology.service.NewTechnologyUsageService;
+import com.cheil.cheil_be.application.newtechnology.port.in.NewTechnologyUsageUseCase;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageView;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
@@ -22,7 +23,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 @RequiredArgsConstructor
 public class NewTechnologyUsageController {
 
-    private final NewTechnologyUsageService newTechnologyUsageService;
+    private final NewTechnologyUsageUseCase newTechnologyUsageUseCase;
 
     @GetMapping
     public ResponseEntity<PageResponse<NewTechnologyUsageResponse>> list(
@@ -34,7 +35,7 @@ public class NewTechnologyUsageController {
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Page<NewTechnologyUsageResponse> result = newTechnologyUsageService.findAll(
+        Page<NewTechnologyUsageView> result = newTechnologyUsageUseCase.findAll(
                 keyword,
                 designationNo,
                 client,
@@ -42,17 +43,17 @@ public class NewTechnologyUsageController {
                 noticeDateTo,
                 PageRequests.of(page, size)
         );
-        return ResponseEntity.ok(PageResponse.from(result));
+        return ResponseEntity.ok(PageResponse.from(result.map(NewTechnologyUsageResponse::from)));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<NewTechnologyUsageResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(newTechnologyUsageService.findById(id));
+        return ResponseEntity.ok(NewTechnologyUsageResponse.from(newTechnologyUsageUseCase.findById(id)));
     }
 
     @PostMapping
     public ResponseEntity<NewTechnologyUsageResponse> create(@RequestBody NewTechnologyUsageRequest request) {
-        return ResponseEntity.ok(newTechnologyUsageService.create(request));
+        return ResponseEntity.ok(NewTechnologyUsageResponse.from(newTechnologyUsageUseCase.create(request.toCommand())));
     }
 
     @PutMapping("/{id}")
@@ -60,12 +61,12 @@ public class NewTechnologyUsageController {
             @PathVariable Long id,
             @RequestBody NewTechnologyUsageRequest request
     ) {
-        return ResponseEntity.ok(newTechnologyUsageService.update(id, request));
+        return ResponseEntity.ok(NewTechnologyUsageResponse.from(newTechnologyUsageUseCase.update(id, request.toCommand())));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        newTechnologyUsageService.delete(id);
+        newTechnologyUsageUseCase.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

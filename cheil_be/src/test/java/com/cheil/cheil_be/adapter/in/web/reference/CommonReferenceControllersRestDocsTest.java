@@ -34,9 +34,9 @@ import com.cheil.cheil_be.adapter.in.web.commondepartment.DepartmentController;
 import com.cheil.cheil_be.adapter.in.web.constructiontype.ConstructionTypeController;
 import com.cheil.cheil_be.application.certification.service.CertificationAdminService;
 import com.cheil.cheil_be.application.client.service.ClientAdminService;
-import com.cheil.cheil_be.application.commoncode.service.CommonCodeAdminService;
+import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.commondepartment.service.DepartmentAdminService;
-import com.cheil.cheil_be.application.constructiontype.service.ConstructionTypeAdminService;
+import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeUseCase;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
@@ -57,10 +57,10 @@ class CommonReferenceControllersRestDocsTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private CommonCodeAdminService commonCodeAdminService;
+    private CommonCodeAdminUseCase commonCodeAdminUseCase;
 
     @MockitoBean
-    private ConstructionTypeAdminService constructionTypeAdminService;
+    private ConstructionTypeUseCase constructionTypeUseCase;
 
     @MockitoBean
     private CertificationAdminService certificationAdminService;
@@ -88,7 +88,7 @@ class CommonReferenceControllersRestDocsTest {
 
     @Test
     void listCommonCodesDocumentsQueryContract() throws Exception {
-        when(commonCodeAdminService.findAll(any())).thenReturn(List.of());
+        when(commonCodeAdminUseCase.findAll(any())).thenReturn(List.of());
 
         mockMvc.perform(get("/code/common-codes")
                         .param("codeLevel", "2")
@@ -112,7 +112,7 @@ class CommonReferenceControllersRestDocsTest {
 
     @Test
     void listConstructionTypesDocumentsQueryContract() throws Exception {
-        when(constructionTypeAdminService.findAll(any())).thenReturn(List.of());
+        when(constructionTypeUseCase.findAll(any())).thenReturn(List.of());
 
         mockMvc.perform(get("/code/construction-types").param("codeLevel", "2").param("level1Code", "ST"))
                 .andExpect(status().isOk())

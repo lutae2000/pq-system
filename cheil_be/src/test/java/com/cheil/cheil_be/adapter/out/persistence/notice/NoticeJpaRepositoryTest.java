@@ -22,7 +22,7 @@ class NoticeJpaRepositoryTest {
     @Test
     void findAllLoadsNoticesFromDatabase() {
         NoticeEntity entity = NoticeEntity.from(
-                new Notice(true, "content", "2026-06-30 18:00", "2026-06-30 09:00", "N002", true, "2026-06-30 09:00", "title")
+                new Notice(true, "content", "2026-06-30 18:00", "2026-06-30 09:00", "N002", true, "2026-06-30 09:00", "title", null)
         );
         when(jpaNoticeRepository.findAll()).thenReturn(List.of(entity));
 

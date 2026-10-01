@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.shinindo.service.ShinindoManagementService;
+import com.cheil.cheil_be.application.shinindo.port.in.ShinindoManagementUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
@@ -22,7 +22,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 @RequiredArgsConstructor
 public class ShinindoManagementController {
 
-    private final ShinindoManagementService shinindoManagementService;
+    private final ShinindoManagementUseCase shinindoManagementUseCase;
 
     @GetMapping
     public ResponseEntity<PageResponse<ShinindoManagementResponse>> list(
@@ -32,7 +32,7 @@ public class ShinindoManagementController {
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Page<ShinindoManagementResponse> result = shinindoManagementService.findAll(
+        Page<ShinindoManagementResponse> result = shinindoManagementUseCase.findAll(
                 keyword,
                 clientCode,
                 referenceDate,
@@ -44,14 +44,14 @@ public class ShinindoManagementController {
     @GetMapping("/{id}")
     public ResponseEntity<ShinindoManagementResponse> get(@PathVariable Long id) {
         return ResponseEntity.ok(ShinindoManagementResponse.from(
-                shinindoManagementService.findById(id)
+                shinindoManagementUseCase.findById(id)
         ));
     }
 
     @PostMapping
     public ResponseEntity<ShinindoManagementResponse> create(@RequestBody ShinindoManagementRequest request) {
         return ResponseEntity.ok(ShinindoManagementResponse.from(
-                shinindoManagementService.create(request)
+                shinindoManagementUseCase.create(request.toCommand())
         ));
     }
 
@@ -61,13 +61,13 @@ public class ShinindoManagementController {
             @RequestBody ShinindoManagementRequest request
     ) {
         return ResponseEntity.ok(ShinindoManagementResponse.from(
-                shinindoManagementService.update(id, request)
+                shinindoManagementUseCase.update(id, request.toCommand())
         ));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        shinindoManagementService.delete(id);
+        shinindoManagementUseCase.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

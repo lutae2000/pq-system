@@ -24,8 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewSyncRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
-import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocumentValueSettingRequest;
-import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerDocumentValueSettingResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
@@ -40,82 +38,6 @@ public class EngineerPerformanceDocumentService {
     private final JdbcClient jdbcClient;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final Gson gson = new Gson();
-
-    @Transactional(readOnly = true)
-    public List<EngineerDocumentValueSettingResponse> findDocumentValueSettings(Long bidSeq) {
-        if (bidSeq == null) {
-            return List.of();
-        }
-        return jdbcClient.sql("""
-                SELECT bid_seq, engr_id, selected_education_id, selected_license_id,
-                       created_at, created_id, last_changed_at, last_changed_id
-                FROM pq_engineer_document_value_settings
-                WHERE bid_seq = :bidSeq
-                ORDER BY engr_id
-                """)
-                .param("bidSeq", bidSeq)
-                .query((rs, rowNum) -> new EngineerDocumentValueSettingResponse(
-                        rs.getLong("bid_seq"), rs.getString("engr_id"),
-                        rs.getObject("selected_education_id", Long.class),
-                        rs.getObject("selected_license_id", Long.class),
-                        rs.getTimestamp("created_at"), rs.getString("created_id"),
-                        rs.getTimestamp("last_changed_at"), rs.getString("last_changed_id")))
-                .list();
-    }
-
-    @Transactional
-    public EngineerDocumentValueSettingResponse saveDocumentValueSetting(EngineerDocumentValueSettingRequest request) {
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String engineerId = required(request.engineerId(), "engineerId");
-        if (request.educationId() != null) {
-            ensureEngineerDetailExists("pq_engineer_school", request.educationId(), engineerId);
-        }
-        if (request.licenseId() != null) {
-            ensureEngineerDetailExists("pq_engineer_license", request.licenseId(), engineerId);
-        }
-
-        String actor = AuditActorResolver.resolve();
-        jdbcClient.sql("""
-                INSERT INTO pq_engineer_document_value_settings
-                    (bid_seq, engr_id, selected_education_id, selected_license_id, created_id, last_changed_id)
-                VALUES (:bidSeq, :engineerId, :educationId, :licenseId, :actor, :actor)
-                ON CONFLICT (bid_seq, engr_id) DO UPDATE SET
-                    selected_education_id = EXCLUDED.selected_education_id,
-                    selected_license_id = EXCLUDED.selected_license_id,
-                    last_changed_at = CURRENT_TIMESTAMP,
-                    last_changed_id = EXCLUDED.last_changed_id
-                """)
-                .param("bidSeq", bidSeq).param("engineerId", engineerId)
-                .param("educationId", request.educationId()).param("licenseId", request.licenseId())
-                .param("actor", actor).update();
-
-        return jdbcClient.sql("""
-                SELECT bid_seq, engr_id, selected_education_id, selected_license_id,
-                       created_at, created_id, last_changed_at, last_changed_id
-                FROM pq_engineer_document_value_settings
-                WHERE bid_seq = :bidSeq AND engr_id = :engineerId
-                """)
-                .params(Map.of("bidSeq", bidSeq, "engineerId", engineerId))
-                .query((rs, rowNum) -> new EngineerDocumentValueSettingResponse(
-                        rs.getLong("bid_seq"), rs.getString("engr_id"),
-                        rs.getObject("selected_education_id", Long.class),
-                        rs.getObject("selected_license_id", Long.class),
-                        rs.getTimestamp("created_at"), rs.getString("created_id"),
-                        rs.getTimestamp("last_changed_at"), rs.getString("last_changed_id")))
-                .single();
-    }
-
-    private void ensureEngineerDetailExists(String tableName, Long detailId, String engineerId) {
-        if (!Set.of("pq_engineer_school", "pq_engineer_license").contains(tableName)) {
-            throw new IllegalArgumentException("Unsupported engineer detail table");
-        }
-        boolean exists = jdbcClient.sql("SELECT COUNT(*) > 0 FROM " + tableName + " WHERE id = :detailId AND engr_id = :engineerId")
-                .params(Map.of("detailId", detailId, "engineerId", engineerId))
-                .query(Boolean.class).single();
-        if (!exists) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택한 인사정보가 기술인 정보와 일치하지 않습니다.");
-        }
-    }
 
     @Transactional(readOnly = true)
     public List<EngineerProjectHistoryReviewResponse> findProjectHistories(

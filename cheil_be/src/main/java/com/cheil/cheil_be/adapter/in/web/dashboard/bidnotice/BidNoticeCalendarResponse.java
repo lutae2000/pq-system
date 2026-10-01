@@ -3,7 +3,7 @@ package com.cheil.cheil_be.adapter.in.web.dashboard.bidnotice;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import com.cheil.cheil_be.application.bidnotice.service.BidNoticeCalendarEvent;
+import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEvent;
 
 public record BidNoticeCalendarResponse(
         Long bidSeq,

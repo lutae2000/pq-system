@@ -42,4 +42,18 @@ cache:common-codes:level1:pq:level2:hh:use:y
 - When adding or changing a feature, create or find the use-case port and output port first, then implement the application service, then implement or update the adapter. Do not place a query temporarily in the service as a shortcut.
 - Before submitting backend changes, verify the dependency direction: `adapter.in -> application -> domain`, and `adapter.out -> application/domain`. A dependency from `application` or `domain` to `adapter.out`, web DTOs, JPA entities, or infrastructure clients is an architecture violation and must be removed.
 
+## Module-by-module architecture improvement workflow
+
+- Treat `AGENTS.md` as the canonical backend architecture guide. `agent.md` is only a short navigation note and must not contain rules that contradict this file.
+- Improve one bounded context at a time. Before changing code, inventory that module's controller, request/response DTOs, inbound ports, application services, outbound ports, persistence/integration adapters, cache flow, migrations, and tests.
+- The inbound adapter must depend on an inbound use-case interface under `application/<context>/port/in`. Controllers must not inject concrete application service classes.
+- An application service implements the inbound port and may depend only on inbound commands/queries, domain objects, outbound port interfaces, and infrastructure-neutral application services. It must not import web DTOs, `ResponseStatusException`, `HttpStatus`, JPA entities, repository implementations, JDBC clients, Redis clients, SQL, or file clients.
+- HTTP status translation belongs in `adapter/in/web/error`. Application validation and business failures use application/domain exceptions; the web adapter maps those exceptions to HTTP responses.
+- Outbound ports expose business operations and application/domain types. Spring Data `Page`, `Pageable`, web DTOs, JPA entities, QueryDSL types, SQL strings, and infrastructure clients must stay at the adapter boundary. Introduce application page/query models when a module is being migrated.
+- Persistence adapters own query construction, entity-to-domain mapping, transaction-specific persistence details, and infrastructure exception translation. They must not push SQL or entity types into application services.
+- Domain objects contain business rules and must not depend on Spring, web, persistence, cache, filesystem, or third-party client types.
+- DTO conversion is explicit: request DTO -> inbound command/query in the controller or inbound mapper, and domain/application result -> response DTO in the controller or inbound mapper.
+- For each module migration, add or update focused tests for the inbound port/service and adapter contract, then run `./gradlew test` (or the smallest relevant Gradle test task) and `./gradlew compileJava` before moving to the next module.
+- Record remaining violations in the change summary and keep the next module boundary small enough to review. Do not perform a repository-wide mechanical rewrite in a single module change.
+
 HWPX 생성 요청은 multipart의 `template`과 JSON `request`로 전달되며, `request.mappings`는 HWPX 필드명과 `ref_value1` 경로의 매핑이다. 프론트의 경로가 비어 있는 필드는 생성 요청에 포함하지 않는다.

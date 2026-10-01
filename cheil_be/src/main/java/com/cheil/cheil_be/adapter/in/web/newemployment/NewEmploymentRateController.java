@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.newemployment.service.NewEmploymentRateService;
+import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatus;
+import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusPivot;
+import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
@@ -25,6 +28,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 public class NewEmploymentRateController {
 
     private final NewEmploymentRateService newEmploymentRateService;
+    private final NewEmploymentMonthlyStatusUseCase monthlyStatusUseCase;
 
     @GetMapping("/monthly-statuses")
     public ResponseEntity<List<NewEmploymentMonthlyStatusResponse>> monthlyStatuses(
@@ -32,21 +36,22 @@ public class NewEmploymentRateController {
             @RequestParam(required = false) String departmentCode,
             @RequestParam(required = false) String employeeName
     ) {
-        return ResponseEntity.ok(newEmploymentRateService.monthlyStatuses(baseYearMonth, departmentCode, employeeName));
+        // 웹 응답 DTO 변환은 inbound adapter에서 수행하고, application 계층에는 웹 타입을 전달하지 않습니다.
+        return ResponseEntity.ok(monthlyStatusUseCase.monthlyStatuses(baseYearMonth).stream().map(this::toResponse).toList());
     }
 
     @GetMapping("/monthly-statuses/pivot")
     public ResponseEntity<List<NewEmploymentMonthlyStatusPivotResponse>> monthlyStatusPivot(
             @RequestParam(required = false) String baseYearMonth
     ) {
-        return ResponseEntity.ok(newEmploymentRateService.monthlyStatusPivot(baseYearMonth));
+        return ResponseEntity.ok(monthlyStatusUseCase.monthlyStatusPivot(baseYearMonth).stream().map(this::toPivotResponse).toList());
     }
 
     @GetMapping("/monthly-statuses/pivot/previous-year-same-period")
     public ResponseEntity<List<NewEmploymentMonthlyStatusPivotResponse>> previousYearSamePeriodMonthlyStatusPivot(
             @RequestParam(required = false) String baseYearMonth
     ) {
-        return ResponseEntity.ok(newEmploymentRateService.previousYearSamePeriodMonthlyStatusPivot(baseYearMonth));
+        return ResponseEntity.ok(monthlyStatusUseCase.previousYearSamePeriodMonthlyStatusPivot(baseYearMonth).stream().map(this::toPivotResponse).toList());
     }
 
     @GetMapping("/monthly-statuses/{id}")
@@ -112,5 +117,16 @@ public class NewEmploymentRateController {
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         newEmploymentRateService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private NewEmploymentMonthlyStatusResponse toResponse(NewEmploymentMonthlyStatus status) {
+        return new NewEmploymentMonthlyStatusResponse(
+                status.id(), status.baseYearMonth(), status.employeeCount(), status.newHireCount(),
+                status.createdAt(), status.createdId(), status.lastChangedAt(), status.lastChangedId()
+        );
+    }
+
+    private NewEmploymentMonthlyStatusPivotResponse toPivotResponse(NewEmploymentMonthlyStatusPivot pivot) {
+        return new NewEmploymentMonthlyStatusPivotResponse(pivot.yearMonth(), pivot.employeeCount(), pivot.newHireCount());
     }
 }

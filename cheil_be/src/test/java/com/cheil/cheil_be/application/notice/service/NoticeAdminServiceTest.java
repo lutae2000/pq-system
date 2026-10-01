@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.application.notice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -11,8 +12,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.application.notice.port.out.NoticeRepository;
+import com.cheil.cheil_be.application.notice.port.in.NoticeAdminUseCase.NoticeListScope;
 import com.cheil.cheil_be.domain.notice.Notice;
 
 class NoticeAdminServiceTest {
@@ -31,7 +34,8 @@ class NoticeAdminServiceTest {
                 "VISIBLE",
                 true,
                 "2026-06-18 09:00",
-                "visible"
+                "visible",
+                null
         ));
         repository.put(new Notice(
                 true,
@@ -41,7 +45,8 @@ class NoticeAdminServiceTest {
                 "FUTURE",
                 true,
                 "2026-06-18 13:00",
-                "future publish"
+                "future publish",
+                null
         ));
         repository.put(new Notice(
                 true,
@@ -51,7 +56,8 @@ class NoticeAdminServiceTest {
                 "EXPIRED",
                 true,
                 "2026-06-17 09:00",
-                "expired"
+                "expired",
+                null
         ));
         repository.put(new Notice(
                 false,
@@ -61,10 +67,11 @@ class NoticeAdminServiceTest {
                 "INACTIVE",
                 true,
                 "2026-06-18 09:00",
-                "inactive"
+                "inactive",
+                null
         ));
 
-        List<Notice> result = service.findAll(NoticeAdminService.NoticeListScope.DASHBOARD);
+        List<Notice> result = service.findAll(NoticeListScope.DASHBOARD);
 
         assertThat(result).extracting(Notice::getId).containsExactly("VISIBLE");
     }
@@ -79,7 +86,8 @@ class NoticeAdminServiceTest {
                 "OLD",
                 true,
                 "2026-06-18 09:00",
-                "older"
+                "older",
+                null
         ));
         repository.put(new Notice(
                 true,
@@ -89,12 +97,63 @@ class NoticeAdminServiceTest {
                 "NEW",
                 true,
                 "2026-06-18 10:00",
-                "newer"
+                "newer",
+                null
         ));
 
-        List<Notice> result = service.findAll(NoticeAdminService.NoticeListScope.ADMIN);
+        List<Notice> result = service.findAll(NoticeListScope.ADMIN);
 
         assertThat(result).extracting(Notice::getId).containsExactly("NEW", "OLD");
+    }
+
+    @Test
+    void updateKeepsExistingExposureScheduleWhenRequestOmitsIt() {
+        repository.put(new Notice(
+                true,
+                "old content",
+                "2026-06-30 18:00",
+                "2026-06-30 09:00",
+                "N001",
+                false,
+                "2026-06-30 09:00",
+                "old title",
+                null
+        ));
+
+        Notice updated = service.update("N001", new Notice(
+                true,
+                "new content",
+                null,
+                null,
+                "N001",
+                true,
+                null,
+                "new title",
+                "/notice/N001"
+        ));
+
+        assertThat(updated.getContent()).isEqualTo("new content");
+        assertThat(updated.getTitle()).isEqualTo("new title");
+        assertThat(updated.getExposureStartAt()).isEqualTo("2026-06-30 09:00");
+        assertThat(updated.getExposureEndAt()).isEqualTo("2026-06-30 18:00");
+        assertThat(updated.getPublishAt()).isEqualTo("2026-06-30 09:00");
+    }
+
+    @Test
+    void createRejectsMalformedDateInsteadOfFailingDuringPersistence() {
+        assertThatThrownBy(() -> service.create(new Notice(
+                true,
+                "content",
+                "2026/06/30 18:00",
+                "2026-06-30 09:00",
+                null,
+                false,
+                "2026-06-30 09:00",
+                "title",
+                null
+        )))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("exposureEndAt");
     }
 
     private static final class InMemoryNoticeRepository implements NoticeRepository {

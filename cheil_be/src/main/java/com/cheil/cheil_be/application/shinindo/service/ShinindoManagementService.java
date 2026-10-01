@@ -1,30 +1,27 @@
 package com.cheil.cheil_be.application.shinindo.service;
 
-import com.cheil.cheil_be.adapter.in.web.shinindo.ShinindoManagementRequest;
-import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
-import com.cheil.cheil_be.application.shinindo.model.ShinindoManagement;
-import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
-import com.cheil.cheil_be.application.shinindo.port.out.ShinindoManagementRepository;
-import com.cheil.cheil_be.common.text.StringValues;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
+import com.cheil.cheil_be.application.shinindo.exception.ShinindoApplicationException;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagement;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
+import com.cheil.cheil_be.application.shinindo.port.in.ShinindoManagementUseCase;
+import com.cheil.cheil_be.application.shinindo.port.out.ShinindoManagementRepository;
+import com.cheil.cheil_be.common.text.StringValues;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
-public class ShinindoManagementService {
-
+public class ShinindoManagementService implements ShinindoManagementUseCase {
     private static final int CLIENT_CODE_MAX_LENGTH = 20;
     private static final int ITEM_NAME_MAX_LENGTH = 300;
     private static final int REMARK_MAX_LENGTH = 1000;
@@ -33,152 +30,99 @@ public class ShinindoManagementService {
     private final ShinindoManagementRepository repository;
     private final CurrentActorPort currentActorPort;
 
+    @Override
     @Transactional(readOnly = true)
-    public Page<ShinindoManagement> findAll(
-            String keyword,
-            String clientCode,
-            String referenceDate,
-            Pageable pageable
-    ) {
+    public Page<ShinindoManagement> findAll(String keyword, String clientCode, String referenceDate, Pageable pageable) {
         return repository.findAll(keyword, clientCode, pageable);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public ShinindoManagement findById(Long id) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id is required.");
-        }
-        return repository.findById(id)
-                .orElseThrow(this::notFound);
+        if (id == null) throw invalid("id는 필수입니다.");
+        return repository.findById(id).orElseThrow(this::notFound);
     }
 
+    @Override
     @Transactional
-    public ShinindoManagement create(ShinindoManagementRequest request) {
-        ShinindoManagementSaveCommand command = toCommand(request);
-        ensureClientExists(command.clientCode());
-        return findById(repository.create(command));
+    public ShinindoManagement create(ShinindoManagementSaveCommand command) {
+        ShinindoManagementSaveCommand normalized = normalizeAndValidate(command);
+        ensureClientExists(normalized.clientCode());
+        return findById(repository.create(withActor(normalized)));
     }
 
+    @Override
     @Transactional
-    public ShinindoManagement update(Long id, ShinindoManagementRequest request) {
+    public ShinindoManagement update(Long id, ShinindoManagementSaveCommand command) {
         findById(id);
-        ShinindoManagementSaveCommand command = toCommand(request);
-        ensureClientExists(command.clientCode());
-        repository.update(id, command);
+        ShinindoManagementSaveCommand normalized = normalizeAndValidate(command);
+        ensureClientExists(normalized.clientCode());
+        repository.update(id, withActor(normalized));
         return findById(id);
     }
 
+    @Override
     @Transactional
     public void delete(Long id) {
         findById(id);
-        if (!repository.delete(id)) {
-            throw notFound();
-        }
+        if (!repository.delete(id)) throw notFound();
     }
 
-    private ShinindoManagementSaveCommand toCommand(ShinindoManagementRequest request) {
-        validate(request);
+    private ShinindoManagementSaveCommand normalizeAndValidate(ShinindoManagementSaveCommand command) {
+        if (command == null) throw invalid("요청 본문은 필수입니다.");
+        String clientCode = StringValues.required(command.clientCode(), "clientCode");
+        String itemName = StringValues.required(command.itemName(), "itemName");
+        StringValues.validateMaxLength(clientCode, CLIENT_CODE_MAX_LENGTH, "clientCode");
+        StringValues.validateMaxLength(itemName, ITEM_NAME_MAX_LENGTH, "itemName");
+        StringValues.validateMaxLength(StringValues.normalize(command.remark()), REMARK_MAX_LENGTH, "remark");
         return new ShinindoManagementSaveCommand(
-                StringValues.required(request.clientCode(), "clientCode"),
-                StringValues.required(request.itemName(), "itemName"),
-                normalizeAppliedYn(request.appliedYn()),
-                normalizeScore(request.score()),
-                normalizeDate(request.acquiredDate(), "acquiredDate", false),
-                normalizeDate(request.validUntil(), "validUntil", false),
-                nullIfBlank(request.remark()),
-                currentActorPort.currentActor()
+                clientCode, itemName, normalizeAppliedYn(command.appliedYn()), normalizeScore(command.score()),
+                normalizeDate(command.acquiredDate(), "acquiredDate"), normalizeDate(command.validUntil(), "validUntil"),
+                nullIfBlank(command.remark()), null
         );
     }
 
-    private void validate(ShinindoManagementRequest request) {
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
-        }
-
-        StringValues.validateMaxLength(
-                StringValues.required(request.clientCode(), "clientCode"),
-                CLIENT_CODE_MAX_LENGTH,
-                "clientCode"
-        );
-        StringValues.validateMaxLength(
-                StringValues.required(request.itemName(), "itemName"),
-                ITEM_NAME_MAX_LENGTH,
-                "itemName"
-        );
-        StringValues.validateMaxLength(
-                StringValues.normalize(request.remark()),
-                REMARK_MAX_LENGTH,
-                "remark"
-        );
-        normalizeAppliedYn(request.appliedYn());
-        normalizeScore(request.score());
-        normalizeDate(request.acquiredDate(), "acquiredDate", false);
-        normalizeDate(request.validUntil(), "validUntil", false);
+    private ShinindoManagementSaveCommand withActor(ShinindoManagementSaveCommand command) {
+        return new ShinindoManagementSaveCommand(command.clientCode(), command.itemName(), command.appliedYn(),
+                command.score(), command.acquiredDate(), command.validUntil(), command.remark(), currentActorPort.currentActor());
     }
 
     private void ensureClientExists(String clientCode) {
-        if (!repository.clientExists(clientCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 발주처 코드입니다.");
-        }
+        if (!repository.clientExists(clientCode)) throw invalid("존재하지 않는 발주처 코드입니다.");
     }
 
     private String normalizeAppliedYn(String value) {
-        String normalized = StringValues.required(value, "appliedYn")
-                .trim()
-                .toUpperCase(Locale.ROOT);
-        if (!"Y".equals(normalized) && !"N".equals(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "appliedYn must be Y or N.");
-        }
+        String normalized = StringValues.required(value, "appliedYn").trim().toUpperCase(Locale.ROOT);
+        if (!"Y".equals(normalized) && !"N".equals(normalized)) throw invalid("appliedYn은 Y 또는 N이어야 합니다.");
         return normalized;
     }
 
     private BigDecimal normalizeScore(BigDecimal value) {
-        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "score must be greater than or equal to 0."
-            );
-        }
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) throw invalid("score는 0 이상이어야 합니다.");
         return value;
     }
 
-    private String normalizeDate(String value, String fieldName, boolean required) {
+    private String normalizeDate(String value, String fieldName) {
         String normalized = StringValues.normalize(value);
-        if (!StringUtils.hasText(normalized)) {
-            if (required) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        fieldName + " is required."
-                );
-            }
-            return null;
-        }
-
+        if (normalized == null || normalized.isBlank()) return null;
+        // 화면에서 하이픈 날짜도 허용하되, 저장소에는 YYYYMMDD 형식으로 통일합니다.
         String compact = normalized.replace("-", "");
-        if (!compact.matches("\\d{8}")) {
-            throw invalidDate(fieldName);
-        }
-        try {
-            LocalDate.parse(compact, COMPACT_DATE_FORMATTER);
-        } catch (DateTimeParseException exception) {
-            throw invalidDate(fieldName);
-        }
+        if (!compact.matches("\\d{8}")) throw invalid(fieldName + "은 YYYYMMDD 형식이어야 합니다.");
+        try { LocalDate.parse(compact, COMPACT_DATE_FORMATTER); }
+        catch (DateTimeParseException exception) { throw invalid(fieldName + "은 YYYYMMDD 형식이어야 합니다."); }
         return compact;
-    }
-
-    private ResponseStatusException invalidDate(String fieldName) {
-        return new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                fieldName + " must be YYYYMMDD."
-        );
     }
 
     private String nullIfBlank(String value) {
         String normalized = StringValues.normalize(value);
-        return StringUtils.hasText(normalized) ? normalized : null;
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 
-    private ResponseStatusException notFound() {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, "신인도 정보를 찾을 수 없습니다.");
+    private ShinindoApplicationException invalid(String message) {
+        return new ShinindoApplicationException(ShinindoApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private ShinindoApplicationException notFound() {
+        return new ShinindoApplicationException(ShinindoApplicationException.Type.NOT_FOUND, "신인도 정보를 찾을 수 없습니다.");
     }
 }

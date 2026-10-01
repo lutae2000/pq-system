@@ -36,6 +36,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 
 @WebMvcTest(EngineerPerformanceDocumentController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -44,6 +46,7 @@ class EngineerPerformanceDocumentControllerRestDocsTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private EngineerPerformanceDocumentService documentService;
+    @MockitoBean private DocumentValueSettingUseCase documentValueSettingUseCase;
     @MockitoBean private HwpxDocumentGenerationService hwpxService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase validateLoginSessionUseCase;
@@ -85,7 +88,7 @@ class EngineerPerformanceDocumentControllerRestDocsTest {
 
     @Test
     void listDocumentValueSettingsDocumentsContract() throws Exception {
-        when(documentService.findDocumentValueSettings(20261072L)).thenReturn(List.of());
+        when(documentValueSettingUseCase.findByBidSeq(20261072L)).thenReturn(List.of());
         mockMvc.perform(get("/pq/engineer-performance-docs/document-value-settings").param("bidSeq", "20261072"))
                 .andExpect(status().isOk()).andDo(document("pq-engineer-performance-docs-value-settings-list", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()),
                         queryParameters(parameterWithName("bidSeq").description("Bid notice sequence.")), responseFields(fieldWithPath("[]").description("Document value settings."))));
@@ -93,7 +96,7 @@ class EngineerPerformanceDocumentControllerRestDocsTest {
 
     @Test
     void saveDocumentValueSettingDocumentsContract() throws Exception {
-        when(documentService.saveDocumentValueSetting(any())).thenReturn(new EngineerDocumentValueSettingResponse(20261072L, "E001", 10L, 20L, null, "system", null, "system"));
+        when(documentValueSettingUseCase.save(any())).thenReturn(new DocumentValueSetting(20261072L, "E001", 10L, 20L, null, "system", null, "system"));
         mockMvc.perform(put("/pq/engineer-performance-docs/document-value-settings").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"bidSeq\":20261072,\"engineerId\":\"E001\",\"educationId\":10,\"licenseId\":20}"))
                 .andExpect(status().isOk()).andDo(document("pq-engineer-performance-docs-value-settings-save", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()),

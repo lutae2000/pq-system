@@ -9,13 +9,13 @@ import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapCont
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerSaveCommand;
 import com.cheil.cheil_be.application.workoverlap.contract.port.out.WorkOverlapContractEngineerRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+
+import com.cheil.cheil_be.application.workoverlap.exception.WorkOverlapApplicationException;
 
 @Service
 @RequiredArgsConstructor
@@ -47,7 +47,7 @@ public class WorkOverlapContractEngineerService {
     public void deleteHistory(String contractNo, long historyId) {
         String normalizedContractNo = required(contractNo, "contractNo");
         if (!repository.deleteHistory(normalizedContractNo, historyId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "변경 이력을 찾을 수 없습니다.");
+            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.NOT_FOUND, "변경 이력을 찾을 수 없습니다.");
         }
     }
 
@@ -57,7 +57,7 @@ public class WorkOverlapContractEngineerService {
             WorkOverlapContractEngineerRequest request
     ) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, "Request body is required.");
         }
 
         String normalizedContractNo = required(contractNo, "contractNo");
@@ -83,7 +83,7 @@ public class WorkOverlapContractEngineerService {
             WorkOverlapContractEngineerChangeRequest request
     ) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, "Request body is required.");
         }
 
         String normalizedContractNo = required(contractNo, "contractNo");
@@ -137,14 +137,20 @@ public class WorkOverlapContractEngineerService {
                 .orElseThrow(this::engineerNotFound);
     }
 
-    private ResponseStatusException engineerNotFound() {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, "참여 기술자 정보를 찾을 수 없습니다.");
+    private WorkOverlapApplicationException engineerNotFound() {
+        return new WorkOverlapApplicationException(
+                WorkOverlapApplicationException.Type.NOT_FOUND,
+                "참여 기술자 정보를 찾을 수 없습니다."
+        );
     }
 
     private String required(String value, String fieldName) {
         String normalized = normalize(value);
         if (!StringUtils.hasText(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
+            throw new WorkOverlapApplicationException(
+                    WorkOverlapApplicationException.Type.BAD_REQUEST,
+                    fieldName + " is required."
+            );
         }
         return normalized;
     }

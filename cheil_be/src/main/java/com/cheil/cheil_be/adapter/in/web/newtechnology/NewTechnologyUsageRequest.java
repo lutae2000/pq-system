@@ -2,6 +2,8 @@ package com.cheil.cheil_be.adapter.in.web.newtechnology;
 
 import java.math.BigDecimal;
 
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageCommand;
+
 public record NewTechnologyUsageRequest(
         String designationNo,
         String title,
@@ -18,4 +20,9 @@ public record NewTechnologyUsageRequest(
         BigDecimal disasterPreventionScore,
         String remark
 ) {
+    public NewTechnologyUsageCommand toCommand() {
+        return new NewTechnologyUsageCommand(designationNo, title, developers, projectName, client, noticeDate,
+                usageExpirationDate, usageCount, amountThousand, score, summary, weight,
+                disasterPreventionScore, remark);
+    }
 }

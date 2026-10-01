@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeSearchCondition;
-import com.cheil.cheil_be.application.commoncode.service.CommonCodeAdminService;
+import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 
 @RestController
 @RequestMapping("/code/common-codes")
@@ -29,7 +29,7 @@ public class CommonCodeController {
 
     private static final int MAX_BATCH_SIZE = 50;
 
-    private final CommonCodeAdminService commonCodeAdminService;
+    private final CommonCodeAdminUseCase commonCodeAdminUseCase;
 
     /**
      * 공통코드 목록 조회.
@@ -48,7 +48,7 @@ public class CommonCodeController {
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "false") boolean bypassCache
     ) {
-        return ResponseEntity.ok(commonCodeAdminService.findAll(new CommonCodeSearchCondition(
+        return ResponseEntity.ok(commonCodeAdminUseCase.findAll(new CommonCodeSearchCondition(
                         keyword,
                         useYn,
                         codeLevel,
@@ -68,7 +68,7 @@ public class CommonCodeController {
     @PostMapping("/batch")
     public ResponseEntity<List<CommonCodeBatchResponse>> listBatch(@RequestBody List<CommonCodeBatchRequest> requests) {
         validateBatchRequests(requests);
-        List<List<CommonCodeResponse>> resultItems = commonCodeAdminService.findAllBatch(
+        List<List<CommonCodeResponse>> resultItems = commonCodeAdminUseCase.findAllBatch(
                         requests.stream().map(CommonCodeBatchRequest::toCondition).toList()
                 ).stream()
                 .map(items -> items.stream().map(CommonCodeResponse::from).toList())
@@ -84,7 +84,7 @@ public class CommonCodeController {
      */
     @GetMapping("/{codeId}")
     public ResponseEntity<CommonCodeResponse> get(@PathVariable Long codeId) {
-        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminService.findByCodeId(codeId)));
+        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminUseCase.findByCodeId(codeId)));
     }
 
     /**
@@ -92,7 +92,7 @@ public class CommonCodeController {
      */
     @PostMapping
     public ResponseEntity<CommonCodeResponse> create(@RequestBody CommonCodeUpsertRequest request) {
-        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminService.create(request.toCommand())));
+        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminUseCase.create(request.toCommand())));
     }
 
     /**
@@ -100,7 +100,7 @@ public class CommonCodeController {
      */
     @PutMapping("/{codeId}")
     public ResponseEntity<CommonCodeResponse> update(@PathVariable Long codeId, @RequestBody CommonCodeUpsertRequest request) {
-        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminService.update(codeId, request.toCommand())));
+        return ResponseEntity.ok(CommonCodeResponse.from(commonCodeAdminUseCase.update(codeId, request.toCommand())));
     }
 
     /**
@@ -108,7 +108,7 @@ public class CommonCodeController {
      */
     @DeleteMapping("/{codeId}")
     public ResponseEntity<Void> delete(@PathVariable Long codeId) {
-        commonCodeAdminService.delete(codeId);
+        commonCodeAdminUseCase.delete(codeId);
         return ResponseEntity.noContent().build();
     }
 

@@ -2,6 +2,8 @@ package com.cheil.cheil_be.adapter.in.web.shinindo;
 
 import java.math.BigDecimal;
 
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
+
 public record ShinindoManagementRequest(
         String clientCode,
         String itemName,
@@ -11,4 +13,7 @@ public record ShinindoManagementRequest(
         String validUntil,
         String remark
 ) {
+    public ShinindoManagementSaveCommand toCommand() {
+        return new ShinindoManagementSaveCommand(clientCode, itemName, appliedYn, score, acquiredDate, validUntil, remark, null);
+    }
 }

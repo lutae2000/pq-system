@@ -16,20 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.application.notice.port.out.NoticeRepository;
+import com.cheil.cheil_be.application.notice.port.in.NoticeAdminUseCase;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.notice.Notice;
 
 @Service
 @RequiredArgsConstructor
-public class NoticeAdminService {
+public class NoticeAdminService implements NoticeAdminUseCase {
 
     private static final ZoneId SEOUL_ZONE = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-    public enum NoticeListScope {
-        ADMIN,
-        DASHBOARD
-    }
+    private static final int NOTICE_ID_MAX_LENGTH = 50;
+    private static final int NOTICE_TITLE_MAX_LENGTH = 200;
+    private static final int NOTICE_TARGET_PATH_MAX_LENGTH = 500;
 
     private final NoticeRepository noticeRepository;
     private final Clock clock;
@@ -75,24 +74,14 @@ public class NoticeAdminService {
         Notice existing = noticeRepository.findById(normalizedId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "공지사항을 찾을 수 없습니다."));
 
+        requireRequest(request);
         String requestId = StringValues.normalize(request.getId());
         if (!requestId.isBlank() && !normalizedId.equals(requestId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "path id와 body id가 일치해야 합니다.");
         }
 
-        Notice normalized = normalize(request);
+        Notice normalized = normalize(request, existing);
         normalized.setId(normalizedId);
-        normalized.setActive(request.isActive());
-        normalized.setImportant(request.isImportant());
-        if (normalized.getPublishAt() == null) {
-            normalized.setPublishAt(existing.getPublishAt());
-        }
-        if (normalized.getExposureStartAt() == null) {
-            normalized.setExposureStartAt(existing.getExposureStartAt());
-        }
-        if (normalized.getExposureEndAt() == null) {
-            normalized.setExposureEndAt(existing.getExposureEndAt());
-        }
         return noticeRepository.save(normalized);
     }
 
@@ -106,17 +95,47 @@ public class NoticeAdminService {
     }
 
     private Notice normalize(Notice request) {
+        requireRequest(request);
+        return normalize(request, null);
+    }
+
+    private Notice normalize(Notice request, Notice fallback) {
         Notice normalized = new Notice();
         normalized.setActive(request.isActive());
         normalized.setContent(StringValues.required(request.getContent(), "content"));
-        normalized.setExposureEndAt(StringValues.required(request.getExposureEndAt(), "exposureEndAt"));
-        normalized.setExposureStartAt(StringValues.required(request.getExposureStartAt(), "exposureStartAt"));
+        normalized.setExposureEndAt(normalizeDateTime(request.getExposureEndAt(), fallback == null ? null : fallback.getExposureEndAt(), "exposureEndAt"));
+        normalized.setExposureStartAt(normalizeDateTime(request.getExposureStartAt(), fallback == null ? null : fallback.getExposureStartAt(), "exposureStartAt"));
         normalized.setId(StringValues.normalize(request.getId()));
         normalized.setImportant(request.isImportant());
-        normalized.setPublishAt(StringValues.required(request.getPublishAt(), "publishAt"));
+        normalized.setPublishAt(normalizeDateTime(request.getPublishAt(), fallback == null ? null : fallback.getPublishAt(), "publishAt"));
         normalized.setTitle(StringValues.required(request.getTitle(), "title"));
         normalized.setTargetPath(StringValues.normalize(request.getTargetPath()));
+        StringValues.validateMaxLength(normalized.getId(), NOTICE_ID_MAX_LENGTH, "id");
+        StringValues.validateMaxLength(normalized.getTitle(), NOTICE_TITLE_MAX_LENGTH, "title");
+        StringValues.validateMaxLength(normalized.getTargetPath(), NOTICE_TARGET_PATH_MAX_LENGTH, "targetPath");
         return normalized;
+    }
+
+    private void requireRequest(Notice request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "공지사항 요청 본문이 필요합니다.");
+        }
+    }
+
+    private String normalizeDateTime(String value, String fallback, String fieldName) {
+        String normalized = StringValues.optional(value, fallback);
+        if (normalized == null || normalized.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + "은(는) 필수입니다.");
+        }
+        try {
+            return LocalDateTime.parse(normalized, DATETIME_FORMATTER).format(DATETIME_FORMATTER);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    fieldName + "은(는) yyyy-MM-dd HH:mm 형식이어야 합니다.",
+                    exception
+            );
+        }
     }
 
     private boolean isVisibleToday(Notice notice, LocalDateTime now) {
@@ -124,9 +143,17 @@ public class NoticeAdminService {
             return false;
         }
 
-        LocalDateTime publishAt = parseDateTime(notice.getPublishAt());
-        LocalDateTime exposureStartAt = parseDateTime(notice.getExposureStartAt());
-        LocalDateTime exposureEndAt = parseDateTime(notice.getExposureEndAt());
+        LocalDateTime publishAt;
+        LocalDateTime exposureStartAt;
+        LocalDateTime exposureEndAt;
+        try {
+            publishAt = parseDateTime(notice.getPublishAt());
+            exposureStartAt = parseDateTime(notice.getExposureStartAt());
+            exposureEndAt = parseDateTime(notice.getExposureEndAt());
+        } catch (RuntimeException exception) {
+            // 잘못된 기존 데이터 하나 때문에 대시보드 전체 공지 조회가 실패하지 않도록 노출 대상에서 제외한다.
+            return false;
+        }
 
         if (publishAt == null || exposureStartAt == null || exposureEndAt == null) {
             return false;

@@ -11,9 +11,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import com.cheil.cheil_be.adapter.in.web.similarserviceperformance.SimilarServicePerformanceRequest;
-import com.cheil.cheil_be.adapter.in.web.similarserviceperformance.SimilarServicePerformanceResponse;
 import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
 
 @Entity
 @Table(name = "similar_service_performances")
@@ -61,12 +61,12 @@ public class SimilarServicePerformanceEntity extends AuditEntity {
     @Column(name = "remark", columnDefinition = "TEXT")
     private String remark;
 
-    public SimilarServicePerformanceEntity(Long companyPerformanceSeq, SimilarServicePerformanceRequest request) {
+    public SimilarServicePerformanceEntity(Long companyPerformanceSeq, SimilarServicePerformanceCommand request) {
         this.companyPerformanceSeq = companyPerformanceSeq;
         update(request);
     }
 
-    public void update(SimilarServicePerformanceRequest request) {
+    public void update(SimilarServicePerformanceCommand request) {
         serviceName = request.serviceName();
         constructionType = request.constructionType();
         client = request.client();
@@ -81,8 +81,8 @@ public class SimilarServicePerformanceEntity extends AuditEntity {
         remark = request.remark();
     }
 
-    public SimilarServicePerformanceResponse toResponse() {
-        return new SimilarServicePerformanceResponse(
+    public SimilarServicePerformance toModel() {
+        return new SimilarServicePerformance(
                 companyPerformanceSeq,
                 companyPerformanceSeq,
                 serviceName,

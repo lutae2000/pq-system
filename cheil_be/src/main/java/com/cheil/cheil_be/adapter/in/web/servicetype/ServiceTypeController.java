@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.servicetype.service.ServiceTypeAdminService;
+import com.cheil.cheil_be.application.servicetype.port.in.ServiceTypeAdminUseCase;
 
 @RestController
 @RequestMapping("/pq/service-types")
 @RequiredArgsConstructor
 public class ServiceTypeController {
 
-    private final ServiceTypeAdminService serviceTypeAdminService;
+    private final ServiceTypeAdminUseCase serviceTypeAdminService;
 
     /**
      * 용역구분 목록을 조회한다.

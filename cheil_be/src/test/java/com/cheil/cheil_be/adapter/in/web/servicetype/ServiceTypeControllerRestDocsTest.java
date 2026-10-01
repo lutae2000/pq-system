@@ -30,7 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.cheil.cheil_be.application.servicetype.service.ServiceTypeAdminService;
+import com.cheil.cheil_be.application.servicetype.port.in.ServiceTypeAdminUseCase;
 import com.cheil.cheil_be.domain.servicetype.ServiceType;
 
 @WebMvcTest(ServiceTypeController.class)
@@ -42,7 +42,7 @@ class ServiceTypeControllerRestDocsTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ServiceTypeAdminService serviceTypeAdminService;
+    private ServiceTypeAdminUseCase serviceTypeAdminService;
 
     @MockitoBean
     private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;

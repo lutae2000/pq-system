@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceSearchCondition;
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceAdminUseCase;
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceUpsertCommand;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
 import com.cheil.cheil_be.common.text.StringValues;
@@ -20,7 +21,7 @@ import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 
 @Service
 @RequiredArgsConstructor
-public class CompanyPerformanceAdminService {
+public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUseCase {
 
     private static final int JOB_NAME_MAX_LENGTH = 500;
     private static final int CONTRACT_DATE_MAX_LENGTH = 8;
@@ -50,6 +51,7 @@ public class CompanyPerformanceAdminService {
 
     @Transactional
     public CompanyPerformance create(CompanyPerformanceUpsertCommand command) {
+        // 생성·수정에서 같은 검증을 사용해 API 경로에 따른 데이터 품질 차이를 방지합니다.
         validateCommand(command);
 
         Instant now = Instant.now(clock);
@@ -66,6 +68,7 @@ public class CompanyPerformanceAdminService {
         if (commands == null || commands.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "등록할 회사 실적이 없습니다.");
         }
+        // 개별 생성과 동일한 변환·감사 필드 규칙을 적용하되, 요청 순서는 보존합니다.
         return commands.stream().map(this::create).toList();
     }
 

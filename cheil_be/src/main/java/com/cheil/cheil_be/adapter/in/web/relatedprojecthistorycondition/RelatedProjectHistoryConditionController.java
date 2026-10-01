@@ -11,27 +11,29 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.RelatedProjectHistoryConditionService;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionOptionService;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.port.in.ProjectHistoryConditionOptionUseCase;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.port.in.RelatedProjectHistoryConditionUseCase;
 
 @RestController
 @RequestMapping("/pq/related-project-history-conditions")
 @RequiredArgsConstructor
 public class RelatedProjectHistoryConditionController {
 
-    private final RelatedProjectHistoryConditionService service;
-    private final ProjectHistoryConditionOptionService optionService;
+    private final RelatedProjectHistoryConditionUseCase relatedProjectHistoryConditionUseCase;
+    private final ProjectHistoryConditionOptionUseCase projectHistoryConditionOptionUseCase;
 
     @GetMapping("/options")
     public ResponseEntity<List<RelatedProjectHistoryConditionOptionResponse>> options() {
-        return ResponseEntity.ok(optionService.findAll().stream()
+        return ResponseEntity.ok(projectHistoryConditionOptionUseCase.findAll().stream()
                 .map(RelatedProjectHistoryConditionOptionResponse::from)
                 .toList());
     }
 
     @GetMapping("/{bidSeq}")
     public ResponseEntity<RelatedProjectHistoryConditionResponse> get(@PathVariable Long bidSeq) {
-        return ResponseEntity.ok(RelatedProjectHistoryConditionResponse.from(service.findByBidSeq(bidSeq)));
+        return ResponseEntity.ok(RelatedProjectHistoryConditionResponse.from(
+                relatedProjectHistoryConditionUseCase.findByBidSeq(bidSeq)
+        ));
     }
 
     @PutMapping("/{bidSeq}")
@@ -40,7 +42,7 @@ public class RelatedProjectHistoryConditionController {
             @RequestBody RelatedProjectHistoryConditionRequest request
     ) {
         return ResponseEntity.ok(RelatedProjectHistoryConditionResponse.from(
-                service.save(bidSeq, request.conditionsJson())
+                relatedProjectHistoryConditionUseCase.save(bidSeq, request.conditionsJson())
         ));
     }
 }

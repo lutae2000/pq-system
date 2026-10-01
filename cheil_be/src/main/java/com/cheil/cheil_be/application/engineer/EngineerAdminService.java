@@ -1,6 +1,8 @@
 package com.cheil.cheil_be.application.engineer;
 
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
+import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
+import com.cheil.cheil_be.application.engineer.exception.EngineerApplicationException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,14 +13,12 @@ import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
-public class EngineerAdminService {
+public class EngineerAdminService implements EngineerAdminUseCase {
 
     private final EngineerMasterRepository masterRepository;
     private final EngineerLicenseRepository licenseRepository;
@@ -94,7 +94,7 @@ public class EngineerAdminService {
         EngineerDtos.Basic basic = requireBasic(request);
         String engrId = requireEngrId(basic.engrId());
         if (masterRepository.existsById(engrId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Engineer already exists.");
+            throw new EngineerApplicationException(EngineerApplicationException.Type.CONFLICT, "Engineer already exists.");
         }
         if (!allowDuplicate) validateDuplicate(basic, engrId);
         masterRepository.save(EngineerMasterEntity.from(basic, engrId));
@@ -135,7 +135,7 @@ public class EngineerAdminService {
         }
 
         if (masterRepository.existsDuplicate(nameKor, birthday, engrId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 기술인이 있습니다.");
+            throw new EngineerApplicationException(EngineerApplicationException.Type.CONFLICT, "이미 존재하는 기술인이 있습니다.");
         }
     }
 
@@ -237,37 +237,37 @@ public class EngineerAdminService {
 
     @Transactional
     public EngineerDtos.Profile deleteLicense(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, licenseRepository);
+        deleteChild(engrId, recordId, licenseRepository::findByEngrIdOrderById, entity -> entity.id, licenseRepository);
         return findByEngrId(engrId);
     }
 
     @Transactional
     public EngineerDtos.Profile deleteCareer(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, careerRepository);
+        deleteChild(engrId, recordId, careerRepository::findByEngrIdOrderByEntryDtAsc, entity -> entity.id, careerRepository);
         return findByEngrId(engrId);
     }
 
     @Transactional
     public EngineerDtos.Profile deletePrize(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, prizeRepository);
+        deleteChild(engrId, recordId, prizeRepository::findByEngrIdOrderById, entity -> entity.id, prizeRepository);
         return findByEngrId(engrId);
     }
 
     @Transactional
     public EngineerDtos.Profile deleteEducation(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, educationRepository);
+        deleteChild(engrId, recordId, educationRepository::findByEngrIdOrderById, entity -> entity.id, educationRepository);
         return findByEngrId(engrId);
     }
 
     @Transactional
     public EngineerDtos.Profile deleteCareerDetail(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, projectHistoryRepository);
+        deleteChild(engrId, recordId, projectHistoryRepository::findByEngrIdOrderByStartDtDescIdDesc, entity -> entity.id, projectHistoryRepository);
         return findByEngrId(engrId);
     }
 
     @Transactional
     public EngineerDtos.Profile deleteSchool(String engrId, Long recordId) {
-        deleteChild(engrId, recordId, schoolRepository);
+        deleteChild(engrId, recordId, schoolRepository::findByEngrIdOrderById, entity -> entity.id, schoolRepository);
         return findByEngrId(engrId);
     }
 
@@ -300,7 +300,10 @@ public class EngineerAdminService {
 
     private EngineerMasterEntity findMaster(String engrId) {
         return masterRepository.findById(requireEngrId(engrId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Engineer not found."));
+                .orElseThrow(() -> new EngineerApplicationException(
+                        EngineerApplicationException.Type.NOT_FOUND,
+                        "Engineer not found."
+                ));
     }
 
     private String requireExistingEngrId(String engrId) {
@@ -309,7 +312,7 @@ public class EngineerAdminService {
 
     private EngineerDtos.Basic requireBasic(EngineerDtos.Profile request) {
         if (request == null || request.basic() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "basic is required.");
+            throw new EngineerApplicationException(EngineerApplicationException.Type.BAD_REQUEST, "basic is required.");
         }
         return request.basic();
     }
@@ -317,7 +320,7 @@ public class EngineerAdminService {
     private String requireEngrId(String engrId) {
         String text = blankToNull(engrId);
         if (text == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ENGR_ID is required.");
+            throw new EngineerApplicationException(EngineerApplicationException.Type.BAD_REQUEST, "ENGR_ID is required.");
         }
         return text;
     }
@@ -336,6 +339,8 @@ public class EngineerAdminService {
             BiFunctionWithEngrId<R, E> creator,
             BiConsumer<E, R> updater
     ) {
+        // 기존 행을 ID로 묶은 뒤 요청에 포함된 행은 map에서 제거한다.
+        // 동기화가 끝난 후 map에 남은 행만 화면에서 삭제된 데이터이므로 일괄 삭제한다.
         List<E> existingRows = existingFinder.apply(engrId);
         Map<Long, E> existingById = new HashMap<>();
         for (E entity : existingRows) {
@@ -346,6 +351,7 @@ public class EngineerAdminService {
         }
 
         List<E> desiredRows = new ArrayList<>();
+        // 화면에서 전달한 목록을 최종 상태로 간주합니다. 요청에 없는 기존 행은 삭제 대상이 됩니다.
         for (R row : nullToEmpty(rows)) {
             Long rowId = rowIdExtractor.apply(row);
             E entity = rowId == null ? null : existingById.remove(rowId);
@@ -395,10 +401,20 @@ public class EngineerAdminService {
         return text;
     }
 
-    private <T> void deleteChild(String engrId, Long recordId, org.springframework.data.jpa.repository.JpaRepository<T, Long> repository) {
-        requireExistingEngrId(engrId);
-        if (recordId == null || !repository.existsById(recordId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Record not found.");
+    private <T> void deleteChild(
+            String engrId,
+            Long recordId,
+            Function<String, List<T>> existingFinder,
+            Function<T, Long> entityIdExtractor,
+            org.springframework.data.jpa.repository.JpaRepository<T, Long> repository
+    ) {
+        String normalizedEngrId = requireExistingEngrId(engrId);
+        // ID만 검사하면 다른 기술인의 자식 행도 삭제할 수 있으므로 소유 기술인까지 함께 확인한다.
+        boolean belongsToEngineer = recordId != null
+                && existingFinder.apply(normalizedEngrId).stream()
+                .anyMatch(entity -> recordId.equals(entityIdExtractor.apply(entity)));
+        if (!belongsToEngineer) {
+            throw new EngineerApplicationException(EngineerApplicationException.Type.NOT_FOUND, "Record not found.");
         }
         repository.deleteById(recordId);
     }

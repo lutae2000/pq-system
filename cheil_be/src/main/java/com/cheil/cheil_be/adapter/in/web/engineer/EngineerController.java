@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 import com.cheil.cheil_be.common.web.PageResponse;
 
 @RestController
@@ -24,7 +24,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 @RequiredArgsConstructor
 public class EngineerController {
 
-    private final EngineerAdminService engineerAdminService;
+    private final EngineerAdminUseCase engineerAdminService;
 
     /**
      * 기술자 목록을 조회한다.

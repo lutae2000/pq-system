@@ -1,11 +1,10 @@
 package com.cheil.cheil_be.adapter.out.persistence.serviceperformance;
 
-import com.cheil.cheil_be.adapter.in.web.serviceperformance.ServicePerformanceRequest;
-import com.cheil.cheil_be.adapter.in.web.serviceperformance.ServicePerformanceResponse;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceCommand;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePage;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePageQuery;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceView;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -28,7 +27,7 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
     }
 
     @Override
-    public Page<ServicePerformanceResponse> findAll(ServicePerformanceSearch search, Pageable pageable) {
+    public ServicePerformancePage findAll(ServicePerformanceSearch search, ServicePerformancePageQuery pageQuery) {
         StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
         Map<String, Object> params = new LinkedHashMap<>();
         appendWhere(where, params, search);
@@ -44,17 +43,26 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
                 LIMIT :limit OFFSET :offset
                 """.formatted(TABLE, where);
         Map<String, Object> listParams = new LinkedHashMap<>(params);
-        listParams.put("limit", pageable.getPageSize());
-        listParams.put("offset", pageable.getOffset());
-        List<ServicePerformanceResponse> content = bind(jdbcClient.sql(sql), listParams)
+        listParams.put("limit", pageQuery.size());
+        listParams.put("offset", (long) pageQuery.page() * pageQuery.size());
+        List<ServicePerformanceView> content = bind(jdbcClient.sql(sql), listParams)
                 .query((rs, rowNum) -> mapResponse(rs)).list();
         Long total = bind(jdbcClient.sql("SELECT COUNT(*) FROM %s p %s".formatted(TABLE, where)), params)
                 .query(Long.class).single();
-        return new PageImpl<>(content, pageable, total == null ? 0 : total);
+        long totalElements = total == null ? 0 : total;
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / pageQuery.size());
+        return new ServicePerformancePage(
+                content,
+                pageQuery.page(),
+                pageQuery.size(),
+                totalElements,
+                totalPages,
+                pageQuery.page() == 0,
+                totalPages == 0 || pageQuery.page() >= totalPages - 1);
     }
 
     @Override
-    public ServicePerformanceResponse findById(Long id) {
+    public ServicePerformanceView findById(Long id) {
         return jdbcClient.sql("""
                         SELECT p.id, p.client_code, p.client_code AS client_name,
                                p.evaluation_score AS amount_reflected_evaluation_score,
@@ -67,7 +75,7 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
     }
 
     @Override
-    public Long create(ServicePerformanceRequest request, String actor) {
+    public Long create(ServicePerformanceCommand request, String actor) {
         return jdbcClient.sql("""
                 INSERT INTO %s (client_code, field_name, site_name, evaluation_date,
                                 service_amount, evaluation_score, remark, created_id, last_changed_id)
@@ -82,7 +90,7 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
     }
 
     @Override
-    public int update(Long id, ServicePerformanceRequest request, String actor) {
+    public int update(Long id, ServicePerformanceCommand request, String actor) {
         return jdbcClient.sql("""
                 UPDATE %s SET client_code = :clientCode, field_name = :fieldName,
                     site_name = :siteName, evaluation_date = :evaluationDate,
@@ -119,8 +127,8 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
 
     private boolean hasText(String value) { return value != null && !value.trim().isEmpty(); }
 
-    private ServicePerformanceResponse mapResponse(ResultSet rs) throws SQLException {
-        return new ServicePerformanceResponse(
+    private ServicePerformanceView mapResponse(ResultSet rs) throws SQLException {
+        return new ServicePerformanceView(
                 ((Number) rs.getObject("id")).longValue(), rs.getString("client_code"), rs.getString("client_name"),
                 rs.getBigDecimal("amount_reflected_evaluation_score"), rs.getString("field_name"), rs.getString("site_name"),
                 rs.getString("evaluation_date"), rs.getBigDecimal("service_amount"), rs.getBigDecimal("evaluation_score"),

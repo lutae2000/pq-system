@@ -1,7 +1,14 @@
 package com.cheil.cheil_be.application.newtechnology.service;
 
-import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyUsageRequest;
-import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyUsageResponse;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+import com.cheil.cheil_be.application.newtechnology.exception.NewTechnologyApplicationException;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageCommand;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageView;
+import com.cheil.cheil_be.application.newtechnology.port.in.NewTechnologyUsageUseCase;
 import com.cheil.cheil_be.application.newtechnology.port.out.NewTechnologyUsageRepository;
 import com.cheil.cheil_be.common.file.FileAttachmentService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
@@ -9,63 +16,126 @@ import com.cheil.cheil_be.common.text.StringValues;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 
 @Service
 @RequiredArgsConstructor
-public class NewTechnologyUsageService {
+public class NewTechnologyUsageService implements NewTechnologyUsageUseCase {
     private static final int CODE_MAX_LENGTH = 100;
     private static final int TITLE_MAX_LENGTH = 500;
     private static final String ATTACHMENT_OWNER_TYPE = "NEW_TECHNOLOGY_USAGE";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
+
     private final FileAttachmentService fileAttachmentService;
     private final NewTechnologyUsageRepository repository;
 
+    @Override
     @Transactional(readOnly = true)
-    public Page<NewTechnologyUsageResponse> findAll(String keyword, String designationNo, String client, String noticeDateFrom, String noticeDateTo, Pageable pageable) {
-        return repository.findAll(keyword, designationNo, client, normalizeDate(noticeDateFrom, "noticeDateFrom", false), normalizeDate(noticeDateTo, "noticeDateTo", false), pageable);
+    public Page<NewTechnologyUsageView> findAll(String keyword, String designationNo, String client,
+                                                 String noticeDateFrom, String noticeDateTo, Pageable pageable) {
+        return repository.findAll(keyword, designationNo, client,
+                normalizeDate(noticeDateFrom, "noticeDateFrom", false),
+                normalizeDate(noticeDateTo, "noticeDateTo", false), pageable);
     }
+
+    @Override
     @Transactional(readOnly = true)
-    public NewTechnologyUsageResponse findById(Long id) {
-        if (id == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id is required.");
-        NewTechnologyUsageResponse result = repository.findById(id); if (result == null) throw notFound(); return result;
+    public NewTechnologyUsageView findById(Long id) {
+        if (id == null) throw invalid("id는 필수입니다.");
+        NewTechnologyUsageView result = repository.findById(id);
+        if (result == null) throw notFound();
+        return result;
     }
+
+    @Override
     @Transactional
-    public NewTechnologyUsageResponse create(NewTechnologyUsageRequest request) {
-        validate(request); Long id = repository.create(normalize(request), AuditActorResolver.resolve()); return findById(id);
+    public NewTechnologyUsageView create(NewTechnologyUsageCommand command) {
+        validate(command);
+        Long id = repository.create(normalize(command), AuditActorResolver.resolve());
+        return findById(id);
     }
+
+    @Override
     @Transactional
-    public NewTechnologyUsageResponse update(Long id, NewTechnologyUsageRequest request) {
-        findById(id); validate(request); if (repository.update(id, normalize(request), AuditActorResolver.resolve()) != 1) throw notFound(); return findById(id);
+    public NewTechnologyUsageView update(Long id, NewTechnologyUsageCommand command) {
+        findById(id);
+        validate(command);
+        if (repository.update(id, normalize(command), AuditActorResolver.resolve()) != 1) throw notFound();
+        return findById(id);
     }
+
+    @Override
     @Transactional
     public void delete(Long id) {
-        findById(id); fileAttachmentService.deleteAll(ATTACHMENT_OWNER_TYPE, String.valueOf(id)); if (repository.delete(id) != 1) throw notFound();
+        findById(id);
+        // 본문을 삭제하기 전에 연결 파일을 함께 정리해 고아 첨부파일이 남지 않게 합니다.
+        fileAttachmentService.deleteAll(ATTACHMENT_OWNER_TYPE, String.valueOf(id));
+        if (repository.delete(id) != 1) throw notFound();
     }
-    private NewTechnologyUsageRequest normalize(NewTechnologyUsageRequest r) {
-        return new NewTechnologyUsageRequest(StringValues.required(r.designationNo(), "designationNo"), StringValues.required(r.title(), "title"), nullIfBlank(r.developers()), nullIfBlank(r.projectName()), nullIfBlank(r.client()), normalizeDate(r.noticeDate(), "noticeDate", false), normalizeDate(r.usageExpirationDate(), "usageExpirationDate", false), r.usageCount(), r.amountThousand(), r.score(), nullIfBlank(r.summary()), r.weight(), r.disasterPreventionScore(), nullIfBlank(r.remark()));
+
+    private NewTechnologyUsageCommand normalize(NewTechnologyUsageCommand command) {
+        return new NewTechnologyUsageCommand(
+                StringValues.required(command.designationNo(), "designationNo"),
+                StringValues.required(command.title(), "title"),
+                nullIfBlank(command.developers()), nullIfBlank(command.projectName()), nullIfBlank(command.client()),
+                normalizeDate(command.noticeDate(), "noticeDate", false),
+                normalizeDate(command.usageExpirationDate(), "usageExpirationDate", false),
+                command.usageCount(), command.amountThousand(), command.score(), nullIfBlank(command.summary()),
+                command.weight(), command.disasterPreventionScore(), nullIfBlank(command.remark())
+        );
     }
-    private void validate(NewTechnologyUsageRequest r) {
-        if (r == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
-        StringValues.validateMaxLength(StringValues.required(r.designationNo(), "designationNo"), CODE_MAX_LENGTH, "designationNo");
-        StringValues.validateMaxLength(StringValues.required(r.title(), "title"), TITLE_MAX_LENGTH, "title");
-        StringValues.validateMaxLength(StringValues.normalize(r.client()), 300, "client");
-        normalizeDate(r.noticeDate(), "noticeDate", false); normalizeDate(r.usageExpirationDate(), "usageExpirationDate", false);
-        nonNegative(r.usageCount(), "usageCount"); nonNegative(r.amountThousand(), "amountThousand"); nonNegative(r.score(), "score"); nonNegative(r.weight(), "weight"); nonNegative(r.disasterPreventionScore(), "disasterPreventionScore");
+
+    private void validate(NewTechnologyUsageCommand command) {
+        if (command == null) throw invalid("요청 본문은 필수입니다.");
+        StringValues.validateMaxLength(StringValues.required(command.designationNo(), "designationNo"), CODE_MAX_LENGTH, "designationNo");
+        StringValues.validateMaxLength(StringValues.required(command.title(), "title"), TITLE_MAX_LENGTH, "title");
+        StringValues.validateMaxLength(StringValues.normalize(command.client()), 300, "client");
+        normalizeDate(command.noticeDate(), "noticeDate", false);
+        normalizeDate(command.usageExpirationDate(), "usageExpirationDate", false);
+        nonNegative(command.usageCount(), "usageCount");
+        nonNegative(command.amountThousand(), "amountThousand");
+        nonNegative(command.score(), "score");
+        nonNegative(command.weight(), "weight");
+        nonNegative(command.disasterPreventionScore(), "disasterPreventionScore");
     }
-    private void nonNegative(Integer value, String field) { if (value != null && value < 0) throw invalid(field); }
-    private void nonNegative(BigDecimal value, String field) { if (value != null && value.compareTo(BigDecimal.ZERO) < 0) throw invalid(field); }
-    private ResponseStatusException invalid(String field) { return new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " must be greater than or equal to 0."); }
-    private String normalizeDate(String value, String field, boolean required) { String normalized=StringValues.normalize(value); if (!StringUtils.hasText(normalized)) { if(required) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field+" is required."); return null; } String compact=normalized.replace("-",""); if(!compact.matches("\\d{8}")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field+" must be YYYYMMDD."); try { LocalDate.parse(compact, DATE_FORMATTER); } catch(DateTimeParseException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field+" must be YYYYMMDD."); } return compact; }
-    private String nullIfBlank(String value) { String normalized=StringValues.normalize(value); return StringUtils.hasText(normalized)?normalized:null; }
-    private ResponseStatusException notFound() { return new ResponseStatusException(HttpStatus.NOT_FOUND, "New technology usage record was not found."); }
+
+    private void nonNegative(Integer value, String field) {
+        if (value != null && value < 0) throw invalid(field + "은(는) 0 이상이어야 합니다.");
+    }
+
+    private void nonNegative(BigDecimal value, String field) {
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) throw invalid(field + "은(는) 0 이상이어야 합니다.");
+    }
+
+    private String normalizeDate(String value, String field, boolean required) {
+        String normalized = StringValues.normalize(value);
+        if (normalized == null || normalized.isBlank()) {
+            if (required) throw invalid(field + "은(는) 필수입니다.");
+            return null;
+        }
+        // 화면에서 허용하는 YYYY-MM-DD 입력도 저장소에는 기존 규칙인 YYYYMMDD로 통일합니다.
+        String compact = normalized.replace("-", "");
+        if (!compact.matches("\\d{8}")) throw invalid(field + "은(는) YYYYMMDD 형식이어야 합니다.");
+        try {
+            LocalDate.parse(compact, DATE_FORMATTER);
+        } catch (DateTimeParseException exception) {
+            throw invalid(field + "은(는) YYYYMMDD 형식이어야 합니다.");
+        }
+        return compact;
+    }
+
+    private String nullIfBlank(String value) {
+        String normalized = StringValues.normalize(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
+    }
+
+    private NewTechnologyApplicationException invalid(String message) {
+        return new NewTechnologyApplicationException(NewTechnologyApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private NewTechnologyApplicationException notFound() {
+        return new NewTechnologyApplicationException(NewTechnologyApplicationException.Type.NOT_FOUND,
+                "신기술 활용 실적을 찾을 수 없습니다.");
+    }
 }

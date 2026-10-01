@@ -7,6 +7,8 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
+import com.cheil.cheil_be.application.auth.port.out.TokenIssuePolicy;
+
 @ConfigurationProperties(prefix = "app.security")
 public record AppSecurityProperties(
         Token token,
@@ -14,7 +16,17 @@ public record AppSecurityProperties(
         Map<String, Integration> integrations,
         Filter filter,
         Cors cors
-) {
+) implements TokenIssuePolicy {
+
+    @Override
+    public String issuer() {
+        return token.issuer();
+    }
+
+    @Override
+    public Duration ttl() {
+        return token.ttl();
+    }
 
     public AppSecurityProperties {
         token = token == null ? Token.defaults() : token;

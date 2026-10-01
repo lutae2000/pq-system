@@ -27,7 +27,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
+import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
@@ -43,7 +43,7 @@ class BidNoticeControllerRestDocsTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private BidNoticeAdminService bidNoticeAdminService;
+    private BidNoticeAdminUseCase bidNoticeAdminUseCase;
 
     @MockitoBean
     private BidNoticeResponseMapper bidNoticeResponseMapper;
@@ -74,7 +74,7 @@ class BidNoticeControllerRestDocsTest {
                 "DA", "T2A", null, null, null, "Y", "Prime contractor", "Remark", "Y",
                 java.time.Instant.parse("2026-06-18T00:00:00Z"), "system",
                 java.time.Instant.parse("2026-06-18T00:00:00Z"), "system");
-        when(bidNoticeAdminService.findByBidSeq(20261072L)).thenReturn(bidNotice);
+        when(bidNoticeAdminUseCase.findByBidSeq(20261072L)).thenReturn(bidNotice);
         when(bidNoticeResponseMapper.toResponse(bidNotice)).thenReturn(response());
 
         mockMvc.perform(get("/pq/bid-notice/{bidSeq}", 20261072))

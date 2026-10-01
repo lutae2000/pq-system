@@ -52,8 +52,8 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxGenerateRequ
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.HwpxTemplateFieldResponse;
 import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
-import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 
 /** HWPX 템플릿을 분석하고 기술인별 데이터로 산출물을 생성하는 서비스. */
 @Service
@@ -63,7 +63,7 @@ public class HwpxDocumentGenerationService {
     private static final String HWP_NS = "http://www.hancom.co.kr/hwpml/2011/paragraph";
     private static final String SECTION_PATTERN = "Contents/section";
 
-    private final EngineerAdminService engineerAdminService;
+    private final EngineerAdminUseCase engineerAdminService;
     private final BidNoticeAdminService bidNoticeAdminService;
     private final EngineerPerformanceDocumentService performanceDocumentService;
     private final JdbcClient jdbcClient;

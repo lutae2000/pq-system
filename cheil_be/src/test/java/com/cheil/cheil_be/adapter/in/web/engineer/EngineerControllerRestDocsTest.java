@@ -31,8 +31,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 
 @WebMvcTest(EngineerController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -40,7 +40,7 @@ import com.cheil.cheil_be.application.engineer.EngineerDtos;
 class EngineerControllerRestDocsTest {
 
     @Autowired private MockMvc mockMvc;
-    @MockitoBean private EngineerAdminService service;
+    @MockitoBean private EngineerAdminUseCase service;
     @MockitoBean private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase validateLoginSessionUseCase;
     @MockitoBean private com.cheil.cheil_be.config.security.AppSecurityProperties appSecurityProperties;

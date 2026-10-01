@@ -16,4 +16,12 @@ public record SimilarServicePerformanceRequest(
         String summary,
         String remark
 ) {
+
+    public com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand toCommand() {
+        return new com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand(
+                serviceName, constructionType, client, contractFromDate, contractToDate,
+                constructionFromDate, constructionToDate, contractPrice, shareRatio,
+                weight, summary, remark
+        );
+    }
 }

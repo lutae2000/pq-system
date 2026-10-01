@@ -22,4 +22,15 @@ public record SimilarServicePerformanceResponse(
         String lastChangedAt,
         String lastChangedId
 ) {
+
+    public static SimilarServicePerformanceResponse from(
+            com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance model
+    ) {
+        return new SimilarServicePerformanceResponse(
+                model.id(), model.companyPerformanceSeq(), model.serviceName(), model.constructionType(), model.client(),
+                model.contractFromDate(), model.contractToDate(), model.constructionFromDate(), model.constructionToDate(),
+                model.contractPrice(), model.shareRatio(), model.weight(), model.summary(), model.remark(),
+                model.createdAt(), model.createdId(), model.lastChangedAt(), model.lastChangedId()
+        );
+    }
 }

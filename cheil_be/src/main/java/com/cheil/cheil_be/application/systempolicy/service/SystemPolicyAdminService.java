@@ -4,14 +4,14 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.out.persistence.systempolicy.JpaSystemPolicyRepository;
 import com.cheil.cheil_be.adapter.out.persistence.systempolicy.SystemPolicyEntity;
+import com.cheil.cheil_be.application.systempolicy.exception.SystemPolicyApplicationException;
+import com.cheil.cheil_be.application.systempolicy.exception.SystemPolicyApplicationException.Type;
 
 @Service
 @Transactional
@@ -28,12 +28,15 @@ public class SystemPolicyAdminService {
 
     public List<SystemPolicyEntity> savePolicies(List<SystemPolicyEntity> policies) {
         if (policies == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "policy list is required");
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policy list is required");
         }
 
         for (SystemPolicyEntity policy : policies) {
-            if (policy == null || !StringUtils.hasText(policy.getPolicyKey())) {
-                continue;
+            if (policy == null) {
+                throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policy is required");
+            }
+            if (!StringUtils.hasText(policy.getPolicyKey())) {
+                throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policyKey is required");
             }
 
             String policyKey = policy.getPolicyKey().trim();
@@ -63,16 +66,28 @@ public class SystemPolicyAdminService {
                             .build()));
         }
 
+        List<SystemPolicyEntity> savedPolicies = findPolicies();
+        // 요청 객체에는 공백과 원본 값이 남아 있을 수 있으므로 DB에서 다시 읽은 값을 캐시에 넣는다.
+        // 그래야 화면에 보낸 값과 실제 저장된 값이 다를 때도 다음 조회가 일관된다.
         policies.stream()
-                .filter(policy -> policy != null && StringUtils.hasText(policy.getPolicyKey()))
-                .forEach(policy -> systemPolicyCacheService.refresh(policy.getPolicyKey().trim(), policy));
-        return findPolicies();
+                .map(SystemPolicyEntity::getPolicyKey)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .forEach(policyKey -> savedPolicies.stream()
+                        .filter(saved -> policyKey.equals(saved.getPolicyKey()))
+                        .findFirst()
+                        .ifPresent(saved -> systemPolicyCacheService.refresh(policyKey, saved)));
+        return savedPolicies;
     }
 
     public SystemPolicyEntity createPolicy(SystemPolicyEntity policy) {
+        if (policy == null) {
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policy is required");
+        }
         String policyKey = requireText(policy.getPolicyKey(), "policyKey");
         if (systemPolicyRepository.existsById(policyKey)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 정책 코드입니다.");
+            throw new SystemPolicyApplicationException(Type.CONFLICT, "이미 존재하는 정책 코드입니다.");
         }
         validatePolicy(policy);
         policy.setPolicyKey(policyKey);
@@ -86,8 +101,11 @@ public class SystemPolicyAdminService {
 
     public SystemPolicyEntity updatePolicy(String policyKey, SystemPolicyEntity policy) {
         String normalizedKey = requireText(policyKey, "policyKey");
+        if (policy == null) {
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policy is required");
+        }
         SystemPolicyEntity existing = systemPolicyRepository.findById(normalizedKey)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "정책을 찾을 수 없습니다."));
+                .orElseThrow(() -> new SystemPolicyApplicationException(Type.NOT_FOUND, "정책을 찾을 수 없습니다."));
         validatePolicy(policy);
         existing.setPolicyName(requireText(policy.getPolicyName(), "policyName"));
         existing.setPolicyValue(requireText(policy.getPolicyValue(), "policyValue"));
@@ -127,20 +145,20 @@ public class SystemPolicyAdminService {
 
     private static void validatePolicy(SystemPolicyEntity policy) {
         if (policy == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "policy is required");
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "policy is required");
         }
         if (policy.isUseYn() && !StringUtils.hasText(policy.getPolicyValue())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "활성화된 정책의 설정값은 필수입니다.");
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "활성화된 정책의 설정값은 필수입니다.");
         }
         if ("NUMBER".equalsIgnoreCase(policy.getValueType()) && StringUtils.hasText(policy.getPolicyValue())
                 && !policy.getPolicyValue().trim().matches("\\d{1,3}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "숫자 정책의 설정값은 1~3자리 숫자여야 합니다.");
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, "숫자 정책의 설정값은 1~3자리 숫자여야 합니다.");
         }
     }
 
     private static String requireText(String value, String field) {
         if (!StringUtils.hasText(value)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " is required");
+            throw new SystemPolicyApplicationException(Type.BAD_REQUEST, field + " is required");
         }
         return value.trim();
     }

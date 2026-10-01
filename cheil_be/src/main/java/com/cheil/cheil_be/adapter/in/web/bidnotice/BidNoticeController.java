@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
-import com.cheil.cheil_be.application.bidnotice.service.BidNoticeAdminService;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
@@ -24,7 +24,7 @@ import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 @RequiredArgsConstructor
 public class BidNoticeController {
 
-    private final BidNoticeAdminService bidNoticeAdminService;
+    private final BidNoticeAdminUseCase bidNoticeAdminUseCase;
     private final BidNoticeResponseMapper bidNoticeResponseMapper;
 
     /**
@@ -50,7 +50,7 @@ public class BidNoticeController {
             @RequestParam(required = false) Integer size
     ) {
         BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshot();
-        Page<BidNotice> result = bidNoticeAdminService.findAll(
+        Page<BidNotice> result = bidNoticeAdminUseCase.findAll(
                 new BidNoticeSearchCondition(
                         keyword,
                         departmentCode,
@@ -77,7 +77,7 @@ public class BidNoticeController {
      */
     @GetMapping("/pq/bid-notice/{bidSeq}")
     public ResponseEntity<BidNoticeResponse> get(@PathVariable Long bidSeq) {
-        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminService.findByBidSeq(bidSeq)));
+        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminUseCase.findByBidSeq(bidSeq)));
     }
 
     /**
@@ -85,7 +85,7 @@ public class BidNoticeController {
      */
     @PostMapping("/pq/bid-notice")
     public ResponseEntity<BidNoticeResponse> create(@RequestBody BidNoticeRequest request) {
-        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminService.create(request.toCommand())));
+        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminUseCase.create(request.toCommand())));
     }
 
     /**
@@ -96,7 +96,7 @@ public class BidNoticeController {
             @PathVariable Long bidSeq,
             @RequestBody BidNoticeRequest request
     ) {
-        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminService.update(bidSeq, request.toCommand())));
+        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminUseCase.update(bidSeq, request.toCommand())));
     }
 
     /**
@@ -104,7 +104,7 @@ public class BidNoticeController {
      */
     @DeleteMapping("/pq/bid-notice/{bidSeq}")
     public ResponseEntity<Void> delete(@PathVariable Long bidSeq) {
-        bidNoticeAdminService.delete(bidSeq);
+        bidNoticeAdminUseCase.delete(bidSeq);
         return ResponseEntity.noContent().build();
     }
 

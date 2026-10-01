@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.bidnotice.service;
+package com.cheil.cheil_be.application.bidnotice.port.in;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

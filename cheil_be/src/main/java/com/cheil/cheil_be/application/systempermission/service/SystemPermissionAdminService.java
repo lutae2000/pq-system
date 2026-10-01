@@ -33,46 +33,6 @@ public class SystemPermissionAdminService {
     private final JpaRolePermissionRepository rolePermissionRepository;
 
     @Transactional(readOnly = true)
-    public List<SystemMenuEntity> findMenus() {
-        return systemMenuRepository.findAllByOrderBySortSeqAscMenuCodeAsc();
-    }
-
-    @Transactional(readOnly = true)
-    public SystemMenuEntity findMenu(String menuCode) {
-        requireText(menuCode, "menuCode");
-        return systemMenuRepository.findById(menuCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다."));
-    }
-
-    public SystemMenuEntity saveMenu(SystemMenuEntity request) {
-        requireText(request.getMenuCode(), "menuCode");
-        requireText(request.getMenuName(), "menuName");
-        requireText(request.getMenuType(), "menuType");
-
-        return systemMenuRepository.findById(request.getMenuCode())
-                .map(existing -> {
-                    existing.setMenuName(request.getMenuName().trim());
-                    existing.setParentMenuCode(trimToNull(request.getParentMenuCode()));
-                    existing.setMenuPath(trimToNull(request.getMenuPath()));
-                    existing.setMenuType(request.getMenuType().trim());
-                    existing.setSortSeq(request.getSortSeq());
-                    existing.setUseYn(request.isUseYn());
-                    existing.setVisibleYn(request.isVisibleYn());
-                    existing.setDescription(trimToNull(request.getDescription()));
-                    return existing;
-                })
-                .orElseGet(() -> systemMenuRepository.save(request));
-    }
-
-    public void deleteMenu(String menuCode) {
-        requireText(menuCode, "menuCode");
-        if (!systemMenuRepository.existsById(menuCode)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "메뉴를 찾을 수 없습니다.");
-        }
-        systemMenuRepository.deleteById(menuCode);
-    }
-
-    @Transactional(readOnly = true)
     public List<SystemRoleEntity> findRoles(Boolean useYn) {
         if (useYn == null) {
             return systemRoleRepository.findAllByOrderBySortSeqAscRoleCodeAsc();
@@ -116,7 +76,7 @@ public class SystemPermissionAdminService {
         requireText(roleCode, "roleCode");
         findRole(roleCode);
 
-        List<SystemMenuEntity> menus = findMenus();
+        List<SystemMenuEntity> menus = systemMenuRepository.findAllByOrderBySortSeqAscMenuCodeAsc();
         Map<String, RolePermissionEntity> permissionByMenu = rolePermissionRepository
                 .findAllByIdRoleCodeOrderByIdMenuCodeAsc(roleCode)
                 .stream()

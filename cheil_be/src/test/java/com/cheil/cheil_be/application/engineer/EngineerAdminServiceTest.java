@@ -2,6 +2,7 @@ package com.cheil.cheil_be.application.engineer;
 
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,6 +21,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class EngineerAdminServiceTest {
@@ -127,6 +129,19 @@ class EngineerAdminServiceTest {
         assertThat(StreamSupport.stream(deleteIdsCaptor.getValue().spliterator(), false).toList()).containsExactly(2L);
         verify(schoolRepository).saveAll(any());
         verify(schoolRepository, never()).deleteByEngrId("ENG-1");
+    }
+
+    @Test
+    void deleteLicenseDoesNotDeleteAnotherEngineersRecord() {
+        EngineerMasterEntity master = new EngineerMasterEntity();
+        master.engrId = "ENG-1";
+        when(masterRepository.findById("ENG-1")).thenReturn(Optional.of(master));
+        when(licenseRepository.findByEngrIdOrderById("ENG-1")).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.deleteLicense("ENG-1", 99L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Record not found.");
+        verify(licenseRepository, never()).deleteById(99L);
     }
 
     private void stubEmptyRelatedProfiles(String engrId) {

@@ -1,8 +1,6 @@
 package com.cheil.cheil_be.adapter.in.web.similarserviceperformance;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.similarserviceperformance.service.SimilarServicePerformanceService;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
+import com.cheil.cheil_be.application.similarserviceperformance.port.in.SimilarServicePerformanceUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
@@ -23,12 +22,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 @RequiredArgsConstructor
 public class SimilarServicePerformanceController {
 
-    private static final Sort DEFAULT_SORT = Sort.by(
-            Sort.Order.desc("constructionToDate"),
-            Sort.Order.desc("companyPerformanceSeq")
-    );
-
-    private final SimilarServicePerformanceService similarServicePerformanceService;
+    private final SimilarServicePerformanceUseCase useCase;
 
     @GetMapping
     public ResponseEntity<PageResponse<SimilarServicePerformanceResponse>> list(
@@ -40,25 +34,25 @@ public class SimilarServicePerformanceController {
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Page<SimilarServicePerformanceResponse> result = similarServicePerformanceService.findAll(
-                keyword,
-                constructionType,
-                client,
-                contractFromDate,
-                contractToDate,
-                PageRequests.of(page, size, DEFAULT_SORT)
-        );
-        return ResponseEntity.ok(PageResponse.from(result));
+        var paging = PageRequests.of(page, size);
+        var result = useCase.findAll(new SimilarServicePerformanceSearch(
+                keyword, constructionType, client, contractFromDate, contractToDate,
+                paging.getPageNumber(), paging.getPageSize()
+        ));
+        return ResponseEntity.ok(new PageResponse<>(
+                result.content().stream().map(SimilarServicePerformanceResponse::from).toList(),
+                result.page(), result.size(), result.totalElements(), result.totalPages(), result.first(), result.last()
+        ));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<SimilarServicePerformanceResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(similarServicePerformanceService.findById(id));
+        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.findById(id)));
     }
 
     @PostMapping
     public ResponseEntity<SimilarServicePerformanceResponse> create(@RequestBody SimilarServicePerformanceRequest request) {
-        return ResponseEntity.ok(similarServicePerformanceService.create(request));
+        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.create(request.toCommand())));
     }
 
     @PutMapping("/{id}")
@@ -66,12 +60,12 @@ public class SimilarServicePerformanceController {
             @PathVariable Long id,
             @RequestBody SimilarServicePerformanceRequest request
     ) {
-        return ResponseEntity.ok(similarServicePerformanceService.update(id, request));
+        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.update(id, request.toCommand())));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        similarServicePerformanceService.delete(id);
+        useCase.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

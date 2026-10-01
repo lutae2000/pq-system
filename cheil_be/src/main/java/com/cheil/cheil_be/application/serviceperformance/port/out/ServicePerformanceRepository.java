@@ -1,19 +1,18 @@
 package com.cheil.cheil_be.application.serviceperformance.port.out;
 
-import com.cheil.cheil_be.adapter.in.web.serviceperformance.ServicePerformanceRequest;
-import com.cheil.cheil_be.adapter.in.web.serviceperformance.ServicePerformanceResponse;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceCommand;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePage;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePageQuery;
+import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceView;
 public interface ServicePerformanceRepository {
 
-    Page<ServicePerformanceResponse> findAll(ServicePerformanceSearch search, Pageable pageable);
+    ServicePerformancePage findAll(ServicePerformanceSearch search, ServicePerformancePageQuery pageQuery);
 
-    ServicePerformanceResponse findById(Long id);
+    ServicePerformanceView findById(Long id);
 
-    Long create(ServicePerformanceRequest request, String actor);
+    Long create(ServicePerformanceCommand command, String actor);
 
-    int update(Long id, ServicePerformanceRequest request, String actor);
+    int update(Long id, ServicePerformanceCommand command, String actor);
 
     int delete(Long id);
 

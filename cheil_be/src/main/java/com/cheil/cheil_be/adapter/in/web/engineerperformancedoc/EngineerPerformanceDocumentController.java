@@ -1,5 +1,6 @@
 package com.cheil.cheil_be.adapter.in.web.engineerperformancedoc;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
 
 @RestController
 @RequestMapping("/pq/engineer-performance-docs")
@@ -29,6 +33,7 @@ import com.cheil.cheil_be.application.engineerperformancedoc.service.Performance
 public class EngineerPerformanceDocumentController {
 
     private final EngineerPerformanceDocumentService engineerPerformanceDocumentService;
+    private final DocumentValueSettingUseCase documentValueSettingUseCase;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
     private final PerformanceCertificateGenerationService performanceCertificateGenerationService;
 
@@ -92,14 +97,29 @@ public class EngineerPerformanceDocumentController {
 
     @GetMapping("/document-value-settings")
     public ResponseEntity<List<EngineerDocumentValueSettingResponse>> listDocumentValueSettings(@RequestParam Long bidSeq) {
-        return ResponseEntity.ok(engineerPerformanceDocumentService.findDocumentValueSettings(bidSeq));
+        return ResponseEntity.ok(documentValueSettingUseCase.findByBidSeq(bidSeq).stream()
+                .map(this::toResponse)
+                .toList());
     }
 
     @PutMapping("/document-value-settings")
     public ResponseEntity<EngineerDocumentValueSettingResponse> saveDocumentValueSetting(
             @RequestBody EngineerDocumentValueSettingRequest request
     ) {
-        return ResponseEntity.ok(engineerPerformanceDocumentService.saveDocumentValueSetting(request));
+        DocumentValueSetting setting = documentValueSettingUseCase.save(new SaveDocumentValueSettingCommand(
+                request.bidSeq(), request.engineerId(), request.educationId(), request.licenseId()));
+        return ResponseEntity.ok(toResponse(setting));
+    }
+
+    private EngineerDocumentValueSettingResponse toResponse(DocumentValueSetting setting) {
+        return new EngineerDocumentValueSettingResponse(
+                setting.bidSeq(), setting.engineerId(), setting.educationId(), setting.licenseId(),
+                toTimestamp(setting.createdAt()), setting.createdId(),
+                toTimestamp(setting.lastChangedAt()), setting.lastChangedId());
+    }
+
+    private Timestamp toTimestamp(java.time.Instant value) {
+        return value == null ? null : Timestamp.from(value);
     }
 
     /**

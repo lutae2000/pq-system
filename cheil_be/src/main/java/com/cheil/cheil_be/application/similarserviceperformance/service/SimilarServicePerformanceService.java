@@ -1,119 +1,97 @@
 package com.cheil.cheil_be.application.similarserviceperformance.service;
 
 import java.math.BigDecimal;
-import java.util.Locale;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.in.web.similarserviceperformance.SimilarServicePerformanceRequest;
-import com.cheil.cheil_be.adapter.in.web.similarserviceperformance.SimilarServicePerformanceResponse;
-import com.cheil.cheil_be.adapter.out.persistence.similarserviceperformance.SimilarServicePerformanceEntity;
-import com.cheil.cheil_be.adapter.out.persistence.similarserviceperformance.SimilarServicePerformanceJpaRepository;
+import com.cheil.cheil_be.application.similarserviceperformance.exception.SimilarServicePerformanceApplicationException;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformancePage;
+import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
+import com.cheil.cheil_be.application.similarserviceperformance.port.in.SimilarServicePerformanceUseCase;
+import com.cheil.cheil_be.application.similarserviceperformance.port.out.SimilarServicePerformanceRepository;
 import com.cheil.cheil_be.common.text.StringValues;
 
 @Service
 @RequiredArgsConstructor
-public class SimilarServicePerformanceService {
+public class SimilarServicePerformanceService implements SimilarServicePerformanceUseCase {
 
     private static final int TEXT_MAX_LENGTH = 500;
     private static final int REMARK_MAX_LENGTH = 1000;
+    private static final DateTimeFormatter BASIC_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
 
-    private final SimilarServicePerformanceJpaRepository repository;
+    private final SimilarServicePerformanceRepository repository;
 
+    @Override
     @Transactional(readOnly = true)
-    public Page<SimilarServicePerformanceResponse> findAll(
-            String keyword,
-            String constructionType,
-            String client,
-            String contractFromDate,
-            String contractToDate,
-            Pageable pageable
-    ) {
-        String normalizedKeyword = keyword(keyword);
-        String normalizedConstructionType = value(constructionType);
-        String normalizedClient = value(client);
-        String normalizedContractFromDate = date(contractFromDate, "contractFromDate");
-        String normalizedContractToDate = date(contractToDate, "contractToDate");
+    public SimilarServicePerformancePage findAll(SimilarServicePerformanceSearch search) {
+        if (search == null) throw badRequest("Search condition is required.");
+        String from = date(search.contractFromDate(), "contractFromDate");
+        String to = date(search.contractToDate(), "contractToDate");
+        validateDateRange(from, to, "contractFromDate", "contractToDate");
 
-        if (normalizedKeyword == null
-                && normalizedConstructionType == null
-                && normalizedClient == null
-                && normalizedContractFromDate == null
-                && normalizedContractToDate == null) {
-            return repository.findAll(pageable).map(SimilarServicePerformanceEntity::toResponse);
-        }
-
-        return repository.findAll(
-                        searchSpec(
-                                normalizedKeyword,
-                                normalizedConstructionType,
-                                normalizedClient,
-                                normalizedContractFromDate,
-                                normalizedContractToDate
-                        ),
-                        pageable
-                )
-                .map(SimilarServicePerformanceEntity::toResponse);
+        // 검색 조건은 application에서 정규화해 어댑터마다 서로 다른 해석을 하지 않도록 합니다.
+        return repository.findAll(new SimilarServicePerformanceSearch(
+                keyword(search.keyword()), value(search.constructionType()), value(search.client()),
+                from, to, Math.max(search.page(), 0), Math.max(search.size(), 1)
+        ));
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public SimilarServicePerformanceResponse findById(Long id) {
-        return findEntity(id).toResponse();
+    public SimilarServicePerformance findById(Long id) {
+        return findExisting(id);
     }
 
+    @Override
     @Transactional
-    public SimilarServicePerformanceResponse create(SimilarServicePerformanceRequest request) {
-        SimilarServicePerformanceRequest normalized = normalize(request);
-        SimilarServicePerformanceEntity saved = repository.save(new SimilarServicePerformanceEntity(repository.nextId(), normalized));
-        return saved.toResponse();
+    public SimilarServicePerformance create(SimilarServicePerformanceCommand command) {
+        return repository.save(repository.nextId(), normalize(command));
     }
 
+    @Override
     @Transactional
-    public SimilarServicePerformanceResponse update(Long id, SimilarServicePerformanceRequest request) {
-        SimilarServicePerformanceEntity entity = findEntity(id);
-        entity.update(normalize(request));
-        return entity.toResponse();
+    public SimilarServicePerformance update(Long id, SimilarServicePerformanceCommand command) {
+        findExisting(id);
+        return repository.save(id, normalize(command));
     }
 
+    @Override
     @Transactional
     public void delete(Long id) {
-        SimilarServicePerformanceEntity entity = findEntity(id);
-        repository.delete(entity);
+        findExisting(id);
+        repository.deleteById(id);
     }
 
-    private SimilarServicePerformanceEntity findEntity(Long id) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id is required.");
-        }
-        return repository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유사용역 수행실적을 찾을 수 없습니다."));
+    private SimilarServicePerformance findExisting(Long id) {
+        if (id == null) throw badRequest("id is required.");
+        return repository.findById(id).orElseThrow(() -> notFound("유사용역 수행실적을 찾을 수 없습니다."));
     }
 
-    private SimilarServicePerformanceRequest normalize(SimilarServicePerformanceRequest request) {
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
-        }
-        return new SimilarServicePerformanceRequest(
-                limitedText(request.serviceName(), "serviceName"),
-                limitedText(request.constructionType(), "constructionType"),
-                limitedText(request.client(), "client"),
-                date(request.contractFromDate(), "contractFromDate"),
-                date(request.contractToDate(), "contractToDate"),
-                date(request.constructionFromDate(), "constructionFromDate"),
-                date(request.constructionToDate(), "constructionToDate"),
-                nonNegative(request.contractPrice(), "contractPrice"),
-                nonNegative(request.shareRatio(), "shareRatio"),
-                nonNegative(request.weight(), "weight"),
-                value(request.summary()),
-                limitedRemark(request.remark())
+    private SimilarServicePerformanceCommand normalize(SimilarServicePerformanceCommand command) {
+        if (command == null) throw badRequest("Request body is required.");
+        String contractFrom = date(command.contractFromDate(), "contractFromDate");
+        String contractTo = date(command.contractToDate(), "contractToDate");
+        String constructionFrom = date(command.constructionFromDate(), "constructionFromDate");
+        String constructionTo = date(command.constructionToDate(), "constructionToDate");
+        validateDateRange(contractFrom, contractTo, "contractFromDate", "contractToDate");
+        validateDateRange(constructionFrom, constructionTo, "constructionFromDate", "constructionToDate");
+
+        return new SimilarServicePerformanceCommand(
+                limitedText(command.serviceName(), "serviceName"),
+                limitedText(command.constructionType(), "constructionType"),
+                limitedText(command.client(), "client"), contractFrom, contractTo,
+                constructionFrom, constructionTo,
+                nonNegative(command.contractPrice(), "contractPrice"),
+                nonNegative(command.shareRatio(), "shareRatio"),
+                nonNegative(command.weight(), "weight"), value(command.summary()), limitedRemark(command.remark())
         );
     }
 
@@ -131,72 +109,45 @@ public class SimilarServicePerformanceService {
 
     private String keyword(String value) {
         String normalized = value(value);
-        return normalized == null ? null : "%" + normalized.toLowerCase(Locale.ROOT) + "%";
-    }
-
-    private Specification<SimilarServicePerformanceEntity> searchSpec(
-            String keyword,
-            String constructionType,
-            String client,
-            String contractFromDate,
-            String contractToDate
-    ) {
-        return (root, query, criteriaBuilder) -> {
-            var predicate = criteriaBuilder.conjunction();
-
-            if (keyword != null) {
-                predicate = criteriaBuilder.and(
-                        predicate,
-                        criteriaBuilder.or(
-                                criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("serviceName"), "")), keyword),
-                                criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("constructionType"), "")), keyword),
-                                criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("client"), "")), keyword),
-                                criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("summary"), "")), keyword),
-                                criteriaBuilder.like(criteriaBuilder.lower(criteriaBuilder.coalesce(root.get("remark"), "")), keyword)
-                        )
-                );
-            }
-            if (constructionType != null) {
-                predicate = criteriaBuilder.and(predicate, criteriaBuilder.like(root.get("constructionType"), "%" + constructionType + "%"));
-            }
-            if (client != null) {
-                predicate = criteriaBuilder.and(predicate, criteriaBuilder.like(root.get("client"), "%" + client + "%"));
-            }
-            if (contractFromDate != null) {
-                predicate = criteriaBuilder.and(predicate, criteriaBuilder.greaterThanOrEqualTo(root.get("contractFromDate"), contractFromDate));
-            }
-            if (contractToDate != null) {
-                predicate = criteriaBuilder.and(predicate, criteriaBuilder.lessThanOrEqualTo(root.get("contractToDate"), contractToDate));
-            }
-
-            return predicate;
-        };
+        return normalized == null ? null : normalized.toLowerCase(java.util.Locale.ROOT);
     }
 
     private String value(String value) {
         String normalized = StringValues.normalize(value);
-        return StringUtils.hasText(normalized) ? normalized : null;
+        return StringUtils.hasText(normalized) ? normalized.trim() : null;
     }
 
     private String date(String value, String fieldName) {
         String normalized = value(value);
-        if (normalized == null) {
-            return null;
-        }
+        if (normalized == null) return null;
         String compact = normalized.replace("-", "");
-        if (!compact.matches("\\d{8}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be YYYYMMDD.");
+        if (!compact.matches("\\d{8}")) throw badRequest(fieldName + " must be YYYYMMDD.");
+        try {
+            LocalDate.parse(compact, BASIC_DATE_FORMAT);
+        } catch (DateTimeParseException exception) {
+            throw badRequest(fieldName + " must be a valid calendar date.");
         }
         return compact;
     }
 
-    private BigDecimal nonNegative(BigDecimal value, String fieldName) {
-        if (value == null) {
-            return null;
+    private void validateDateRange(String from, String to, String fromField, String toField) {
+        if (from != null && to != null && from.compareTo(to) > 0) {
+            throw badRequest(fromField + " must be less than or equal to " + toField + ".");
         }
-        if (value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be greater than or equal to 0.");
+    }
+
+    private BigDecimal nonNegative(BigDecimal value, String fieldName) {
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
+            throw badRequest(fieldName + " must be greater than or equal to 0.");
         }
         return value;
+    }
+
+    private SimilarServicePerformanceApplicationException badRequest(String message) {
+        return new SimilarServicePerformanceApplicationException(SimilarServicePerformanceApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private SimilarServicePerformanceApplicationException notFound(String message) {
+        return new SimilarServicePerformanceApplicationException(SimilarServicePerformanceApplicationException.Type.NOT_FOUND, message);
     }
 }

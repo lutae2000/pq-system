@@ -4,16 +4,15 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.cheil.cheil_be.application.commoncode.exception.CommonCodeApplicationException;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeSearchCondition;
+import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeUpsertCommand;
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.common.text.StringValues;
@@ -22,7 +21,7 @@ import com.cheil.cheil_be.domain.commoncode.CommonCode;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class CommonCodeAdminService {
+public class CommonCodeAdminService implements CommonCodeAdminUseCase {
 
     private static final int CODE_LEVEL_MIN = 1;
     private static final int CODE_LEVEL_MAX = 3;
@@ -35,36 +34,34 @@ public class CommonCodeAdminService {
 
     private final CommonCodeRepository commonCodeRepository;
     private final CommonCodeCacheService commonCodeCacheService;
+    private final CommonCodeSearchSupport commonCodeSearchSupport;
     private final Clock clock;
 
+    @Override
     @Transactional(readOnly = true)
     public List<CommonCode> findAll(CommonCodeSearchCondition condition) {
-        String keyword = StringValues.normalize(condition.keyword()).toLowerCase(Locale.ROOT);
-        Boolean useYn = Boolean.TRUE;
-        Integer codeLevel = condition.codeLevel();
-        String level1Code = StringValues.normalize(condition.level1Code());
-        String level2Code = StringValues.normalize(condition.level2Code());
-        String level2CodePrefix = StringValues.normalize(condition.level2CodePrefix());
-        String level3Code = trimNullable(condition.level3Code());
-        String refValue1Contains = StringValues.normalize(condition.refValue1Contains());
-        String sort = StringValues.normalize(condition.sort());
-        List<CommonCode> commonCodes = condition.bypassCache()
-                ? findDirectCommonCodes(codeLevel, level1Code, level2Code, useYn)
-                : findCachedCommonCodes(codeLevel, level1Code, level2Code, useYn);
+        CommonCodeSearchCondition normalizedCondition = normalizeSearchCondition(condition);
+        Boolean useYn = normalizedCondition.useYn();
+        List<CommonCode> commonCodes = normalizedCondition.bypassCache()
+                ? findDirectCommonCodes(
+                        normalizedCondition.codeLevel(),
+                        normalizedCondition.level1Code(),
+                        normalizedCondition.level2Code(),
+                        useYn
+                )
+                : findCachedCommonCodes(
+                        normalizedCondition.codeLevel(),
+                        normalizedCondition.level1Code(),
+                        normalizedCondition.level2Code(),
+                        useYn
+                );
 
-        return commonCodes.stream()
-                .filter(item -> matchesKeyword(item, keyword))
-                .filter(item -> useYn == null || item.useYn() == useYn)
-                .filter(item -> codeLevel == null || codeLevel.equals(item.codeLevel()))
-                .filter(item -> matchesLevel1Code(item, level1Code))
-                .filter(item -> matchesLevel2Code(item, level2Code))
-                .filter(item -> matchesLevel2CodePrefix(item, level2CodePrefix))
-                .filter(item -> matchesLevel3Code(item, level3Code))
-                .filter(item -> matchesRefValue1Contains(item, refValue1Contains))
-                .sorted(resolveComparator(sort))
-                .toList();
+        // 캐시는 계층 범위까지 빠르게 가져오는 역할만 맡기고,
+        // 키워드·레벨3·ref_value1 같은 세부 조건은 공통 필터에서 동일하게 적용합니다.
+        return commonCodeSearchSupport.filter(commonCodes, normalizedCondition);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<List<CommonCode>> findAllBatch(List<CommonCodeSearchCondition> conditions) {
         return conditions.stream().map(this::findAll).toList();
@@ -109,15 +106,39 @@ public class CommonCodeAdminService {
         return commonCodeRepository.findAll();
     }
 
+    private CommonCodeSearchCondition normalizeSearchCondition(CommonCodeSearchCondition condition) {
+        if (condition == null) {
+            // 기존 API의 기본 동작은 활성 공통코드 조회이므로 null 요청도 같은 정책을 적용합니다.
+            return new CommonCodeSearchCondition(null, Boolean.TRUE, null, null, null, null, null, null, null, false);
+        }
+
+        // useYn을 생략한 일반 조회는 기존 호환성을 위해 활성 코드만 반환합니다.
+        // 단, false를 명시한 요청은 비활성 코드 조회로 그대로 전달합니다.
+        return new CommonCodeSearchCondition(
+                condition.keyword(),
+                condition.useYn() == null ? Boolean.TRUE : condition.useYn(),
+                condition.codeLevel(),
+                StringValues.normalize(condition.level1Code()),
+                StringValues.normalize(condition.level2Code()),
+                StringValues.normalize(condition.level2CodePrefix()),
+                trimNullable(condition.level3Code()),
+                StringValues.normalize(condition.refValue1Contains()),
+                StringValues.normalize(condition.sort()),
+                condition.bypassCache()
+        );
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public CommonCode findByCodeId(Long codeId) {
         Long normalizedCodeId = requireCodeId(codeId);
         return commonCodeCacheService.getOrLoadById(
                         normalizedCodeId,
                         () -> commonCodeRepository.findByCodeId(normalizedCodeId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Common code not found."));
+                .orElseThrow(() -> notFound("Common code not found."));
     }
 
+    @Override
     @Transactional
     public CommonCode create(CommonCodeUpsertCommand command) {
         NormalizedCommonCode normalized = normalize(command, null);
@@ -127,7 +148,7 @@ public class CommonCodeAdminService {
                 normalized.level2Code(),
                 normalized.level3Code()
         )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Common code already exists.");
+            throw conflict("Common code already exists.");
         }
 
         Instant now = Instant.now(clock);
@@ -153,6 +174,7 @@ public class CommonCodeAdminService {
         return saved;
     }
 
+    @Override
     @Transactional
     public CommonCode update(Long codeId, CommonCodeUpsertCommand command) {
         Long normalizedCodeId = requireCodeId(codeId);
@@ -166,7 +188,7 @@ public class CommonCodeAdminService {
                 normalized.level3Code(),
                 normalizedCodeId
         )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Common code path already exists.");
+            throw conflict("Common code path already exists.");
         }
 
         Instant now = Instant.now(clock);
@@ -192,12 +214,13 @@ public class CommonCodeAdminService {
         return saved;
     }
 
+    @Override
     @Transactional
     public void delete(Long codeId) {
         Long normalizedCodeId = requireCodeId(codeId);
         CommonCode existing = findByCodeId(normalizedCodeId);
         if (hasDependentChildren(existing)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete a common code with child codes.");
+            throw conflict("Cannot delete a common code with child codes.");
         }
         commonCodeRepository.deleteByCodeId(normalizedCodeId);
         commonCodeCacheService.evictAfterCommit(existing);
@@ -231,12 +254,12 @@ public class CommonCodeAdminService {
 
     private NormalizedCommonCode normalize(CommonCodeUpsertCommand command, CommonCode existing) {
         if (command == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw badRequest("Request body is required.");
         }
 
         Integer codeLevel = command.codeLevel();
         if (codeLevel == null || codeLevel < CODE_LEVEL_MIN || codeLevel > CODE_LEVEL_MAX) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "codeLevel must be 1, 2, or 3.");
+            throw badRequest("codeLevel must be 1, 2, or 3.");
         }
 
         String level1Code = StringValues.required(command.level1Code(), "level1Code");
@@ -394,9 +417,21 @@ public class CommonCodeAdminService {
 
     private Long requireCodeId(Long codeId) {
         if (codeId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "codeId is required.");
+            throw badRequest("codeId is required.");
         }
         return codeId;
+    }
+
+    private CommonCodeApplicationException badRequest(String message) {
+        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private CommonCodeApplicationException conflict(String message) {
+        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.CONFLICT, message);
+    }
+
+    private CommonCodeApplicationException notFound(String message) {
+        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.NOT_FOUND, message);
     }
 
     private record NormalizedCommonCode(

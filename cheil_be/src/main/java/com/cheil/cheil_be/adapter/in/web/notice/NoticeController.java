@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.notice.service.NoticeAdminService;
-import com.cheil.cheil_be.application.notice.service.NoticeAdminService.NoticeListScope;
+import com.cheil.cheil_be.application.notice.port.in.NoticeAdminUseCase;
+import com.cheil.cheil_be.application.notice.port.in.NoticeAdminUseCase.NoticeListScope;
 import com.cheil.cheil_be.domain.notice.Notice;
 
 @RestController
@@ -23,7 +23,7 @@ import com.cheil.cheil_be.domain.notice.Notice;
 @RequiredArgsConstructor
 public class NoticeController {
 
-    private final NoticeAdminService noticeAdminService;
+    private final NoticeAdminUseCase noticeAdminService;
 
     @GetMapping
     public ResponseEntity<List<Notice>> list(@RequestParam(defaultValue = "DASHBOARD") NoticeListScope scope) {

@@ -41,9 +41,10 @@ public class SystemPolicyController {
      */
     @PutMapping
     public ResponseEntity<List<SystemPolicyResponse>> savePolicies(@RequestBody PolicyUpsertRequest request) {
-        return ResponseEntity.ok(systemPolicyAdminService.savePolicies(request.items().stream()
-                        .map(SystemPolicyUpsertItem::toEntity)
-                        .toList())
+        List<SystemPolicyEntity> policies = request == null || request.items() == null
+                ? null
+                : request.items().stream().map(SystemPolicyUpsertItem::toEntity).toList();
+        return ResponseEntity.ok(systemPolicyAdminService.savePolicies(policies)
                 .stream()
                 .map(SystemPolicyResponse::from)
                 .toList());
@@ -51,7 +52,9 @@ public class SystemPolicyController {
 
     @PostMapping
     public ResponseEntity<SystemPolicyResponse> createPolicy(@RequestBody SystemPolicyUpsertItem request) {
-        return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.createPolicy(request.toEntity())));
+        return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.createPolicy(
+                request == null ? null : request.toEntity()
+        )));
     }
 
     @PatchMapping("/{policyKey}")
@@ -59,7 +62,10 @@ public class SystemPolicyController {
             @PathVariable String policyKey,
             @RequestBody SystemPolicyUpsertItem request
     ) {
-        return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.updatePolicy(policyKey, request.toEntity())));
+        return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.updatePolicy(
+                policyKey,
+                request == null ? null : request.toEntity()
+        )));
     }
 
     @PatchMapping(value = "/branding/{assetType}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

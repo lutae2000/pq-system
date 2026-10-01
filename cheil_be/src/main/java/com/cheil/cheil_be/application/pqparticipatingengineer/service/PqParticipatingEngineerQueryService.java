@@ -15,19 +15,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerCandidateResponse;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerRequest;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerResponse;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.ReplacePqParticipatingEngineersRequest;
-import com.cheil.cheil_be.application.engineer.EngineerAdminService;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.pqparticipatingengineer.exception.PqParticipatingEngineerApplicationException;
+import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
@@ -40,7 +39,7 @@ public class PqParticipatingEngineerQueryService {
 
     private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
     private final JdbcClient jdbcClient;
-    private final EngineerAdminService engineerAdminService;
+    private final EngineerAdminUseCase engineerAdminService;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final Gson gson = new Gson();
 
@@ -287,6 +286,9 @@ public class PqParticipatingEngineerQueryService {
 
     @Transactional
     public PqParticipatingEngineerResponse create(PqParticipatingEngineerRequest request) {
+        if (request == null) {
+            throw badRequest("요청 본문이 필요합니다.");
+        }
         Long bidSeq = requiredBidSeq(request.bidSeq());
         String workDutyId = required(request.workDutyId(), "workDutyId");
         String engrId = required(request.engrId(), "engrId");
@@ -296,9 +298,13 @@ public class PqParticipatingEngineerQueryService {
 
     @Transactional
     public PqParticipatingEngineerResponse update(Long bidSeq, String workDutyId, String engrId, PqParticipatingEngineerRequest request) {
-        String nextWorkDutyId = StringUtils.hasText(request.workDutyId()) ? request.workDutyId().trim() : required(workDutyId, "workDutyId");
-        String nextEngrId = StringUtils.hasText(request.engrId()) ? request.engrId().trim() : required(engrId, "engrId");
-        Long nextBidSeq = request.bidSeq() == null ? requiredBidSeq(bidSeq) : request.bidSeq();
+        if (request == null) {
+            throw badRequest("요청 본문이 필요합니다.");
+        }
+        Long targetBidSeq = requiredBidSeq(bidSeq);
+        String targetWorkDutyId = required(workDutyId, "workDutyId");
+        String targetEngrId = required(engrId, "engrId");
+        validateUpdateIdentity(targetBidSeq, targetWorkDutyId, targetEngrId, request);
 
         int updated = jdbcClient.sql("""
                         UPDATE pq_find_engr_info
@@ -309,17 +315,17 @@ public class PqParticipatingEngineerQueryService {
                             last_changed_id = :actor
                         WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId AND engr_id = :engrId
                         """)
-                .param("bidSeq", requiredBidSeq(bidSeq))
-                .param("workDutyId", required(workDutyId, "workDutyId"))
-                .param("engrId", required(engrId, "engrId"))
+                .param("bidSeq", targetBidSeq)
+                .param("workDutyId", targetWorkDutyId)
+                .param("engrId", targetEngrId)
                 .param("priority", request.priority())
                 .param("responsibility", normalize(request.responsibility()))
                 .param("actor", AuditActorResolver.resolve())
                 .update();
         if (updated != 1) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PQ참여 기술자 정보를 찾을 수 없습니다.");
+            throw notFound("PQ참여 기술자 정보를 찾을 수 없습니다.");
         }
-        return findSelectedOne(nextBidSeq, nextWorkDutyId, nextEngrId);
+        return findSelectedOne(targetBidSeq, targetWorkDutyId, targetEngrId);
     }
 
     @Transactional
@@ -333,12 +339,17 @@ public class PqParticipatingEngineerQueryService {
                 .param("engrId", required(engrId, "engrId"))
                 .update();
         if (deleted != 1) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "PQ참여 기술자 정보를 찾을 수 없습니다.");
+            throw notFound("PQ참여 기술자 정보를 찾을 수 없습니다.");
         }
     }
 
     @Transactional
     public List<PqParticipatingEngineerResponse> replace(ReplacePqParticipatingEngineersRequest request) {
+        // 기존 선택 목록을 같은 공고·업무 기준으로 통째로 교체합니다.
+        // 이 메서드는 삭제와 재등록이 하나의 트랜잭션으로 묶여 부분 교체가 남지 않도록 합니다.
+        if (request == null) {
+            throw badRequest("요청 본문이 필요합니다.");
+        }
         Long bidSeq = requiredBidSeq(request.bidSeq());
         String workDutyId = required(request.workDutyId(), "workDutyId");
 
@@ -586,6 +597,8 @@ public class PqParticipatingEngineerQueryService {
             return List.of();
         }
         try {
+            // JSON 조건은 SQL 조각으로 직접 이어 붙이지 않고 구조화된 객체로 먼저 파싱합니다.
+            // 이후 조건 코드의 metadata를 통해 허용된 컬럼만 SQL에 사용합니다.
             List<ProjectHistoryCondition> conditions = gson.fromJson(
                     projectHistoryConditions,
                     new TypeToken<List<ProjectHistoryCondition>>() {
@@ -593,7 +606,7 @@ public class PqParticipatingEngineerQueryService {
             );
             return conditions == null ? List.of() : conditions;
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "관련 공사 참여 이력 조건 형식이 올바르지 않습니다.", exception);
+            throw badRequest("관련 공사 참여 이력 조건 형식이 올바르지 않습니다.", exception);
         }
     }
 
@@ -601,7 +614,7 @@ public class PqParticipatingEngineerQueryService {
         return findSelected(bidSeq, workDutyId).stream()
                 .filter(row -> row.engrId().equals(engrId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PQ참여 기술자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> notFound("PQ참여 기술자 정보를 찾을 수 없습니다."));
     }
 
     private void upsert(Long bidSeq, String workDutyId, String engrId) {
@@ -701,7 +714,7 @@ public class PqParticipatingEngineerQueryService {
 
     private Long requiredBidSeq(Long bidSeq) {
         if (bidSeq == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidSeq는 필수입니다.");
+            throw badRequest("bidSeq는 필수입니다.");
         }
         return bidSeq;
     }
@@ -709,7 +722,7 @@ public class PqParticipatingEngineerQueryService {
     private String required(String value, String fieldName) {
         String normalized = normalize(value);
         if (!StringUtils.hasText(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + "는 필수입니다.");
+            throw badRequest(fieldName + "는 필수입니다.");
         }
         return normalized;
     }
@@ -724,8 +737,9 @@ public class PqParticipatingEngineerQueryService {
             return "=";
         }
         String operator = normalized.toUpperCase(Locale.ROOT);
+        // 비교 연산자는 화이트리스트로 제한해야 사용자가 전달한 문자열이 SQL 구조에 들어가지 않습니다.
         if (!COMPARISON_OPERATORS.contains(operator)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 비교 조건입니다.");
+            throw badRequest("지원하지 않는 비교 조건입니다.");
         }
         return operator;
     }
@@ -738,8 +752,20 @@ public class PqParticipatingEngineerQueryService {
         try {
             return new BigDecimal(value.replace(",", ""));
         } catch (NumberFormatException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + "는 숫자여야 합니다.", exception);
+            throw badRequest(fieldName + "는 숫자여야 합니다.", exception);
         }
+    }
+
+    private PqParticipatingEngineerApplicationException badRequest(String message) {
+        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private PqParticipatingEngineerApplicationException badRequest(String message, Throwable cause) {
+        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.BAD_REQUEST, message, cause);
+    }
+
+    private PqParticipatingEngineerApplicationException notFound(String message) {
+        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.NOT_FOUND, message);
     }
 
     private Object typedValue(String value, String fieldName, boolean numberType, boolean dateType) {
@@ -750,6 +776,19 @@ public class PqParticipatingEngineerQueryService {
             return value.replaceAll("\\D", "");
         }
         return value;
+    }
+
+    private void validateUpdateIdentity(Long bidSeq, String workDutyId, String engrId, PqParticipatingEngineerRequest request) {
+        // 수정 대상의 식별자는 URL path가 소유합니다. body가 다른 대상을 가리키면 조용히 무시하지 않고 요청 오류로 처리합니다.
+        if (request.bidSeq() != null && !bidSeq.equals(request.bidSeq())) {
+            throw badRequest("path bidSeq와 body bidSeq가 일치해야 합니다.");
+        }
+        if (StringUtils.hasText(request.workDutyId()) && !workDutyId.equals(request.workDutyId().trim())) {
+            throw badRequest("path workDutyId와 body workDutyId가 일치해야 합니다.");
+        }
+        if (StringUtils.hasText(request.engrId()) && !engrId.equals(request.engrId().trim())) {
+            throw badRequest("path engrId와 body engrId가 일치해야 합니다.");
+        }
     }
 
     private record QueryParts(String whereSql, Map<String, Object> params) {

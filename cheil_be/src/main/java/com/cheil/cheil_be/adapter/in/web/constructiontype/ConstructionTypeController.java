@@ -15,14 +15,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeSearchCondition;
-import com.cheil.cheil_be.application.constructiontype.service.ConstructionTypeAdminService;
+import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeUseCase;
 
 @RestController
 @RequestMapping("/code/construction-types")
 @RequiredArgsConstructor
 public class ConstructionTypeController {
 
-    private final ConstructionTypeAdminService constructionTypeAdminService;
+    private final ConstructionTypeUseCase constructionTypeUseCase;
 
     /**
      * 공사종류 목록을 조회한다.
@@ -35,7 +35,7 @@ public class ConstructionTypeController {
             @RequestParam(required = false) String level1Code,
             @RequestParam(required = false) String level2Code
     ) {
-        return ResponseEntity.ok(constructionTypeAdminService.findAll(new ConstructionTypeSearchCondition(
+        return ResponseEntity.ok(constructionTypeUseCase.findAll(new ConstructionTypeSearchCondition(
                         keyword,
                         useYn,
                         codeLevel,
@@ -52,7 +52,7 @@ public class ConstructionTypeController {
      */
     @GetMapping("/{codeId}")
     public ResponseEntity<ConstructionTypeResponse> get(@PathVariable Long codeId) {
-        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeAdminService.findByCodeId(codeId)));
+        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeUseCase.findByCodeId(codeId)));
     }
 
     /**
@@ -60,7 +60,7 @@ public class ConstructionTypeController {
      */
     @PostMapping
     public ResponseEntity<ConstructionTypeResponse> create(@RequestBody ConstructionTypeUpsertRequest request) {
-        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeAdminService.create(request.toCommand())));
+        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeUseCase.create(request.toCommand())));
     }
 
     /**
@@ -68,7 +68,7 @@ public class ConstructionTypeController {
      */
     @PutMapping("/{codeId}")
     public ResponseEntity<ConstructionTypeResponse> update(@PathVariable Long codeId, @RequestBody ConstructionTypeUpsertRequest request) {
-        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeAdminService.update(codeId, request.toCommand())));
+        return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeUseCase.update(codeId, request.toCommand())));
     }
 
     /**
@@ -76,7 +76,7 @@ public class ConstructionTypeController {
      */
     @DeleteMapping("/{codeId}")
     public ResponseEntity<Void> delete(@PathVariable Long codeId) {
-        constructionTypeAdminService.delete(codeId);
+        constructionTypeUseCase.delete(codeId);
         return ResponseEntity.noContent().build();
     }
 }

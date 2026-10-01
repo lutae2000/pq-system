@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.bidnotice.service.BidNoticeDashboardService;
+import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/dashboard/bid-notices")
 public class BidNoticeDashboardController {
 
-    private final BidNoticeDashboardService bidNoticeDashboardService;
+    private final BidNoticeDashboardUseCase bidNoticeDashboardUseCase;
 
     @GetMapping("/calendar")
     public ResponseEntity<List<BidNoticeCalendarResponse>> calendar(
@@ -28,11 +28,11 @@ public class BidNoticeDashboardController {
             @RequestParam(required = false) String deptCode
     ) {
         List<BidNoticeCalendarResponse> response = yearMonth != null && !yearMonth.isBlank()
-                ? bidNoticeDashboardService.findCalendarByYearMonth(yearMonth, deptCode)
+                ? bidNoticeDashboardUseCase.findCalendarByYearMonth(yearMonth, deptCode)
                 .stream()
                 .map(BidNoticeCalendarResponse::from)
                 .toList()
-                : bidNoticeDashboardService.findCalendarByMonth(requiredInt(year, "year"), requiredInt(month, "month"), deptCode)
+                : bidNoticeDashboardUseCase.findCalendarByMonth(requiredInt(year, "year"), requiredInt(month, "month"), deptCode)
                 .stream()
                 .map(BidNoticeCalendarResponse::from)
                 .toList();

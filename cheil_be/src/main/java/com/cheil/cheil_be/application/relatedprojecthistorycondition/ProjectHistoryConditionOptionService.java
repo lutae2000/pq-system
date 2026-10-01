@@ -9,17 +9,19 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.port.in.ProjectHistoryConditionOptionUseCase;
 import com.cheil.cheil_be.application.servicetype.port.out.ServiceTypeRepository;
 import com.cheil.cheil_be.domain.commoncode.CommonCode;
 import com.cheil.cheil_be.domain.servicetype.ServiceType;
 
 @Service
 @RequiredArgsConstructor
-public class ProjectHistoryConditionOptionService {
+public class ProjectHistoryConditionOptionService implements ProjectHistoryConditionOptionUseCase {
 
     private static final String CONDITION_CODE_GROUP = "PQCT";
     private static final String TYPE_COMMON_CODE = "commonCode";
@@ -31,6 +33,8 @@ public class ProjectHistoryConditionOptionService {
     private final ServiceTypeRepository serviceTypeRepository;
     private final Gson gson = new Gson();
 
+    @Override
+    @Transactional(readOnly = true)
     public List<ProjectHistoryConditionOptionGroup> findAll() {
         return conditionCodes()
                 .map(this::toGroup)
@@ -39,6 +43,7 @@ public class ProjectHistoryConditionOptionService {
     }
 
     private Stream<CommonCode> conditionCodes() {
+        // 조건 정의는 공통코드에 있으므로 캐시를 거쳐 조회해 화면과 문서 생성의 기준을 맞춘다.
         return commonCodeCacheService.getOrLoadByLevel1Code(
                         CONDITION_CODE_GROUP,
                         () -> commonCodeRepository.findAllByLevel1Code(CONDITION_CODE_GROUP, Boolean.TRUE)
@@ -124,6 +129,7 @@ public class ProjectHistoryConditionOptionService {
         try {
             return gson.fromJson(json, JsonObject.class);
         } catch (RuntimeException exception) {
+            // 개별 코드의 메타데이터 오류가 전체 선택지 조회를 중단시키지 않도록 해당 코드만 제외한다.
             return null;
         }
     }

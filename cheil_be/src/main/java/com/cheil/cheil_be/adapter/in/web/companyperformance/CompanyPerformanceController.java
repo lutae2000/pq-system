@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceAdminUseCase;
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceSearchCondition;
-import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceAdminService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceContractPeriodQueryService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceConstructionKindQueryService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceEngineerQueryService;
@@ -31,7 +31,7 @@ import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 @RequiredArgsConstructor
 public class CompanyPerformanceController {
 
-    private final CompanyPerformanceAdminService companyPerformanceAdminService;
+    private final CompanyPerformanceAdminUseCase companyPerformanceAdminUseCase;
     private final CompanyPerformanceContractPeriodQueryService companyPerformanceContractPeriodQueryService;
     private final CompanyPerformanceConstructionKindQueryService companyPerformanceConstructionKindQueryService;
     private final CompanyPerformanceEngineerQueryService companyPerformanceEngineerQueryService;
@@ -54,7 +54,7 @@ public class CompanyPerformanceController {
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        Page<CompanyPerformance> result = companyPerformanceAdminService.findAll(
+        Page<CompanyPerformance> result = companyPerformanceAdminUseCase.findAll(
                 new CompanyPerformanceSearchCondition(
                         keyword,
                         businessType,
@@ -85,7 +85,7 @@ public class CompanyPerformanceController {
             @RequestParam(required = false) String contractToDate,
             @RequestParam(required = false) Long excludeDocumentTargetBidSeq
     ) {
-        Page<CompanyPerformance> result = companyPerformanceAdminService.findAll(
+        Page<CompanyPerformance> result = companyPerformanceAdminUseCase.findAll(
                 new CompanyPerformanceSearchCondition(
                         keyword,
                         businessType,
@@ -117,7 +117,7 @@ public class CompanyPerformanceController {
      */
     @GetMapping("/{seq}")
     public ResponseEntity<CompanyPerformanceResponse> get(@PathVariable Long seq) {
-        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminService.findById(seq)));
+        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminUseCase.findById(seq)));
     }
 
     @PostMapping("/match-candidates")
@@ -132,7 +132,7 @@ public class CompanyPerformanceController {
      */
     @GetMapping("/{seq}/contract-periods")
     public ResponseEntity<List<CompanyPerformanceContractPeriodResponse>> listContractPeriods(@PathVariable Long seq) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceContractPeriodQueryService.findByPerformanceSeq(seq));
     }
 
@@ -144,7 +144,7 @@ public class CompanyPerformanceController {
             @PathVariable Long seq,
             @RequestBody CompanyPerformanceContractPeriodRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceContractPeriodQueryService.create(seq, request));
     }
 
@@ -157,7 +157,7 @@ public class CompanyPerformanceController {
             @PathVariable Long contractPeriodId,
             @RequestBody CompanyPerformanceContractPeriodRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceContractPeriodQueryService.update(seq, contractPeriodId, request));
     }
 
@@ -166,7 +166,7 @@ public class CompanyPerformanceController {
      */
     @DeleteMapping("/{seq}/contract-periods/{contractPeriodId}")
     public ResponseEntity<Void> deleteContractPeriod(@PathVariable Long seq, @PathVariable Long contractPeriodId) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         companyPerformanceContractPeriodQueryService.delete(seq, contractPeriodId);
         return ResponseEntity.noContent().build();
     }
@@ -176,7 +176,7 @@ public class CompanyPerformanceController {
      */
     @GetMapping("/{seq}/engineers")
     public ResponseEntity<List<CompanyPerformanceEngineerResponse>> listEngineers(@PathVariable Long seq) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceEngineerQueryService.findByPerformanceSeq(seq));
     }
 
@@ -191,7 +191,7 @@ public class CompanyPerformanceController {
      */
     @GetMapping("/{seq}/construction-kinds")
     public ResponseEntity<List<CompanyPerformanceConstructionKindResponse>> listConstructionKinds(@PathVariable Long seq) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceConstructionKindQueryService.findByPerformanceSeq(seq));
     }
 
@@ -206,7 +206,7 @@ public class CompanyPerformanceController {
             @PathVariable Long seq,
             @RequestBody CompanyPerformanceConstructionKindRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceConstructionKindQueryService.create(seq, request));
     }
 
@@ -222,7 +222,7 @@ public class CompanyPerformanceController {
             @PathVariable Long constructionKindId,
             @RequestBody CompanyPerformanceConstructionKindRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceConstructionKindQueryService.update(seq, constructionKindId, request));
     }
 
@@ -234,7 +234,7 @@ public class CompanyPerformanceController {
      */
     @DeleteMapping("/{seq}/construction-kinds/{constructionKindId}")
     public ResponseEntity<Void> deleteConstructionKind(@PathVariable Long seq, @PathVariable Long constructionKindId) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         companyPerformanceConstructionKindQueryService.delete(seq, constructionKindId);
         return ResponseEntity.noContent().build();
     }
@@ -247,7 +247,7 @@ public class CompanyPerformanceController {
             @PathVariable Long seq,
             @RequestBody CompanyPerformanceEngineerRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceEngineerQueryService.create(seq, request));
     }
 
@@ -260,7 +260,7 @@ public class CompanyPerformanceController {
             @PathVariable Long engineerHistoryId,
             @RequestBody CompanyPerformanceEngineerRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceEngineerQueryService.update(seq, engineerHistoryId, request));
     }
 
@@ -269,7 +269,7 @@ public class CompanyPerformanceController {
      */
     @DeleteMapping("/{seq}/engineers/{engineerHistoryId}")
     public ResponseEntity<Void> deleteEngineer(@PathVariable Long seq, @PathVariable Long engineerHistoryId) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         companyPerformanceEngineerQueryService.delete(seq, engineerHistoryId);
         return ResponseEntity.noContent().build();
     }
@@ -279,7 +279,7 @@ public class CompanyPerformanceController {
      */
     @GetMapping("/{seq}/outlines")
     public ResponseEntity<List<CompanyPerformanceOutlineResponse>> listOutlines(@PathVariable Long seq) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceOutlineQueryService.findByPerformanceSeq(seq));
     }
 
@@ -291,7 +291,7 @@ public class CompanyPerformanceController {
             @PathVariable Long seq,
             @RequestBody CompanyPerformanceOutlineRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceOutlineQueryService.create(seq, request));
     }
 
@@ -304,7 +304,7 @@ public class CompanyPerformanceController {
             @PathVariable Long outlineId,
             @RequestBody CompanyPerformanceOutlineRequest request
     ) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         return ResponseEntity.ok(companyPerformanceOutlineQueryService.update(seq, outlineId, request));
     }
 
@@ -313,7 +313,7 @@ public class CompanyPerformanceController {
      */
     @DeleteMapping("/{seq}/outlines/{outlineId}")
     public ResponseEntity<Void> deleteOutline(@PathVariable Long seq, @PathVariable Long outlineId) {
-        companyPerformanceAdminService.findById(seq);
+        companyPerformanceAdminUseCase.findById(seq);
         companyPerformanceOutlineQueryService.delete(seq, outlineId);
         return ResponseEntity.noContent().build();
     }
@@ -323,7 +323,7 @@ public class CompanyPerformanceController {
      */
     @PostMapping("/batch")
     public ResponseEntity<List<CompanyPerformanceResponse>> createAll(@RequestBody List<CompanyPerformanceUpsertRequest> requests) {
-        return ResponseEntity.ok(companyPerformanceAdminService.createAll(
+        return ResponseEntity.ok(companyPerformanceAdminUseCase.createAll(
                 requests.stream().map(CompanyPerformanceUpsertRequest::toCommand).toList()
         ).stream().map(CompanyPerformanceResponse::from).toList());
     }
@@ -333,7 +333,7 @@ public class CompanyPerformanceController {
      */
     @PostMapping
     public ResponseEntity<CompanyPerformanceResponse> create(@RequestBody CompanyPerformanceUpsertRequest request) {
-        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminService.create(request.toCommand())));
+        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminUseCase.create(request.toCommand())));
     }
 
     /**
@@ -344,7 +344,7 @@ public class CompanyPerformanceController {
             @PathVariable Long seq,
             @RequestBody CompanyPerformanceUpsertRequest request
     ) {
-        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminService.update(seq, request.toCommand())));
+        return ResponseEntity.ok(CompanyPerformanceResponse.from(companyPerformanceAdminUseCase.update(seq, request.toCommand())));
     }
 
     /**
@@ -352,7 +352,7 @@ public class CompanyPerformanceController {
      */
     @DeleteMapping("/{seq}")
     public ResponseEntity<Void> delete(@PathVariable Long seq) {
-        companyPerformanceAdminService.delete(seq);
+        companyPerformanceAdminUseCase.delete(seq);
         return ResponseEntity.noContent().build();
     }
 }

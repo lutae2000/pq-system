@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemMenuEntity;
 import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemRoleEntity;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
+import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.port.in.SystemMenuUseCase;
 import com.cheil.cheil_be.application.systempermission.service.SystemPermissionAdminService;
 
 @RestController
@@ -24,13 +26,14 @@ import com.cheil.cheil_be.application.systempermission.service.SystemPermissionA
 public class SystemPermissionController {
 
     private final SystemPermissionAdminService systemPermissionAdminService;
+    private final SystemMenuUseCase systemMenuUseCase;
 
     /**
      * 메뉴 목록을 조회한다.
      */
     @GetMapping("/menus")
     public ResponseEntity<List<SystemMenuResponse>> listMenus() {
-        return ResponseEntity.ok(systemPermissionAdminService.findMenus().stream().map(SystemMenuResponse::from).toList());
+        return ResponseEntity.ok(systemMenuUseCase.findMenus().stream().map(SystemMenuResponse::from).toList());
     }
 
     /**
@@ -38,7 +41,7 @@ public class SystemPermissionController {
      */
     @GetMapping("/menus/{menuCode}")
     public ResponseEntity<SystemMenuResponse> getMenu(@PathVariable String menuCode) {
-        return ResponseEntity.ok(SystemMenuResponse.from(systemPermissionAdminService.findMenu(menuCode)));
+        return ResponseEntity.ok(SystemMenuResponse.from(systemMenuUseCase.findMenu(menuCode)));
     }
 
     /**
@@ -46,7 +49,7 @@ public class SystemPermissionController {
      */
     @PostMapping("/menus")
     public ResponseEntity<SystemMenuResponse> createMenu(@RequestBody SystemMenuUpsertRequest request) {
-        return ResponseEntity.ok(SystemMenuResponse.from(systemPermissionAdminService.saveMenu(request.toEntity())));
+        return ResponseEntity.ok(SystemMenuResponse.from(systemMenuUseCase.saveMenu(request.toCommand())));
     }
 
     /**
@@ -57,7 +60,7 @@ public class SystemPermissionController {
             @PathVariable String menuCode,
             @RequestBody SystemMenuUpsertRequest request
     ) {
-        return ResponseEntity.ok(SystemMenuResponse.from(systemPermissionAdminService.saveMenu(request.toEntity(menuCode))));
+        return ResponseEntity.ok(SystemMenuResponse.from(systemMenuUseCase.saveMenu(request.toCommand(menuCode))));
     }
 
     /**
@@ -65,7 +68,7 @@ public class SystemPermissionController {
      */
     @DeleteMapping("/menus/{menuCode}")
     public ResponseEntity<Void> deleteMenu(@PathVariable String menuCode) {
-        systemPermissionAdminService.deleteMenu(menuCode);
+        systemMenuUseCase.deleteMenu(menuCode);
         return ResponseEntity.noContent().build();
     }
 
@@ -149,22 +152,15 @@ public class SystemPermissionController {
             Boolean visibleYn,
             String description
     ) {
-        SystemMenuEntity toEntity() {
-            return toEntity(menuCode);
+        SaveSystemMenuCommand toCommand() {
+            return toCommand(menuCode);
         }
 
-        SystemMenuEntity toEntity(String resolvedMenuCode) {
-            return SystemMenuEntity.builder()
-                    .menuCode(resolvedMenuCode)
-                    .menuName(menuName)
-                    .parentMenuCode(parentMenuCode)
-                    .menuPath(menuPath)
-                    .menuType(menuType)
-                    .sortSeq(sortSeq == null ? 0 : sortSeq)
-                    .useYn(useYn != null && useYn)
-                    .visibleYn(visibleYn == null || visibleYn)
-                    .description(description)
-                    .build();
+        SaveSystemMenuCommand toCommand(String resolvedMenuCode) {
+            return new SaveSystemMenuCommand(
+                    resolvedMenuCode,
+                    menuName, parentMenuCode, menuPath, menuType, sortSeq == null ? 0 : sortSeq,
+                    useYn != null && useYn, visibleYn == null || visibleYn, description);
         }
     }
 
@@ -179,17 +175,10 @@ public class SystemPermissionController {
             boolean visibleYn,
             String description
     ) {
-        static SystemMenuResponse from(SystemMenuEntity entity) {
+        static SystemMenuResponse from(SystemMenu menu) {
             return new SystemMenuResponse(
-                    entity.getMenuCode(),
-                    entity.getMenuName(),
-                    entity.getParentMenuCode(),
-                    entity.getMenuPath(),
-                    entity.getMenuType(),
-                    entity.getSortSeq(),
-                    entity.isUseYn(),
-                    entity.isVisibleYn(),
-                    entity.getDescription()
+                    menu.menuCode(), menu.menuName(), menu.parentMenuCode(), menu.menuPath(), menu.menuType(),
+                    menu.sortSeq(), menu.useYn(), menu.visibleYn(), menu.description()
             );
         }
     }

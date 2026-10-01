@@ -1,15 +1,15 @@
 package com.cheil.cheil_be.application.qualificationcriteria.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.qualificationcriteria.QualificationReviewAgencyRequest;
 import com.cheil.cheil_be.adapter.in.web.qualificationcriteria.QualificationReviewAgencyResponse;
@@ -23,6 +23,7 @@ import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.Qualific
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationReviewCriterionJpaRepository;
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationScoreBandEntity;
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationScoreBandJpaRepository;
+import com.cheil.cheil_be.application.qualificationcriteria.exception.QualificationCriteriaApplicationException;
 import com.cheil.cheil_be.common.text.StringValues;
 
 @Service
@@ -41,6 +42,10 @@ public class QualificationCriteriaService {
     private final QualificationReviewCriterionJpaRepository criterionRepository;
     private final QualificationScoreBandJpaRepository scoreBandRepository;
 
+    /**
+     * 목록 조회는 화면에서 선택한 사용 여부를 그대로 적용합니다.
+     * useYn을 생략하면 활성·비활성 데이터를 모두 반환하는 기존 API 계약을 유지합니다.
+     */
     @Transactional(readOnly = true)
     public List<QualificationReviewAgencyResponse> findAgencies(String keyword, Boolean useYn) {
         String normalizedKeyword = keyword(keyword);
@@ -55,7 +60,7 @@ public class QualificationCriteriaService {
     public QualificationReviewAgencyResponse createAgency(QualificationReviewAgencyRequest request) {
         QualificationReviewAgencyRequest normalized = normalizeAgency(request);
         if (agencyRepository.existsByAgencyCode(normalized.agencyCode())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 기관 코드입니다.");
+            throw conflict("이미 존재하는 기관 코드입니다.");
         }
         return QualificationReviewAgencyResponse.from(agencyRepository.save(new QualificationReviewAgencyEntity(normalized)));
     }
@@ -65,7 +70,7 @@ public class QualificationCriteriaService {
         QualificationReviewAgencyEntity entity = findAgency(id);
         QualificationReviewAgencyRequest normalized = normalizeAgency(request);
         if (agencyRepository.existsByAgencyCodeAndIdNot(normalized.agencyCode(), id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 기관 코드입니다.");
+            throw conflict("이미 존재하는 기관 코드입니다.");
         }
         entity.update(normalized);
         return QualificationReviewAgencyResponse.from(entity);
@@ -78,9 +83,7 @@ public class QualificationCriteriaService {
 
     @Transactional(readOnly = true)
     public List<QualificationReviewCriterionResponse> findCriteria(Long agencyId, String keyword, Boolean useYn) {
-        if (agencyId == null) {
-            return List.of();
-        }
+        requireId(agencyId, "agencyId");
         findAgency(agencyId);
 
         String normalizedKeyword = keyword(keyword);
@@ -103,7 +106,7 @@ public class QualificationCriteriaService {
         QualificationReviewCriterionRequest normalized = normalizeCriterion(request);
         findAgency(normalized.agencyId());
         if (criterionRepository.existsByAgencyIdAndRuleCodeAndRevisionNo(normalized.agencyId(), normalized.ruleCode(), normalized.revisionNo())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 시행기준입니다.");
+            throw conflict("이미 존재하는 시행기준입니다.");
         }
         return QualificationReviewCriterionResponse.from(criterionRepository.save(new QualificationReviewCriterionEntity(normalized)));
     }
@@ -114,7 +117,7 @@ public class QualificationCriteriaService {
         QualificationReviewCriterionRequest normalized = normalizeCriterion(request);
         findAgency(normalized.agencyId());
         if (criterionRepository.existsByAgencyIdAndRuleCodeAndRevisionNoAndIdNot(normalized.agencyId(), normalized.ruleCode(), normalized.revisionNo(), id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 시행기준입니다.");
+            throw conflict("이미 존재하는 시행기준입니다.");
         }
         entity.update(normalized);
         return QualificationReviewCriterionResponse.from(entity);
@@ -127,9 +130,7 @@ public class QualificationCriteriaService {
 
     @Transactional(readOnly = true)
     public List<QualificationScoreBandResponse> findScoreBands(Long criterionId) {
-        if (criterionId == null) {
-            return List.of();
-        }
+        requireId(criterionId, "criterionId");
         findCriterion(criterionId);
 
         return scoreBandRepository.findByCriterionIdOrderBySortOrderAsc(criterionId).stream()
@@ -142,7 +143,7 @@ public class QualificationCriteriaService {
         QualificationScoreBandRequest normalized = normalizeScoreBand(request);
         findCriterion(normalized.criterionId());
         if (scoreBandRepository.existsByCriterionIdAndSortOrder(normalized.criterionId(), normalized.sortOrder())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 가격구간 순서입니다.");
+            throw conflict("이미 존재하는 가격구간 순서입니다.");
         }
         return QualificationScoreBandResponse.from(scoreBandRepository.save(new QualificationScoreBandEntity(normalized)));
     }
@@ -153,7 +154,7 @@ public class QualificationCriteriaService {
         QualificationScoreBandRequest normalized = normalizeScoreBand(request);
         findCriterion(normalized.criterionId());
         if (scoreBandRepository.existsByCriterionIdAndSortOrderAndIdNot(normalized.criterionId(), normalized.sortOrder(), id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 가격구간 순서입니다.");
+            throw conflict("이미 존재하는 가격구간 순서입니다.");
         }
         entity.update(normalized);
         return QualificationScoreBandResponse.from(entity);
@@ -166,31 +167,31 @@ public class QualificationCriteriaService {
 
     private QualificationReviewAgencyEntity findAgency(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agencyId is required.");
+            throw badRequest("agencyId is required.");
         }
         return agencyRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "기관을 찾을 수 없습니다."));
+                .orElseThrow(() -> notFound("기관을 찾을 수 없습니다."));
     }
 
     private QualificationReviewCriterionEntity findCriterion(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "criterionId is required.");
+            throw badRequest("criterionId is required.");
         }
         return criterionRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "시행기준을 찾을 수 없습니다."));
+                .orElseThrow(() -> notFound("시행기준을 찾을 수 없습니다."));
     }
 
     private QualificationScoreBandEntity findScoreBand(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "scoreBandId is required.");
+            throw badRequest("scoreBandId is required.");
         }
         return scoreBandRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "가격구간을 찾을 수 없습니다."));
+                .orElseThrow(() -> notFound("가격구간을 찾을 수 없습니다."));
     }
 
     private QualificationReviewAgencyRequest normalizeAgency(QualificationReviewAgencyRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw badRequest("Request body is required.");
         }
 
         return new QualificationReviewAgencyRequest(
@@ -203,10 +204,10 @@ public class QualificationCriteriaService {
 
     private QualificationReviewCriterionRequest normalizeCriterion(QualificationReviewCriterionRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw badRequest("Request body is required.");
         }
         if (request.agencyId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "agencyId is required.");
+            throw badRequest("agencyId is required.");
         }
 
         return new QualificationReviewCriterionRequest(
@@ -225,13 +226,18 @@ public class QualificationCriteriaService {
 
     private QualificationScoreBandRequest normalizeScoreBand(QualificationScoreBandRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw badRequest("Request body is required.");
         }
         if (request.criterionId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "criterionId is required.");
+            throw badRequest("criterionId is required.");
         }
         if (request.sortOrder() == null || request.sortOrder() < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sortOrder must be greater than or equal to 1.");
+            throw badRequest("sortOrder must be greater than or equal to 1.");
+        }
+
+        if (request.minPrice() != null && request.maxPrice() != null
+                && request.minPrice().compareTo(request.maxPrice()) > 0) {
+            throw badRequest("minPrice must be less than or equal to maxPrice.");
         }
 
         return new QualificationScoreBandRequest(
@@ -275,7 +281,13 @@ public class QualificationCriteriaService {
             return null;
         }
         if (!normalized.matches("\\d{4}-\\d{2}-\\d{2}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be YYYY-MM-DD.");
+            throw badRequest(fieldName + " must be YYYY-MM-DD.");
+        }
+        try {
+            // 정규식만으로는 2026-02-31 같은 달력상 존재하지 않는 날짜를 걸러낼 수 없습니다.
+            LocalDate.parse(normalized);
+        } catch (DateTimeParseException exception) {
+            throw badRequest(fieldName + " must be a valid calendar date.");
         }
         return normalized;
     }
@@ -285,7 +297,7 @@ public class QualificationCriteriaService {
             return null;
         }
         if (value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be greater than or equal to 0.");
+            throw badRequest(fieldName + " must be greater than or equal to 0.");
         }
         return value;
     }
@@ -310,5 +322,32 @@ public class QualificationCriteriaService {
             }
         }
         return false;
+    }
+
+    private void requireId(Long id, String fieldName) {
+        if (id == null) {
+            throw badRequest(fieldName + " is required.");
+        }
+    }
+
+    private QualificationCriteriaApplicationException badRequest(String message) {
+        return new QualificationCriteriaApplicationException(
+                QualificationCriteriaApplicationException.Type.BAD_REQUEST,
+                message
+        );
+    }
+
+    private QualificationCriteriaApplicationException conflict(String message) {
+        return new QualificationCriteriaApplicationException(
+                QualificationCriteriaApplicationException.Type.CONFLICT,
+                message
+        );
+    }
+
+    private QualificationCriteriaApplicationException notFound(String message) {
+        return new QualificationCriteriaApplicationException(
+                QualificationCriteriaApplicationException.Type.NOT_FOUND,
+                message
+        );
     }
 }

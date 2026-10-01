@@ -15,12 +15,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractRequest;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractPeriodHistoryResponse;
@@ -31,6 +29,7 @@ import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverl
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverlapContractJpaRepository;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
+import com.cheil.cheil_be.application.workoverlap.exception.WorkOverlapApplicationException;
 
 /** 업무중복도 계약의 본문과 계약별 요약·기간 이력을 조회하고 관리하는 서비스. */
 @Service
@@ -225,7 +224,7 @@ public class WorkOverlapContractService {
     ) {
         String normalizedEngineerId = value(engineerId);
         if (normalizedEngineerId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "engineerId is required.");
+            throw badRequest("engineerId is required.");
         }
         String normalizedReferenceDate = referenceDate(referenceDate);
         Integer normalizedRemainingDays = positiveInteger(remainingDays, "remainingDays");
@@ -398,7 +397,7 @@ public class WorkOverlapContractService {
     public List<WorkOverlapContractPeriodHistoryResponse> findPeriodHistoriesByContractNo(String contractNo) {
         String normalizedContractNo = value(contractNo);
         if (normalizedContractNo == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contractNo is required.");
+            throw badRequest("contractNo is required.");
         }
         findEntity(normalizedContractNo);
         return jdbcClient.sql("""
@@ -431,7 +430,7 @@ public class WorkOverlapContractService {
     public void deletePeriodHistory(String contractNo, long historyId) {
         String normalizedContractNo = value(contractNo);
         if (normalizedContractNo == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contractNo is required.");
+            throw badRequest("contractNo is required.");
         }
         findEntity(normalizedContractNo);
         int deleted = jdbcClient.sql("""
@@ -443,22 +442,22 @@ public class WorkOverlapContractService {
                 .param("historyId", historyId)
                 .update();
         if (deleted != 1) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "기간정보 변경이력을 찾을 수 없습니다.");
+            throw notFound("기간정보 변경이력을 찾을 수 없습니다.");
         }
     }
 
     private WorkOverlapContractEntity findEntity(String contractNo) {
         String normalizedContractNo = value(contractNo);
         if (normalizedContractNo == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "contractNo is required.");
+            throw badRequest("contractNo is required.");
         }
         return repository.findById(normalizedContractNo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "?낅Т以묐났??怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> notFound("업무중복도 계약 정보를 찾을 수 없습니다."));
     }
 
     private WorkOverlapContractRequest normalize(WorkOverlapContractRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+            throw badRequest("Request body is required.");
         }
         return new WorkOverlapContractRequest(
                 limitedText(request.serviceType(), SHORT_TEXT_MAX_LENGTH, "serviceType"),
@@ -644,7 +643,7 @@ public class WorkOverlapContractService {
         }
         String compact = normalized.replace("-", "");
         if (!compact.matches("\\d{8}")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be YYYYMMDD.");
+            throw badRequest(fieldName + " must be YYYYMMDD.");
         }
         return compact;
     }
@@ -657,6 +656,7 @@ public class WorkOverlapContractService {
     private String referenceDate(String value) {
         String normalized = value(value);
         if (normalized == null) {
+            // 상태와 잔여일 계산은 호출 시점의 오늘을 기준으로 하여 화면의 기본 조회가 동작하도록 한다.
             return LocalDate.now().format(BASIC_DATE_FORMATTER);
         }
         return date(normalized, "referenceDate");
@@ -726,7 +726,8 @@ public class WorkOverlapContractService {
         addPeriodHistoryEntry(entries, "중지 종료일", entity.getConstructionStopToDate(), request.constructionStopToDate());
         addPeriodHistoryEntry(entries, "재개일", entity.getRestartDate(), request.restartDate());
         if (!entries.isEmpty() && !StringUtils.hasText(periodChangeReason)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기간 정보 변경 사유를 입력해 주세요.");
+            // 기간이 실제로 바뀐 경우에만 변경 사유를 요구해 이력의 의미를 보존한다.
+            throw badRequest("기간 정보 변경 사유를 입력해 주세요.");
         }
         return entries;
     }
@@ -787,14 +788,14 @@ public class WorkOverlapContractService {
     private Integer positiveInteger(String value, String fieldName) {
         String normalized = value(value);
         if (normalized == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
+            throw badRequest(fieldName + " is required.");
         }
         if (!normalized.matches("\\d+")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be a positive integer.");
+            throw badRequest(fieldName + " must be a positive integer.");
         }
         int parsed = Integer.parseInt(normalized);
         if (parsed <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be greater than 0.");
+            throw badRequest(fieldName + " must be greater than 0.");
         }
         return parsed;
     }
@@ -804,9 +805,17 @@ public class WorkOverlapContractService {
             return null;
         }
         if (value.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be greater than or equal to 0.");
+            throw badRequest(fieldName + " must be greater than or equal to 0.");
         }
         return value;
+    }
+
+    private WorkOverlapApplicationException badRequest(String message) {
+        return new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, message);
+    }
+
+    private WorkOverlapApplicationException notFound(String message) {
+        return new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.NOT_FOUND, message);
     }
 
     private record PeriodHistoryEntry(String periodName, String beforeValue, String afterValue) {
