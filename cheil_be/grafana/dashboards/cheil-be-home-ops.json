@@ -560,11 +560,11 @@
           "id": 16,
           "targets": [
             {
-              "expr": "max(redis_connected_clients{instance=~\"$valkey_instance\"})",
+              "expr": "sum(redis_keys_count{instance=~\"$valkey_instance\",db=\"db0\",key=\"login:session:current:*\"})",
               "refId": "A"
             }
           ],
-          "title": "Valkey Clients",
+          "title": "Login Sessions",
           "type": "stat",
           "options": {
             "colorMode": "value",

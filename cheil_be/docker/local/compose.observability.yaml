@@ -69,6 +69,7 @@ services:
     image: 'oliver006/redis_exporter:v1.86.0'
     environment:
       REDIS_ADDR: redis://valkey:6379
+      REDIS_EXPORTER_COUNT_KEYS: db0=login:session:current:*
     ports:
       - '9121:9121'
     restart: unless-stopped
