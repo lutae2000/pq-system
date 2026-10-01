@@ -51,7 +51,9 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
                 .stream()
                 .flatMap(bidNotice -> java.util.stream.Stream.of(
                         toEvent(bidNotice, BidNoticeCalendarEventType.PQ_SUBMIT, bidNotice.pqSubmitDate(), yearMonth),
-                        toEvent(bidNotice, BidNoticeCalendarEventType.BID_DATE, bidNotice.bidDate(), yearMonth)
+                        toEvent(bidNotice, BidNoticeCalendarEventType.BID_DATE, bidNotice.bidDate(), yearMonth),
+                        toEvent(bidNotice, BidNoticeCalendarEventType.INTERVIEW_DATE,
+                                bidNotice.interviewDate() == null ? null : bidNotice.interviewDate().atStartOfDay(), yearMonth)
                 ))
                 .filter(Objects::nonNull)
                 .sorted(Comparator

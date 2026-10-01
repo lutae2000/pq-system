@@ -193,6 +193,7 @@ function NoteEditCell(params: GridRenderEditCellParams<EducationReminderCompleti
     <TextField
       autoFocus={hasFocus}
       fullWidth
+      placeholder="전화번호, 계정정보등 개인정보 입력 금지"
       size="small"
       value={value ?? ""}
       onChange={(event) => {
@@ -531,7 +532,7 @@ function EducationReminderCompletionManagementContent() {
       {
         field: "professionalCertNames",
         headerName: "전문자격명",
-        minWidth: 180,
+        minWidth: 130,
         flex: 1,
         rowSpanValueGetter: engineerRowSpanValueGetter,
         renderCell: ({ row }) => row.professionalCertNames?.trim() || "-",
@@ -582,11 +583,16 @@ function EducationReminderCompletionManagementContent() {
       {
         field: "remark",
         headerName: "비고",
-        minWidth: 180,
+        minWidth: 280,
         flex: 1,
         editable: true,
         rowSpanValueGetter: uniqueRowSpanValueGetter,
-        renderCell: ({ row }) => row.remark.trim() || "-",
+        renderCell: ({ row }) =>
+          row.remark.trim() || (
+            <Typography color="text.disabled" variant="body2">
+              전화번호, 계정정보등 개인정보 입력 금지
+            </Typography>
+          ),
         renderEditCell: NoteEditCell,
       },
       {
@@ -605,7 +611,11 @@ function EducationReminderCompletionManagementContent() {
     [designGradeLabelByCode, jobFieldLabelByCode, specialtyFieldLabelByCode],
   );
 
-  const completionColumns = completionBaseColumns;
+  const completionColumns = completionBaseColumns.map((column) => ({
+    ...column,
+    align: "center" as const,
+    headerAlign: "center" as const,
+  }));
 
   const activeLoading = completionQuery.isLoading || completionQuery.isFetching || saveMutation.isPending || savePhoneMutation.isPending || sendMutation.isPending;
 

@@ -39,7 +39,7 @@ const toDashboardScheduleEvent = (item: Awaited<ReturnType<typeof listDashboardB
     eventType: item.eventType,
     id: `${item.bidSeq}-${item.eventType}-${item.scheduledAt}`,
     title: `${item.projectName}${label ? ` / ${label.label}` : ""}`,
-    start: item.scheduledAt,
+    start: item.eventType === "INTERVIEW_DATE" ? item.scheduledDate : item.scheduledAt,
     color: label?.color ?? "#2563eb",
     description: label?.label ?? item.eventType,
     client: item.orderClient ?? "",
@@ -68,7 +68,7 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
         .filter((event) => activeStatuses.includes(event.status))
         .map((event) => ({
           ...event,
-          allDay: !event.start.includes("T"),
+          allDay: event.eventType === "INTERVIEW_DATE" || !event.start.includes("T"),
         })),
     [activeStatuses, data],
   );

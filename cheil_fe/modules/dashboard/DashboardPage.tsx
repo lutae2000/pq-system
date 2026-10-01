@@ -224,6 +224,7 @@ const emptyBidNoticeRecord = (): BidNoticeRecord => ({
 const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
   ...emptyBidNoticeRecord(),
   bidDate: item.bidDate ?? "",
+  interviewDate: item.interviewDate ?? "",
   bidStyle: item.processTag ?? "",
   bidMethod: item.bidMethod ?? "",
   bidNo: item.bidSeq ? String(item.bidSeq) : "",

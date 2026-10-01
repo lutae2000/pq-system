@@ -37,6 +37,7 @@ class BidNoticeDashboardServiceTest {
         when(bidNotice.orderClient()).thenReturn("발주처");
         when(bidNotice.pqSubmitDate()).thenReturn(LocalDateTime.of(2026, 10, 20, 9, 0));
         when(bidNotice.bidDate()).thenReturn(LocalDateTime.of(2026, 10, 5, 9, 0));
+        when(bidNotice.interviewDate()).thenReturn(LocalDate.of(2026, 10, 12));
         when(repository.findAllByCalendarDateBetween(
                 LocalDate.of(2026, 10, 1),
                 LocalDate.of(2026, 10, 31),
@@ -46,9 +47,17 @@ class BidNoticeDashboardServiceTest {
         var events = service.findCalendarByMonth(2026, 10, " All ");
 
         assertThat(events).extracting(event -> event.eventType())
-                .containsExactly(BidNoticeCalendarEventType.BID_DATE, BidNoticeCalendarEventType.PQ_SUBMIT);
+                .containsExactly(
+                        BidNoticeCalendarEventType.BID_DATE,
+                        BidNoticeCalendarEventType.INTERVIEW_DATE,
+                        BidNoticeCalendarEventType.PQ_SUBMIT
+                );
         assertThat(events).extracting(event -> event.scheduledDate())
-                .containsExactly(LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 20));
+                .containsExactly(
+                        LocalDate.of(2026, 10, 5),
+                        LocalDate.of(2026, 10, 12),
+                        LocalDate.of(2026, 10, 20)
+                );
     }
 
     @Test

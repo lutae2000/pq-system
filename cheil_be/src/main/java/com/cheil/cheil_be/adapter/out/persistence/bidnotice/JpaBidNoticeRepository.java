@@ -30,6 +30,7 @@ import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 public class JpaBidNoticeRepository implements BidNoticeRepository {
 
     private static final DateTimeFormatter DATETIME_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+    private static final DateTimeFormatter DATE_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final BidNoticeJpaRepository bidNoticeJpaRepository;
     private final JPAQueryFactory queryFactory;
@@ -140,7 +141,9 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         return bidNoticeEntity.pqSubmitDate.goe(from)
                 .and(bidNoticeEntity.pqSubmitDate.lt(to))
                 .or(bidNoticeEntity.bidDate.goe(from)
-                        .and(bidNoticeEntity.bidDate.lt(to)));
+                        .and(bidNoticeEntity.bidDate.lt(to)))
+                .or(bidNoticeEntity.interviewDate.goe(dateKey(startDate))
+                        .and(bidNoticeEntity.interviewDate.loe(dateKey(endDate))));
     }
 
     private void addEqualsIfPresent(BooleanBuilder predicate, StringPath path, String value) {
@@ -167,5 +170,9 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
 
     private String dateTimeKey(LocalDateTime value) {
         return value == null ? null : DATETIME_KEY_FORMAT.format(value);
+    }
+
+    private String dateKey(LocalDate value) {
+        return value == null ? null : DATE_KEY_FORMAT.format(value);
     }
 }

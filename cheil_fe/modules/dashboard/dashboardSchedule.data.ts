@@ -1,4 +1,4 @@
-export type DashboardScheduleEventType = "PQ_SUBMIT" | "BID_DATE";
+export type DashboardScheduleEventType = "PQ_SUBMIT" | "BID_DATE" | "INTERVIEW_DATE";
 
 export type DashboardScheduleLabel = {
   color: string;
@@ -23,11 +23,13 @@ export type DashboardScheduleEvent = {
 export const schedulePalette = {
   pqSubmit: "#2563eb",
   bidDate: "#0f766e",
+  interviewDate: "#c2410c",
 } as const;
 
 export const scheduleLabels: DashboardScheduleLabel[] = [
   { label: "PQ 제출", color: schedulePalette.pqSubmit, type: "PQ_SUBMIT" },
   { label: "입찰일", color: schedulePalette.bidDate, type: "BID_DATE" },
+  { label: "면접일정", color: schedulePalette.interviewDate, type: "INTERVIEW_DATE" },
 ];
 
 export const scheduleLabelByType = scheduleLabels.reduce<Record<DashboardScheduleEventType, DashboardScheduleLabel>>(
