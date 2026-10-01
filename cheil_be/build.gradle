@@ -103,6 +103,7 @@ tasks.named('asciidoctor') {
 }
 
 tasks.named('bootJar') {
+    archiveFileName = 'app.jar'
     dependsOn tasks.named('asciidoctor')
     from(layout.buildDirectory.dir('docs/asciidoc')) {
         into 'BOOT-INF/classes/static/docs'

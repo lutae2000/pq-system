@@ -130,7 +130,7 @@ app:
     public-base-url: ${APP_FILE_PUBLIC_BASE_URL:}
     create-directories: true
     max-size: ${APP_FILE_MAX_SIZE:50MB}
-    allowed-extensions: ${APP_FILE_ALLOWED_EXTENSIONS:pdf,doc,docx,xls,xlsx,ppt,pptx,hwp,hwpx,txt,csv,jpg,jpeg,png,gif,zip}
+    allowed-extensions: ${APP_FILE_ALLOWED_EXTENSIONS:pdf,doc,docx,xls,xlsx,ppt,pptx,hwp,hwpx,txt,csv,jpg,jpeg,png,tif,tiff,gif,bmp,zip}
     blocked-extensions: ${APP_FILE_BLOCKED_EXTENSIONS:exe,bat,cmd,com,dll,msi,sh,bash,ps1,jar,war,ear,js,vbs,wsf,hta,scr,reg}
     max-filename-length: ${APP_FILE_MAX_FILENAME_LENGTH:255}
   mail:

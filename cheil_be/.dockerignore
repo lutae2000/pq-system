@@ -1,5 +1,7 @@
-.gradle
-.idea
-*.iml
-out
-.git
+# The image only needs the bootJar produced by Gradle.
+**
+
+!Dockerfile
+!build/
+!build/libs/
+!build/libs/app.jar
