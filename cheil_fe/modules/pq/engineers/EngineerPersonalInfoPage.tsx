@@ -29,7 +29,6 @@ import {
   useGridApiRef,
 } from "@mui/x-data-grid";
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -45,27 +44,12 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { createCompanyPerformances, type CompanyPerformanceUpsertRequest } from "@/modules/pq/company-performance/api";
+import type { CompanyPerformanceUpsertRequest } from "@/modules/pq/company-performance/api";
 import { EngineerHistoryTabs } from "@/modules/pq/engineers/history-tabs/EngineerHistoryTabs";
-import { listCertifications } from "@/modules/code/certifications/api";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import {
-  getEngineerProfile,
-  listEngineerProfiles,
-  deleteEngineerCareer,
-  deleteEngineerEducation,
-  deleteEngineerLicense,
-  deleteEngineerPrize,
-  deleteEngineerSchool,
-  saveEngineerCareers,
-  saveEngineerCareerDetails,
-  saveEngineerEducations,
-  saveEngineerLicenses,
-  saveEngineerMaster,
-  saveEngineerPrizes,
-  saveEngineerSchools,
-} from "@/modules/pq/engineers/api";
+import { useEngineerPersonalInfoCommands } from "@/modules/pq/engineers/application/useEngineerPersonalInfoCommands";
+import { useEngineerPersonalInfoQueries } from "@/modules/pq/engineers/application/useEngineerPersonalInfoQueries";
 import type {
   AssessmentMethod,
   AttachmentItem,
@@ -115,7 +99,6 @@ function toRetireYn(status: EngineerFilterState["status"]) {
   }
   return undefined;
 }
-
 const fieldSx = standardFieldSx;
 
 const detailTabs: Array<{ label: string; value: DetailTab }> = [
@@ -554,6 +537,7 @@ export function EngineerPersonalInfoPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
+  const engineerCommands = useEngineerPersonalInfoCommands();
   const careerGridApiRef = useGridApiRef();
   const certificateGridApiRef = useGridApiRef();
   const educationGridApiRef = useGridApiRef();
@@ -582,27 +566,6 @@ export function EngineerPersonalInfoPage() {
   const degreeNameByCode = useMemo(
     () => new Map(Object.entries(degreeLabelByCode)),
     [degreeLabelByCode],
-  );
-  const certificationsQuery = useQuery({
-    queryKey: ["code-certifications"],
-    queryFn: listCertifications,
-    enabled: tabQueryEnabled,
-  });
-  const certificationOptions = useMemo<CertificationOption[]>(
-    () =>
-      (certificationsQuery.data ?? []).map((certification) => ({
-        certCode: certification.certCode,
-        certName: certification.certName,
-      })),
-    [certificationsQuery.data],
-  );
-  const certificationNameByCode = useMemo(
-    () => new Map(certificationOptions.map((option) => [option.certCode, option.certName])),
-    [certificationOptions],
-  );
-  const certificationLabelByCode = useMemo(
-    () => Object.fromEntries(certificationOptions.map((option) => [option.certCode, option.certName])),
-    [certificationOptions],
   );
   const [profiles, setProfiles] = useState<EngineerProfile[]>([]);
   const [filters, setFilters] = useState<EngineerFilterState>(initialFilters);
@@ -678,11 +641,32 @@ export function EngineerPersonalInfoPage() {
       constructionManagementGrade: appliedFilters.supervisionGrade || undefined,
     };
   }, [appliedFilters]);
-  const engineersQuery = useQuery({
-    queryKey: ["pq-engineers", engineerQueryFilters],
-    queryFn: () => listEngineerProfiles(engineerQueryFilters),
-    enabled: tabQueryEnabled,
+  const {
+    certificationsQuery,
+    engineersQuery,
+    selectedEngineerDetailQuery,
+  } = useEngineerPersonalInfoQueries({
+    activeEngineerId: selectedEngineerId,
+    activeEngineerIsNew: profiles.some((profile) => profile.summary.id === selectedEngineerId && profile.summary.isNew),
+    filters: engineerQueryFilters,
+    tabQueryEnabled,
   });
+  const certificationOptions = useMemo<CertificationOption[]>(
+    () =>
+      (certificationsQuery.data ?? []).map((certification) => ({
+        certCode: certification.certCode,
+        certName: certification.certName,
+      })),
+    [certificationsQuery.data],
+  );
+  const certificationNameByCode = useMemo(
+    () => new Map(certificationOptions.map((option) => [option.certCode, option.certName])),
+    [certificationOptions],
+  );
+  const certificationLabelByCode = useMemo(
+    () => Object.fromEntries(certificationOptions.map((option) => [option.certCode, option.certName])),
+    [certificationOptions],
+  );
   const designGradeOptions = useMemo<CodeOption[]>(
     () => {
       const options = [...gradeOptions];
@@ -778,11 +762,6 @@ export function EngineerPersonalInfoPage() {
     profiles.find((profile) => profile.summary.id === activeSelectedEngineerId) ??
     filteredEngineers.find((profile) => profile.summary.id === activeSelectedEngineerId) ??
     null;
-  const selectedEngineerDetailQuery = useQuery({
-    enabled: tabQueryEnabled && Boolean(activeSelectedEngineerId) && !selectedListEngineer?.summary.isNew,
-    queryKey: ["pq-engineer", activeSelectedEngineerId],
-    queryFn: () => getEngineerProfile(activeSelectedEngineerId),
-  });
 
   useEffect(() => {
     const detail = selectedEngineerDetailQuery.data;
@@ -1064,13 +1043,13 @@ export function EngineerPersonalInfoPage() {
   const handleRegisterPdfPersonnel = async (extraction: EngineerPdfExtraction, allowDuplicate: boolean) => {
     const profile = createProfileFromPdfExtraction(extraction);
     const personnelProfile = { ...profile, careerDetails: [] };
-    let saved = await saveEngineerMaster(personnelProfile.summary.id, personnelProfile, { allowDuplicate });
+    let saved = await engineerCommands.saveEngineerMaster(personnelProfile.summary.id, personnelProfile, { allowDuplicate });
     const engineerId = saved.summary.id;
-    if (profile.certificates.length > 0) saved = await saveEngineerLicenses(engineerId, profile.certificates);
-    if (profile.education.length > 0) saved = await saveEngineerSchools(engineerId, profile.education);
-    if (profile.career.length > 0) saved = await saveEngineerCareers(engineerId, profile.career);
-    if (profile.trainings.length > 0) saved = await saveEngineerEducations(engineerId, profile.trainings);
-    if (profile.awards.length > 0) saved = await saveEngineerPrizes(engineerId, profile.awards);
+    if (profile.certificates.length > 0) saved = await engineerCommands.saveEngineerLicenses(engineerId, profile.certificates);
+    if (profile.education.length > 0) saved = await engineerCommands.saveEngineerSchools(engineerId, profile.education);
+    if (profile.career.length > 0) saved = await engineerCommands.saveEngineerCareers(engineerId, profile.career);
+    if (profile.trainings.length > 0) saved = await engineerCommands.saveEngineerEducations(engineerId, profile.trainings);
+    if (profile.awards.length > 0) saved = await engineerCommands.saveEngineerPrizes(engineerId, profile.awards);
     setProfiles((current) => [saved, ...current.filter((item) => item.summary.id !== engineerId)]);
     setSelectedEngineerId(engineerId);
     setSelectedTab("career");
@@ -1079,7 +1058,7 @@ export function EngineerPersonalInfoPage() {
   };
 
   const handleUpdatePdfPersonnelBasic = async (engineerId: string, extraction: EngineerPdfExtraction) => {
-    const current = await getEngineerProfile(engineerId);
+    const current = await engineerCommands.getEngineerProfile(engineerId);
     const parsed = createProfileFromPdfExtraction(extraction);
     const nextProfile: EngineerProfile = {
       ...current,
@@ -1099,7 +1078,7 @@ export function EngineerPersonalInfoPage() {
         supervisionQualification: parsed.detail.supervisionQualification,
       },
     };
-    const saved = await saveEngineerMaster(engineerId, nextProfile);
+    const saved = await engineerCommands.saveEngineerMaster(engineerId, nextProfile);
     replaceProfile(saved);
     setSelectedEngineerId(engineerId);
     showSuccess("기술인 기본정보를 업데이트했습니다.");
@@ -1115,11 +1094,11 @@ export function EngineerPersonalInfoPage() {
     };
     const parsed = createProfileFromPdfExtraction(sectionExtraction);
     let saved: EngineerProfile;
-    if (sectionKey === "licenses") saved = await saveEngineerLicenses(engineerId, parsed.certificates);
-    else if (sectionKey === "education") saved = await saveEngineerSchools(engineerId, parsed.education);
-    else if (sectionKey === "career") saved = await saveEngineerCareers(engineerId, parsed.career);
-    else if (sectionKey === "training") saved = await saveEngineerEducations(engineerId, parsed.trainings);
-    else if (sectionKey === "awards") saved = await saveEngineerPrizes(engineerId, parsed.awards);
+    if (sectionKey === "licenses") saved = await engineerCommands.saveEngineerLicenses(engineerId, parsed.certificates);
+    else if (sectionKey === "education") saved = await engineerCommands.saveEngineerSchools(engineerId, parsed.education);
+    else if (sectionKey === "career") saved = await engineerCommands.saveEngineerCareers(engineerId, parsed.career);
+    else if (sectionKey === "training") saved = await engineerCommands.saveEngineerEducations(engineerId, parsed.trainings);
+    else if (sectionKey === "awards") saved = await engineerCommands.saveEngineerPrizes(engineerId, parsed.awards);
     else throw new Error("저장을 지원하지 않는 PDF 추출 항목입니다.");
     replaceProfile(saved);
     setSelectedEngineerId(engineerId);
@@ -1156,7 +1135,7 @@ export function EngineerPersonalInfoPage() {
         startDate: formatDate8(values.startdt),
       };
     });
-    const saved = await saveEngineerCareerDetails(engineerId, careerDetails);
+    const saved = await engineerCommands.saveEngineerCareerDetails(engineerId, careerDetails);
     setProfiles((current) => current.map((profile) => profile.summary.id === engineerId ? saved : profile));
     setSelectedEngineerId(engineerId);
     setSelectedTab("performance");
@@ -1192,7 +1171,7 @@ export function EngineerPersonalInfoPage() {
         summary: values.summary?.trim() || null,
       };
     });
-    const saved = requests.length > 0 ? await createCompanyPerformances(requests) : [];
+    const saved = requests.length > 0 ? await engineerCommands.createCompanyPerformances(requests) : [];
     const existingLinks = rows.flatMap((row) => /^\d+$/.test(row.values._existing_seq ?? "")
       ? [{ companyRowNumber: row.rowNumber, jobName: row.values.job_name?.trim() || undefined, seq: Number(row.values._existing_seq) }]
       : []);
@@ -1207,7 +1186,7 @@ export function EngineerPersonalInfoPage() {
     }
 
     try {
-      const saved = await saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer);
+      const saved = await engineerCommands.saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer);
       replaceProfile(saved);
       setSelectedEngineerId(saved.summary.id);
     } catch (error) {
@@ -1331,7 +1310,7 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.career.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerCareers(selectedEngineer.summary.id, nextRecords);
+    const saved = await engineerCommands.saveEngineerCareers(selectedEngineer.summary.id, nextRecords);
     replaceProfile(saved, "career");
     setSelectedCareerRowId(resolveSavedRowId(saved.career, nextRow.id));
     return nextRow;
@@ -1352,7 +1331,7 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.certificates.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerLicenses(selectedEngineer.summary.id, nextRecords);
+    const saved = await engineerCommands.saveEngineerLicenses(selectedEngineer.summary.id, nextRecords);
     replaceProfile(saved, "certificate");
     setSelectedCertificateRowId(resolveSavedRowId(saved.certificates, nextRow.id));
     return nextRow;
@@ -1376,7 +1355,7 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.education.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerSchools(selectedEngineer.summary.id, nextRecords);
+    const saved = await engineerCommands.saveEngineerSchools(selectedEngineer.summary.id, nextRecords);
     replaceProfile(saved, "education");
     setSelectedEducationRowId(resolveSavedRowId(saved.education, nextRow.id));
     return nextRow;
@@ -1398,7 +1377,7 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.awards.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerPrizes(selectedEngineer.summary.id, nextRecords);
+    const saved = await engineerCommands.saveEngineerPrizes(selectedEngineer.summary.id, nextRecords);
     replaceProfile(saved, "award");
     setSelectedAwardRowId(resolveSavedRowId(saved.awards, nextRow.id));
     return nextRow;
@@ -1421,7 +1400,7 @@ export function EngineerPersonalInfoPage() {
     const nextRecords = selectedEngineer.trainings.map((record) =>
       record.id === nextRow.id ? { ...record, ...nextRow, attachments: record.attachments ?? nextRow.attachments } : record,
     );
-    const saved = await saveEngineerEducations(selectedEngineer.summary.id, nextRecords);
+    const saved = await engineerCommands.saveEngineerEducations(selectedEngineer.summary.id, nextRecords);
     replaceProfile(saved, "training");
     setSelectedTrainingRowId(resolveSavedRowId(saved.trainings, nextRow.id));
     return nextRow;
@@ -1500,7 +1479,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await deleteEngineerCareer(selectedEngineer.summary.id, recordId);
+    const saved = await engineerCommands.deleteEngineerCareer(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
       current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
@@ -1521,7 +1500,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await deleteEngineerLicense(selectedEngineer.summary.id, recordId);
+    const saved = await engineerCommands.deleteEngineerLicense(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
       current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
@@ -1542,7 +1521,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await deleteEngineerSchool(selectedEngineer.summary.id, recordId);
+    const saved = await engineerCommands.deleteEngineerSchool(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
       current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
@@ -1563,7 +1542,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await deleteEngineerPrize(selectedEngineer.summary.id, recordId);
+    const saved = await engineerCommands.deleteEngineerPrize(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
       current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );
@@ -1584,7 +1563,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const saved = await deleteEngineerEducation(selectedEngineer.summary.id, recordId);
+    const saved = await engineerCommands.deleteEngineerEducation(selectedEngineer.summary.id, recordId);
     setProfiles((current) =>
       current.map((profile) => (profile.summary.id === saved.summary.id ? saved : profile)),
     );

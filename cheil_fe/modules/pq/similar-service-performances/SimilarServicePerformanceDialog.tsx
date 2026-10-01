@@ -91,10 +91,10 @@ export function SimilarServicePerformanceDialog({
   const isNew = draft.id === null;
   const canSave = isNew ? permissions.canCreate : permissions.canUpdate;
   const canDelete = draft.id !== null && permissions.canDelete;
-  const formDisabled = !canSave;
+  const formDisabled = !canSave || saving || deleting;
 
   return (
-    <Dialog fullWidth maxWidth="lg" onClose={onClose} open={open}>
+    <Dialog fullWidth maxWidth="lg" onClose={saving || deleting ? undefined : onClose} open={open}>
       <DialogTitle sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
         <Typography component="span" sx={{ fontWeight: 800 }} variant="h6">
           유사용역 수행실적 상세
@@ -264,11 +264,11 @@ export function SimilarServicePerformanceDialog({
                     }
                   : undefined
               }
-              deleteDisabled={formDisabled}
+              deleteDisabled={!permissions.canDelete || deleting}
               description={fileOwnerId ? "선택한 유사용역 수행실적의 첨부파일을 관리합니다." : "저장 후 첨부파일을 등록할 수 있습니다."}
               multiple
               title="첨부파일"
-              uploadDisabled={!fileOwnerId || formDisabled}
+              uploadDisabled={!fileOwnerId || !canSave || saving || deleting}
               uploadLabel="파일 업로드"
             />
           </Box>
@@ -290,7 +290,7 @@ export function SimilarServicePerformanceDialog({
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Button onClick={onClose} startIcon={<CloseOutlinedIcon />} variant="outlined">
+          <Button disabled={saving || deleting} onClick={onClose} startIcon={<CloseOutlinedIcon />} variant="outlined">
             취소
           </Button>
           <Button disabled={saving || saveDisabled || !canSave} onClick={() => onSave(draft)} startIcon={<SaveOutlinedIcon />} variant="contained">

@@ -9,7 +9,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import com.cheil.cheil_be.application.relatedprojecthistorycondition.RelatedProjectHistoryConditionService;
+import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionOptionService;
 
 @RestController
 @RequestMapping("/pq/related-project-history-conditions")
@@ -17,6 +20,14 @@ import com.cheil.cheil_be.application.relatedprojecthistorycondition.RelatedProj
 public class RelatedProjectHistoryConditionController {
 
     private final RelatedProjectHistoryConditionService service;
+    private final ProjectHistoryConditionOptionService optionService;
+
+    @GetMapping("/options")
+    public ResponseEntity<List<RelatedProjectHistoryConditionOptionResponse>> options() {
+        return ResponseEntity.ok(optionService.findAll().stream()
+                .map(RelatedProjectHistoryConditionOptionResponse::from)
+                .toList());
+    }
 
     @GetMapping("/{bidSeq}")
     public ResponseEntity<RelatedProjectHistoryConditionResponse> get(@PathVariable Long bidSeq) {

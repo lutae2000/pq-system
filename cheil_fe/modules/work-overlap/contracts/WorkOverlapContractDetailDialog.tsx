@@ -1,4 +1,4 @@
-﻿﻿﻿"use client";
+﻿"use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -32,7 +32,6 @@ import {
   type GridRowSelectionModel,
   type GridRowModesModel,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   startTransition,
   useCallback,
@@ -53,23 +52,15 @@ import {
   useDepartmentOptions,
 } from "@/modules/common/reference/useReferenceOptions";
 import {
-  createWorkOverlapContractEngineer,
-  deleteWorkOverlapContractEngineer,
-  deleteWorkOverlapContractEngineerHistory,
-  deleteWorkOverlapContractPeriodHistory,
-  listWorkOverlapContractEngineerCandidates,
-  listWorkOverlapContractEngineerHistories,
-  listWorkOverlapContractEngineers,
-  listWorkOverlapContractPeriodHistories,
-  updateWorkOverlapContractEngineer,
   type WorkOverlapContractEngineerCandidate,
-  type WorkOverlapContractEngineerChangeRequest,
   type WorkOverlapContractEngineerHistoryRecord,
   type WorkOverlapContractEngineerRecord,
   type WorkOverlapContractEngineerRequest,
   type WorkOverlapContractPeriodHistoryRecord,
   type WorkOverlapContractRecord,
 } from "@/modules/work-overlap/contracts/api";
+import { useWorkOverlapContractDetailMutations } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractDetailMutations";
+import { useWorkOverlapContractDetailQueries } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractDetailQueries";
 import {
   WorkOverlapContractEngineerChangeDialog,
   type EngineerChangeDraft,
@@ -527,7 +518,6 @@ export function WorkOverlapContractDetailDialog({
   saveDisabled = false,
   saving = false,
 }: WorkOverlapContractDetailDialogProps) {
-  const queryClient = useQueryClient();
   const { showError } = useAppSnackbar();
   const { canCreate, canDelete, canRead, canUpdate } =
     useCurrentMenuPermission();
@@ -544,8 +534,6 @@ export function WorkOverlapContractDetailDialog({
     useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
   const [engineerKeyword, setEngineerKeyword] = useState("");
   const [debouncedEngineerKeyword, setDebouncedEngineerKeyword] = useState("");
-  const [changeTarget, setChangeTarget] =
-    useState<WorkOverlapContractEngineerRecord | null>(null);
   const [changeDraft, setChangeDraft] = useState<EngineerChangeDraft | null>(
     null,
   );
@@ -579,35 +567,16 @@ export function WorkOverlapContractDetailDialog({
     return () => window.clearTimeout(timeoutId);
   }, [engineerKeyword]);
 
-  const engineersQuery = useQuery({
-    queryKey: ["work-overlap-contract-engineers", contractNo],
-    queryFn: () => listWorkOverlapContractEngineers(contractNo),
-    enabled: open && canRead && Boolean(contractNo),
-  });
-
-  const historiesQuery = useQuery({
-    queryKey: ["work-overlap-contract-engineer-histories", contractNo],
-    queryFn: () => listWorkOverlapContractEngineerHistories(contractNo),
-    enabled: open && canRead && Boolean(contractNo),
-  });
-
-  const periodHistoriesQuery = useQuery({
-    queryKey: ["work-overlap-contract-period-histories", contractNo],
-    queryFn: () => listWorkOverlapContractPeriodHistories(contractNo),
-    enabled: open && canRead && Boolean(contractNo),
-  });
-
-  const engineerCandidatesQuery = useQuery({
-    queryKey: [
-      "work-overlap-contract-engineer-candidates",
-      debouncedEngineerKeyword,
-    ],
-    queryFn: () =>
-      listWorkOverlapContractEngineerCandidates({
-        keyword: debouncedEngineerKeyword,
-        limit: 30,
-      }),
-    enabled: open && canRead && debouncedEngineerKeyword.length > 0,
+  const {
+    engineerCandidatesQuery,
+    engineersQuery,
+    historiesQuery,
+    periodHistoriesQuery,
+  } = useWorkOverlapContractDetailQueries({
+    canRead,
+    contractNo,
+    enabled: open,
+    engineerKeyword: debouncedEngineerKeyword,
   });
 
   const engineerCandidates = useMemo(() => {
@@ -696,112 +665,34 @@ export function WorkOverlapContractDetailDialog({
     setDraft((current) => ({ ...current, [field]: value }));
   };
 
-  const invalidateEngineerData = useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ["work-overlap-contract-engineers", contractNo],
-      }),
-      queryClient.invalidateQueries({
-        queryKey: ["work-overlap-contract-engineer-histories", contractNo],
-      }),
-    ]);
-  }, [contractNo, queryClient]);
-
-  const createEngineerMutation = useMutation({
-    mutationFn: (row: WorkOverlapContractEngineerRecord) => {
-      if (!contractNo) {
-        throw new Error(
-          "업무중복도 계약 저장 후 참여기술인을 등록할 수 있습니다.",
-        );
-      }
-      if (!toText(row.engineerId)) {
-        throw new Error("이름은 필수입니다.");
-      }
-      return createWorkOverlapContractEngineer(
-        contractNo,
-        toEngineerRequest(row),
-      );
-    },
-    onSuccess: (_saved, row) => {
-      setNewRows((current) =>
-        current.filter((item) => item.tempRowId !== row.tempRowId),
-      );
-      void invalidateEngineerData();
-    },
-  });
-
-  const updateEngineerMutation = useMutation({
-    mutationFn: (requestBody: WorkOverlapContractEngineerChangeRequest) => {
-      if (!contractNo || !changeTarget) {
-        throw new Error("수정할 참여기술인을 선택해 주세요.");
-      }
-      const targetEngineerId = toText(changeTarget.engineerId);
-      if (!targetEngineerId) {
-        throw new Error("수정할 참여기술인을 선택해 주세요.");
-      }
-      return updateWorkOverlapContractEngineer(
-        contractNo,
-        targetEngineerId,
-        requestBody,
-      );
-    },
-    onSuccess: () => {
-      setChangeTarget(null);
-      setChangeDraft(null);
-      void invalidateEngineerData();
-    },
-  });
-
-  const deleteEngineerMutation = useMutation({
-    mutationFn: (target: WorkOverlapContractEngineerRecord) => {
-      if (!contractNo) {
-        throw new Error(
-          "업무중복도 계약 저장 후 참여기술인을 삭제할 수 있습니다.",
-        );
-      }
-      return deleteWorkOverlapContractEngineer(
-        contractNo,
-        toText(target.engineerId),
-      );
-    },
-    onSuccess: () => {
+  const {
+    createEngineerMutation,
+    deleteEngineerMutation,
+    deleteHistoryMutation,
+    deletePeriodHistoryMutation,
+    updateEngineerMutation,
+  } = useWorkOverlapContractDetailMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    contractNo,
+    onEngineerDeleted: () => {
       setDeleteTarget(null);
       setRowSelectionModel({ ids: new Set(), type: "include" });
-      void invalidateEngineerData();
     },
-  });
-
-  const deleteHistoryMutation = useMutation({
-    mutationFn: (target: WorkOverlapContractEngineerHistoryRecord) => {
-      if (!contractNo) {
-        throw new Error(
-          "업무중복도 계약 저장 후 변경이력을 삭제할 수 있습니다.",
-        );
-      }
-      return deleteWorkOverlapContractEngineerHistory(contractNo, target.id);
+    onEngineerSaved: (row) => {
+      setNewRows((current) => current.filter((item) => item.tempRowId !== row.tempRowId));
     },
-    onSuccess: () => {
+    onEngineerUpdated: () => {
+      setChangeDraft(null);
+    },
+    onHistoryDeleted: () => {
       setHistoryDeleteTarget(null);
       setHistorySelectionModel({ ids: new Set(), type: "include" });
-      void invalidateEngineerData();
     },
-  });
-
-  const deletePeriodHistoryMutation = useMutation({
-    mutationFn: (target: WorkOverlapContractPeriodHistoryRecord) => {
-      if (!contractNo) {
-        throw new Error(
-          "업무중복도 계약 저장 후 기간정보 변경이력을 삭제할 수 있습니다.",
-        );
-      }
-      return deleteWorkOverlapContractPeriodHistory(contractNo, target.id);
-    },
-    onSuccess: () => {
+    onPeriodHistoryDeleted: () => {
       setPeriodHistoryDeleteTarget(null);
       setPeriodHistorySelectionModel({ ids: new Set(), type: "include" });
-      void queryClient.invalidateQueries({
-        queryKey: ["work-overlap-contract-period-histories", contractNo],
-      });
     },
   });
 
@@ -852,7 +743,10 @@ export function WorkOverlapContractDetailDialog({
     if (!updatedRow.isNew) {
       return updatedRow;
     }
-    return createEngineerMutation.mutateAsync(updatedRow);
+    return createEngineerMutation.mutateAsync({
+      requestBody: toEngineerRequest(updatedRow),
+      row: updatedRow,
+    });
   };
 
   const handleEngineerSelect = useCallback(
@@ -895,7 +789,6 @@ export function WorkOverlapContractDetailDialog({
       name: targetEngineer.name,
     };
     setEngineerKeyword(toText(targetEngineer.name));
-    setChangeTarget(targetEngineer);
     setChangeDraft({
       afterEngineer: beforeEngineer,
       beforeEngineer,
@@ -920,14 +813,17 @@ export function WorkOverlapContractDetailDialog({
       return;
     }
     updateEngineerMutation.mutate({
-      afterEngineerId: changeDraft.afterEngineer.engineerId,
-      beforeEngineerId: changeDraft.beforeEngineer.engineerId,
-      changeContent,
-      field: toText(changeDraft.afterEngineer.field) || null,
-      participationDate: normalizeDateValue(changeDraft.participationDate),
-      participationType: toText(changeDraft.participationType) || null,
-      pqTargetYn: Boolean(changeDraft.pqTargetYn),
-      remark: toText(changeDraft.remark) || null,
+      engineerId: toText(changeDraft.beforeEngineer.engineerId),
+      requestBody: {
+        afterEngineerId: changeDraft.afterEngineer.engineerId,
+        beforeEngineerId: changeDraft.beforeEngineer.engineerId,
+        changeContent,
+        field: toText(changeDraft.afterEngineer.field) || null,
+        participationDate: normalizeDateValue(changeDraft.participationDate),
+        participationType: toText(changeDraft.participationType) || null,
+        pqTargetYn: Boolean(changeDraft.pqTargetYn),
+        remark: toText(changeDraft.remark) || null,
+      },
     });
   };
 
@@ -1978,7 +1874,6 @@ export function WorkOverlapContractDetailDialog({
         draft={changeDraft}
         loading={engineerCandidatesQuery.isFetching}
         onClose={() => {
-          setChangeTarget(null);
           setChangeDraft(null);
         }}
         onDraftChange={setChangeDraft}

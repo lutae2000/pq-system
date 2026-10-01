@@ -6,7 +6,6 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import { BarPlot, ChartsContainer, ChartsGrid, ChartsLegend, ChartsTooltip, ChartsXAxis, ChartsYAxis, LinePlot, MarkPlot } from "@mui/x-charts";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -20,17 +19,14 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  createNewTechnologyInvestment,
-  deleteNewTechnologyInvestment,
-  getNewTechnologyInvestment,
-  listNewTechnologyInvestments,
   NEW_TECHNOLOGY_INVESTMENT_PAGE_SIZE,
-  updateNewTechnologyInvestment,
   type NewTechnologyInvestmentPageResponse,
   type NewTechnologyInvestmentRecord,
   type NewTechnologyInvestmentRequest,
   type NewTechnologyInvestmentSearchParams,
 } from "@/modules/pq/new-technology-investments/api";
+import { useNewTechnologyInvestmentMutations } from "@/modules/pq/new-technology-investments/application/useNewTechnologyInvestmentMutations";
+import { useNewTechnologyInvestmentQueries } from "@/modules/pq/new-technology-investments/application/useNewTechnologyInvestmentQueries";
 
 const EMPTY_ROWS: NewTechnologyInvestmentRecord[] = [];
 
@@ -92,7 +88,6 @@ const toInvestmentRequest = (draft: NewTechnologyInvestmentRecord): NewTechnolog
 export function NewTechnologyInvestmentManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
 
   const [keyword, setKeyword] = useState("");
   const [yearFrom, setYearFrom] = useState("");
@@ -109,17 +104,11 @@ export function NewTechnologyInvestmentManagementPage() {
     [page, pageSize, yearFrom, yearTo],
   );
 
-  const investmentsQuery = useQuery({
-    queryKey: ["new-technology-investments", searchParams],
-    queryFn: () => listNewTechnologyInvestments(searchParams),
-    enabled: tabQueryEnabled,
-  });
-
   const selectedInvestmentId = draft.id;
-  const detailQuery = useQuery({
-    queryKey: ["new-technology-investment", selectedInvestmentId],
-    queryFn: () => getNewTechnologyInvestment(selectedInvestmentId),
-    enabled: tabQueryEnabled && selectedInvestmentId > 0,
+  const { detailQuery, investmentsQuery } = useNewTechnologyInvestmentQueries({
+    enabled: tabQueryEnabled,
+    searchParams,
+    selectedInvestmentId,
   });
 
   const pageData = investmentsQuery.data ?? emptyPage(page, pageSize);
@@ -136,33 +125,23 @@ export function NewTechnologyInvestmentManagementPage() {
     [pageData.content],
   );
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toInvestmentRequest(draft);
-      if (!request.investmentYear) {
-        throw new Error("연도를 입력하세요.");
-      }
-      return draft.id > 0 ? updateNewTechnologyInvestment(draft.id, request) : createNewTechnologyInvestment(request);
-    },
-    onSuccess: async (saved) => {
-      setDraft(saved);
-      setSaveConfirmOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-investments"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-investment", saved.id] });
-      showSnackbar({ message: "투자실적을 저장했습니다.", severity: "success" });
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: NewTechnologyInvestmentRecord) => deleteNewTechnologyInvestment(target.id),
-    onSuccess: async () => {
+  const { deleteMutation, saveMutation } = useNewTechnologyInvestmentMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: draft.id,
+    onDeleted: () => {
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-investments"] });
       showSnackbar({ message: "투자실적을 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error, fallbackMessage) =>
+      showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onSaved: (saved) => {
+      setDraft(saved);
+      setSaveConfirmOpen(false);
+      showSnackbar({ message: "투자실적을 저장했습니다.", severity: "success" });
+    },
   });
 
   const columns = useMemo<GridColDef<NewTechnologyInvestmentRecord>[]>(
@@ -393,7 +372,7 @@ export function NewTechnologyInvestmentManagementPage() {
         loading={saveMutation.isPending}
         message="투자실적을 저장하시겠습니까?"
         onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate()}
+        onConfirm={() => saveMutation.mutate(toInvestmentRequest(draft))}
         open={saveConfirmOpen}
         targetLabel={draft.investmentYear}
         title="저장 확인"

@@ -1240,7 +1240,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
 
     const isSelectableCell = (params: GridCellParams) => {
       const column = gridApi.getColumn(params.field);
-      return isPrintableGridColumn(params.field, column.type, column.disableExport);
+      return isPrintableGridColumn(params.field, column?.type, column?.disableExport);
     };
 
     const startSelection = (params: GridCellParams, event: MouseEvent<HTMLElement>) => {
@@ -1441,7 +1441,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     apiRef.current?.publishEvent("clipboardCopy", payload.plainText);
   };
 
-  const handleCellClick: GridEventListener<"cellClick"> = (params, event, details) => {
+  const handleCellClick: NonNullable<DataGridProps<Row>["onCellClick"]> = (params, event, details) => {
     userOnCellClick?.(params, event, details);
 
     if (!autoCopyOnCellClick || event.defaultMuiPrevented) {

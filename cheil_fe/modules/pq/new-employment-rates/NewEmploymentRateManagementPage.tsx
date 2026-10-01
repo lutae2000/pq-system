@@ -24,7 +24,6 @@ import {
   type GridPaginationModel,
   type GridRowParams,
 } from "@mui/x-data-grid";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -44,15 +43,6 @@ import {
   type EditableMonthlyStatusRow,
 } from "@/modules/pq/new-employment-rates/NewEmploymentMonthlyStatusDialog";
 import {
-  createNewEmploymentMonthlyStatus,
-  createNewEmploymentEmployee,
-  deleteNewEmploymentMonthlyStatus,
-  deleteNewEmploymentEmployee,
-  getNewEmploymentEmployee,
-  listNewEmploymentEmployees,
-  listNewEmploymentMonthlyStatuses,
-  listNewEmploymentMonthlyStatusPivot,
-  listNewEmploymentPreviousYearSamePeriodMonthlyStatusPivot,
   NEW_EMPLOYMENT_CERTIFICATE_ATTACHMENT_TYPE,
   NEW_EMPLOYMENT_RATE_PAGE_SIZE,
   NEW_EMPLOYMENT_RATE_PROGRAM_ATTACHMENT_OWNER_TYPE,
@@ -61,9 +51,9 @@ import {
   type NewEmploymentEmployeeRequest,
   type NewEmploymentMonthlyStatusPivotRecord,
   type NewEmploymentMonthlyStatusRequest,
-  updateNewEmploymentMonthlyStatus,
-  updateNewEmploymentEmployee,
 } from "@/modules/pq/new-employment-rates/api";
+import { useNewEmploymentRateMutations } from "@/modules/pq/new-employment-rates/application/useNewEmploymentRateMutations";
+import { useNewEmploymentRateQueries } from "@/modules/pq/new-employment-rates/application/useNewEmploymentRateQueries";
 
 const EMPTY_EMPLOYEES: NewEmploymentEmployeeRecord[] = [];
 
@@ -263,7 +253,6 @@ const toRequest = (draft: NewEmploymentEmployeeRecord, fallbackBaseYearMonth: st
 export function NewEmploymentRateManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
 
   const [keyword, setKeyword] = useState("");
   const [appliedEmployeeName, setAppliedEmployeeName] = useState("");
@@ -284,30 +273,6 @@ export function NewEmploymentRateManagementPage() {
   const departmentOptions = departmentReferences.options;
   const jobCategoryOptions = jobCategoryReferences.options;
 
-  const monthlyStatusPivotQuery = useQuery({
-    queryKey: ["new-employment-monthly-status-pivot", baseYearMonth],
-    queryFn: () => listNewEmploymentMonthlyStatusPivot(baseYearMonth),
-    enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  });
-
-  const previousYearSamePeriodMonthlyStatusPivotQuery = useQuery({
-    queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot", baseYearMonth],
-    queryFn: () => listNewEmploymentPreviousYearSamePeriodMonthlyStatusPivot(baseYearMonth),
-    enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  });
-
-  const monthlyStatusesQuery = useQuery({
-    queryKey: ["new-employment-monthly-statuses", baseYearMonth],
-    queryFn: () => listNewEmploymentMonthlyStatuses(baseYearMonth),
-    enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  });
-
   const employeeParams = useMemo(
     () => ({
       page,
@@ -319,17 +284,18 @@ export function NewEmploymentRateManagementPage() {
     [appliedEmployeeName, departmentCode, page, selectedYearMonth],
   );
 
-  const employeesQuery = useQuery({
-    queryKey: ["new-employment-employees", employeeParams],
-    queryFn: () => listNewEmploymentEmployees(employeeParams),
-    enabled: tabQueryEnabled,
-  });
-
   const selectedEmployeeId = draft.id;
-  const detailQuery = useQuery({
-    queryKey: ["new-employment-employee", selectedEmployeeId],
-    queryFn: () => getNewEmploymentEmployee(selectedEmployeeId),
-    enabled: tabQueryEnabled && selectedEmployeeId > 0,
+  const {
+    detailQuery,
+    employeesQuery,
+    monthlyStatusPivotQuery,
+    monthlyStatusesQuery,
+    previousYearSamePeriodMonthlyStatusPivotQuery,
+  } = useNewEmploymentRateQueries({
+    baseYearMonth,
+    employeeParams,
+    enabled: tabQueryEnabled,
+    selectedEmployeeId,
   });
 
   const employeePage = employeesQuery.data ?? emptyEmployeePage(page, NEW_EMPLOYMENT_RATE_PAGE_SIZE);
@@ -353,46 +319,6 @@ export function NewEmploymentRateManagementPage() {
     [previousYearSamePeriodMonthlyStatusPivotQuery.data],
   );
 
-  const monthlyStatusSaveMutation = useMutation({
-    mutationFn: async (row: EditableMonthlyStatusRow) => {
-      const request = toMonthlyStatusRequest(row);
-      if (!request.baseYearMonth) {
-        throw new Error("기준년월을 입력해 주세요.");
-      }
-      return row.isNew ? createNewEmploymentMonthlyStatus(request) : updateNewEmploymentMonthlyStatus(row.id, request);
-    },
-    onSuccess: async (saved) => {
-      setMonthlyStatusDraft({ ...saved, isNew: false });
-      setMonthlyStatusDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      showSnackbar({ message: "월별 고용현황이 저장되었습니다.", severity: "success" });
-    },
-    onError: (error) =>
-      showSnackbar({ message: error instanceof Error ? error.message : "월별 고용현황 저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const monthlyStatusDeleteMutation = useMutation({
-    mutationFn: async (row: EditableMonthlyStatusRow) => {
-      if (!row.isNew) {
-        await deleteNewEmploymentMonthlyStatus(row.id);
-      }
-    },
-    onSuccess: async () => {
-      setDeleteMonthlyStatusTarget(null);
-      setMonthlyStatusDraft(null);
-      setMonthlyStatusDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-statuses"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      showSnackbar({ message: "월별 고용현황이 삭제되었습니다.", severity: "success" });
-    },
-    onError: (error) =>
-      showSnackbar({ message: error instanceof Error ? error.message : "월별 고용현황 삭제에 실패했습니다.", severity: "error" }),
-  });
-
-
   const employeeColumns = useMemo<GridColDef<NewEmploymentEmployeeRecord>[]>(
     () => [
       { field: "employeeName", headerName: "이름", minWidth: 120, flex: 0.8 },
@@ -412,48 +338,35 @@ export function NewEmploymentRateManagementPage() {
     [jobCategoryReferences.labelByValue],
   );
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toRequest(draft, selectedYearMonth);
-      if (!request.employeeName) {
-        throw new Error("이름을 입력해 주세요.");
-      }
-      if (!request.hireDate) {
-        throw new Error("입사일을 입력해 주세요.");
-      }
-      if (!request.departmentCode) {
-        throw new Error("부서를 선택해 주세요.");
-      }
-      if (!request.baseYearMonth) {
-        throw new Error("기준년월을 입력해 주세요.");
-      }
-      return draft.id > 0 ? updateNewEmploymentEmployee(draft.id, request) : createNewEmploymentEmployee(request);
+  const { deleteMutation, monthlyStatusDeleteMutation, monthlyStatusSaveMutation, saveMutation } = useNewEmploymentRateMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: draft.id,
+    onEmployeeDeleted: () => {
+      setDraft(emptyDraft(departmentCode === "All" ? "" : departmentCode, selectedYearMonth));
+      setDeleteTarget(null);
+      showSnackbar({ message: "삭제되었습니다.", severity: "success" });
     },
-    onSuccess: async (saved) => {
+    onEmployeeSaved: (saved) => {
       setDraft(saved);
       setSelectedYearMonth(saved.baseYearMonth);
       setSaveConfirmOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-employees"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
       showSnackbar({ message: "저장되었습니다.", severity: "success" });
     },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: NewEmploymentEmployeeRecord) => deleteNewEmploymentEmployee(target.id),
-    onSuccess: async () => {
-      setDraft(emptyDraft(departmentCode === "All" ? "" : departmentCode, selectedYearMonth));
-      setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-employees"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-employee"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-monthly-status-pivot"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-employment-previous-year-same-period-monthly-status-pivot"] });
-      showSnackbar({ message: "삭제되었습니다.", severity: "success" });
+    onMonthlyStatusDeleted: () => {
+      setDeleteMonthlyStatusTarget(null);
+      setMonthlyStatusDraft(null);
+      setMonthlyStatusDialogOpen(false);
+      showSnackbar({ message: "월별 고용현황이 삭제되었습니다.", severity: "success" });
     },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onMonthlyStatusSaved: (saved) => {
+      setMonthlyStatusDraft(saved);
+      setMonthlyStatusDialogOpen(false);
+      showSnackbar({ message: "월별 고용현황이 저장되었습니다.", severity: "success" });
+    },
+    onError: (error, fallbackMessage) =>
+      showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
   });
 
   const handleSearch = (nextKeyword: string) => {
@@ -775,7 +688,7 @@ export function NewEmploymentRateManagementPage() {
         loading={saveMutation.isPending}
         message="신규 고용자 정보를 저장합니다."
         onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate()}
+        onConfirm={() => saveMutation.mutate(toRequest(draft, selectedYearMonth))}
         open={saveConfirmOpen}
         targetLabel={draft.employeeName}
         title="저장 확인"
@@ -789,7 +702,11 @@ export function NewEmploymentRateManagementPage() {
         onClose={() => setMonthlyStatusDialogOpen(false)}
         onDeleteRequest={(record) => setDeleteMonthlyStatusTarget(record)}
         onSave={async (record) => {
-          await monthlyStatusSaveMutation.mutateAsync(record);
+          const request = toMonthlyStatusRequest(record);
+          if (!request.baseYearMonth) {
+            throw new Error("기준년월을 입력해 주세요.");
+          }
+          await monthlyStatusSaveMutation.mutateAsync({ request, row: record });
         }}
         open={monthlyStatusDialogOpen}
         record={monthlyStatusDraft}

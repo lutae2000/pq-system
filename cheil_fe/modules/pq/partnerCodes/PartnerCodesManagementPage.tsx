@@ -10,20 +10,19 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   InputAdornment,
-  Snackbar,
+  Alert,
   TextField,
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   PartnerCodeDetailDialog,
 } from "@/modules/pq/partnerCodes/PartnerCodeDetailDialog";
@@ -198,7 +197,8 @@ const createBlankRecord = (code = ""): PartnerOrderCompanyRecord => ({
 });
 
 export function PartnerCodesManagementPage() {
-  const { canCreate, canDelete, canRead } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const { showSnackbar } = useAppSnackbar();
   const [records, setRecords] = useState<PartnerOrderCompanyRecord[]>(initialRecords);
   const [filters, setFilters] = useState<PartnerOrderCompanyFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<PartnerOrderCompanyFilters>(initialFilters);
@@ -206,7 +206,7 @@ export function PartnerCodesManagementPage() {
   const [draft, setDraft] = useState<PartnerOrderCompanyRecord>(initialRecords[0] ?? createBlankRecord());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PartnerOrderCompanyRecord | null>(null);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
 
   const filteredRecords = useMemo(() => filterRecords(records, appliedFilters.keyword), [appliedFilters.keyword, records]);
   const selectedRecord = useMemo(() => records.find((record) => record.id === selectedId) ?? null, [records, selectedId]);
@@ -222,9 +222,12 @@ export function PartnerCodesManagementPage() {
   };
 
   const handleSearch = () => {
+    if (!canRead) {
+      return;
+    }
     setAppliedFilters(filters);
     if (filterRecords(records, filters.keyword).length === 0) {
-      setSnackbar({ message: "조회 결과가 없습니다.", severity: "info" });
+      showSnackbar({ message: "조회 결과가 없습니다.", severity: "info" });
     }
   };
 
@@ -234,16 +237,25 @@ export function PartnerCodesManagementPage() {
   };
 
   const handleNew = () => {
+    if (!canCreate) {
+      showSnackbar({ message: "회원사 코드 등록 권한이 없습니다.", severity: "error" });
+      return;
+    }
     const nextCode = getNextCode(records);
     setDraft(createBlankRecord(nextCode));
     setSelectedId("");
     setDialogOpen(true);
-    setSnackbar({ message: "신규 회원사 코드 입력 상태로 전환했습니다.", severity: "info" });
+    showSnackbar({ message: "신규 회원사 코드 입력 상태로 전환했습니다.", severity: "info" });
   };
 
   const handleSave = () => {
+    const isNew = !selectedId;
+    if ((isNew && !canCreate) || (!isNew && !canUpdate)) {
+      showSnackbar({ message: isNew ? "회원사 코드 등록 권한이 없습니다." : "회원사 코드 수정 권한이 없습니다.", severity: "error" });
+      return;
+    }
     if (!draft.code.trim() || !draft.shortName.trim() || !draft.longName.trim()) {
-      setSnackbar({ message: "회원사번호, 회원사단명, 회원사장명은 필수입니다.", severity: "error" });
+      showSnackbar({ message: "회원사번호, 회원사단명, 회원사장명은 필수입니다.", severity: "error" });
       return;
     }
 
@@ -251,10 +263,16 @@ export function PartnerCodesManagementPage() {
     const normalizedCode = draft.code.trim();
     const duplicateCode = records.some((record) => record.id === normalizedCode && record.id !== targetId);
     if (duplicateCode) {
-      setSnackbar({ message: "이미 사용 중인 회원사번호입니다.", severity: "error" });
+      showSnackbar({ message: "이미 사용 중인 회원사번호입니다.", severity: "error" });
       return;
     }
 
+    setSaveConfirmOpen(true);
+  };
+
+  const confirmSave = () => {
+    const targetId = selectedId || draft.id || draft.code;
+    const normalizedCode = draft.code.trim();
     const nextRecord: PartnerOrderCompanyRecord = {
       ...draft,
       id: normalizedCode,
@@ -288,14 +306,19 @@ export function PartnerCodesManagementPage() {
     setSelectedId(nextRecord.id);
     setDraft(nextRecord);
     setDialogOpen(false);
-    setSnackbar({ message: "회원사 코드를 저장했습니다.", severity: "success" });
+    setSaveConfirmOpen(false);
+    showSnackbar({ message: "회원사 코드를 저장했습니다.", severity: "success" });
   };
 
   const handleDelete = () => {
+    if (!canDelete) {
+      showSnackbar({ message: "회원사 코드 삭제 권한이 없습니다.", severity: "error" });
+      return;
+    }
     const targetId = selectedRecord?.id || draft.id;
     const target = targetId ? records.find((record) => record.id === targetId) ?? null : null;
     if (!target) {
-      setSnackbar({ message: "삭제할 회원사 코드를 먼저 선택하세요.", severity: "error" });
+      showSnackbar({ message: "삭제할 회원사 코드를 먼저 선택하세요.", severity: "error" });
       return;
     }
     setDeleteTarget(target);
@@ -318,11 +341,11 @@ export function PartnerCodesManagementPage() {
       setDraft(createBlankRecord());
     }
 
-    setSnackbar({ message: "선택한 회원사 코드를 삭제했습니다.", severity: "success" });
+    showSnackbar({ message: "선택한 회원사 코드를 삭제했습니다.", severity: "success" });
   };
 
   const handleOpenContactManager = () => {
-    setSnackbar({ message: "회원사담당자 기능은 추후 연동합니다.", severity: "info" });
+    showSnackbar({ message: "회원사담당자 기능은 추후 연동합니다.", severity: "info" });
   };
 
   return (
@@ -394,7 +417,7 @@ export function PartnerCodesManagementPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      {!canRead ? <Alert severity="warning">회원사 코드 조회 권한이 없습니다.</Alert> : <Card>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: 1.5 }}>
             <Box>
@@ -426,9 +449,10 @@ export function PartnerCodesManagementPage() {
             }}
           />
         </CardContent>
-      </Card>
+      </Card>}
 
       <PartnerCodeDetailDialog
+        deleteDisabled={!canDelete}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onDelete={handleDelete}
@@ -436,32 +460,25 @@ export function PartnerCodesManagementPage() {
         onSave={handleSave}
         record={draft}
         onChangeField={updateDraftField}
+        saveDisabled={selectedId ? !canUpdate : !canCreate}
       />
 
-      <Dialog fullWidth maxWidth="xs" onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
-        <DialogTitle>회원사 코드를 삭제하시겠습니까?</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            선택된 회원사 코드
-          </Typography>
-          <Typography sx={{ mt: 0.75, fontWeight: 700 }} variant="body1">
-            {deleteTarget ? `${deleteTarget.code} - ${deleteTarget.shortName}` : ""}
-          </Typography>
-          <Typography sx={{ mt: 1.5 }} variant="body2">
-            삭제하면 목록에서 제거됩니다. 계속하시겠습니까?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="error" onClick={confirmDelete} variant="contained">
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar autoHideDuration={2400} message={snackbar?.message} onClose={() => setSnackbar(null)} open={Boolean(snackbar)} />
+      <ConfirmActionDialog
+        confirmLabel="저장"
+        message="회원사 코드 정보를 저장하시겠습니까?"
+        onClose={() => setSaveConfirmOpen(false)}
+        onConfirm={confirmSave}
+        open={saveConfirmOpen}
+        targetLabel={`${draft.code} - ${draft.shortName}`}
+        title="회원사 코드 저장"
+      />
+      <ConfirmDeleteDialog
+        message="삭제하면 복구할 수 없습니다. 계속하시겠습니까?"
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        open={Boolean(deleteTarget)}
+        targetLabel={deleteTarget ? `${deleteTarget.code} - ${deleteTarget.shortName}` : undefined}
+      />
     </Box>
   );
 }

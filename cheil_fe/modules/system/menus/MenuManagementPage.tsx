@@ -17,8 +17,8 @@ import {
   FormControlLabel,
   IconButton,
   MenuItem,
-  Snackbar,
   Stack,
+  Snackbar,
   Switch,
   TextField,
   Typography,
@@ -31,15 +31,11 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { buildMenuTree, type MenuTreeNode } from "@/lib/permissions/menuPermissionTree";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { useSystemMenus } from "./application/useSystemMenus";
 
-import {
-  createSystemMenu,
-  deleteSystemMenu,
-  getSystemMenu,
-  listSystemMenus,
-  type SystemMenuRecord,
-  updateSystemMenu,
-} from "./api";
+import { getSystemMenu, listSystemMenus, type SystemMenuRecord } from "./api";
 import {AuditFields} from "@/components/common/AuditFields";
 
 type MenuFilters = {
@@ -135,6 +131,8 @@ const collectAncestors = (menuCode: string | null, parentMap: Map<string, string
 
 export function MenuManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
+  const { showError, showSuccess } = useAppSnackbar();
   const [filters, setFilters] = useState<MenuFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<MenuFilters>(initialFilters);
   const [records, setRecords] = useState<SystemMenuRecord[]>([]);
@@ -146,6 +144,7 @@ export function MenuManagementPage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SystemMenuRecord | null>(null);
+  const { deleteMutation, saveMutation } = useSystemMenus({ canCreate, canDelete, canUpdate, showError, showSuccess });
 
   const selectedMenu = useMemo(
     () => records.find((item) => item.menuCode === selectedMenuCode) ?? null,
@@ -166,14 +165,18 @@ export function MenuManagementPage() {
     setLoading(true);
     try {
       const data = await listSystemMenus();
-      const filtered = keyword.trim()
-        ? data.filter(
-            (item) =>
-              item.menuCode.includes(keyword.trim()) ||
-              item.menuName.includes(keyword.trim()) ||
-              (item.menuPath ?? "").includes(keyword.trim()),
-          )
-        : data;
+      const matchingCodes = new Set(
+        keyword.trim()
+          ? data
+              .filter((item) => [item.menuCode, item.menuName, item.menuPath ?? ""].some((value) => value.includes(keyword.trim())))
+              .map((item) => item.menuCode)
+          : data.map((item) => item.menuCode),
+      );
+      const parentMap = buildParentMap(data);
+      for (const code of [...matchingCodes]) {
+        collectAncestors(code, parentMap).forEach((ancestor) => matchingCodes.add(ancestor));
+      }
+      const filtered = data.filter((item) => matchingCodes.has(item.menuCode));
       const sorted = [...filtered].sort(compareByCodeAndSort);
       setRecords(sorted);
 
@@ -195,12 +198,15 @@ export function MenuManagementPage() {
   }, []);
 
   useEffect(() => {
+    if (!tabQueryEnabled) {
+      return undefined;
+    }
     const timer = window.setTimeout(() => {
       void loadMenus(appliedFilters.keyword);
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [appliedFilters.keyword, loadMenus]);
+  }, [appliedFilters.keyword, loadMenus, tabQueryEnabled]);
 
   const handleSelect = async (menuCode: string) => {
     try {
@@ -279,9 +285,11 @@ export function MenuManagementPage() {
         visibleYn: draft.visibleYn,
       };
 
-      const saved = isCreating || !selectedMenuCode
-        ? await createSystemMenu(requestBody)
-        : await updateSystemMenu(selectedMenuCode, requestBody);
+      const saved = await saveMutation.mutateAsync({
+        isCreating: isCreating || !selectedMenuCode,
+        menuCode: selectedMenuCode,
+        request: requestBody,
+      });
       await loadMenus(appliedFilters.keyword, saved.menuCode);
       setNotice({ message: "메뉴가 저장되었습니다.", severity: "success" });
     } catch (error) {
@@ -298,7 +306,7 @@ export function MenuManagementPage() {
 
     setSaving(true);
     try {
-      await deleteSystemMenu(deleteTarget.menuCode);
+      await deleteMutation.mutateAsync(deleteTarget.menuCode);
       setDeleteTarget(null);
       await loadMenus(appliedFilters.keyword, null);
       setDraft(defaultForm());

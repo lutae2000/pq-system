@@ -5,7 +5,6 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -20,48 +19,32 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { createTechnologyNotice } from "@/modules/system/notices/api";
 import {
-  createNewTechnologyDevelopment,
-  deleteNewTechnologyDevelopment,
-  getNewTechnologyDevelopment,
-  listNewTechnologyDevelopments,
   NEW_TECHNOLOGY_ATTACHMENT_OWNER_TYPE,
   NEW_TECHNOLOGY_ATTACHMENT_TYPE,
   NEW_TECHNOLOGY_DEVELOPMENT_PAGE_SIZE,
-  updateNewTechnologyDevelopment,
   type NewTechnologyDevelopmentPageResponse,
   type NewTechnologyDevelopmentRecord,
-  type NewTechnologyDevelopmentRequest,
   type NewTechnologyDevelopmentSearchParams,
 } from "@/modules/pq/new-technology-developments/api";
+import { useNewTechnologyDevelopmentMutations } from "@/modules/pq/new-technology-developments/application/useNewTechnologyDevelopmentMutations";
+import { useNewTechnologyDevelopmentQueries } from "@/modules/pq/new-technology-developments/application/useNewTechnologyDevelopmentQueries";
+import {
+  calculateAutoScore,
+  compactDate,
+  display,
+  emptyDraft,
+  formatGridDate,
+  formatNumber,
+  getValidityLabel,
+  TECHNOLOGY_TYPES,
+  text,
+  today,
+  toDateInputValue,
+  toDevelopmentRequest,
+} from "@/modules/pq/new-technology-developments/domain/rules";
 
 const EMPTY_ROWS: NewTechnologyDevelopmentRecord[] = [];
-const TECHNOLOGY_TYPES = ["신기술", "특허", "신안"] as const;
-
-const today = () => new Date().toISOString().slice(0, 10).replaceAll("-", "");
-
-const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
-  id: 0,
-  sequenceLabel: "",
-  title: "",
-  technologyType: "신기술",
-  applicantCount: 1,
-  useYn: true,
-  applicationDate: "",
-  elapsedYears: null,
-  calculatedScore: null,
-  targetField: "",
-  applicationNo: "",
-  registrationNo: "",
-  validUntil: "",
-  summary: "",
-  remark: "",
-  createdAt: null,
-  createdId: null,
-  lastChangedAt: null,
-  lastChangedId: null,
-});
 
 const emptyPage = (page: number, size: number): NewTechnologyDevelopmentPageResponse => ({
   content: EMPTY_ROWS,
@@ -71,76 +54,10 @@ const emptyPage = (page: number, size: number): NewTechnologyDevelopmentPageResp
   totalPages: 0,
 });
 
-const text = (value: string | null | undefined) => value ?? "";
-const compactDate = (value: string | null | undefined) => text(value).replace(/\D/g, "").slice(0, 8);
-const formatGridDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "-";
-};
-const toDateInputValue = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
-};
-const display = (value: string | null | undefined) => (value?.trim() ? value : "-");
-const formatNumber = (value: number | null | undefined, digits = 2) =>
-  value === null || value === undefined ? "-" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-const calculateAutoScore = (
-  technologyType: string | null | undefined,
-  applicantCount: number | null | undefined,
-  elapsedYears: number | null | undefined,
-) => {
-  if (applicantCount === null || applicantCount === undefined || applicantCount <= 0) {
-    return null;
-  }
-
-  const normalizedType = text(technologyType).trim();
-  const years = elapsedYears ?? 0;
-
-  if (normalizedType === "신기술") {
-    return Number((2 / applicantCount).toFixed(2));
-  }
-
-  let baseScore = 0;
-  if (normalizedType === "특허") {
-    baseScore = years < 5 ? 1 : years < 10 ? 0.8 : 0.6;
-  } else if (normalizedType === "신안") {
-    baseScore = years < 5 ? 0.5 : years < 10 ? 0.4 : 0;
-  }
-
-  return Number((baseScore / applicantCount).toFixed(2));
-};
-
-const getValidityLabel = (validUntil: string | null | undefined, referenceDate: string | null | undefined) => {
-  const normalizedValidUntil = compactDate(validUntil);
-  const normalizedReferenceDate = compactDate(referenceDate);
-
-  if (normalizedValidUntil.length !== 8 || normalizedReferenceDate.length !== 8) {
-    return "-";
-  }
-
-  return normalizedValidUntil >= normalizedReferenceDate ? "유효" : "만료";
-};
-
-const toDevelopmentRequest = (draft: NewTechnologyDevelopmentRecord): NewTechnologyDevelopmentRequest => ({
-  applicantCount: draft.applicantCount,
-  applicationDate: compactDate(draft.applicationDate),
-  applicationNo: text(draft.applicationNo).trim(),
-  calculatedScore: draft.calculatedScore,
-  registrationNo: text(draft.registrationNo).trim(),
-  remark: text(draft.remark).trim(),
-  sequenceLabel: text(draft.sequenceLabel).trim(),
-  summary: text(draft.summary).trim(),
-  targetField: text(draft.targetField).trim(),
-  technologyType: text(draft.technologyType).trim(),
-  title: text(draft.title).trim(),
-  validUntil: compactDate(draft.validUntil),
-  useYn: draft.useYn,
-});
 
 export function NewTechnologyDevelopmentManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
 
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -171,17 +88,12 @@ export function NewTechnologyDevelopmentManagementPage() {
     [applicationDateFrom, applicationDateTo, appliedKeyword, page, pageSize, scoreReferenceDate, targetField, technologyType, useYn],
   );
 
-  const developmentsQuery = useQuery({
-    queryKey: ["new-technology-developments", searchParams],
-    queryFn: () => listNewTechnologyDevelopments(searchParams),
-    enabled: tabQueryEnabled,
-  });
-
   const selectedDevelopmentId = draft.id;
-  const detailQuery = useQuery({
-    queryKey: ["new-technology-development", selectedDevelopmentId, scoreReferenceDate],
-    queryFn: () => getNewTechnologyDevelopment(selectedDevelopmentId, scoreReferenceDate),
-    enabled: tabQueryEnabled && selectedDevelopmentId > 0,
+  const { detailQuery, developmentsQuery } = useNewTechnologyDevelopmentQueries({
+    enabled: tabQueryEnabled,
+    searchParams,
+    selectedId: selectedDevelopmentId,
+    scoreReferenceDate,
   });
 
   const pageData = developmentsQuery.data ?? emptyPage(page, pageSize);
@@ -189,48 +101,22 @@ export function NewTechnologyDevelopmentManagementPage() {
   const fileOwnerId = selectedDevelopmentId > 0 ? selectedDevelopmentId : "";
   const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toDevelopmentRequest(draft);
-      if (!request.title) {
-        throw new Error("출원명을 입력하세요.");
-      }
-      if (!request.technologyType) {
-        throw new Error("구분을 선택하세요.");
-      }
-      if (request.applicantCount === null || request.applicantCount <= 0) {
-        throw new Error("출원인수는 0보다 커야 합니다.");
-      }
-      const created = draft.id === 0;
-      const saved = created ? await createNewTechnologyDevelopment(request) : await updateNewTechnologyDevelopment(draft.id, request);
-      return { created, saved };
-    },
-    onSuccess: async ({ created, saved }) => {
-      setDraft(saved);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-developments"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-development", saved.id] });
-      showSnackbar({ message: "신기술 개발실적을 저장했습니다.", severity: "success" });
-      if (created) {
-        try {
-          await createTechnologyNotice({ title: "신기술 개발실적 신규 등록", content: `${saved.title} 개발실적이 등록되었습니다.`, targetPath: "/pq/new-technology-developments" });
-          await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
-        } catch {
-          showSnackbar({ message: "실적은 저장되었지만 알림 생성에 실패했습니다.", severity: "warning" });
-        }
-      }
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: NewTechnologyDevelopmentRecord) => deleteNewTechnologyDevelopment(target.id),
-    onSuccess: async () => {
+  const { deleteMutation, saveMutation } = useNewTechnologyDevelopmentMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: draft.id,
+    onDeleted: () => {
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-developments"] });
       showSnackbar({ message: "신기술 개발실적을 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error, fallbackMessage) => showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onSaved: (saved) => {
+      setDraft(saved);
+      showSnackbar({ message: "신기술 개발실적을 저장했습니다.", severity: "success" });
+    },
+    onWarning: (message) => showSnackbar({ message, severity: "warning" }),
   });
 
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
@@ -295,7 +181,7 @@ export function NewTechnologyDevelopmentManagementPage() {
         width: 120,
         align: "right",
         headerAlign: "center",
-        valueGetter: (_value, row) => calculateAutoScore(row.technologyType, row.applicantCount, row.elapsedYears),
+          valueGetter: (_value, row) => calculateAutoScore(row.technologyType, row.applicantCount, row.elapsedYears),
         valueFormatter: (value) => formatNumber(value as number | null, 2),
       },
       { field: "applicationNo", headerName: "\ucd9c\uc6d0\ubc88\ud638", width: 150, valueGetter: (_value, row) => row.applicationNo ?? "" },
@@ -347,6 +233,8 @@ export function NewTechnologyDevelopmentManagementPage() {
     setApplicationDateTo("");
     setScoreReferenceDate(nextScoreReferenceDate);
     setPage(0);
+    setDraft(emptyDraft());
+    setDeleteTarget(null);
 
     if (shouldRefetch) {
       void developmentsQuery.refetch();
@@ -358,15 +246,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   };
 
   const handleSave = () => {
-    if (draft.id > 0 && !canUpdate) {
-      showSnackbar({ message: "신기술 개발실적을 수정할 권한이 없습니다.", severity: "error" });
-      return;
-    }
-    if (draft.id === 0 && !canCreate) {
-      showSnackbar({ message: "신기술 개발실적을 등록할 권한이 없습니다.", severity: "error" });
-      return;
-    }
-    saveMutation.mutate();
+    saveMutation.mutate(toDevelopmentRequest(draft));
   };
 
   const canSave = draft.id > 0 ? canUpdate : canCreate;
@@ -509,7 +389,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                     disabled
                     size="small"
                     sx={standardFieldSx}
-                    value={formatNumber(calculateAutoScore(selectedRecord.technologyType, selectedRecord.applicantCount, selectedRecord.elapsedYears), 2)}
+                    value={formatNumber(calculateAutoScore(draft.technologyType, draft.applicantCount, selectedRecord.elapsedYears), 2)}
                   />
                   <TextField
                     label="기준점수"
@@ -571,13 +451,15 @@ export function NewTechnologyDevelopmentManagementPage() {
 
       )}
 
-      <ConfirmDeleteDialog
-        loading={deleteMutation.isPending}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-        open={Boolean(deleteTarget)}
-        targetLabel={deleteTarget?.title}
-      />
+      {deleteTarget ? (
+        <ConfirmDeleteDialog
+          loading={deleteMutation.isPending}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          open
+          targetLabel={deleteTarget.title}
+        />
+      ) : null}
     </Box>
   );
 }

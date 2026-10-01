@@ -16,7 +16,6 @@ import {
   FormControlLabel,
   Radio,
   RadioGroup,
-  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -27,7 +26,6 @@ import type {
   GridRowParams,
   GridRowSelectionModel,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -38,17 +36,16 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { ClientSelect } from "@/components/common/reference-selects";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  createServicePerformance,
-  deleteServicePerformance,
-  listServicePerformances,
   SERVICE_PERFORMANCE_PAGE_SIZE,
-  updateServicePerformance,
   type ServicePerformancePageResponse,
   type ServicePerformanceRecord,
   type ServicePerformanceRequest,
   type ServicePerformanceSearchParams,
 } from "@/modules/pq/service-performance-management/api";
+import { useServicePerformanceMutations } from "@/modules/pq/service-performance-management/application/useServicePerformanceMutations";
+import { useServicePerformanceQueries } from "@/modules/pq/service-performance-management/application/useServicePerformanceQueries";
 import { ServicePerformanceDetailDialog } from "@/modules/pq/service-performance-management/ServicePerformanceDetailDialog";
 
 const EMPTY_ROWS: ServicePerformanceRecord[] = [];
@@ -148,7 +145,7 @@ const toRequest = (
 export function ServicePerformanceManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } =
     useCurrentMenuPermission();
-  const queryClient = useQueryClient();
+  const { showError, showSuccess } = useAppSnackbar();
 
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -168,10 +165,6 @@ export function ServicePerformanceManagementPage() {
     useState<ServicePerformanceRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [notice, setNotice] = useState<{
-    message: string;
-    severity: "error" | "info" | "success";
-  } | null>(null);
 
   const searchParams = useMemo<ServicePerformanceSearchParams>(
     () => ({
@@ -196,12 +189,7 @@ export function ServicePerformanceManagementPage() {
     ],
   );
 
-  const performancesQuery = useQuery<ServicePerformancePageResponse>({
-    // useQuery v5 does not support onSuccess; selection sync happens below.
-    queryKey: ["service-performances", searchParams],
-    queryFn: () => listServicePerformances(searchParams),
-    enabled: canRead,
-  });
+  const performancesQuery = useServicePerformanceQueries({ enabled: canRead, params: searchParams });
 
   const pageData = performancesQuery.data || emptyPage(page, pageSize);
   const rows = pageData.content || EMPTY_ROWS;
@@ -319,54 +307,13 @@ export function ServicePerformanceManagementPage() {
     selectedRowId,
   ]);
 
-  const invalidatePerformances = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["service-performances"] });
-    await queryClient.invalidateQueries({ queryKey: ["service-performance"] });
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toRequest(draft);
-      if (!request.clientCode) {
-        throw new Error("발주청을 선택해 주세요.");
-      }
-      if (!request.fieldName) {
-        throw new Error("분야를 입력해 주세요.");
-      }
-      if (!request.siteName) {
-        throw new Error("현장명을 입력해 주세요.");
-      }
-      if (!request.evaluationDate) {
-        throw new Error("평가일을 입력해 주세요.");
-      }
-      return draft.id > 0
-        ? updateServicePerformance(draft.id, request)
-        : createServicePerformance(request);
-    },
-    onSuccess: async (saved) => {
-      setDraft(saved);
-      setSelectedRowId(saved.id);
-      setSaveConfirmOpen(false);
-      await invalidatePerformances();
-      setNotice({
-        message: "용역 수행성과 정보를 저장했습니다.",
-        severity: "success",
-      });
-    },
-    onError: (error) =>
-      setNotice({
-        message:
-          error instanceof Error ? error.message : "저장에 실패했습니다.",
-        severity: "error",
-      }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: ServicePerformanceRecord) =>
-      deleteServicePerformance(target.id),
-    onSuccess: async (_saved, deletedRow) => {
-      const nextRows = rows.filter((row) => row.id !== deletedRow.id);
-      const nextSelected = nextRows[0] || null;
+  const { deleteMutation, saveMutation } = useServicePerformanceMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: draft.id,
+    onDeleted: (deletedRow) => {
+      const nextSelected = rows.find((row) => row.id !== deletedRow.id) ?? null;
       setDeleteTarget(null);
       if (nextSelected) {
         setSelectedRowId(nextSelected.id);
@@ -377,18 +324,15 @@ export function ServicePerformanceManagementPage() {
         setDraft(emptyDraft());
         setRowSelectionIds([]);
       }
-      await invalidatePerformances();
-      setNotice({
-        message: "용역 수행성과 정보를 삭제했습니다.",
-        severity: "success",
-      });
+      showSuccess("용역 수행성과 정보를 삭제했습니다.");
     },
-    onError: (error) =>
-      setNotice({
-        message:
-          error instanceof Error ? error.message : "삭제에 실패했습니다.",
-        severity: "error",
-      }),
+    onError: (error, fallback) => showError(error instanceof Error ? error.message : fallback),
+    onSaved: (saved) => {
+      setDraft(saved);
+      setSelectedRowId(saved.id);
+      setSaveConfirmOpen(false);
+      showSuccess("용역 수행성과 정보를 저장했습니다.");
+    },
   });
 
   const columns = useMemo<GridColDef<ServicePerformanceRecord>[]>(
@@ -518,10 +462,7 @@ export function ServicePerformanceManagementPage() {
 
   const handleOpenDetail = () => {
     if (draft.id === 0 && selectedRowId === null) {
-      setNotice({
-        message: "먼저 선택할 수행성과를 골라 주세요.",
-        severity: "error",
-      });
+      showError("먼저 선택할 수행성과를 골라 주세요.");
       return;
     }
     setDetailDialogOpen(true);
@@ -529,11 +470,11 @@ export function ServicePerformanceManagementPage() {
 
   const handleSaveClick = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
+      showError("수정 권한이 없습니다.");
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showError("등록 권한이 없습니다.");
       return;
     }
     setSaveConfirmOpen(true);
@@ -541,10 +482,7 @@ export function ServicePerformanceManagementPage() {
 
   const handleDeleteClick = () => {
     if (!draft.id) {
-      setNotice({
-        message: "삭제할 대상을 먼저 선택해 주세요.",
-        severity: "error",
-      });
+      showError("삭제할 대상을 먼저 선택해 주세요.");
       return;
     }
     setDeleteTarget(draft);
@@ -933,7 +871,7 @@ export function ServicePerformanceManagementPage() {
         loading={saveMutation.isPending}
         message="용역 수행성과 정보를 저장하시겠습니까?"
         onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate()}
+        onConfirm={() => saveMutation.mutate(toRequest(draft))}
         open={saveConfirmOpen}
         targetLabel={draft.siteName || draft.fieldName}
         title="저장 확인"
@@ -948,22 +886,6 @@ export function ServicePerformanceManagementPage() {
         title="삭제 확인"
       />
 
-      {notice ? (
-        <Snackbar
-          anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
-          autoHideDuration={2500}
-          onClose={() => setNotice(null)}
-          open
-        >
-          <Alert
-            onClose={() => setNotice(null)}
-            severity={notice.severity}
-            variant="filled"
-          >
-            {notice.message}
-          </Alert>
-        </Snackbar>
-      ) : null}
     </Box>
   );
 }

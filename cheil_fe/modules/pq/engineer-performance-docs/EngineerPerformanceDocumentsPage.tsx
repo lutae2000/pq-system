@@ -27,7 +27,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 
@@ -43,25 +42,19 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { listCertifications } from "@/modules/code/certifications/api";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer-performance-docs/engineerPerformanceDocumentsExcel";
 import {
-  createEngineerProjectHistoryReviewResults,
-  deleteEngineerProjectHistoryReviewResult,
-  listEngineerDocumentValueSettings,
-  listEngineerProjectHistories,
   listEngineerProjectHistoryReviewResults,
-  syncEngineerProjectHistoryReviewResults,
-  saveEngineerDocumentValueSetting,
-  updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
-import { getEngineerProfile, listSelectedEngineerProfilesForBidNotice } from "@/modules/pq/engineers/api";
-import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
+import { getEngineerProfile } from "@/modules/pq/engineers/api";
+
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import { useEngineerPerformanceDocuments } from "@/modules/pq/engineer-performance-docs/application/useEngineerPerformanceDocuments";
+import { useEngineerPerformanceDocumentsQueries } from "@/modules/pq/engineer-performance-docs/application/useEngineerPerformanceDocumentsQueries";
 
 const BidNoticeSelectDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeSelectDialog").then((module) => module.BidNoticeSelectDialog),
@@ -91,12 +84,6 @@ type EngineerDocumentRow = {
   selectedCount: number;
   status: string;
   documentValueConfigured: boolean;
-};
-
-type InlineDocumentValueChange = {
-  educationId: number | null;
-  engineerId: string;
-  licenseId: number | null;
 };
 
 type PerformanceHistoryRow = EngineerProjectHistoryReviewRecord & {
@@ -176,26 +163,17 @@ const formatDateYmd = (value: string | number | null | undefined) => {
   return raw;
 };
 
-const dateSortValue = (value: string | number | null | undefined) => {
-  const digits = text(value).replace(/\D/g, "").slice(0, 8);
-  return digits.length === 8 ? Number(digits) : Number.MAX_SAFE_INTEGER;
-};
-
-const compareHistoryRowsForDisplayOrder = (left: PerformanceHistoryRow, right: PerformanceHistoryRow) =>
-  dateSortValue(left.contractFromDate) - dateSortValue(right.contractFromDate) ||
-  dateSortValue(left.startDate) - dateSortValue(right.startDate);
-
 export function EngineerPerformanceDocumentsPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
   const workDutyId = currentSession?.loginId ?? "";
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
   const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [keyword, setKeyword] = useState("");
+  const [submittedKeyword, setSubmittedKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
   const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
@@ -221,26 +199,19 @@ export function EngineerPerformanceDocumentsPage() {
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
   const engLevelReferences = useCommonCodeLevel2Options("51", { useYn: "Y" }, { enabled: canRead });
 
-  const engineersQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidNotice?.bidSeq ?? "none", workDutyId, keyword.trim()],
-    queryFn: () =>
-      listSelectedEngineerProfilesForBidNotice({
-        bidSeq: selectedBidNotice?.bidSeq ?? 0,
-        workDutyId,
-        keyword,
-      }),
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq && workDutyId),
-  });
-
-  const documentValueSettingsQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "document-value-settings", selectedBidNotice?.bidSeq ?? "none"],
-    queryFn: () => listEngineerDocumentValueSettings(selectedBidNotice?.bidSeq ?? 0),
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
-  });
-  const certificationsQuery = useQuery({
-    queryKey: ["code-certifications", "engineer-performance-docs"],
-    queryFn: listCertifications,
-    enabled: tabQueryEnabled && Boolean(selectedBidNotice?.bidSeq),
+  const {
+    activeEngineerProfileQuery,
+    certificationsQuery,
+    documentValueSettingsQuery,
+    engineersQuery,
+    projectHistoryRowsQuery,
+    reviewRowsQuery,
+  } = useEngineerPerformanceDocumentsQueries({
+    activeEngineerId,
+    bidSeq: selectedBidNotice?.bidSeq ?? null,
+    keyword: submittedKeyword,
+    tabQueryEnabled,
+    workDutyId,
   });
 
   const profiles = useMemo(() => engineersQuery.data ?? [], [engineersQuery.data]);
@@ -278,34 +249,9 @@ export function EngineerPerformanceDocumentsPage() {
 
   const selectedBidSeq = selectedBidNotice?.bidSeq ?? null;
 
-  const activeEngineerProfileQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "active-engineer-profile", activeEngineerId || "none"],
-    queryFn: () => getEngineerProfile(activeEngineerId),
-    enabled: tabQueryEnabled && Boolean(activeEngineerId),
-  });
   const activeEngineerProfile = activeEngineerProfileQuery.data
     ?? profiles.find((profile) => profile.summary.id === activeEngineerId)
     ?? null;
-
-  const saveInlineDocumentValueMutation = useMutation({
-    mutationFn: (change: InlineDocumentValueChange) => {
-      if (!selectedBidSeq) {
-        throw new Error("공고를 먼저 선택하세요.");
-      }
-      return saveEngineerDocumentValueSetting({ bidSeq: selectedBidSeq, ...change });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "document-value-settings", selectedBidSeq ?? "none"] });
-      showSuccess("선택 학력·자격이 저장되었습니다.");
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "선택 학력·자격을 저장하지 못했습니다."),
-  });
-
-  const projectHistoryRowsQuery = useQuery({
-    queryKey: ["engineer-performance-docs", "project-histories", activeEngineerId || "none"],
-    queryFn: () => listEngineerProjectHistories(activeEngineerId),
-    enabled: tabQueryEnabled && Boolean(activeEngineerId),
-  });
 
   const activeEngineerHistoryRows = useMemo<PerformanceHistoryRow[]>(
     () =>
@@ -315,21 +261,6 @@ export function EngineerPerformanceDocumentsPage() {
       })),
     [activeEngineerProfile?.summary, projectHistoryRowsQuery.data],
   );
-
-  const reviewRowsQuery = useQuery({
-    queryKey: [
-      "engineer-performance-docs",
-      "review-results",
-      selectedBidSeq ?? "none",
-      activeEngineerId || "none",
-    ],
-    queryFn: () =>
-      listEngineerProjectHistoryReviewResults({
-            bidSeq: selectedBidSeq ?? 0,
-            engineerId: activeEngineerId,
-          }),
-    enabled: tabQueryEnabled && Boolean(selectedBidSeq) && Boolean(activeEngineerId),
-  });
 
   const reviewRows = useMemo(() => reviewRowsQuery.data ?? [], [reviewRowsQuery.data]);
   const reviewRowById = useMemo(() => new Map(reviewRows.filter((row) => row.reviewId != null).map((row) => [String(row.reviewId), row])), [reviewRows]);
@@ -431,6 +362,31 @@ export function EngineerPerformanceDocumentsPage() {
     },
     [reviewRowIds, reviewSelectionAnchorId],
   );
+  const documentActions = useEngineerPerformanceDocuments({
+    activeEngineerId,
+    bidSeq: selectedBidSeq,
+    canCreate,
+    canDelete,
+    canUpdate,
+    getSortedReviewRows: () => (reviewGridApiRef.current?.getSortedRows() ?? []) as EngineerProjectHistoryReviewRecord[],
+    onActiveEngineerDeleted: () => setActiveEngineerId(""),
+    onReviewSelectionCleared: () => setSelectedHistoryIds([]),
+    onReviewAdded: () => setAddConfirmOpen(false),
+    onReviewDeleted: () => {
+      setPendingBulkDeleteReviewIds(null);
+      setSelectedReviewIds([]);
+    },
+    onReviewRenumbered: () => setRenumberReviewDialogOpen(false),
+    pendingBulkDeleteEngineerIds,
+    pendingBulkDeleteReviewIds,
+    profiles,
+    selectedHistoryRows,
+    reviewRowById,
+    reviewRows,
+    showError,
+    showSuccess,
+  });
+
   const labelByJobField = jobFieldReferences.labelByValue;
   const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
   const labelByEngLevel = engLevelReferences.labelByValue;
@@ -473,12 +429,12 @@ export function EngineerPerformanceDocumentsPage() {
               displayEmpty
               size="small"
               value={selectedId}
-              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.education.length || saveInlineDocumentValueMutation.isPending}
+              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.education.length || documentActions.saveInlineDocumentValueMutation.isPending}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
               onChange={(event) => {
                 event.stopPropagation();
-                saveInlineDocumentValueMutation.mutate({
+                documentActions.saveInlineDocumentValueMutation.mutate({
                   educationId: event.target.value ? Number(event.target.value) : null,
                   engineerId: row.engineerId,
                   licenseId: saved?.licenseId ?? null,
@@ -519,12 +475,12 @@ export function EngineerPerformanceDocumentsPage() {
               displayEmpty
               size="small"
               value={selectedId}
-              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.certificates.length || saveInlineDocumentValueMutation.isPending}
+              disabled={!canUpdate || documentValueSettingsQuery.isFetching || !profile?.certificates.length || documentActions.saveInlineDocumentValueMutation.isPending}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
               onChange={(event) => {
                 event.stopPropagation();
-                saveInlineDocumentValueMutation.mutate({
+                documentActions.saveInlineDocumentValueMutation.mutate({
                   educationId: saved?.educationId ?? null,
                   engineerId: row.engineerId,
                   licenseId: event.target.value ? Number(event.target.value) : null,
@@ -548,7 +504,7 @@ export function EngineerPerformanceDocumentsPage() {
         },
       },
     ],
-    [canUpdate, certificateLabelByCode, documentValueSettingsByEngineerId, documentValueSettingsQuery.isFetching, labelByJobField, labelBySpecialtyField, profilesByEngineerId, saveInlineDocumentValueMutation],
+    [canUpdate, certificateLabelByCode, documentValueSettingsByEngineerId, documentValueSettingsQuery.isFetching, labelByJobField, labelBySpecialtyField, profilesByEngineerId, documentActions.saveInlineDocumentValueMutation],
   );
 
   const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(
@@ -751,6 +707,7 @@ export function EngineerPerformanceDocumentsPage() {
     setReviewSelectionAnchorId(null);
     setPendingBulkDeleteReviewIds(null);
     setPerformanceDetailSeq(null);
+    setSubmittedKeyword(keyword.trim());
     void engineersQuery.refetch();
     if (activeEngineerId) {
       void projectHistoryRowsQuery.refetch();
@@ -759,6 +716,7 @@ export function EngineerPerformanceDocumentsPage() {
 
   const handleReset = () => {
     setKeyword("");
+    setSubmittedKeyword("");
     setActiveEngineerId("");
     setSelectedHistoryIds([]);
     setSelectedReviewIds([]);
@@ -766,193 +724,6 @@ export function EngineerPerformanceDocumentsPage() {
     setPendingBulkDeleteReviewIds(null);
     setRelatedProjectHistoryConditions([]);
   };
-
-  const invalidateReviewRows = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "review-results"] });
-  };
-
-  const syncReviewResultsForConditions = useCallback(
-    async (conditions: RelatedProjectHistoryCondition[]) => {
-      if ((!canCreate && !canUpdate) || !selectedBidSeq || profiles.length === 0) {
-        return;
-      }
-
-      try {
-        await Promise.all(
-          profiles.map((profile) =>
-            syncEngineerProjectHistoryReviewResults({
-              bidSeq: selectedBidSeq,
-              engineerId: profile.summary.id,
-              relatedProjectHistoryConditions: conditions,
-            }),
-          ),
-        );
-        await queryClient.invalidateQueries({ queryKey: ["engineer-performance-docs", "review-results"] });
-        showSuccess("관련 공사 참여 이력을 검토결과에 반영했습니다.");
-      } catch (error) {
-        showError(error instanceof Error ? error.message : "관련 공사 참여 이력을 검토결과에 반영하지 못했습니다.");
-        throw error;
-      }
-    },
-    [canCreate, canUpdate, profiles, queryClient, selectedBidSeq, showError, showSuccess],
-  );
-
-  const addReviewMutation = useMutation({
-    mutationFn: async () => {
-      if (!canCreate || !selectedBidNotice?.bidSeq) {
-        throw new Error("공고문을 먼저 선택하세요.");
-      }
-      if (!activeEngineerProfile) {
-        throw new Error("기술인을 먼저 선택하세요.");
-      }
-
-      const bidSeq = selectedBidNotice.bidSeq;
-      const uniqueRowsBySourceHistoryId = Array.from(new Map(selectedHistoryRows.map((row) => [text(row.id), row])).values());
-      const orderedRows = [...uniqueRowsBySourceHistoryId].sort(compareHistoryRowsForDisplayOrder);
-      const nextDisplayOrder = Math.max(0, ...reviewRows.map((row) => row.displayOrder ?? 0)) + 1;
-      const requestBodies = orderedRows.map((row, index) => ({
-        bidSeq,
-        engineerId: activeEngineerProfile.summary.id,
-        sourceSeq: Number(row.id),
-        displayOrder: nextDisplayOrder + index,
-        sourceRow: row,
-      }));
-
-      return createEngineerProjectHistoryReviewResults(requestBodies);
-    },
-    onSuccess: async () => {
-      setSelectedHistoryIds([]);
-      setAddConfirmOpen(false);
-      await invalidateReviewRows();
-    },
-  });
-
-  const deleteReviewMutation = useMutation({
-    mutationFn: async () => {
-      if (!canDelete || !selectedBidNotice?.bidSeq) {
-        throw new Error("삭제할 검토결과가 없습니다.");
-      }
-
-      const bidSeq = selectedBidNotice.bidSeq;
-      const targetReviews =
-        pendingBulkDeleteReviewIds && pendingBulkDeleteReviewIds.length > 0
-          ? pendingBulkDeleteReviewIds
-              .map((reviewId) => reviewRowById.get(reviewId))
-              .filter((row): row is EngineerProjectHistoryReviewRecord & { reviewId: number } => Boolean(row?.reviewId))
-          : [];
-
-      if (targetReviews.length === 0) {
-        throw new Error("삭제할 검토결과가 없습니다.");
-      }
-
-      await Promise.all(
-        targetReviews.map((row) =>
-          deleteEngineerProjectHistoryReviewResult({
-            bidSeq,
-            engineerId: row.engineerId,
-            reviewId: row.reviewId,
-          }),
-        ),
-      );
-    },
-    onSuccess: async () => {
-      setPendingBulkDeleteReviewIds(null);
-      setSelectedReviewIds([]);
-      await invalidateReviewRows();
-    },
-  });
-
-  const renumberReviewMutation = useMutation({
-    mutationFn: async () => {
-      const sortedRows = (reviewGridApiRef.current?.getSortedRows() ?? []) as EngineerProjectHistoryReviewRecord[];
-      const rowsWithReviewId = sortedRows.filter((row) => row.reviewId != null);
-
-      await Promise.all(
-        rowsWithReviewId.map((row, index) =>
-          updateEngineerProjectHistoryReviewResult(
-            {
-              bidSeq: row.bidSeq ?? selectedBidSeq ?? 0,
-              engineerId: row.engineerId,
-              sourceSeq: row.sourceSeq,
-              displayOrder: index + 1,
-              sourceRow: row,
-            },
-            row.reviewId!,
-          ),
-        ),
-      );
-    },
-    onSuccess: async () => {
-      setRenumberReviewDialogOpen(false);
-      await invalidateReviewRows();
-      showSuccess("현재 정렬 순서로 순번을 저장했습니다.");
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "현재 정렬 순서로 순번을 저장하지 못했습니다."),
-  });
-
-  const deleteEngineerMutation = useMutation({
-    mutationFn: async () => {
-      if (!canDelete || !selectedBidSeq || !pendingBulkDeleteEngineerIds?.length) {
-        throw new Error("삭제할 기술인이 없습니다.");
-      }
-
-      const participatingEngineers = await listPqParticipatingEngineers({ bidSeq: selectedBidSeq });
-      const targetEngineerIds = new Set(pendingBulkDeleteEngineerIds);
-      const targetRows = participatingEngineers.filter((row) => targetEngineerIds.has(row.engrId));
-
-      if (targetRows.length === 0) {
-        throw new Error("삭제할 기술인이 없습니다.");
-      }
-
-      await Promise.all(
-        targetRows.map((row) => deletePqParticipatingEngineer(row.bidSeq, row.workDutyId, row.engrId)),
-      );
-    },
-    onSuccess: async () => {
-      const deletedEngineerIds = pendingBulkDeleteEngineerIds ?? [];
-      setPendingBulkDeleteEngineerIds(null);
-      setSelectedEngineerIds([]);
-      if (deletedEngineerIds.includes(activeEngineerId)) {
-        setActiveEngineerId("");
-      }
-      await queryClient.invalidateQueries({
-        queryKey: ["engineer-performance-docs", "selected-engineers", selectedBidSeq ?? "none"],
-      });
-      showSuccess("선택한 기술인을 삭제했습니다.");
-    },
-  });
-
-  const processReviewRowUpdate = useCallback(
-    async (updatedRow: EngineerProjectHistoryReviewRecord, originalRow: EngineerProjectHistoryReviewRecord) => {
-      if (!canUpdate || updatedRow.reviewId == null) {
-        return originalRow;
-      }
-
-      const displayOrder = Number(updatedRow.displayOrder);
-      if (!Number.isInteger(displayOrder) || displayOrder < 1) {
-        throw new Error("순번은 1 이상의 정수로 입력해 주세요.");
-      }
-
-      try {
-        const saved = await updateEngineerProjectHistoryReviewResult(
-          {
-            bidSeq: updatedRow.bidSeq ?? selectedBidSeq ?? 0,
-            engineerId: updatedRow.engineerId,
-            sourceSeq: updatedRow.sourceSeq,
-            displayOrder,
-            sourceRow: originalRow,
-          },
-          updatedRow.reviewId,
-        );
-        showSuccess("검토결과 순번을 저장했습니다.");
-        return saved;
-      } catch (error) {
-        showError(error instanceof Error ? error.message : "검토결과 순번을 저장하지 못했습니다.");
-        throw error;
-      }
-    },
-    [canUpdate, selectedBidSeq, showError, showSuccess],
-  );
 
   const handleExcelDownload = useCallback(async () => {
     if (!canRead || !selectedBidNotice?.bidSeq || profiles.length === 0 || isExcelDownloading) {
@@ -1143,7 +914,7 @@ export function EngineerPerformanceDocumentsPage() {
                     <IconButton
                       aria-label="선택한 기술인 삭제"
                       color="error"
-                      disabled={!canDelete || selectedEngineerIds.length === 0 || deleteEngineerMutation.isPending}
+                      disabled={!canDelete || selectedEngineerIds.length === 0 || documentActions.deleteEngineerMutation.isPending}
                       onClick={openEngineerDeleteConfirm}
                       size="small"
                       title="선택한 기술인 삭제"
@@ -1344,12 +1115,12 @@ export function EngineerPerformanceDocumentsPage() {
                         bidSeq={selectedBidSeq}
                         disabled={!canCreate && !canUpdate}
                         onApply={setRelatedProjectHistoryConditions}
-                        onSaved={syncReviewResultsForConditions}
+                        onSaved={documentActions.syncReviewResults}
                         value={relatedProjectHistoryConditions}
                       />
                       <Chip color="success" label={`검토결과 ${reviewRows.length}건`} size="small" />
                       <Button
-                        disabled={!canUpdate || !reviewRows.some((row) => row.reviewId != null) || renumberReviewMutation.isPending}
+                        disabled={!canUpdate || !reviewRows.some((row) => row.reviewId != null) || documentActions.renumberReviewMutation.isPending}
                         onClick={() => setRenumberReviewDialogOpen(true)}
                         size="small"
                         startIcon={<FormatListNumberedOutlinedIcon />}
@@ -1403,7 +1174,7 @@ export function EngineerPerformanceDocumentsPage() {
                     onProcessRowUpdateError={() => undefined}
                     pageSizeOptions={[25, 50, 100]}
                     paginationModel={reviewPaginationModel}
-                    processRowUpdate={canUpdate ? processReviewRowUpdate : undefined}
+                    processRowUpdate={canUpdate ? documentActions.processReviewRowUpdate : undefined}
                     rows={reviewRows}
                     summaryColumns={[
                       { field: "contractAmt", label: "계약금액", format: (value) => formatMoney(value) },
@@ -1447,6 +1218,7 @@ export function EngineerPerformanceDocumentsPage() {
             setSelectedBidNotice(record);
             setBidNoticeDialogOpen(false);
             setKeyword("");
+            setSubmittedKeyword("");
             setActiveEngineerId("");
             setPerformanceDetailSeq(null);
             setSelectedHistoryIds([]);
@@ -1470,38 +1242,38 @@ export function EngineerPerformanceDocumentsPage() {
       <ConfirmActionDialog
         confirmColor="primary"
         confirmLabel="추가"
-        loading={addReviewMutation.isPending}
+        loading={documentActions.addReviewMutation.isPending}
         message="선택한 기술인의 프로젝트 이력을 관련공사 참여이력 검토결과에 추가합니다."
         onClose={() => setAddConfirmOpen(false)}
-        onConfirm={() => void addReviewMutation.mutateAsync()}
+        onConfirm={() => void documentActions.addReviewMutation.mutateAsync()}
         open={addConfirmOpen}
         targetLabel={`${selectedHistoryRows.length}건`}
         title="검토결과 추가 확인"
       />
       <ConfirmDeleteDialog
-        loading={deleteReviewMutation.isPending}
+        loading={documentActions.deleteReviewMutation.isPending}
         onClose={() => {
           setPendingBulkDeleteReviewIds(null);
         }}
-        onConfirm={() => void deleteReviewMutation.mutateAsync()}
+        onConfirm={() => void documentActions.deleteReviewMutation.mutateAsync()}
         open={Boolean(pendingBulkDeleteReviewIds?.length)}
         targetLabel={pendingBulkDeleteReviewIds?.length ? `${pendingBulkDeleteReviewIds.length}건` : undefined}
       />
       <ConfirmActionDialog
         confirmLabel="순번 적용"
-        loading={renumberReviewMutation.isPending}
+        loading={documentActions.renumberReviewMutation.isPending}
         message="현재 Grid 정렬 순서대로 관련공사 참여이력 검토결과 순번을 다시 저장하시겠습니까?"
         onClose={() => setRenumberReviewDialogOpen(false)}
-        onConfirm={() => void renumberReviewMutation.mutate()}
+        onConfirm={() => void documentActions.renumberReviewMutation.mutate()}
         open={renumberReviewDialogOpen}
         title="순번 일괄 적용 확인"
       />
       <ConfirmDeleteDialog
-        loading={deleteEngineerMutation.isPending}
+        loading={documentActions.deleteEngineerMutation.isPending}
         onClose={() => {
           setPendingBulkDeleteEngineerIds(null);
         }}
-        onConfirm={() => void deleteEngineerMutation.mutateAsync()}
+        onConfirm={() => void documentActions.deleteEngineerMutation.mutateAsync()}
         open={Boolean(pendingBulkDeleteEngineerIds?.length)}
         targetLabel={pendingBulkDeleteEngineerIds?.length ? `${pendingBulkDeleteEngineerIds.length}명` : undefined}
       />

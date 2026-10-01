@@ -14,7 +14,6 @@ import type {
   GridRowParams,
   GridRowSelectionModel,
 } from "@mui/x-data-grid";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -23,16 +22,13 @@ import { ResizableCard } from "@/components/common/ResizableCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
-import { useTabActivity } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import { listEngineerProfiles, type EngineerProfileListFilters } from "@/modules/pq/engineers/api";
+import type { EngineerProfileListFilters } from "@/modules/pq/engineers/api";
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import {
-  listWorkOverlapEngineerContracts,
-  type WorkOverlapEngineerContractPageResponse,
   type WorkOverlapEngineerContractRecord,
 } from "@/modules/work-overlap/engineers/api";
+import { useWorkOverlapEngineerListQueries } from "@/modules/work-overlap/engineers/application/useWorkOverlapEngineerListQueries";
 
 const WorkOverlapContractDetailDialog = dynamic(
   () => import("@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog").then((module) => module.WorkOverlapContractDetailDialog),
@@ -490,46 +486,8 @@ function SummaryCard({
   );
 }
 
-type ContractQueryResult = {
-  rowCount: number;
-  rows: WorkOverlapEngineerContractRow[];
-};
-
-async function loadSelectedEngineerContracts(
-  selectedEngineer: WorkOverlapEngineerRow,
-  referenceDate: string,
-  remainingDays: number,
-  excludeCompleted: boolean,
-  page: number,
-  pageSize: number,
-): Promise<ContractQueryResult> {
-  const response: WorkOverlapEngineerContractPageResponse = await listWorkOverlapEngineerContracts(selectedEngineer.engineerId, {
-    excludeCompleted,
-    page,
-    referenceDate,
-    remainingDays,
-    size: pageSize,
-  });
-
-  const rows = (response.content ?? []).map(
-    (contract) =>
-      ({
-        ...contract,
-        recognizedDays: "",
-        selectedEngineerId: selectedEngineer.engineerId,
-        selectedEngineerName: selectedEngineer.name,
-      }) satisfies WorkOverlapEngineerContractRow,
-  );
-
-  return {
-    rowCount: response.totalElements,
-    rows,
-  };
-}
-
 export function WorkOverlapEngineerListPage() {
   const { canRead } = useCurrentMenuPermission();
-  const isTabActive = useTabActivity();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [selectedEngineerId, setSelectedEngineerId] = useState("");
@@ -554,14 +512,28 @@ export function WorkOverlapEngineerListPage() {
     [appliedFilters],
   );
 
-  const engineerProfilesQuery = useQuery({
-    queryKey: ["pq-engineers", engineerQueryFilters],
-    queryFn: () => listEngineerProfiles(engineerQueryFilters),
-    enabled: canRead && isTabActive,
-  });
+  const isReferenceDateValid = Boolean(appliedFilters.referenceDate.trim());
+  const isRemainingDaysValid = Boolean(appliedFilters.remainingDays.trim());
+  const isQueryValid = isReferenceDateValid && isRemainingDaysValid;
+  const appliedReferenceDate = appliedFilters.referenceDate || todayInputValue();
+  const remainingDaysValue = Number(normalizePositiveInteger(appliedFilters.remainingDays)) || 0;
 
-  const jobFieldReferencesQuery = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead && isTabActive });
-  const specialtyFieldReferencesQuery = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead && isTabActive });
+  const {
+    engineerProfilesQuery,
+    jobFieldReferencesQuery,
+    specialtyFieldReferencesQuery,
+    contractsQuery,
+  } = useWorkOverlapEngineerListQueries({
+    canRead,
+    engineerFilters: engineerQueryFilters,
+    selectedEngineerId,
+    referenceDate: appliedReferenceDate,
+    remainingDays: remainingDaysValue,
+    excludeCompleted: appliedFilters.excludeCompleted,
+    contractPage: contractPaginationModel.page,
+    contractPageSize: contractPaginationModel.pageSize,
+    contractsEnabled: isQueryValid,
+  });
 
   const engineers = useMemo(
     () => uniqueBy((engineerProfilesQuery.data ?? []).map(mapEngineerProfileToRow), (row) => row.engineerId),
@@ -583,11 +555,6 @@ export function WorkOverlapEngineerListPage() {
 
     return engineers.find((engineer) => engineer.engineerId === selectedEngineerId) ?? selectedEngineerRows.get(selectedEngineerId) ?? null;
   }, [engineers, selectedEngineerId, selectedEngineerRows]);
-
-  const isReferenceDateValid = Boolean(appliedFilters.referenceDate.trim());
-  const isRemainingDaysValid = Boolean(appliedFilters.remainingDays.trim());
-  const isQueryValid = isReferenceDateValid && isRemainingDaysValid;
-  const remainingDaysValue = Number(normalizePositiveInteger(appliedFilters.remainingDays)) || 0;
 
   const jobFieldOptions = useMemo<CodeOption[]>(() => jobFieldReferencesQuery.options, [jobFieldReferencesQuery.options]);
   const specialtyFieldOptions = useMemo<CodeOption[]>(
@@ -619,7 +586,6 @@ export function WorkOverlapEngineerListPage() {
     () => (showSelectedEngineersOnly ? Array.from(selectedEngineerRows.values()).filter((row) => selectedEngineerIds.has(row.engineerId)) : filteredEngineers),
     [filteredEngineers, selectedEngineerIds, selectedEngineerRows, showSelectedEngineersOnly],
   );
-  const appliedReferenceDate = appliedFilters.referenceDate || todayInputValue();
   const selectedEngineerIdForQuery = selectedEngineer?.engineerId ?? "";
 
   useEffect(() => {
@@ -646,6 +612,35 @@ export function WorkOverlapEngineerListPage() {
     selectedEngineerId,
   ]);
 
+  useEffect(() => {
+    if (!engineerProfilesQuery.isSuccess || engineerProfilesQuery.isFetching || !selectedEngineerId) {
+      return;
+    }
+
+    const selectedEngineerIsVisible = showSelectedEngineersOnly
+      ? selectedEngineerIds.has(selectedEngineerId)
+      : engineers.some((engineer) => engineer.engineerId === selectedEngineerId);
+    if (selectedEngineerIsVisible) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSelectedEngineerId("");
+      setSelectedContractIds(new Set());
+      setDeselectedContractIds(new Set());
+      setContractPaginationModel((current) => (current.page === 0 ? current : { ...current, page: 0 }));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    engineerProfilesQuery.isFetching,
+    engineerProfilesQuery.isSuccess,
+    engineers,
+    selectedEngineerId,
+    selectedEngineerIds,
+    showSelectedEngineersOnly,
+  ]);
+
   const selectedEngineerRowId = visibleEngineers.some((row) => row.engineerId === selectedEngineerIdForQuery)
     ? selectedEngineerIdForQuery
     : "";
@@ -655,32 +650,19 @@ export function WorkOverlapEngineerListPage() {
     [selectedEngineerIds],
   );
 
-  const contractsQuery = useQuery({
-    queryKey: [
-      "work-overlap-engineer-contracts",
-      selectedEngineerIdForQuery,
-      appliedReferenceDate,
-      remainingDaysValue,
-      appliedFilters.excludeCompleted,
-      contractPaginationModel.page,
-      contractPaginationModel.pageSize,
-    ],
-    queryFn: () =>
-      selectedEngineer
-        ? loadSelectedEngineerContracts(
-            selectedEngineer,
-            appliedReferenceDate,
-            remainingDaysValue,
-            appliedFilters.excludeCompleted,
-            contractPaginationModel.page,
-            contractPaginationModel.pageSize,
-          )
-        : Promise.resolve({ rowCount: 0, rows: [] }),
-    enabled: canRead && isTabActive && isQueryValid && Boolean(selectedEngineerIdForQuery),
-    placeholderData: keepPreviousData,
-  });
-
-  const selectedContracts = useMemo(() => contractsQuery.data?.rows ?? [], [contractsQuery.data]);
+  const selectedContracts = useMemo(
+    () =>
+      (contractsQuery.data?.content ?? []).map(
+        (contract) =>
+          ({
+            ...contract,
+            recognizedDays: "",
+            selectedEngineerId: selectedEngineerIdForQuery,
+            selectedEngineerName: selectedEngineer?.name ?? "",
+          }) satisfies WorkOverlapEngineerContractRow,
+      ),
+    [contractsQuery.data?.content, selectedEngineer?.name, selectedEngineerIdForQuery],
+  );
   const selectedContractsUnique = useMemo(() => uniqueBy(selectedContracts, (row) => row.contractNo), [selectedContracts]);
   const selectedContractDefaultIds = useMemo(
     () => selectedContractsUnique.filter((row) => row.checkYn).map((row) => row.contractNo),
@@ -699,7 +681,7 @@ export function WorkOverlapEngineerListPage() {
     () => ({ ids: new Set<GridRowId>(selectedContractResolvedIds), type: "include" }),
     [selectedContractResolvedIds],
   );
-  const selectedContractsRowCount = contractsQuery.data?.rowCount ?? 0;
+  const selectedContractsRowCount = contractsQuery.data?.totalElements ?? 0;
   const selectedContractRows = useMemo(
     () => selectedContractsUnique.filter((row) => selectedContractResolvedIds.has(row.contractNo)),
     [selectedContractResolvedIds, selectedContractsUnique],

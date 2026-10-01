@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
 import RetryOutlinedIcon from "@mui/icons-material/ReplayOutlined";
@@ -13,9 +12,9 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
-import { listEducationReminderSendHistory, retryEducationReminderSend } from "../send/api";
 import type { EducationReminderSendHistoryRecord } from "../send/types";
 import { EducationReminderSendRetryDialog } from "./EducationReminderSendRetryDialog";
+import { useEducationReminderSendHistory } from "./application/useEducationReminderSendHistory";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
@@ -101,7 +100,6 @@ export function EducationReminderSendHistoryPage() {
   const canRetry = canCreate || canUpdate;
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
-  const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
@@ -112,17 +110,22 @@ export function EducationReminderSendHistoryPage() {
   });
   const [retryDialogOpen, setRetryDialogOpen] = useState(false);
 
-  const query = useQuery({
-    queryKey: ["education-reminders", "send-history", appliedFilters],
-    queryFn: () =>
-      listEducationReminderSendHistory({
-        channel: appliedFilters.channel || undefined,
-        keyword: appliedFilters.keyword.trim() || undefined,
-        requestedFrom: appliedFilters.requestedFrom || undefined,
-        requestedTo: appliedFilters.requestedTo || undefined,
-        status: appliedFilters.status || undefined,
-      }),
+  const { query, retryMutation } = useEducationReminderSendHistory({
+    canRetry,
     enabled: tabQueryEnabled,
+    params: {
+      channel: appliedFilters.channel || undefined,
+      keyword: appliedFilters.keyword.trim() || undefined,
+      requestedFrom: appliedFilters.requestedFrom || undefined,
+      requestedTo: appliedFilters.requestedTo || undefined,
+      status: appliedFilters.status || undefined,
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "재발송을 처리하지 못했습니다."),
+    onSuccess: (insertedCount) => {
+      showSuccess(`재발송을 등록했습니다. ${insertedCount}건 처리 대기.`);
+      setRetryDialogOpen(false);
+      setSelectedRowSelection({ ids: new Set(), type: "include" });
+    },
   });
 
   const rows = useMemo(() => query.data ?? [], [query.data]);
@@ -131,7 +134,9 @@ export function EducationReminderSendHistoryPage() {
     [rows, selectedRowId],
   );
   const selectedRows = useMemo(
-    () => rows.filter((row) => selectedRowSelection.ids.has(row.logId)),
+    () => selectedRowSelection.type === "exclude"
+      ? rows.filter((row) => !selectedRowSelection.ids.has(row.logId))
+      : rows.filter((row) => selectedRowSelection.ids.has(row.logId)),
     [rows, selectedRowSelection],
   );
   const retryDialogKey = useMemo(
@@ -147,16 +152,6 @@ export function EducationReminderSendHistoryPage() {
     return { failed, pending, success, total };
   }, [rows]);
 
-  const retryMutation = useMutation({
-    mutationFn: retryEducationReminderSend,
-    onSuccess: async (response) => {
-      showSuccess(`재발송을 등록했습니다. ${response.insertedCount}건 처리 대기.`);
-      setRetryDialogOpen(false);
-      setSelectedRowSelection({ ids: new Set(), type: "include" });
-      await queryClient.invalidateQueries({ queryKey: ["education-reminders", "send-history"] });
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "재발송을 처리하지 못했습니다."),
-  });
 
   const columns = useMemo<GridColDef<EducationReminderSendHistoryRecord>[]>(
     () => [

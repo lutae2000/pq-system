@@ -9,7 +9,6 @@ import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRenderCellParams, GridRowParams } from "@mui/x-data-grid";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,12 +21,6 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
-  createWorkOverlapContract,
-  deleteWorkOverlapContract,
-  getWorkOverlapContractSummary,
-  listWorkOverlapContractEngineerCandidates,
-  listWorkOverlapContracts,
-  updateWorkOverlapContract,
   WORK_OVERLAP_CONTRACT_PAGE_SIZE,
   type WorkOverlapContractEngineerCandidate,
   type WorkOverlapContractPageResponse,
@@ -36,6 +29,8 @@ import {
   type WorkOverlapContractSummaryParams,
   type WorkOverlapContractSummaryResponse,
 } from "@/modules/work-overlap/contracts/api";
+import { useWorkOverlapContractMutations } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractMutations";
+import { useWorkOverlapContractQueries } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractQueries";
 import type { WorkOverlapContractSavePayload } from "@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog";
 import {
   defaultWorkOverlapContractRecord,
@@ -212,7 +207,6 @@ const diffDays = (leftKey: string, rightKey: string) => {
 export function WorkOverlapContractManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
   const { showError, showSuccess } = useAppSnackbar();
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -241,22 +235,7 @@ export function WorkOverlapContractManagementPage() {
     return () => window.clearTimeout(timeoutId);
   }, [engineerKeyword]);
 
-  const engineerCandidatesQuery = useQuery({
-    queryKey: ["work-overlap-contract-engineer-candidates", debouncedEngineerKeyword],
-    queryFn: () => listWorkOverlapContractEngineerCandidates({ keyword: debouncedEngineerKeyword, limit: 30 }),
-    enabled: tabQueryEnabled && debouncedEngineerKeyword.length > 0,
-  });
-
-  const engineerOptions = useMemo(() => engineerCandidatesQuery.data ?? [], [engineerCandidatesQuery.data]);
-
-  const contractsQuery = useQuery({
-    queryKey: ["work-overlap-contracts", searchParams],
-    queryFn: () => listWorkOverlapContracts(searchParams),
-    enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
-  });
-
-  const pageData = contractsQuery.data ?? emptyPage(page, pageSize);
+  const pageDataPlaceholder = emptyPage(page, pageSize);
   const referenceDate = appliedFilters.referenceDate || todayInputValue();
   const summaryParams = useMemo<WorkOverlapContractSummaryParams>(
     () => ({
@@ -275,12 +254,14 @@ export function WorkOverlapContractManagementPage() {
     [appliedFilters, referenceDate],
   );
 
-  const summaryQuery = useQuery({
-    queryKey: ["work-overlap-contracts", "summary", summaryParams],
-    queryFn: () => getWorkOverlapContractSummary(summaryParams),
+  const { contractsQuery, engineerCandidatesQuery, summaryQuery } = useWorkOverlapContractQueries({
     enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
+    engineerKeyword: debouncedEngineerKeyword,
+    searchParams,
+    summaryParams,
   });
+  const engineerOptions = useMemo(() => engineerCandidatesQuery.data ?? [], [engineerCandidatesQuery.data]);
+  const pageData = contractsQuery.data ?? pageDataPlaceholder;
 
   const pageSummary = summaryQuery.data ?? EMPTY_SUMMARY;
 
@@ -450,48 +431,29 @@ export function WorkOverlapContractManagementPage() {
       renderCell: ({ row }: GridRenderCellParams<WorkOverlapContractRecord>) => renderCemsChip(row.cemsConfirm),
     },
   ];
-  const saveMutation = useMutation({
-    mutationFn: async (payload: WorkOverlapContractSavePayload) => {
-      const request = toWorkOverlapContractRequest(payload.record, payload.periodChangeReason);
-      if (!request.serviceName) {
-        throw new Error("용역명을 입력해 주세요.");
-      }
-
-      return payload.record.contractNo ? updateWorkOverlapContract(payload.record.contractNo, request) : createWorkOverlapContract(request);
-    },
-    onSuccess: async (savedRecord) => {
-      setDialogOpen(false);
-      setEditingRecord(null);
-      setPendingSave(null);
-      await queryClient.invalidateQueries({ queryKey: ["work-overlap-contracts"] });
-      if (savedRecord.contractNo) {
-        await queryClient.invalidateQueries({
-          queryKey: ["work-overlap-contract-period-histories", savedRecord.contractNo],
-        });
-      }
-      showSuccess("계약 정보를 저장했습니다.");
-    },
-    onError: (error) => {
-      setPendingSave(null);
-      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: WorkOverlapContractRecord) => deleteWorkOverlapContract(target.contractNo),
-    onSuccess: async () => {
+  const { deleteMutation, saveMutation } = useWorkOverlapContractMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    onDeleted: () => {
       setDeleteTarget(null);
       setDialogOpen(false);
       setEditingRecord(null);
-      await queryClient.invalidateQueries({ queryKey: ["work-overlap-contracts"] });
       showSuccess("계약 정보를 삭제했습니다.");
     },
-    onError: (error) => {
+    onError: (error, fallback) => {
+      setPendingSave(null);
       setDeleteTarget(null);
-      showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
+      showError(error instanceof Error ? error.message : fallback);
     },
+    onSaved: () => {
+      setDialogOpen(false);
+      setEditingRecord(null);
+      setPendingSave(null);
+      showSuccess("계약 정보를 저장했습니다.");
+    },
+    toRequest: (payload) => toWorkOverlapContractRequest(payload.record, payload.periodChangeReason),
   });
-
   const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
   const handleSearch = (keyword: string) => {

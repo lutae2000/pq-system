@@ -8,6 +8,17 @@ export type PqParticipatingEngineerProjectHistoryConditionType = "constructionKi
 export type PqParticipatingEngineerProjectHistoryConditionOperator = "=" | "!=" | ">=" | "<=" | ">" | "<" | "LIKE" | "BETWEEN";
 export type PqParticipatingEngineerProjectHistoryConditionValueType = "code" | "date" | "number" | "text";
 
+export type RelatedProjectHistoryConditionOption = {
+  value: string;
+  label: string;
+};
+
+export type RelatedProjectHistoryConditionOptionGroup = {
+  conditionCode: string;
+  valueType: PqParticipatingEngineerProjectHistoryConditionValueType;
+  options: RelatedProjectHistoryConditionOption[];
+};
+
 export type PqParticipatingEngineerProjectHistoryCondition = {
   conditionType: PqParticipatingEngineerProjectHistoryConditionType;
   logicalOperator?: "AND" | "OR";
@@ -180,6 +191,13 @@ export async function saveRelatedProjectHistoryConditions(params: {
     "관련공사 참여이력 조건을 저장하지 못했습니다.",
   );
   return parseProjectHistoryConditions(response.conditionsJson);
+}
+
+export async function listRelatedProjectHistoryConditionOptions(): Promise<RelatedProjectHistoryConditionOptionGroup[]> {
+  return apiRequest(
+    apiClient.get<RelatedProjectHistoryConditionOptionGroup[]>("/pq/related-project-history-conditions/options"),
+    "李몄뿬?대젰 議곌굔 ?좏깮媛믪쓣 遺덈윭?ㅼ? 紐삵뻽?듬땲??",
+  );
 }
 
 export async function listPqParticipatingEngineerCandidates(

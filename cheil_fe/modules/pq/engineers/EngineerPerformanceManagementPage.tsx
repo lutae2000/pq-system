@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -27,6 +28,10 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { useEngineerPerformanceManagement } from "@/modules/pq/engineers/application/useEngineerPerformanceManagement";
 
 type EngineerStatus = "재직" | "휴직" | "퇴직";
 type PerformanceStatus = "대기" | "진행" | "준공";
@@ -372,6 +377,8 @@ const createNextPerformanceId = (records: EngineerPerformanceRecord[]) => {
 
 export function EngineerPerformanceManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
+  const { showError, showSuccess } = useAppSnackbar();
   const [profiles, setProfiles] = useState(initialProfiles);
   const [filters, setFilters] = useState<PerformanceFilters>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<PerformanceFilters>(initialFilters);
@@ -380,8 +387,24 @@ export function EngineerPerformanceManagementPage() {
   const [performanceDraft, setPerformanceDraft] = useState<EngineerPerformanceRecord>(
     initialProfiles[0]?.performances[0] ?? emptyPerformanceRecord(createNextPerformanceId([])),
   );
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const filteredEngineers = useMemo(() => filterEngineerProfiles(profiles, appliedFilters), [appliedFilters, profiles]);
+  const { profilesQuery, savePerformanceMutation } = useEngineerPerformanceManagement({
+    canCreate,
+    canRead,
+    canUpdate,
+    filters: appliedFilters,
+    onProfilesSaved: () => undefined,
+    showError,
+    showSuccess,
+    tabQueryEnabled,
+  });
+
+  const displayedProfiles = useMemo(
+    () => (profilesQuery.isError ? [] : (profilesQuery.data as typeof profiles | undefined) ?? profiles),
+    [profiles, profilesQuery.data, profilesQuery.isError],
+  );
+  const filteredEngineers = useMemo(() => filterEngineerProfiles(displayedProfiles, appliedFilters), [appliedFilters, displayedProfiles]);
 
   const activeSelectedEngineerId =
     filteredEngineers.some((profile) => profile.summary.id === selectedEngineerId)
@@ -394,9 +417,9 @@ export function EngineerPerformanceManagementPage() {
   const selectedEngineerPerformances = selectedEngineer?.performances ?? [];
 
   const selectedPerformanceRow =
-    selectedEngineerPerformances.find((record) => record.id === selectedPerformanceId) ??
-    selectedEngineerPerformances[0] ??
-    null;
+    selectedPerformanceId
+      ? selectedEngineerPerformances.find((record) => record.id === selectedPerformanceId) ?? null
+      : null;
 
   const updateSelectedEngineerPerformance = (updater: (records: EngineerPerformanceRecord[]) => EngineerPerformanceRecord[]) => {
     if (!selectedEngineer) {
@@ -415,7 +438,7 @@ export function EngineerPerformanceManagementPage() {
   };
 
   const handleSearch = () => {
-    const nextFiltered = filterEngineerProfiles(profiles, filters);
+    const nextFiltered = filterEngineerProfiles(displayedProfiles, filters);
     const nextSelectedEngineerId = nextFiltered.some((profile) => profile.summary.id === selectedEngineerId)
       ? selectedEngineerId
       : nextFiltered[0]?.summary.id ?? "";
@@ -444,7 +467,7 @@ export function EngineerPerformanceManagementPage() {
 
   const handleEngineerRowClick = (params: GridRowParams<EngineerSummary>) => {
     setSelectedEngineerId(params.row.id);
-    const targetEngineer = profiles.find((profile) => profile.summary.id === params.row.id) ?? null;
+    const targetEngineer = displayedProfiles.find((profile) => profile.summary.id === params.row.id) ?? null;
     const firstRecord = targetEngineer?.performances[0];
     if (firstRecord) {
       setSelectedPerformanceId(firstRecord.id);
@@ -476,13 +499,23 @@ export function EngineerPerformanceManagementPage() {
       return;
     }
 
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (!selectedEngineer || !selectedPerformanceRow) {
+      return;
+    }
+
     const nextRecords = selectedEngineerPerformances.filter((record) => record.id !== selectedPerformanceRow.id);
+    await savePerformanceMutation.mutateAsync({ engineerId: selectedEngineer.summary.id, records: nextRecords });
     updateSelectedEngineerPerformance(() => nextRecords);
     setSelectedPerformanceId(nextRecords[0]?.id ?? "");
     setPerformanceDraft(nextRecords[0] ?? emptyPerformanceRecord(createNextPerformanceId(nextRecords)));
+    setDeleteConfirmOpen(false);
   };
 
-  const handleSaveRecord = () => {
+  const handleSaveRecord = async () => {
     if (!selectedEngineer) {
       return;
     }
@@ -513,6 +546,12 @@ export function EngineerPerformanceManagementPage() {
 
     const exists = selectedEngineerPerformances.some((record) => record.id === nextRecord.id);
 
+    await savePerformanceMutation.mutateAsync({
+      engineerId: selectedEngineer.summary.id,
+      records: exists
+        ? selectedEngineerPerformances.map((record) => (record.id === nextRecord.id ? nextRecord : record))
+        : [nextRecord, ...selectedEngineerPerformances],
+    });
     updateSelectedEngineerPerformance((records) =>
       exists ? records.map((record) => (record.id === nextRecord.id ? nextRecord : record)) : [nextRecord, ...records],
     );
@@ -525,12 +564,18 @@ export function EngineerPerformanceManagementPage() {
     : "선택된 기술인가 없습니다";
   const canSaveCurrent = Boolean(selectedPerformanceRow) ? canUpdate : canCreate;
 
+  if (!canRead) {
+    return <Alert severity="warning">기술인 실적 조회 권한이 없습니다.</Alert>;
+  }
+
   return (
+    <>
     <Box sx={{ bgcolor: "background.default", minHeight: "100%", p: { xs: 1.5, md: 2 } }}>
       <PageHeader
         title="기술인별 실적관리"
         description="기술인별 실적을 조회하고 사업별 참여 내역과 상세 정보를 관리합니다."
       />
+      {profilesQuery.isError ? <Alert severity="error">기술인 목록을 불러오지 못했습니다. 잠시 후 다시 조회해 주세요.</Alert> : null}
 
       <Card sx={{ mb: 2, borderColor: "rgba(0, 0, 0, 0.08)" }}>
         <CardContent>
@@ -540,7 +585,7 @@ export function EngineerPerformanceManagementPage() {
                 조회조건
               </Typography>
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                <Button disabled={!canRead} startIcon={<SearchOutlinedIcon />} variant="contained" onClick={handleSearch}>
+                <Button disabled={!canRead || profilesQuery.isFetching} startIcon={<SearchOutlinedIcon />} variant="contained" onClick={handleSearch}>
                   조회
                 </Button>
                 <Button startIcon={<RefreshOutlinedIcon />} variant="outlined" onClick={handleReset}>
@@ -574,6 +619,12 @@ export function EngineerPerformanceManagementPage() {
                   sx={standardInputSx}
                   value={filters.keyword}
                   onChange={(event) => setFilters((current) => ({ ...current, keyword: event.target.value }))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleSearch();
+                    }
+                  }}
                 />
               </Grid>
             </Grid>
@@ -596,10 +647,11 @@ export function EngineerPerformanceManagementPage() {
                 </Box>
                 <Chip label={selectedEngineer?.summary.status ?? "대기"} size="small" variant="outlined" />
               </Box>
-              <EnterpriseDataGrid<EngineerSummary>
-                columns={engineerColumns}
-                getRowId={(row) => row.id}
-                hideFooterSelectedRowCount
+                <EnterpriseDataGrid<EngineerSummary>
+                  columns={engineerColumns}
+                  getRowId={(row) => row.id}
+                  hideFooterSelectedRowCount
+                  loading={profilesQuery.isLoading || profilesQuery.isFetching}
                 onRowClick={handleEngineerRowClick}
                 rows={filteredEngineers.map((profile) => profile.summary)}
                 sx={{
@@ -629,7 +681,7 @@ export function EngineerPerformanceManagementPage() {
                   </Box>
                   <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
                     <Chip label={`${selectedEngineerPerformances.length}건`} size="small" variant="outlined" />
-                    <Button disabled={!canCreate} startIcon={<AddOutlinedIcon />} variant="outlined" onClick={handleNewRecord}>
+                    <Button disabled={!canCreate || savePerformanceMutation.isPending} startIcon={<AddOutlinedIcon />} variant="outlined" onClick={handleNewRecord}>
                       신규
                     </Button>
                     <Button
@@ -647,7 +699,7 @@ export function EngineerPerformanceManagementPage() {
                     </Button>
                     <Button
                       color="error"
-                      disabled={!selectedPerformanceRow || !canDelete}
+                      disabled={!selectedPerformanceRow || !canDelete || savePerformanceMutation.isPending}
                       startIcon={<DeleteOutlineOutlinedIcon />}
                       variant="outlined"
                       onClick={handleDeleteRecord}
@@ -687,7 +739,7 @@ export function EngineerPerformanceManagementPage() {
                     </Typography>
                   </Box>
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      <Button disabled={!canSaveCurrent} startIcon={<SaveOutlinedIcon />} variant="contained" onClick={handleSaveRecord}>
+                      <Button disabled={!canSaveCurrent || savePerformanceMutation.isPending} startIcon={<SaveOutlinedIcon />} variant="contained" onClick={() => void handleSaveRecord()}>
                         저장
                       </Button>
                     <Button
@@ -1021,5 +1073,13 @@ export function EngineerPerformanceManagementPage() {
         </Grid>
       </Grid>
     </Box>
+    <ConfirmDeleteDialog
+      loading={savePerformanceMutation.isPending}
+      onClose={() => setDeleteConfirmOpen(false)}
+      onConfirm={() => void confirmDeleteRecord()}
+      open={deleteConfirmOpen}
+      targetLabel={selectedPerformanceRow?.projectName || undefined}
+    />
+    </>
   );
 }

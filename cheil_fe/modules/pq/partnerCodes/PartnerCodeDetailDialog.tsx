@@ -9,6 +9,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import type { PartnerOrderCompanyRecord } from "@/modules/pq/partnerCodes/partnerCodes.types";
 
 type PartnerOrderCodeDetailDialogProps = {
+  deleteDisabled?: boolean;
   onChangeField: <K extends keyof PartnerOrderCompanyRecord>(field: K, value: PartnerOrderCompanyRecord[K]) => void;
   onClose: () => void;
   onDelete: () => void;
@@ -16,6 +17,7 @@ type PartnerOrderCodeDetailDialogProps = {
   onSave: () => void;
   open: boolean;
   record: PartnerOrderCompanyRecord;
+  saveDisabled?: boolean;
 };
 
 const companyTypeOptions: PartnerOrderCompanyRecord["companyType"][] = ["동종", "타종", "기타"];
@@ -64,10 +66,12 @@ export function PartnerCodeDetailDialog({
   onChangeField,
   onClose,
   onDelete,
+  deleteDisabled = false,
   onOpenContactManager,
   onSave,
   open,
   record,
+  saveDisabled = false,
 }: PartnerOrderCodeDetailDialogProps) {
   return (
     <Dialog fullWidth maxWidth="xl" onClose={onClose} open={open} scroll="paper">
@@ -325,14 +329,14 @@ export function PartnerCodeDetailDialog({
       </DialogContent>
 
       <DialogActions sx={{ px: 2.5, py: 2 }}>
-        <Button color="error" onClick={onDelete} startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">
+        <Button color="error" disabled={deleteDisabled} onClick={onDelete} startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">
           삭제
         </Button>
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose} variant="outlined">
           닫기
         </Button>
-        <Button onClick={onSave} startIcon={<SaveOutlinedIcon />} variant="contained">
+        <Button disabled={saveDisabled} onClick={onSave} startIcon={<SaveOutlinedIcon />} variant="contained">
           저장
         </Button>
       </DialogActions>

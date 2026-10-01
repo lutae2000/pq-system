@@ -20,7 +20,7 @@ import {
   type GridColDef,
   type GridRenderEditCellParams,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
@@ -34,17 +34,13 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 
-import {
-  listEducationReminderCompletions,
-  listEducationReminderNotificationTargets,
-  saveEducationReminderCompletion,
-  saveEducationReminderNotificationPhone,
-} from "./api";
-import { listEducationReminderBasicInfos } from "../basic-infos/api";
+import { saveEducationReminderCompletion, saveEducationReminderNotificationPhone } from "./api";
 import { createEducationReminderSend } from "../send/api";
+
 import { EducationReminderSendDialog } from "../send/EducationReminderSendDialog";
 import { getClosestEducationDeadline, type EducationReminderSendDialogTarget } from "../send/types";
-import { listEducationReminderTemplates } from "../templates/api";
+import { useEducationReminderCompletions } from "./application/useEducationReminderCompletions";
+import { educationReminderCompletionQueryKeys } from "./application/queryKeys";
 import {
   formatDateText,
   type EducationReminderCompletionRecord,
@@ -294,21 +290,6 @@ function EducationReminderCompletionManagementContent() {
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const designGradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: tabQueryEnabled });
-  const basicInfosQuery = useQuery({
-    queryKey: ["education-reminders", "basic-infos"],
-    queryFn: listEducationReminderBasicInfos,
-    enabled: tabQueryEnabled,
-  });
-  const templatesQuery = useQuery({
-    queryKey: ["education-reminders", "templates"],
-    queryFn: listEducationReminderTemplates,
-    enabled: tabQueryEnabled,
-  });
-  const notificationTargetQuery = useQuery({
-    queryKey: ["education-reminders", "notification-targets"],
-    queryFn: () => listEducationReminderNotificationTargets(),
-    enabled: tabQueryEnabled && sendDialogOpen,
-  });
 
   const specialtyFieldLabelByCode = specialtyFieldReferences.labelByValue;
   const jobFieldLabelByCode = jobFieldReferences.labelByValue;
@@ -330,10 +311,15 @@ function EducationReminderCompletionManagementContent() {
     [appliedFilters],
   );
 
-  const completionQuery = useQuery({
-    queryKey: ["education-reminders", "completions", completionSearchParams],
-    queryFn: () => listEducationReminderCompletions(completionSearchParams),
-    enabled: tabQueryEnabled,
+  const {
+    basicInfosQuery,
+    completionQuery,
+    notificationTargetQuery,
+    templatesQuery,
+  } = useEducationReminderCompletions({
+    completionSearchParams,
+    sendDialogOpen,
+    tabQueryEnabled,
   });
 
   const completionRows = useMemo(() => completionQuery.data ?? [], [completionQuery.data]);
@@ -426,7 +412,7 @@ function EducationReminderCompletionManagementContent() {
     mutationFn: saveEducationReminderCompletion,
     onSuccess: async () => {
       showSuccess("교육 알림 이수 정보가 저장되었습니다.");
-      await queryClient.invalidateQueries({ queryKey: ["education-reminders", "completions"] });
+      await queryClient.invalidateQueries({ queryKey: educationReminderCompletionQueryKeys.completionsRoot });
     },
     onError: (error) => showError(error instanceof Error ? error.message : "교육 알림 이수 정보 저장에 실패했습니다."),
   });
@@ -436,7 +422,7 @@ function EducationReminderCompletionManagementContent() {
       saveEducationReminderNotificationPhone(engrId, { phoneNo }),
     onSuccess: async () => {
       showSuccess("전화번호가 저장되었습니다.");
-      await queryClient.invalidateQueries({ queryKey: ["education-reminders", "completions"] });
+      await queryClient.invalidateQueries({ queryKey: educationReminderCompletionQueryKeys.completionsRoot });
     },
     onError: (error) => showError(error instanceof Error ? error.message : "전화번호 저장에 실패했습니다."),
   });

@@ -8,10 +8,9 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
-import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Snackbar, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, type ChipProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -25,23 +24,31 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
-  createShinindoManagement,
-  deleteShinindoManagement,
-  getShinindoManagement,
-  listShinindoManagements,
   SHININDO_MANAGEMENT_ATTACHMENT_OWNER_TYPE,
   SHININDO_MANAGEMENT_ATTACHMENT_TYPE,
   SHININDO_MANAGEMENT_PAGE_SIZE,
-  updateShinindoManagement,
   type ShinindoManagementPageResponse,
   type ShinindoManagementRecord,
-  type ShinindoManagementRequest,
   type ShinindoManagementSearchParams,
 } from "@/modules/pq/shinindo-management/api";
-import { getClientCode, listClientCodes } from "@/modules/code/clients/api";
+import { useShinindoClientOptions, useShinindoManagementQueries } from "@/modules/pq/shinindo-management/application/useShinindoManagementQueries";
+import { useShinindoManagementMutations } from "@/modules/pq/shinindo-management/application/useShinindoManagementMutations";
+import {
+  dashedDate,
+  display,
+  emptyDraft,
+  formatGridDate,
+  formatNumber,
+  getValidityStatus,
+  isExpiringSoon,
+  numberValue,
+  text,
+  toRequest,
+  type ShinindoValidityStatus,
+} from "@/modules/pq/shinindo-management/domain/rules";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 const EMPTY_ROWS: ShinindoManagementRecord[] = [];
-const EXPIRING_SOON_DAYS = 90;
 
 const T = {
   active: "해당",
@@ -90,22 +97,6 @@ const T = {
   remark: "비고",
 } as const;
 
-const emptyDraft = (clientCode = ""): ShinindoManagementRecord => ({
-  id: 0,
-  clientCode,
-  clientName: "",
-  itemName: "",
-  appliedYn: "Y",
-  score: null,
-  acquiredDate: "",
-  validUntil: "",
-  remark: "",
-  createdAt: null,
-  createdId: null,
-  lastChangedAt: null,
-  lastChangedId: null,
-});
-
 const emptyPage = (page: number, size: number): ShinindoManagementPageResponse => ({
   content: EMPTY_ROWS,
   page,
@@ -114,137 +105,34 @@ const emptyPage = (page: number, size: number): ShinindoManagementPageResponse =
   totalPages: 0,
 });
 
-const text = (value: string | null | undefined) => value ?? "";
-const display = (value: string | null | undefined) => (value?.trim() ? value : "-");
-const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value));
-const formatNumber = (value: number | null | undefined, digits = 2) =>
-  value === null || value === undefined
-    ? "-"
-    : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-const compactDate = (value: string | null | undefined) => text(value).replace(/\D/g, "").slice(0, 8);
-const dashedDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
+const getValidityLabel = (status: ShinindoValidityStatus) =>
+  ({ "not-active": T.notActive, unknown: "-", expired: T.validityExpired, expiring: T.validityExpiring, valid: T.validityValid })[status];
+const getValidityColor = (status: ShinindoValidityStatus): ChipProps["color"] => {
+  const colors: Record<ShinindoValidityStatus, ChipProps["color"]> = {
+    "not-active": "default",
+    unknown: "default",
+    expired: "error",
+    expiring: "warning",
+    valid: "success",
+  };
+  return colors[status];
 };
-const parseDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  if (normalized.length !== 8) {
-    return null;
-  }
-  const parsed = new Date(`${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-const daysBetween = (left: Date, right: Date) => Math.floor((right.getTime() - left.getTime()) / 86400000);
-const formatGridDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "-";
-};
-const toRequestDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? normalized : null;
-};
-
-const isExpiringSoon = (validUntil: string | null | undefined, referenceDate: string | null | undefined) => {
-  const validDate = parseDate(validUntil);
-  const refDate = parseDate(referenceDate);
-  if (!validDate || !refDate) {
-    return false;
-  }
-  const diff = daysBetween(refDate, validDate);
-  return diff >= 0 && diff <= EXPIRING_SOON_DAYS;
-};
-
-const getValidityStatus = (row: Pick<ShinindoManagementRecord, "appliedYn" | "validUntil">, referenceDate: string | null | undefined) => {
-  if (row.appliedYn !== "Y") {
-    return T.notActive;
-  }
-
-  const validDate = parseDate(row.validUntil);
-  const refDate = parseDate(referenceDate);
-  if (!validDate || !refDate) {
-    return "-";
-  }
-
-  if (validDate < refDate) {
-    return T.validityExpired;
-  }
-
-  return daysBetween(refDate, validDate) <= EXPIRING_SOON_DAYS ? T.validityExpiring : T.validityValid;
-};
-
-const getValidityColor = (value: string) => {
-  if (value === T.validityValid) return "success";
-  if (value === T.validityExpiring) return "warning";
-  if (value === T.validityExpired) return "error";
-  return "default";
-};
-
-const toRequest = (draft: ShinindoManagementRecord): ShinindoManagementRequest => ({
-  acquiredDate: toRequestDate(draft.acquiredDate),
-  appliedYn: draft.appliedYn,
-  clientCode: text(draft.clientCode).trim(),
-  itemName: text(draft.itemName).trim(),
-  remark: text(draft.remark).trim() || null,
-  score: draft.score,
-  validUntil: toRequestDate(draft.validUntil),
-});
 
 function ClientAutocompleteField({
   disabled = false,
+  enabled,
   onChange,
   sx,
   value,
 }: {
   disabled?: boolean;
+  enabled: boolean;
   onChange: (value: string) => void;
   sx?: SxProps<Theme>;
   value: string;
 }) {
-  const tabQueryEnabled = useTabQueryEnabled();
   const [keyword, setKeyword] = useState("");
-  const searchKeyword = keyword || value;
-  const selectedClientQuery = useQuery({
-    queryKey: ["shinindo-client", value],
-    queryFn: () => getClientCode(value),
-    enabled: tabQueryEnabled && Boolean(value),
-    staleTime: 5 * 60 * 1000,
-  });
-  const clientsQuery = useQuery({
-    queryKey: ["shinindo-client-options", searchKeyword],
-    queryFn: () =>
-      listClientCodes({
-        businessName: searchKeyword,
-        companyType: "",
-        orderClass: "",
-        page: 0,
-        size: 50,
-      }),
-    enabled: tabQueryEnabled,
-    staleTime: 60 * 1000,
-  });
-  const options = useMemo(() => {
-    const mapped = (clientsQuery.data?.content ?? []).map((client) => ({
-      label: client.orderNameLong?.trim() ? `${client.orderName} (${client.orderNameLong})` : client.orderName,
-      value: client.clientCode,
-    }));
-    const selectedClient = selectedClientQuery.data
-      ? {
-          label: selectedClientQuery.data.orderNameLong?.trim()
-            ? `${selectedClientQuery.data.orderName} (${selectedClientQuery.data.orderNameLong})`
-            : selectedClientQuery.data.orderName,
-          value: selectedClientQuery.data.clientCode,
-        }
-      : null;
-    const uniqueOptions = new Map<string, { label: string; value: string }>();
-
-    [selectedClient, ...mapped].forEach((option) => {
-      if (option && !uniqueOptions.has(option.value)) {
-        uniqueOptions.set(option.value, option);
-      }
-    });
-
-    return [...uniqueOptions.values()];
-  }, [clientsQuery.data?.content, selectedClientQuery.data]);
+  const { isLoading, options } = useShinindoClientOptions({ enabled, keyword, value });
   const selectedOption = options.find((option) => option.value === value) ?? null;
 
   return (
@@ -256,7 +144,7 @@ function ClientAutocompleteField({
         getOptionLabel={(option) => option.label}
         fullWidth
         isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        loading={clientsQuery.isLoading || selectedClientQuery.isLoading}
+        loading={isLoading}
         onChange={(_, nextValue) => {
           onChange(nextValue?.value ?? "");
           setKeyword("");
@@ -339,7 +227,7 @@ function SummaryCard({ icon, label, value }: { icon: ReactNode; label: string; v
 export function ShinindoManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
+  const { showSnackbar } = useAppSnackbar();
 
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -350,7 +238,6 @@ export function ShinindoManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<ShinindoManagementRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [clientGuidanceOpen, setClientGuidanceOpen] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
   const searchParams = useMemo<ShinindoManagementSearchParams>(
     () => ({
@@ -363,53 +250,33 @@ export function ShinindoManagementPage() {
     [appliedKeyword, clientCode, page, referenceDate],
   );
 
-  const managementsQuery = useQuery({
-    queryKey: ["shinindo-managements", searchParams],
-    queryFn: () => listShinindoManagements(searchParams),
-    enabled: tabQueryEnabled,
-  });
-
   const selectedId = draft.id;
-  const detailQuery = useQuery({
-    queryKey: ["shinindo-management", selectedId],
-    queryFn: () => getShinindoManagement(selectedId),
-    enabled: tabQueryEnabled && selectedId > 0,
+  const { detailQuery, managementsQuery } = useShinindoManagementQueries({
+    enabled: tabQueryEnabled,
+    searchParams,
+    selectedId,
   });
 
   const pageData = managementsQuery.data ?? emptyPage(page, SHININDO_MANAGEMENT_PAGE_SIZE);
   const selectedRecord = detailQuery.data ?? draft;
   const fileOwnerId = selectedId > 0 ? selectedId : "";
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toRequest(draft);
-      if (!request.clientCode) {
-        throw new Error(T.clientRequired);
-      }
-      if (!request.itemName) {
-        throw new Error(T.itemNameRequired);
-      }
-      return draft.id > 0 ? updateShinindoManagement(draft.id, request) : createShinindoManagement(request);
-    },
-    onSuccess: async (saved) => {
-      setDraft(saved);
-      setSaveConfirmOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["shinindo-managements"] });
-      await queryClient.invalidateQueries({ queryKey: ["shinindo-management", saved.id] });
-      setNotice({ message: T.saveSuccess, severity: "success" });
-    },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : T.saveFailed, severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: ShinindoManagementRecord) => deleteShinindoManagement(target.id),
-    onSuccess: async () => {
+  const { deleteMutation, saveMutation } = useShinindoManagementMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: draft.id,
+    onDeleted: () => {
       setDraft(emptyDraft(clientCode));
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["shinindo-managements"] });
-      setNotice({ message: T.deleteSuccess, severity: "success" });
+      showSnackbar({ message: T.deleteSuccess, severity: "success" });
     },
-    onError: (error) => setNotice({ message: error instanceof Error ? error.message : T.deleteFailed, severity: "error" }),
+    onError: (error, fallbackMessage) => showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onSaved: (saved) => {
+      setDraft(saved);
+      setSaveConfirmOpen(false);
+      showSnackbar({ message: T.saveSuccess, severity: "success" });
+    },
   });
 
   const columns = useMemo<GridColDef<ShinindoManagementRecord>[]>(
@@ -462,8 +329,8 @@ export function ShinindoManagementPage() {
         disableExport: true,
         valueGetter: (_value, row) => getValidityStatus(row, referenceDate),
         renderCell: (params) => {
-          const status = String(params.value ?? "");
-          return <Chip color={getValidityColor(status)} label={status || "-"} size="small" variant={status === T.validityValid ? "filled" : "outlined"} />;
+          const status = (params.value as ShinindoValidityStatus | undefined) ?? "unknown";
+          return <Chip color={getValidityColor(status)} label={getValidityLabel(status)} size="small" variant={status === "valid" ? "filled" : "outlined"} />;
         },
       },
       { field: "remark", headerName: T.remark, minWidth: 200, flex: 1, valueGetter: (_value, row) => display(row.remark) },
@@ -499,6 +366,9 @@ export function ShinindoManagementPage() {
     setClientCode("");
     setReferenceDate(nextReferenceDate);
     setPage(0);
+    setDraft(emptyDraft());
+    setDeleteTarget(null);
+    setSaveConfirmOpen(false);
 
     if (shouldRefetch) {
       void managementsQuery.refetch();
@@ -511,11 +381,11 @@ export function ShinindoManagementPage() {
 
   const handleSaveClick = () => {
     if (draft.id > 0 && !canUpdate) {
-      setNotice({ message: T.saveDeniedUpdate, severity: "error" });
+      showSnackbar({ message: T.saveDeniedUpdate, severity: "error" });
       return;
     }
     if (draft.id === 0 && !canCreate) {
-      setNotice({ message: T.saveDeniedCreate, severity: "error" });
+      showSnackbar({ message: T.saveDeniedCreate, severity: "error" });
       return;
     }
     setSaveConfirmOpen(true);
@@ -540,7 +410,7 @@ export function ShinindoManagementPage() {
         onSearch={handleSearch}
         searchDisabled={!canRead}
       >
-        <ClientAutocompleteField onChange={setClientCode} sx={{ flex: "0 1 320px", minWidth: 320 }} value={clientCode} />
+        <ClientAutocompleteField enabled={tabQueryEnabled} onChange={setClientCode} sx={{ flex: "0 1 320px", minWidth: 320 }} value={clientCode} />
         <TextField
           label="기준일"
           onChange={(event) => setReferenceDate(dashedDate(event.target.value))}
@@ -621,7 +491,7 @@ export function ShinindoManagementPage() {
                 ) : null}
 
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <ClientAutocompleteField disabled={draft.id > 0} onChange={(value) => updateDraft("clientCode", value)} value={text(draft.clientCode)} />
+                  <ClientAutocompleteField enabled={tabQueryEnabled} disabled={draft.id > 0} onChange={(value) => updateDraft("clientCode", value)} value={text(draft.clientCode)} />
                   <TextField label={T.appliedYn} onChange={(event) => updateDraft("appliedYn", event.target.value as "Y" | "N")} select size="small" sx={standardFieldSx} value={draft.appliedYn}>
                     <MenuItem value="Y">{T.active}</MenuItem>
                     <MenuItem value="N">{T.notActive}</MenuItem>
@@ -648,7 +518,7 @@ export function ShinindoManagementPage() {
                     value={dashedDate(draft.validUntil)}
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  <TextField label={T.status} disabled size="small" sx={standardFieldSx} value={getValidityStatus(draft, referenceDate)} />
+                  <TextField label={T.status} disabled size="small" sx={standardFieldSx} value={getValidityLabel(getValidityStatus(draft, referenceDate))} />
                   <TextField label={T.remark} minRows={4} multiline onChange={(event) => updateDraft("remark", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.remark)} />
                 </Box>
 
@@ -674,38 +544,29 @@ export function ShinindoManagementPage() {
         </Stack>
       )}
 
-      <ConfirmActionDialog
-        confirmLabel={T.save}
-        loading={saveMutation.isPending}
-        message={T.saveConfirm}
-        onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate()}
-        open={saveConfirmOpen}
-        targetLabel={draft.itemName}
-        title={T.save}
-      />
-
-      <ConfirmDeleteDialog
-        loading={deleteMutation.isPending}
-        message="신인도 정보를 삭제하시겠습니까?"
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-        open={Boolean(deleteTarget)}
-        targetLabel={deleteTarget ? `${deleteTarget.clientName} - ${deleteTarget.itemName}` : ""}
-        title={T.delete}
-      />
-
-      {notice ? (
-        <Snackbar
-          anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
-          autoHideDuration={2500}
-          onClose={() => setNotice(null)}
+      {saveConfirmOpen ? (
+        <ConfirmActionDialog
+          confirmLabel={T.save}
+          loading={saveMutation.isPending}
+          message={T.saveConfirm}
+          onClose={() => setSaveConfirmOpen(false)}
+          onConfirm={() => saveMutation.mutate(toRequest(draft))}
           open
-        >
-          <Alert onClose={() => setNotice(null)} severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Snackbar>
+          targetLabel={draft.itemName}
+          title={T.save}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <ConfirmDeleteDialog
+          loading={deleteMutation.isPending}
+          message="신인도 정보를 삭제하시겠습니까?"
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          open
+          targetLabel={`${deleteTarget.clientName} - ${deleteTarget.itemName}`}
+          title={T.delete}
+        />
       ) : null}
     </Box>
   );

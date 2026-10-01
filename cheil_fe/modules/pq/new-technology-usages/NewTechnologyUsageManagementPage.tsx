@@ -5,7 +5,6 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
@@ -20,21 +19,17 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { createTechnologyNotice } from "@/modules/system/notices/api";
 import {
-  createNewTechnologyUsage,
-  deleteNewTechnologyUsage,
-  getNewTechnologyUsage,
-  listNewTechnologyUsages,
   NEW_TECHNOLOGY_USAGE_ATTACHMENT_OWNER_TYPE,
   NEW_TECHNOLOGY_USAGE_ATTACHMENT_TYPE,
   NEW_TECHNOLOGY_USAGE_PAGE_SIZE,
-  updateNewTechnologyUsage,
   type NewTechnologyUsagePageResponse,
   type NewTechnologyUsageRecord,
   type NewTechnologyUsageRequest,
   type NewTechnologyUsageSearchParams,
 } from "@/modules/pq/new-technology-usages/api";
+import { useNewTechnologyUsageMutations } from "@/modules/pq/new-technology-usages/application/useNewTechnologyUsageMutations";
+import { useNewTechnologyUsageQueries } from "@/modules/pq/new-technology-usages/application/useNewTechnologyUsageQueries";
 
 const EMPTY_ROWS: NewTechnologyUsageRecord[] = [];
 
@@ -115,12 +110,12 @@ const toUsageRequest = (draft: NewTechnologyUsageRecord): NewTechnologyUsageRequ
 export function NewTechnologyUsageManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
-
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [designationNo, setDesignationNo] = useState("");
+  const [appliedDesignationNo, setAppliedDesignationNo] = useState("");
   const [client, setClient] = useState("");
+  const [appliedClient, setAppliedClient] = useState("");
   const [page, setPage] = useState(0);
   const pageSize = NEW_TECHNOLOGY_USAGE_PAGE_SIZE;
   const [draft, setDraft] = useState<NewTechnologyUsageRecord>(() => emptyDraft());
@@ -129,22 +124,12 @@ export function NewTechnologyUsageManagementPage() {
   const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<NewTechnologyUsageSearchParams>(
-    () => ({ client, designationNo, keyword: appliedKeyword, noticeDateFrom: "", noticeDateTo: "", page, size: pageSize }),
-    [appliedKeyword, client, designationNo, page, pageSize],
+    () => ({ client: appliedClient, designationNo: appliedDesignationNo, keyword: appliedKeyword, noticeDateFrom: "", noticeDateTo: "", page, size: pageSize }),
+    [appliedClient, appliedDesignationNo, appliedKeyword, page, pageSize],
   );
 
-  const usagesQuery = useQuery({
-    queryKey: ["new-technology-usages", searchParams],
-    queryFn: () => listNewTechnologyUsages(searchParams),
-    enabled: tabQueryEnabled,
-  });
-
   const selectedUsageId = draft.id;
-  const detailQuery = useQuery({
-    queryKey: ["new-technology-usage", selectedUsageId],
-    queryFn: () => getNewTechnologyUsage(selectedUsageId),
-    enabled: tabQueryEnabled && selectedUsageId > 0,
-  });
+  const { detailQuery, usagesQuery } = useNewTechnologyUsageQueries({ enabled: tabQueryEnabled, searchParams, selectedId: selectedUsageId });
 
   const pageData = usagesQuery.data ?? emptyPage(page, pageSize);
   const selectedRecord = detailQuery.data ?? draft;
@@ -153,46 +138,23 @@ export function NewTechnologyUsageManagementPage() {
   const currentPageAmountTotal = pageData.content.reduce((sum, row) => sum + Number(row.amountThousand ?? 0), 0);
   const fileOwnerId = selectedUsageId > 0 ? selectedUsageId : "";
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const request = toUsageRequest(draft);
-      if (!request.designationNo) {
-        throw new Error("지정번호를 입력해 주세요.");
-      }
-      if (!request.title) {
-        throw new Error("명칭을 입력해 주세요.");
-      }
-      const created = draft.id === 0;
-      const saved = created ? await createNewTechnologyUsage(request) : await updateNewTechnologyUsage(draft.id, request);
-      return { created, saved };
-    },
-    onSuccess: async ({ created, saved }) => {
-      setDraft(saved);
-      setSaveConfirmOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-usages"] });
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-usage", saved.id] });
-      showSnackbar({ message: "신인도 사용실적이 저장되었습니다.", severity: "success" });
-      if (created) {
-        try {
-          await createTechnologyNotice({ title: "신기술 활용실적 신규 등록", content: `${saved.title} 활용실적이 등록되었습니다.`, targetPath: "/pq/new-technology-usages" });
-          await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
-        } catch {
-          showSnackbar({ message: "실적은 저장되었지만 알림 생성에 실패했습니다.", severity: "warning" });
-        }
-      }
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: NewTechnologyUsageRecord) => deleteNewTechnologyUsage(target.id),
-    onSuccess: async () => {
+  const { deleteMutation, saveMutation } = useNewTechnologyUsageMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftId: selectedUsageId,
+    onDeleted: () => {
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["new-technology-usages"] });
       showSnackbar({ message: "신인도 사용실적이 삭제되었습니다.", severity: "success" });
     },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
+    onError: (error, fallbackMessage) => showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onSaved: (saved) => {
+      setDraft(saved);
+      setSaveConfirmOpen(false);
+      showSnackbar({ message: "신인도 사용실적이 저장되었습니다.", severity: "success" });
+    },
+    onWarning: (message) => showSnackbar({ message, severity: "warning" }),
   });
 
   const columns = useMemo<GridColDef<NewTechnologyUsageRecord>[]>(
@@ -236,10 +198,18 @@ export function NewTechnologyUsageManagementPage() {
 
   const handleSearch = (nextKeyword: string) => {
     const normalizedKeyword = nextKeyword.trim();
-    const shouldRefetch = page === 0 && appliedKeyword === normalizedKeyword;
+    const normalizedDesignationNo = designationNo.trim();
+    const normalizedClient = client.trim();
+    const shouldRefetch =
+      page === 0 &&
+      appliedKeyword === normalizedKeyword &&
+      appliedDesignationNo === normalizedDesignationNo &&
+      appliedClient === normalizedClient;
 
     setPage(0);
     setAppliedKeyword(normalizedKeyword);
+    setAppliedDesignationNo(normalizedDesignationNo);
+    setAppliedClient(normalizedClient);
 
     if (shouldRefetch) {
       void usagesQuery.refetch();
@@ -247,12 +217,21 @@ export function NewTechnologyUsageManagementPage() {
   };
 
   const handleReset = () => {
-    const shouldRefetch = keyword === "" && appliedKeyword === "" && designationNo === "" && client === "" && page === 0;
+    const shouldRefetch =
+      keyword === "" &&
+      appliedKeyword === "" &&
+      designationNo === "" &&
+      appliedDesignationNo === "" &&
+      client === "" &&
+      appliedClient === "" &&
+      page === 0;
 
     setKeyword("");
     setAppliedKeyword("");
     setDesignationNo("");
+    setAppliedDesignationNo("");
     setClient("");
+    setAppliedClient("");
     setPage(0);
 
     if (shouldRefetch) {
@@ -274,6 +253,10 @@ export function NewTechnologyUsageManagementPage() {
       return;
     }
     setSaveConfirmOpen(true);
+  };
+
+  const handleSaveConfirm = () => {
+    saveMutation.mutate(toUsageRequest(draft));
   };
 
   const canSave = draft.id > 0 ? canUpdate : canCreate;
@@ -333,7 +316,7 @@ export function NewTechnologyUsageManagementPage() {
                   paginationModel={paginationModel}
                   rowCount={pageData.totalElements}
                   rows={pageData.content ?? EMPTY_ROWS}
-                  pageSizeOptions={[100]}
+                  pageSizeOptions={[pageSize]}
                   showXlsxExportButton
                   showPageNumbers
                   wrapperMinHeight={620}
@@ -419,7 +402,7 @@ export function NewTechnologyUsageManagementPage() {
         loading={saveMutation.isPending}
         message="신인도 사용실적을 저장하시겠습니까?"
         onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate()}
+        onConfirm={handleSaveConfirm}
         open={saveConfirmOpen}
         targetLabel={draft.title}
         title="신기술 활용실적"
@@ -427,7 +410,7 @@ export function NewTechnologyUsageManagementPage() {
       <ConfirmDeleteDialog
         loading={deleteMutation.isPending}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         open={Boolean(deleteTarget)}
         targetLabel={deleteTarget?.title}
       />

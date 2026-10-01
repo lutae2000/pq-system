@@ -17,8 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 
 import { AuditFields } from "@/components/common/AuditFields";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -28,7 +27,6 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
-import { createEducationReminderTemplate, deleteEducationReminderTemplate, listEducationReminderTemplates, updateEducationReminderTemplate } from "./api";
 import {
   channelLabel,
   emptyTemplate,
@@ -36,6 +34,7 @@ import {
   type EducationReminderTemplateRecord,
   type EducationReminderTemplateRequest,
 } from "../types";
+import { useEducationReminderTemplates } from "./application/useEducationReminderTemplates";
 
 type FilterState = {
   active: "" | "Y" | "N";
@@ -88,21 +87,50 @@ function normalizeEditingRecord(record: EducationReminderTemplateRequest): Educa
   };
 }
 
+function toTemplateRequest(record: EducationReminderTemplateRecord): EducationReminderTemplateRequest {
+  return {
+    active: record.active,
+    channel: record.channel,
+    content: record.content,
+    description: record.description ?? "",
+    homepageUrl: record.homepageUrl ?? "",
+    id: record.id,
+    name: record.name,
+    title: record.title,
+  };
+}
+
 export function EducationReminderTemplateManagementTab() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
-  const queryClient = useQueryClient();
   const canEdit = canCreate || canUpdate;
   const [filters, setFilters] = useState<FilterState>(() => emptyFilterState());
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilterState());
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [editingRecord, setEditingRecord] = useState<EducationReminderTemplateRequest>(() => emptyTemplate());
   const [deleteTarget, setDeleteTarget] = useState<EducationReminderTemplateRecord | null>(null);
 
-  const templatesQuery = useQuery({
-    queryKey: ["education-reminders", "templates"],
-    queryFn: listEducationReminderTemplates,
-    enabled: tabQueryEnabled,
+  const { deleteMutation, saveMutation, templatesQuery } = useEducationReminderTemplates({
+    canCreate,
+    canDelete,
+    canRead,
+    canUpdate,
+    onDeleted: () => {
+      setDeleteTarget(null);
+      setSelectedId(null);
+      setIsCreating(false);
+      setEditingRecord(emptyTemplate());
+    },
+    onSaved: (saved) => {
+      setEditingRecord(toTemplateRequest(saved));
+      setSelectedId(saved.id);
+      setIsCreating(false);
+    },
+    showError,
+    showSuccess,
+    tabQueryEnabled,
   });
 
   const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data]);
@@ -110,18 +138,18 @@ export function EducationReminderTemplateManagementTab() {
   const filteredRows = useMemo(
     () =>
       templates.filter((row) => {
-        if (filters.active === "Y" && !row.active) {
+        if (appliedFilters.active === "Y" && !row.active) {
           return false;
         }
-        if (filters.active === "N" && row.active) {
+        if (appliedFilters.active === "N" && row.active) {
           return false;
         }
-        if (filters.channel && row.channel !== filters.channel) {
+        if (appliedFilters.channel && row.channel !== appliedFilters.channel) {
           return false;
         }
-        return matchesKeyword(row, filters.keyword);
+        return matchesKeyword(row, appliedFilters.keyword);
       }),
-    [filters.active, filters.channel, filters.keyword, templates],
+    [appliedFilters.active, appliedFilters.channel, appliedFilters.keyword, templates],
   );
 
   const resolvedSelectedId = selectedId && filteredRows.some((row) => row.id === selectedId)
@@ -132,6 +160,15 @@ export function EducationReminderTemplateManagementTab() {
     () => templates.find((row) => row.id === resolvedSelectedId) ?? null,
     [resolvedSelectedId, templates],
   );
+
+  // The first available row must hydrate the detail form after the query resolves.
+  useEffect(() => {
+    if (!isCreating && selectedId === null && filteredRows[0]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedId(filteredRows[0].id);
+      setEditingRecord(toTemplateRequest(filteredRows[0]));
+    }
+  }, [filteredRows, isCreating, selectedId]);
 
   const summary = useMemo(() => {
     const active = templates.filter((row) => row.active).length;
@@ -168,43 +205,6 @@ export function EducationReminderTemplateManagementTab() {
     [],
   );
 
-  const saveMutation = useMutation({
-    mutationFn: async (request: EducationReminderTemplateRequest) => {
-      if (request.id) {
-        return updateEducationReminderTemplate(request.id, request);
-      }
-      return createEducationReminderTemplate(request);
-    },
-    onSuccess: async (saved) => {
-      showSuccess("템플릿이 저장되었습니다.");
-      setEditingRecord({
-        active: saved.active,
-        channel: saved.channel,
-        content: saved.content,
-        description: saved.description ?? "",
-        homepageUrl: saved.homepageUrl ?? "",
-        id: saved.id,
-        name: saved.name,
-        title: saved.title,
-      });
-      setSelectedId(saved.id);
-      await queryClient.invalidateQueries({ queryKey: ["education-reminders", "templates"] });
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "템플릿 저장에 실패했습니다."),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteEducationReminderTemplate,
-    onSuccess: async () => {
-      showSuccess("템플릿이 삭제되었습니다.");
-      setDeleteTarget(null);
-      setSelectedId(null);
-      setEditingRecord(emptyTemplate());
-      await queryClient.invalidateQueries({ queryKey: ["education-reminders", "templates"] });
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "템플릿 삭제에 실패했습니다."),
-  });
-
   if (!canRead) {
     return <Alert severity="warning">교육 알림 템플릿을 조회할 권한이 없습니다.</Alert>;
   }
@@ -225,10 +225,23 @@ export function EducationReminderTemplateManagementTab() {
         keywordPlaceholder="템플릿명, 제목, 설명, 본문"
         keywordSx={{ flex: "1 1 360px", maxWidth: 560, minWidth: 260 }}
         onKeywordChange={(keyword) => setFilters((current) => ({ ...current, keyword }))}
-        onReset={() => setFilters(emptyFilterState())}
-        onSearch={(keyword) => setFilters((current) => ({ ...current, keyword }))}
+        onReset={() => {
+          const next = emptyFilterState();
+          setFilters(next);
+          setAppliedFilters(next);
+          setSelectedId(null);
+          setIsCreating(false);
+          setEditingRecord(emptyTemplate());
+        }}
+        onSearch={(keyword) => {
+          const next = { ...filters, keyword };
+          setFilters(next);
+          setAppliedFilters(next);
+          setSelectedId(null);
+          setIsCreating(false);
+        }}
         resetLabel="초기화"
-        searchDisabled={false}
+        searchDisabled={templatesQuery.isFetching}
         searchLabel="조회"
       >
         <TextField
@@ -273,6 +286,7 @@ export function EducationReminderTemplateManagementTab() {
                   onClick={() => {
                     setEditingRecord(emptyTemplate());
                     setSelectedId(null);
+                    setIsCreating(true);
                   }}
                   startIcon={<AddOutlinedIcon />}
                   variant="contained"
@@ -281,7 +295,7 @@ export function EducationReminderTemplateManagementTab() {
                 </Button>
                 <Button
                   color="error"
-                  disabled={!selectedRecord || !canDelete}
+                  disabled={!selectedRecord || !canDelete || deleteMutation.isPending}
                   onClick={() => setDeleteTarget(selectedRecord)}
                   startIcon={<DeleteOutlineOutlinedIcon />}
                   variant="outlined"
@@ -294,9 +308,13 @@ export function EducationReminderTemplateManagementTab() {
                       showError("템플릿명, 제목, 본문을 입력해 주세요.");
                       return;
                     }
-                    saveMutation.mutate(normalizeEditingRecord(editingRecord));
+                    saveMutation.mutate({
+                      id: editingRecord.id ?? null,
+                      isCreating,
+                      request: normalizeEditingRecord(editingRecord),
+                    });
                   }}
-                  disabled={!canEdit}
+                  disabled={!canEdit || saveMutation.isPending}
                   variant="contained"
                 >
                   저장
@@ -320,29 +338,8 @@ export function EducationReminderTemplateManagementTab() {
                   }}
                   onRowClick={(params: GridRowParams<EducationReminderTemplateRecord>) => {
                     setSelectedId(params.row.id);
-                    setEditingRecord({
-                      active: params.row.active,
-                      channel: params.row.channel,
-                      content: params.row.content,
-                      description: params.row.description ?? "",
-                      homepageUrl: params.row.homepageUrl ?? "",
-                      id: params.row.id,
-                      name: params.row.name,
-                      title: params.row.title,
-                    });
-                  }}
-                  onRowDoubleClick={(params: GridRowParams<EducationReminderTemplateRecord>) => {
-                    setSelectedId(params.row.id);
-                    setEditingRecord({
-                      active: params.row.active,
-                      channel: params.row.channel,
-                      content: params.row.content,
-                      description: params.row.description ?? "",
-                      homepageUrl: params.row.homepageUrl ?? "",
-                      id: params.row.id,
-                      name: params.row.name,
-                      title: params.row.title,
-                    });
+                    setIsCreating(false);
+                    setEditingRecord(toTemplateRequest(params.row));
                   }}
                   pageSizeOptions={PAGE_SIZE_OPTIONS}
                   rows={filteredRows}
@@ -433,7 +430,10 @@ export function EducationReminderTemplateManagementTab() {
                       <Typography variant="body2">사용</Typography>
                     </Box>
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                      <Button onClick={() => setEditingRecord(emptyTemplate())} variant="outlined">
+                      <Button
+                        onClick={() => setEditingRecord(selectedRecord ? toTemplateRequest(selectedRecord) : emptyTemplate())}
+                        variant="outlined"
+                      >
                         초기화
                       </Button>
                     </Box>
@@ -454,6 +454,7 @@ export function EducationReminderTemplateManagementTab() {
       <ConfirmDeleteDialog
         message="선택한 템플릿을 삭제하시겠습니까?"
         open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
         title="템플릿 삭제"
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {

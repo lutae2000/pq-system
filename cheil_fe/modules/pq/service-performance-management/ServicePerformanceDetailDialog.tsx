@@ -73,11 +73,12 @@ export function ServicePerformanceDetailDialog({
   saving = false,
 }: ServicePerformanceDetailDialogProps) {
   const canSave = draft.id > 0 ? canUpdate : canCreate;
-  const isEditable = draft.id > 0 ? canUpdate : canCreate;
+  const isBusy = saving || deleting;
+  const isEditable = (draft.id > 0 ? canUpdate : canCreate) && !isBusy;
   const fileOwnerId = draft.id > 0 ? draft.id : "";
 
   return (
-    <Dialog fullWidth maxWidth="lg" onClose={onClose} open={open}>
+    <Dialog fullWidth maxWidth="lg" onClose={isBusy ? undefined : onClose} open={open}>
       <DialogTitle
         sx={{
           alignItems: "center",
@@ -96,6 +97,7 @@ export function ServicePerformanceDetailDialog({
         </Box>
         <Button
           color="inherit"
+          disabled={isBusy}
           onClick={onClose}
           startIcon={<CloseOutlinedIcon />}
           variant="outlined"
@@ -134,7 +136,7 @@ export function ServicePerformanceDetailDialog({
                 </Box>
                 <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
                   <Button
-                    disabled={!canSave || saving}
+                    disabled={!canSave || isBusy}
                     onClick={onSave}
                     startIcon={<SaveOutlinedIcon />}
                     variant="contained"
@@ -143,7 +145,7 @@ export function ServicePerformanceDetailDialog({
                   </Button>
                   <Button
                     color="error"
-                    disabled={!canDelete || draft.id === 0 || deleting}
+                    disabled={!canDelete || draft.id === 0 || isBusy}
                     onClick={onDelete}
                     startIcon={<DeleteOutlineOutlinedIcon />}
                     variant="outlined"
@@ -221,6 +223,7 @@ export function ServicePerformanceDetailDialog({
                   size="small"
                   sx={standardFieldSx}
                   type="number"
+                  slotProps={{ htmlInput: { min: 0, step: "any" } }}
                   value={numberValue(draft.serviceAmount)}
                 />
                 <TextField
@@ -237,6 +240,7 @@ export function ServicePerformanceDetailDialog({
                   size="small"
                   sx={standardFieldSx}
                   type="number"
+                  slotProps={{ htmlInput: { min: 0, max: 100, step: "any" } }}
                   value={numberValue(draft.evaluationScore)}
                 />
                 <TextField
@@ -286,7 +290,7 @@ export function ServicePerformanceDetailDialog({
                       }
                     : undefined
                 }
-                deleteDisabled={!canDelete}
+                deleteDisabled={!canDelete || isBusy}
                 description={
                   fileOwnerId
                     ? "선택한 실적의 첨부파일을 관리합니다."
@@ -294,7 +298,7 @@ export function ServicePerformanceDetailDialog({
                 }
                 multiple
                 title="파일"
-                uploadDisabled={!fileOwnerId || (!canCreate && !canUpdate)}
+                uploadDisabled={isBusy || !fileOwnerId || (!canCreate && !canUpdate)}
                 uploadLabel="파일 업로드"
               />
             </CardContent>
@@ -304,6 +308,7 @@ export function ServicePerformanceDetailDialog({
 
       <DialogActions sx={{ px: 2, py: 1.5 }}>
         <Button
+          disabled={isBusy}
           onClick={onClose}
           startIcon={<CloseOutlinedIcon />}
           variant="outlined"

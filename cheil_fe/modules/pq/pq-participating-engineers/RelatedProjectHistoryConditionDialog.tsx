@@ -3,6 +3,7 @@
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -28,11 +29,13 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { listCommonCodes } from "@/modules/code/common-codes/api";
 import { listConstructionTypes, type ConstructionTypeRecord } from "@/modules/code/construction-types/api";
+import { listRelatedProjectHistoryConditionOptions } from "@/modules/pq/pq-participating-engineers/api";
 import type {
   PqParticipatingEngineerProjectHistoryCondition,
   PqParticipatingEngineerProjectHistoryConditionOperator,
   PqParticipatingEngineerProjectHistoryConditionType,
   PqParticipatingEngineerProjectHistoryConditionValueType,
+  RelatedProjectHistoryConditionOption,
 } from "@/modules/pq/pq-participating-engineers/api";
 
 export type RelatedProjectHistoryCondition = PqParticipatingEngineerProjectHistoryCondition & {
@@ -53,6 +56,8 @@ type CodeOption = {
   label: string;
   valueType?: PqParticipatingEngineerProjectHistoryConditionValueType;
 };
+
+type ConditionValueOption = RelatedProjectHistoryConditionOption;
 
 type ConstructionKindRow = {
   id: string;
@@ -122,7 +127,7 @@ const metadataValueType = (refValue1: string | null | undefined): PqParticipatin
   try {
     const metadata = JSON.parse(refValue1) as { valueType?: string };
     const valueType = metadata.valueType?.trim().toLowerCase();
-    if (valueType === "number" || valueType === "date" || valueType === "text") return valueType;
+    if (valueType === "code" || valueType === "number" || valueType === "date" || valueType === "text") return valueType;
   } catch {
     return undefined;
   }
@@ -139,7 +144,7 @@ const conditionValueType = (condition: RelatedProjectHistoryCondition): PqPartic
   if (condition.conditionType === "constructionKind") {
     return "code";
   }
-  if (condition.valueType === "number" || condition.valueType === "date") {
+  if (condition.valueType === "code" || condition.valueType === "number" || condition.valueType === "date") {
     return condition.valueType;
   }
   return "text";
@@ -284,6 +289,22 @@ export function RelatedProjectHistoryConditionDialog({
     enabled: open,
   });
 
+  const conditionOptionsQuery = useQuery({
+    queryKey: ["pq", "related-project-history-conditions", "options"],
+    queryFn: listRelatedProjectHistoryConditionOptions,
+    enabled: open,
+  });
+
+  const conditionOptionsByCode = useMemo(
+    () => new Map((conditionOptionsQuery.data ?? []).map((group) => [group.conditionCode, group.options])),
+    [conditionOptionsQuery.data],
+  );
+
+  const valueTypeByGeneralCode = useMemo(
+    () => new Map((conditionOptionsQuery.data ?? []).map((group) => [group.conditionCode, group.valueType])),
+    [conditionOptionsQuery.data],
+  );
+
   const constructionRows = useMemo(() => buildConstructionRows(constructionTypesQuery.data ?? []), [constructionTypesQuery.data]);
 
   const outlineCategoryRows = useMemo<OutlineCategoryRow[]>(
@@ -329,11 +350,11 @@ export function RelatedProjectHistoryConditionDialog({
       const rows = (generalConditionsQuery.data ?? []).map((code) => ({
         code: `${code.level2Code}${code.level3Code}`,
         label: code.codeDetailName || code.codeName,
-        valueType: generalConditionValueType(code.refValue1),
+        valueType: valueTypeByGeneralCode.get(`${code.level2Code}${code.level3Code}`) ?? generalConditionValueType(code.refValue1),
       }));
       return rows.filter((row) => includesKeyword([row.code, row.label], keyword));
     },
-    [generalConditionsQuery.data, keyword],
+    [generalConditionsQuery.data, keyword, valueTypeByGeneralCode],
   );
 
   const filteredOutlineCategoryRows = useMemo(
@@ -612,6 +633,14 @@ export function RelatedProjectHistoryConditionDialog({
                     const availableOperators = operatorsByValueType[valueType];
                     const configuredOperator = condition.operator ?? defaultOperator(valueType);
                     const operator = availableOperators.includes(configuredOperator) ? configuredOperator : defaultOperator(valueType);
+                    const valueOptions =
+                      condition.conditionType === "general" && valueType === "code"
+                        ? conditionOptionsByCode.get(condition.generalCode ?? "") ?? []
+                        : [];
+                    const hasValueOptions = valueOptions.length > 0;
+                    const selectedValueOption =
+                      valueOptions.find((option) => option.value === (condition.value ?? "")) ??
+                      (condition.value ? { value: condition.value, label: condition.value } : null);
 
                     return (
                       <Box
@@ -684,7 +713,25 @@ export function RelatedProjectHistoryConditionDialog({
                               ))}
                             </TextField>
                           ) : null}
-                          {needsValueInput(condition) ? (
+                          {needsValueInput(condition) && hasValueOptions ? (
+                            <Autocomplete<ConditionValueOption, false, false, false>
+                              disabled={disabled}
+                              getOptionLabel={(option) => option.label}
+                              isOptionEqualToValue={(option, selected) => option.value === selected.value}
+                              onChange={(_, option) => updateCondition(condition.id, { value: option?.value ?? "" })}
+                              options={valueOptions}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label={valueLabel(condition)}
+                                  size="small"
+                                  sx={standardFieldSx}
+                                />
+                              )}
+                              value={selectedValueOption}
+                            />
+                          ) : null}
+                          {needsValueInput(condition) && !hasValueOptions ? (
                             <TextField
                               disabled={disabled}
                               label={operator === "BETWEEN" ? `${valueLabel(condition)} 시작` : valueLabel(condition)}

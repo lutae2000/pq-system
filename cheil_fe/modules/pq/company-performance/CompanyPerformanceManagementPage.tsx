@@ -18,7 +18,6 @@ import {
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
 import dynamic from "next/dynamic";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -32,16 +31,13 @@ import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/module
 import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import {
   COMPANY_PERFORMANCE_PAGE_SIZE,
-  createCompanyPerformance,
-  deleteCompanyPerformance,
-  getCompanyPerformance,
-  listCompanyPerformances,
-  updateCompanyPerformance,
   type CompanyPerformancePageResponse,
   type CompanyPerformanceRecord,
   type CompanyPerformanceSearchParams,
   type CompanyPerformanceUpsertRequest,
 } from "@/modules/pq/company-performance/api";
+import { useCompanyPerformanceMutations } from "@/modules/pq/company-performance/application/useCompanyPerformanceMutations";
+import { useCompanyPerformanceQueries } from "@/modules/pq/company-performance/application/useCompanyPerformanceQueries";
 
 const EMPTY_ROWS: CompanyPerformanceRecord[] = [];
 const CompanyPerformanceDetailDialog = dynamic(
@@ -152,7 +148,6 @@ const codeLabel = (labelByValue: Record<string, string>, value: string | null | 
 export function CompanyPerformanceManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
 
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
@@ -207,11 +202,9 @@ export function CompanyPerformanceManagementPage() {
     [appliedKeyword, businessType, clientKind, contractFromDate, contractToDate, jobFinishFilter, jobOwnFilter, page, pageSize],
   );
 
-  const companyPerformancesQuery = useQuery({
-    queryKey: ["company-performances", searchParams],
-    queryFn: () => listCompanyPerformances(searchParams),
+  const { companyPerformancesQuery } = useCompanyPerformanceQueries({
     enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
+    searchParams,
   });
 
   const companyPerformancesPage = companyPerformancesQuery.data ?? emptyPage(page, pageSize);
@@ -307,41 +300,28 @@ export function CompanyPerformanceManagementPage() {
 
   const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
-  const detailMutation = useMutation({
-    mutationFn: getCompanyPerformance,
-    onSuccess: (detail) => {
-      setDraft(detail);
-      setDetailOpen(true);
-    },
-    onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "회사 실적 상세 조회에 실패했습니다.", severity: "error" });
-    },
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: (requestBody: CompanyPerformanceUpsertRequest) => (draft.seq ? updateCompanyPerformance(draft.seq, requestBody) : createCompanyPerformance(requestBody)),
-    onSuccess: (saved) => {
-      setDraft(saved);
-      setDetailOpen(true);
-      void queryClient.invalidateQueries({ queryKey: ["company-performances"] });
-      setNotice({ message: "회사 실적 정보를 저장했습니다.", severity: "success" });
-    },
-    onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "회사 실적 저장에 실패했습니다.", severity: "error" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteCompanyPerformance,
-    onSuccess: () => {
+  const { deleteMutation, detailMutation, saveMutation } = useCompanyPerformanceMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    draftSeq: draft.seq,
+    onDeleted: () => {
       setDeleteTarget(null);
       setDetailOpen(false);
       setDraft(emptyDraft());
-      void queryClient.invalidateQueries({ queryKey: ["company-performances"] });
       setNotice({ message: "회사 실적 정보를 삭제했습니다.", severity: "success" });
     },
-    onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "회사 실적 삭제에 실패했습니다.", severity: "error" });
+    onDetailLoaded: (detail) => {
+      setDraft(detail);
+      setDetailOpen(true);
+    },
+    onError: (error, fallbackMessage) => {
+      setNotice({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" });
+    },
+    onSaved: (saved) => {
+      setDraft(saved);
+      setDetailOpen(true);
+      setNotice({ message: "회사 실적 정보를 저장했습니다.", severity: "success" });
     },
   });
 

@@ -4,7 +4,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -17,16 +17,13 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  createSimilarServicePerformance,
-  deleteSimilarServicePerformance,
-  listSimilarServicePerformances,
   SIMILAR_SERVICE_PERFORMANCE_PAGE_SIZE,
-  updateSimilarServicePerformance,
   type SimilarServicePerformancePageResponse,
   type SimilarServicePerformanceRecord,
   type SimilarServicePerformanceSearchParams,
 } from "@/modules/pq/similar-service-performances/api";
-import { SimilarServicePerformanceDialog } from "@/modules/pq/similar-service-performances/SimilarServicePerformanceDialog";
+import { useSimilarServicePerformanceMutations } from "@/modules/pq/similar-service-performances/application/useSimilarServicePerformanceMutations";
+import { useSimilarServicePerformanceQueries } from "@/modules/pq/similar-service-performances/application/useSimilarServicePerformanceQueries";
 import {
   calculateAppliedAmount,
   calculateRecentThreeYearPeriod,
@@ -36,7 +33,6 @@ import {
   formatNumberText,
   formatPeriodText,
   getTodayDateInputValue,
-  toSimilarServicePerformanceRequest,
 } from "@/modules/pq/similar-service-performances/similarServicePerformanceForm";
 
 const EMPTY_ROWS: SimilarServicePerformanceRecord[] = [];
@@ -62,10 +58,14 @@ const DEFAULT_FILTERS = {
   referenceDate: getTodayDateInputValue(),
 };
 
+const SimilarServicePerformanceDialog = dynamic(
+  () => import("@/modules/pq/similar-service-performances/SimilarServicePerformanceDialog").then((module) => module.SimilarServicePerformanceDialog),
+  { ssr: false },
+);
+
 export function SimilarServicePerformanceManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
@@ -90,11 +90,9 @@ export function SimilarServicePerformanceManagementPage() {
     [appliedFilters, page, pageSize],
   );
 
-  const performancesQuery = useQuery({
-    queryKey: ["similar-service-performances", searchParams],
-    queryFn: () => listSimilarServicePerformances(searchParams),
+  const { performancesQuery } = useSimilarServicePerformanceQueries({
     enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
+    searchParams,
   });
 
   const pageData = performancesQuery.data ?? emptyPage(page, pageSize);
@@ -139,6 +137,23 @@ export function SimilarServicePerformanceManagementPage() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [bulkWeightValue]);
 
+  const { bulkWeightMutation, deleteMutation, saveMutation, updateWeightMutation } = useSimilarServicePerformanceMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    onDeleted: () => {
+      setDeleteTarget(null);
+      showSnackbar({ message: "유사용역 수행실적을 삭제했습니다.", severity: "success" });
+    },
+    onError: (error, fallbackMessage) =>
+      showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onSaved: () => {
+      setDialogOpen(false);
+      setEditingRecord(null);
+      showSnackbar({ message: "유사용역 수행실적을 저장했습니다.", severity: "success" });
+    },
+  });
+
   const confirmProcessRowUpdate = useCallback(
     (updatedRow: SimilarServicePerformanceRecord, originalRow: SimilarServicePerformanceRecord) => {
       if (updatedRow.weight === originalRow.weight) {
@@ -166,10 +181,9 @@ export function SimilarServicePerformanceManagementPage() {
         throw new Error("저장할 행을 찾을 수 없습니다.");
       }
 
-      const saved = await updateSimilarServicePerformance(updatedRow.id, toSimilarServicePerformanceRequest(updatedRow));
-      return saved;
+      return updateWeightMutation.mutateAsync(updatedRow);
     },
-    [],
+    [updateWeightMutation],
   );
 
   const columns = useMemo<GridColDef<SimilarServicePerformanceRecord>[]>(
@@ -246,54 +260,6 @@ export function SimilarServicePerformanceManagementPage() {
     ],
     [referenceDate],
   );
-
-  const saveMutation = useMutation({
-    mutationFn: async (record: SimilarServicePerformanceRecord) => {
-      const request = toSimilarServicePerformanceRequest(record);
-      return record.id ? updateSimilarServicePerformance(record.id, request) : createSimilarServicePerformance(request);
-    },
-    onSuccess: async () => {
-      setDialogOpen(false);
-      setEditingRecord(null);
-      await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      showSnackbar({ message: "유사용역 수행실적을 저장했습니다.", severity: "success" });
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "저장에 실패했습니다.", severity: "error" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (target: SimilarServicePerformanceRecord) => deleteSimilarServicePerformance(target.id ?? 0),
-    onSuccess: async () => {
-      setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      showSnackbar({ message: "유사용역 수행실적을 삭제했습니다.", severity: "success" });
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "삭제에 실패했습니다.", severity: "error" }),
-  });
-
-  const bulkWeightMutation = useMutation({
-    mutationFn: async ({ rows, weight }: { rows: SimilarServicePerformanceRecord[]; weight: number }) => {
-      await Promise.all(
-        rows.map((row) => {
-          if (!row.id) {
-            throw new Error("가중치를 저장할 행을 찾을 수 없습니다.");
-          }
-
-          return updateSimilarServicePerformance(row.id, toSimilarServicePerformanceRequest({ ...row, weight }));
-        }),
-      );
-    },
-    onSuccess: async (_saved, variables) => {
-      setBulkWeightConfirmOpen(false);
-      setBulkWeightDialogOpen(false);
-      setBulkWeightValue("");
-      setBulkWeightTargets([]);
-      setRowSelectionModel({ ids: new Set(), type: "include" });
-      await queryClient.invalidateQueries({ queryKey: ["similar-service-performances"] });
-      showSnackbar({ message: `${variables.rows.length.toLocaleString("ko-KR")}건의 가중치를 일괄 저장했습니다.`, severity: "success" });
-    },
-    onError: (error) => showSnackbar({ message: error instanceof Error ? error.message : "가중치 일괄 저장에 실패했습니다.", severity: "error" }),
-  });
 
   const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
@@ -486,21 +452,26 @@ export function SimilarServicePerformanceManagementPage() {
         </Stack>
       )}
 
-      <SimilarServicePerformanceDialog
-        deleting={deleteMutation.isPending}
-        deleteDisabled={deleteMutation.isPending}
-        onClose={() => {
-          setDialogOpen(false);
-          setEditingRecord(null);
-        }}
-        onDelete={(record) => setDeleteTarget(record)}
-        onFieldChange={(field, value) => setEditingRecord((current) => (current ? { ...current, [field]: value } : current))}
-        onSave={(record) => saveMutation.mutate(record)}
-        open={dialogOpen}
-        permissions={{ canCreate, canDelete, canUpdate }}
-        record={editingRecord}
-        saving={saveMutation.isPending}
-      />
+      {dialogOpen && editingRecord ? (
+        <SimilarServicePerformanceDialog
+          deleting={deleteMutation.isPending}
+          deleteDisabled={deleteMutation.isPending}
+          onClose={() => {
+            if (saveMutation.isPending || deleteMutation.isPending) {
+              return;
+            }
+            setDialogOpen(false);
+            setEditingRecord(null);
+          }}
+          onDelete={(record) => setDeleteTarget(record)}
+          onFieldChange={(field, value) => setEditingRecord((current) => (current ? { ...current, [field]: value } : current))}
+          onSave={(record) => saveMutation.mutate(record)}
+          open
+          permissions={{ canCreate, canDelete, canUpdate }}
+          record={editingRecord}
+          saving={saveMutation.isPending}
+        />
+      ) : null}
 
       <ConfirmDeleteDialog
         message="선택한 유사용역 수행실적을 삭제하시겠습니까?"
@@ -549,7 +520,19 @@ export function SimilarServicePerformanceManagementPage() {
             return;
           }
 
-          bulkWeightMutation.mutate({ rows: bulkWeightTargets, weight: bulkWeightNumber });
+          bulkWeightMutation.mutate(
+            { rows: bulkWeightTargets, weight: bulkWeightNumber },
+            {
+              onSuccess: () => {
+                setBulkWeightConfirmOpen(false);
+                setBulkWeightDialogOpen(false);
+                setBulkWeightValue("");
+                setBulkWeightTargets([]);
+                setRowSelectionModel({ ids: new Set(), type: "include" });
+                showSnackbar({ message: `${bulkWeightTargets.length.toLocaleString("ko-KR")}건의 가중치를 일괄 저장했습니다.`, severity: "success" });
+              },
+            },
+          );
         }}
         open={bulkWeightConfirmOpen}
         targetLabel={`${bulkWeightTargets.length.toLocaleString("ko-KR")}건 / 가중치 ${bulkWeightValue || "-"}`}

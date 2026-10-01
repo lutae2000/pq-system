@@ -29,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CommonSelectField, defineCommonSelectDataSource } from "@/components/common/CommonSelectField";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -41,11 +42,9 @@ import { MenuPermissionCard, type MenuPermissionRowLike } from "@/components/com
 import { listSystemMenus, type SystemMenuRecord } from "@/modules/system/menus/api";
 import { listSystemRoles, type SystemRoleRecord } from "@/modules/system/roles/api";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-import {
-  listUserMenuPermissions,
-  saveUserMenuPermissions,
-  type UserMenuPermissionRecord,
-} from "@/modules/system/user-permission-management/api";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { useUserManagementCommands } from "@/modules/system/user-management/application/useUserManagementCommands";
+import { listUserMenuPermissions, type UserMenuPermissionRecord } from "@/modules/system/user-permission-management/api";
 import type { AuthUserAccount } from "@/types/user";
 
 const emptyUser = (): AuthUserAccount => ({
@@ -163,6 +162,7 @@ const findMenuNode = (nodes: MenuTreeNode[], menuCode: string): MenuTreeNode | n
 export function UserManagementPage() {
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
+  const { showError, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const initialSelectionApplied = useRef(false);
   const [activeTab, setActiveTab] = useState<UserManagementTab>("details");
@@ -178,6 +178,7 @@ export function UserManagementPage() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [resetPasswordConfirmOpen, setResetPasswordConfirmOpen] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
   const [expandedMenuCodes, setExpandedMenuCodes] = useState<string[]>([]);
@@ -185,6 +186,15 @@ export function UserManagementPage() {
   const [baselinePermissionRows, setBaselinePermissionRows] = useState<PermissionRow[]>([]);
   const [permissionLoading, setPermissionLoading] = useState(false);
   const [permissionSaving, setPermissionSaving] = useState(false);
+
+  const { savePermissionMutation } = useUserManagementCommands({
+    canCreate,
+    canUpdate,
+    onPasswordReset: () => undefined,
+    onUserSaved: () => undefined,
+    showError,
+    showSuccess,
+  });
 
   const departmentsQuery = useQuery({
     queryKey: ["departments", "useYn=true"],
@@ -473,7 +483,14 @@ export function UserManagementPage() {
       return;
     }
 
-    resetPasswordMutation.mutate(selectedUser.employeeNo);
+    setResetPasswordConfirmOpen(true);
+  };
+
+  const confirmResetPassword = () => {
+    if (!selectedUser) return;
+    resetPasswordMutation.mutate(selectedUser.employeeNo, {
+      onSettled: () => setResetPasswordConfirmOpen(false),
+    });
   };
 
   const selectedStatus = accountStatus(selectedUser ?? draftUser);
@@ -553,7 +570,8 @@ export function UserManagementPage() {
 
     setPermissionSaving(true);
     try {
-      const savedPermissions = await saveUserMenuPermissions(loginId, {
+      const savedPermissions = await savePermissionMutation.mutateAsync({
+        loginId,
         items: permissionRows.map((row) => ({
           menuCode: row.menuCode,
           read: row.read,
@@ -577,6 +595,10 @@ export function UserManagementPage() {
   };
 
   const visibleTab: UserManagementTab = selectedUser ? activeTab : "details";
+
+  if (!canRead) {
+    return <Alert severity="warning">사용자 조회 권한이 없습니다.</Alert>;
+  }
 
   return (
     <Box>
@@ -935,7 +957,7 @@ export function UserManagementPage() {
                           }
                           permissionByMenuCode={permissionByMenuCode}
                           onSave={handleSavePermissions}
-                          saveDisabled={!selectedUser || permissionLoading || permissionSaving}
+                          saveDisabled={!selectedUser || !canUpdate || permissionLoading || permissionSaving || savePermissionMutation.isPending}
                           title="메뉴 권한"
                         />
                       </>
@@ -961,6 +983,15 @@ export function UserManagementPage() {
         </Box>
 
       </Box>
+    <ConfirmActionDialog
+      confirmLabel="비밀번호 초기화"
+      loading={resetPasswordMutation.isPending}
+      message="선택한 사용자의 비밀번호를 초기화하시겠습니까?"
+      onClose={() => setResetPasswordConfirmOpen(false)}
+      onConfirm={confirmResetPassword}
+      open={resetPasswordConfirmOpen}
+      title="비밀번호 초기화 확인"
+    />
     </Box>
   );
 }

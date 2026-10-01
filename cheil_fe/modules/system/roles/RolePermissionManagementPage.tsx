@@ -22,29 +22,25 @@ import {
   Typography,
 } from "@mui/material";
 import { type GridColDef } from "@mui/x-data-grid";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { buildMenuTree, collectDescendantPageCodes, compareMenus, type MenuTreeNode } from "@/lib/permissions/menuPermissionTree";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { MenuPermissionCard, type MenuPermissionRowLike } from "@/components/common/MenuPermissionCard";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-
-import { listSystemMenus, type SystemMenuRecord } from "@/modules/system/menus/api";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
+import type { SystemMenuRecord } from "@/modules/system/menus/api";
 import {
-  createSystemRole,
-  deleteSystemRole,
-  getSystemRole,
-  listRoleMenuPermissions,
-  listSystemRoles,
-  saveRoleMenuPermissions,
-  updateSystemRole,
   type RoleMenuPermissionRecord,
   type SystemRoleRecord,
   type SystemRoleUpsertRequest,
 } from "./api";
+import { useRolePermissionMutations } from "./application/useRolePermissionMutations";
+import { useRolePermissionQueries } from "./application/useRolePermissionQueries";
 
 type RoleFormState = {
   description: string;
@@ -92,19 +88,56 @@ const buildPermissionRows = (menus: SystemMenuRecord[], permissions: RoleMenuPer
 type PermissionRow = ReturnType<typeof buildPermissionRows>[number];
 
 export function RolePermissionManagementPage() {
-  const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
-  const [roles, setRoles] = useState<SystemRoleRecord[]>([]);
-  const [menus, setMenus] = useState<SystemMenuRecord[]>([]);
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
   const [expandedMenuCodes, setExpandedMenuCodes] = useState<string[]>([]);
   const [selectedRoleCode, setSelectedRoleCode] = useState<string | null>(null);
+  const [isNewRole, setIsNewRole] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [draft, setDraft] = useState<RoleFormState>(() => defaultRoleForm());
   const [permissionRows, setPermissionRows] = useState<PermissionRow[]>([]);
   const [baselinePermissionRows, setBaselinePermissionRows] = useState<PermissionRow[]>([]);
   const [roleKeyword, setRoleKeyword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [savingRole, setSavingRole] = useState(false);
-  const [savingPermissions, setSavingPermissions] = useState(false);
   const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
+
+  const { menusQuery, permissionsQuery, rolesQuery } = useRolePermissionQueries({
+    enabled: tabQueryEnabled,
+    selectedRoleCode,
+  });
+  const roles = useMemo(
+    () => [...(rolesQuery.data ?? [])].sort((left, right) => (left.sortSeq !== right.sortSeq ? left.sortSeq - right.sortSeq : left.roleCode.localeCompare(right.roleCode))),
+    [rolesQuery.data],
+  );
+  const menus = useMemo(() => menusQuery.data ?? [], [menusQuery.data]);
+
+  useEffect(() => {
+    if (isNewRole || selectedRoleCode || roles.length === 0) {
+      return;
+    }
+    // The initial role is selected after the server list becomes available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedRoleCode(roles[0].roleCode);
+    setDraft(toRoleFormState(roles[0]));
+  }, [isNewRole, roles, selectedRoleCode]);
+
+  useEffect(() => {
+    if (!selectedRoleCode || !permissionsQuery.data) {
+      return;
+    }
+    const rows = buildPermissionRows(menus, permissionsQuery.data);
+    // Keep the editable permission draft synchronized with the selected role.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPermissionRows(rows);
+    setBaselinePermissionRows(rows);
+  }, [menus, permissionsQuery.data, selectedRoleCode]);
+
+  useEffect(() => {
+    if (expandedMenuCodes.length === 0 && menus.length > 0) {
+      // Expand the menu tree once after the menu catalog is loaded.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setExpandedMenuCodes(buildMenuTree(menus).map((node) => node.record.menuCode));
+    }
+  }, [expandedMenuCodes.length, menus]);
 
   const selectedRole = useMemo(
     () => roles.find((item) => item.roleCode === selectedRoleCode) ?? null,
@@ -159,6 +192,31 @@ export function RolePermissionManagementPage() {
     [],
   );
 
+  const { deleteRoleMutation, savePermissionsMutation, saveRoleMutation } = useRolePermissionMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    onDeleted: () => {
+      setSelectedRoleCode(null);
+      setIsNewRole(false);
+      setDraft(defaultRoleForm());
+      setPermissionRows([]);
+      setBaselinePermissionRows([]);
+      setNotice({ message: "역할이 삭제되었습니다.", severity: "success" });
+    },
+    onError: (error, fallbackMessage) =>
+      setNotice({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+    onPermissionsSaved: () => {
+      setNotice({ message: "메뉴 권한이 저장되었습니다.", severity: "success" });
+    },
+    onRoleSaved: (saved) => {
+      setIsNewRole(false);
+      setSelectedRoleCode(saved.roleCode);
+      setDraft(toRoleFormState(saved));
+      setNotice({ message: "역할 상세가 저장되었습니다.", severity: "success" });
+    },
+  });
+
   function findMenuNode(nodes: MenuTreeNode[], menuCode: string): MenuTreeNode | null {
     for (const node of nodes) {
       if (node.record.menuCode === menuCode) {
@@ -172,64 +230,8 @@ export function RolePermissionManagementPage() {
     return null;
   }
 
-  const loadRoles = useCallback(async (preferredRoleCode?: string | null) => {
-    setLoading(true);
-    try {
-      const [roleData, menuData] = await Promise.all([listSystemRoles(), listSystemMenus()]);
-      const sortedRoles = [...roleData].sort((left, right) => (left.sortSeq !== right.sortSeq ? left.sortSeq - right.sortSeq : left.roleCode.localeCompare(right.roleCode)));
-      setRoles(sortedRoles);
-      setMenus(menuData);
-      setExpandedMenuCodes((current) => {
-        if (current.length) {
-          return current;
-        }
-        return buildMenuTree(menuData).map((node) => node.record.menuCode);
-      });
-
-      const nextSelected = preferredRoleCode
-        ? sortedRoles.find((item) => item.roleCode === preferredRoleCode)
-        : sortedRoles[0];
-      if (nextSelected) {
-        setSelectedRoleCode(nextSelected.roleCode);
-        setDraft(toRoleFormState(nextSelected));
-        const permissions = await listRoleMenuPermissions(nextSelected.roleCode);
-        const rows = buildPermissionRows(menuData, permissions);
-        setPermissionRows(rows);
-        setBaselinePermissionRows(rows);
-      } else {
-        setSelectedRoleCode(null);
-        setDraft(defaultRoleForm());
-        setPermissionRows([]);
-        setBaselinePermissionRows([]);
-      }
-    } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "역할 데이터를 불러오지 못했습니다.", severity: "error" });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadRoles();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [loadRoles]);
-
-  const handleSelectRole = async (roleCode: string) => {
-    try {
-      const [role, permissions] = await Promise.all([getSystemRole(roleCode), listRoleMenuPermissions(roleCode)]);
-      const rows = buildPermissionRows(menus, permissions);
-      setSelectedRoleCode(role.roleCode);
-      setDraft(toRoleFormState(role));
-      setPermissionRows(rows);
-      setBaselinePermissionRows(rows);
-    } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "역할 정보를 불러오지 못했습니다.", severity: "error" });
-    }
-  };
-
   const handleNewRole = () => {
+    setIsNewRole(true);
     setSelectedRoleCode(null);
     setDraft(defaultRoleForm());
     const rows = buildPermissionRows(menus, []);
@@ -309,38 +311,27 @@ export function RolePermissionManagementPage() {
     );
   };
 
-  const handleSaveRole = async () => {
+  const handleSaveRole = () => {
+    if (selectedRoleCode ? !canUpdate : !canCreate) {
+      setNotice({ message: selectedRoleCode ? "역할 수정 권한이 없습니다." : "역할 등록 권한이 없습니다.", severity: "error" });
+      return;
+    }
     if (!draft.roleCode.trim() || !draft.roleName.trim()) {
       setNotice({ message: "역할 코드와 역할명은 필수입니다.", severity: "error" });
       return;
     }
 
-    setSavingRole(true);
-    try {
-      const requestBody: SystemRoleUpsertRequest = {
-        description: draft.description.trim() || null,
-        roleCode: draft.roleCode.trim(),
-        roleName: draft.roleName.trim(),
-        sortSeq: Number(draft.sortSeq || 0),
-        useYn: draft.useYn,
-      };
-
-      const saved = selectedRoleCode ? await updateSystemRole(selectedRoleCode, requestBody) : await createSystemRole(requestBody);
-      setRoles((current) => {
-        const withoutCurrent = current.filter((item) => item.roleCode !== saved.roleCode);
-        return [...withoutCurrent, saved].sort((left, right) => (left.sortSeq !== right.sortSeq ? left.sortSeq - right.sortSeq : left.roleCode.localeCompare(right.roleCode)));
-      });
-      setSelectedRoleCode(saved.roleCode);
-      setDraft(toRoleFormState(saved));
-      setNotice({ message: "역할 상세가 저장되었습니다.", severity: "success" });
-    } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "역할 상세를 저장하지 못했습니다.", severity: "error" });
-    } finally {
-      setSavingRole(false);
-    }
+    const requestBody: SystemRoleUpsertRequest = {
+      description: draft.description.trim() || null,
+      roleCode: draft.roleCode.trim(),
+      roleName: draft.roleName.trim(),
+      sortSeq: Number(draft.sortSeq || 0),
+      useYn: draft.useYn,
+    };
+    saveRoleMutation.mutate({ roleCode: selectedRoleCode, request: requestBody });
   };
 
-  const handleSavePermissions = async (changedItems: MenuPermissionRowLike[]) => {
+  const handleSavePermissions = (changedItems: MenuPermissionRowLike[]) => {
     if (!selectedRoleCode) {
       setNotice({ message: "먼저 역할을 저장하거나 선택하세요.", severity: "error" });
       return;
@@ -351,44 +342,34 @@ export function RolePermissionManagementPage() {
       return;
     }
 
-    setSavingPermissions(true);
-    try {
-      const changedBy = readAuthSessionSnapshot()?.loginId ?? "system";
-      const savedPermissions = await saveRoleMenuPermissions(selectedRoleCode, {
-        items: changedItems,
-        lastChangedId: changedBy,
-      });
-
-      const rows = buildPermissionRows(menus, savedPermissions);
-      setPermissionRows(rows);
-      setBaselinePermissionRows(rows);
-      setNotice({ message: "메뉴 권한이 저장되었습니다.", severity: "success" });
-    } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "메뉴 권한을 저장하지 못했습니다.", severity: "error" });
-    } finally {
-      setSavingPermissions(false);
-    }
+    const changedBy = readAuthSessionSnapshot()?.loginId ?? "system";
+    savePermissionsMutation.mutate({
+      roleCode: selectedRoleCode,
+      request: { items: changedItems, lastChangedId: changedBy },
+    }, {
+      onSuccess: (savedPermissions) => {
+        const rows = buildPermissionRows(menus, savedPermissions);
+        setPermissionRows(rows);
+        setBaselinePermissionRows(rows);
+      },
+    });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!selectedRoleCode) {
       return;
     }
-    if (!window.confirm("역할을 삭제하시겠습니까?")) {
-      return;
-    }
-
-    setSavingRole(true);
-    try {
-      await deleteSystemRole(selectedRoleCode);
-      await loadRoles(null);
-      setNotice({ message: "역할이 삭제되었습니다.", severity: "success" });
-    } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "역할을 삭제하지 못했습니다.", severity: "error" });
-    } finally {
-      setSavingRole(false);
-    }
+    setDeleteConfirmOpen(true);
   };
+
+  if (!canRead) {
+    return (
+      <Box>
+        <PageHeader title="역할 권한 관리" />
+        <Alert severity="warning">역할 권한을 조회할 권한이 없습니다.</Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -439,7 +420,7 @@ export function RolePermissionManagementPage() {
 
             <Divider sx={{ mb: 1.5 }} />
 
-            {loading ? (
+            {rolesQuery.isLoading || menusQuery.isLoading ? (
               <Box sx={{ minHeight: 560, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <CircularProgress size={28} />
               </Box>
@@ -448,8 +429,12 @@ export function RolePermissionManagementPage() {
                 columns={roleColumns}
                 getRowId={(row) => row.roleCode}
                 hideFooterSelectedRowCount
-                loading={loading}
-                onRowClick={(params) => void handleSelectRole(params.row.roleCode)}
+                loading={rolesQuery.isFetching || menusQuery.isFetching}
+                onRowClick={(params) => {
+                  setIsNewRole(false);
+                  setSelectedRoleCode(params.row.roleCode);
+                  setDraft(toRoleFormState(params.row));
+                }}
                 rowSelectionModel={roleSelectionModel}
                 rows={filteredRoles}
                 sx={{
@@ -481,7 +466,7 @@ export function RolePermissionManagementPage() {
                     onClick={handleDelete}
                     startIcon={<DeleteOutlineOutlinedIcon />}
                     variant="outlined"
-                    disabled={!selectedRoleCode || savingRole || savingPermissions || !canDelete}
+                    disabled={!selectedRoleCode || deleteRoleMutation.isPending || saveRoleMutation.isPending || savePermissionsMutation.isPending || !canDelete}
                   >
                     삭제
                   </Button>
@@ -489,7 +474,7 @@ export function RolePermissionManagementPage() {
                     onClick={handleSaveRole}
                     startIcon={<SaveOutlinedIcon />}
                     variant="contained"
-                    disabled={savingRole || savingPermissions || !canUpdate}
+                    disabled={saveRoleMutation.isPending || savePermissionsMutation.isPending || !(isNewRole ? canCreate : canUpdate)}
                   >
                     저장
                   </Button>
@@ -557,7 +542,7 @@ export function RolePermissionManagementPage() {
             }
             permissionByMenuCode={permissionByMenuCode}
             onSave={handleSavePermissions}
-            saveDisabled={!selectedRoleCode || loading || savingRole || savingPermissions}
+            saveDisabled={!selectedRoleCode || permissionsQuery.isFetching || savePermissionsMutation.isPending}
             title="메뉴 권한"
           />
         </Stack>
@@ -570,6 +555,21 @@ export function RolePermissionManagementPage() {
           </Alert>
         </Snackbar>
       ) : null}
+      <ConfirmActionDialog
+        confirmColor="error"
+        confirmLabel="삭제"
+        loading={deleteRoleMutation.isPending}
+        message="선택한 역할을 삭제하시겠습니까?"
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          if (selectedRoleCode) {
+            deleteRoleMutation.mutate(selectedRoleCode, { onSuccess: () => setDeleteConfirmOpen(false) });
+          }
+        }}
+        open={deleteConfirmOpen}
+        targetLabel={selectedRoleCode ?? undefined}
+        title="역할 삭제 확인"
+      />
     </Box>
   );
 }

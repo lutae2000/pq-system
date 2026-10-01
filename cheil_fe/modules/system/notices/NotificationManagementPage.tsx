@@ -11,6 +11,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Alert,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,16 +25,18 @@ import {
 } from "@mui/material";
 import type { GridColDef, GridRowId, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { DateTimeInput } from "@/components/common/DateTimeInput";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { NoticeLayerDialog } from "./NoticeLayerDialog";
-import { createNotice, deleteNotice, listNoticesAdmin, updateNotice } from "./api";
+import { useNoticeMutations } from "./application/useNoticeMutations";
+import { useNoticeQueries } from "./application/useNoticeQueries";
 import type { NoticeRecord } from "./notice.types";
 
 type NoticeDraft = NoticeRecord;
@@ -76,15 +79,10 @@ const noticeColumns: GridColDef<NoticeRecord>[] = [
 ];
 
 export function NotificationManagementPage() {
-  const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showSnackbar } = useAppSnackbar();
-  const tabQueryEnabled = useTabQueryEnabled();
-  const queryClient = useQueryClient();
-  const noticesQuery = useQuery({
-    queryKey: ["system-notices"],
-    queryFn: listNoticesAdmin,
-    enabled: tabQueryEnabled,
-  });
+  const tabQueryEnabled = useTabQueryEnabled(canRead);
+  const { noticesQuery } = useNoticeQueries({ enabled: tabQueryEnabled });
   const [selectedId, setSelectedId] = useState<GridRowId>("");
   const [draft, setDraft] = useState<NoticeDraft | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NoticeDraft | null>(null);
@@ -99,7 +97,33 @@ export function NotificationManagementPage() {
     [effectiveSelectedId],
   );
   const activeNotices = useMemo(() => records.filter((record) => record.active), [records]);
-  const canSaveCurrent = Boolean(draft) && (records.some((record) => record.id === draft?.id) ? canUpdate : canCreate);
+  const isExistingDraft = Boolean(draft && records.some((record) => record.id === draft.id));
+  const canSaveCurrent = Boolean(draft) && (isExistingDraft ? canUpdate : canCreate);
+
+  const handleMutationError = (error: unknown, fallbackMessage: string) => {
+    showSnackbar({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" });
+  };
+
+  const { deleteMutation, saveMutation } = useNoticeMutations({
+    canCreate,
+    canDelete,
+    canUpdate,
+    onDeleted: (deletedId) => {
+      if (effectiveSelectedId === deletedId) {
+        setSelectedId(records.find((record) => record.id !== deletedId)?.id ?? "");
+      }
+      setDraft(null);
+      setDeleteTarget(null);
+      showSnackbar({ message: "공지사항이 삭제되었습니다.", severity: "success" });
+    },
+    onError: handleMutationError,
+    onSaved: (saved, created) => {
+      setSelectedId(saved.id);
+      setDraft(saved);
+      setSaveTarget(null);
+      showSnackbar({ message: created ? "공지사항이 등록되었습니다." : "공지사항이 저장되었습니다.", severity: "success" });
+    },
+  });
 
   const handleNew = () => {
     const nextDraft = createEmptyNotice();
@@ -118,6 +142,11 @@ export function NotificationManagementPage() {
       return null;
     }
 
+    if (new Date(draft.exposureStartAt).getTime() >= new Date(draft.exposureEndAt).getTime()) {
+      showSnackbar({ message: "노출 종료 시각은 시작 시각보다 늦어야 합니다.", severity: "error" });
+      return null;
+    }
+
     return {
       ...draft,
       id: draft.id,
@@ -129,38 +158,13 @@ export function NotificationManagementPage() {
     };
   };
 
-  const persistSave = async (nextRecord: NoticeRecord) => {
-    const exists = records.some((record) => record.id === nextRecord.id);
-    const saved = exists ? await updateNotice(nextRecord.id, nextRecord) : await createNotice(nextRecord);
-
-    queryClient.setQueryData<NoticeRecord[]>(["system-notices"], (current) => {
-      const currentRecords = current ?? [];
-      const recordExists = currentRecords.some((record) => record.id === saved.id);
-      if (recordExists) {
-        return currentRecords.map((record) => (record.id === saved.id ? saved : record));
-      }
-      return [saved, ...currentRecords];
-    });
-
-    setSelectedId(saved.id);
-    setDraft(saved);
-    setSaveTarget(null);
-    showSnackbar({ message: "공지사항이 저장되었습니다.", severity: "success" });
-    await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
-  };
-
   const handleSaveRequest = () => {
     const nextRecord = buildNextRecord();
     if (!nextRecord) {
       return;
     }
 
-    if (records.some((record) => record.id === nextRecord.id)) {
-      setSaveTarget(nextRecord);
-      return;
-    }
-
-    void persistSave(nextRecord);
+    setSaveTarget(nextRecord);
   };
 
   const confirmSave = () => {
@@ -168,29 +172,20 @@ export function NotificationManagementPage() {
       return;
     }
 
-    void persistSave(saveTarget);
+    saveMutation.mutate({ existing: records.some((record) => record.id === saveTarget.id), record: saveTarget });
   };
 
-  const confirmDelete = async () => {
+  const requestDelete = () => {
+    if (draft) {
+      setDeleteTarget(draft);
+    }
+  };
+
+  const confirmDelete = () => {
     if (!deleteTarget) {
       return;
     }
-
-    await deleteNotice(deleteTarget.id);
-
-    queryClient.setQueryData<NoticeRecord[]>(["system-notices"], (current) => {
-      const currentRecords = current ?? [];
-      return currentRecords.filter((record) => record.id !== deleteTarget.id);
-    });
-
-    if (effectiveSelectedId === deleteTarget.id) {
-      const nextSelected = records.find((record) => record.id !== deleteTarget.id)?.id ?? "";
-      setSelectedId(nextSelected);
-    }
-    setDraft(null);
-    setDeleteTarget(null);
-    showSnackbar({ message: "공지사항이 삭제되었습니다.", severity: "success" });
-    await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
+    deleteMutation.mutate(deleteTarget.id);
   };
 
   return (
@@ -210,7 +205,7 @@ export function NotificationManagementPage() {
             </Box>
             <Stack direction="row" spacing={1}>
               <Chip label={`활성 ${activeNotices.length}건`} size="small" variant="outlined" />
-              <Button onClick={() => setPreviewOpen(true)} startIcon={<VisibilityOutlinedIcon />} variant="outlined">
+              <Button disabled={!canRead} onClick={() => setPreviewOpen(true)} startIcon={<VisibilityOutlinedIcon />} variant="outlined">
                 팝업 미리보기
               </Button>
               <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="contained">
@@ -220,27 +215,31 @@ export function NotificationManagementPage() {
           </Box>
 
           <Box sx={{ mt: 2 }}>
-            <EnterpriseDataGrid<NoticeRecord>
-              columns={noticeColumns}
-              getRowId={(row) => row.id}
-              hideFooterSelectedRowCount
-              initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
-              loading={noticesQuery.isLoading || noticesQuery.isFetching}
-              localeText={{ noRowsLabel: "조회된 공지사항이 없습니다." }}
-              onRowClick={(params) => setSelectedId(params.id)}
-              onRowDoubleClick={(params) => handleEdit(params.row)}
-              pageSizeOptions={[100]}
-              rowSelectionModel={rowSelectionModel}
-              rows={records}
-              showPageNumbers
-              showToolbar={false}
-              wrapperMinHeight={480}
-              sx={{
-                border: 0,
-                "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
-                "& .MuiDataGrid-row:hover": { cursor: "pointer" },
-              }}
-            />
+            {canRead ? (
+              <EnterpriseDataGrid<NoticeRecord>
+                columns={noticeColumns}
+                getRowId={(row) => row.id}
+                hideFooterSelectedRowCount
+                initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
+                loading={noticesQuery.isLoading || noticesQuery.isFetching}
+                localeText={{ noRowsLabel: "조회된 공지사항이 없습니다." }}
+                onRowClick={(params) => setSelectedId(params.id)}
+                onRowDoubleClick={(params) => handleEdit(params.row)}
+                pageSizeOptions={[100]}
+                rowSelectionModel={rowSelectionModel}
+                rows={records}
+                showPageNumbers
+                showToolbar={false}
+                wrapperMinHeight={480}
+                sx={{
+                  border: 0,
+                  "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
+                  "& .MuiDataGrid-row:hover": { cursor: "pointer" },
+                }}
+              />
+            ) : (
+              <Alert severity="warning">공지사항 조회 권한이 없습니다.</Alert>
+            )}
           </Box>
         </CardContent>
       </Card>
@@ -248,7 +247,7 @@ export function NotificationManagementPage() {
       <Dialog
         fullWidth
         maxWidth="md"
-        onClose={() => setDraft(null)}
+        onClose={saveMutation.isPending || deleteMutation.isPending ? undefined : () => setDraft(null)}
         open={Boolean(draft)}
         slotProps={{
           paper: {
@@ -343,7 +342,7 @@ export function NotificationManagementPage() {
           <Button
             color="error"
             disabled={!canDelete}
-            onClick={() => setDeleteTarget(draft)}
+            onClick={requestDelete}
             startIcon={<DeleteOutlineOutlinedIcon />}
             variant="outlined"
             sx={{ mr: "auto" }}
@@ -351,61 +350,34 @@ export function NotificationManagementPage() {
             삭제
           </Button>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button color="inherit" onClick={() => setDraft(null)} variant="outlined">
+            <Button color="inherit" disabled={saveMutation.isPending || deleteMutation.isPending} onClick={() => setDraft(null)} variant="outlined">
               닫기
             </Button>
-            <Button disabled={!canSaveCurrent} onClick={handleSaveRequest} startIcon={<EditOutlinedIcon />} variant="contained">
+            <Button disabled={!canSaveCurrent || saveMutation.isPending} onClick={handleSaveRequest} startIcon={<EditOutlinedIcon />} variant="contained">
               저장
             </Button>
           </Box>
         </DialogActions>
       </Dialog>
 
-      <Dialog fullWidth maxWidth="xs" onClose={() => setSaveTarget(null)} open={Boolean(saveTarget)}>
-        <DialogTitle>공지사항 수정 확인</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            아래 공지사항을 수정합니다.
-          </Typography>
-          <Typography sx={{ mt: 0.75, fontWeight: 700 }} variant="body1">
-            {saveTarget?.title ?? ""}
-          </Typography>
-          <Typography sx={{ mt: 1.25 }} color="text.secondary" variant="body2">
-            수정 내용을 저장하시겠습니까?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setSaveTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="primary" disabled={!canSaveCurrent} onClick={confirmSave} variant="contained">
-            확인 후 저장
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmActionDialog
+        loading={saveMutation.isPending}
+        message={isExistingDraft ? "수정 내용을 저장하시겠습니까?" : "새 공지사항을 등록하시겠습니까?"}
+        onClose={() => setSaveTarget(null)}
+        onConfirm={confirmSave}
+        open={Boolean(saveTarget)}
+        targetLabel={saveTarget?.title}
+        title={isExistingDraft ? "공지사항 수정 확인" : "공지사항 등록 확인"}
+      />
 
-      <Dialog fullWidth maxWidth="xs" onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
-        <DialogTitle>공지사항 삭제 확인</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            아래 공지사항을 삭제합니다.
-          </Typography>
-          <Typography sx={{ mt: 0.75, fontWeight: 700 }} variant="body1">
-            {deleteTarget?.title ?? ""}
-          </Typography>
-          <Typography sx={{ mt: 1.25 }} color="text.secondary" variant="body2">
-            삭제 후에는 복구할 수 없습니다.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="error" disabled={!canDelete} onClick={confirmDelete} variant="contained">
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        loading={deleteMutation.isPending}
+        message="삭제 후에는 복구할 수 없습니다. 계속하시겠습니까?"
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        open={Boolean(deleteTarget)}
+        targetLabel={deleteTarget?.title}
+      />
 
       <NoticeLayerDialog notices={activeNotices} onClose={() => setPreviewOpen(false)} open={previewOpen} />
 

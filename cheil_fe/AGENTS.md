@@ -57,6 +57,116 @@
 
 업무 모듈별 책임과 프론트·백엔드 연결 관계는 `README.md`의 업무 모듈 안내를 기준으로 확인한다. 공통 기능을 새로 만들기 전에 같은 영역의 `api.ts`, reference hook, 페이지 컴포넌트와 공통 컴포넌트가 이미 있는지 검색한다.
 
+## 프론트엔드 클린 아키텍처
+
+업무 페이지는 화면 조합만 담당하고, 조회·저장·삭제·검증·캐시 무효화는 application 계층으로 이동한다. 새 기능을 추가하거나 기존 페이지를 크게 수정할 때는 다음 의존성 방향을 지킨다.
+
+```text
+app/page.tsx
+  -> modules/**/**Page.tsx (presentation composition)
+    -> application/use*.ts (use case and query orchestration)
+      -> domain/models.ts, domain/*.ts (business types and pure rules)
+        -> api.ts or application/port/out contracts
+          -> lib/http/apiClient.ts, lib/http/apiRequest.ts
+```
+
+- `app/**/page.tsx`는 App Router 진입점으로만 사용한다. 업무 API, `useQuery`, `useMutation`, 폼 상태를 직접 작성하지 않는다.
+- `*Page.tsx`는 권한, 탭 활성 상태, 화면 전용 상태, 다이얼로그 표시 여부, 자식 presentation component 조합을 담당한다.
+- `*Page.tsx`에서 `api.ts`의 조회·저장·삭제 함수를 직접 호출하지 않는다. 페이지는 application hook이 반환한 query와 command만 사용한다.
+- `*Page.tsx`에 업무 규칙을 넣지 않는다. 날짜 정렬, 중복 제거, 표시 순번 계산, 요청 payload 조합, 상태 전이 규칙은 application 또는 domain으로 이동한다.
+- `presentation/`에는 Grid, 필터, 카드, 컬럼 정의처럼 화면 표시와 사용자 입력에 관한 코드를 둔다. API 호출과 query cache 조작은 두지 않는다.
+- `application/`에는 use case별 hook과 query key, 입력 command, 결과 조합을 둔다. `useQuery`, `useMutation`, 권한 확인 결과, 성공·실패 후 캐시 무효화의 조합은 이 계층의 책임이다.
+- `domain/`에는 업무 모델, 상태값, 순수 변환·검증 함수를 둔다. React, MUI, TanStack Query, axios, `apiClient`, Web API, 화면 DTO를 import하지 않는다.
+- `api.ts`는 HTTP output adapter로 취급한다. URL, HTTP method, query parameter, request/response API 타입, `apiRequest()` 호출만 둔다. 화면 상태나 snackbar, query key, React hook을 두지 않는다.
+- application에서 `apiClient`, `apiRequest`를 직접 호출하지 않는다. 기존 구조상 `api.ts`를 직접 사용하는 단계라면 새 기능부터 application port 또는 업무 API 함수로 감싸고, 점진적으로 adapter 경계를 만든다.
+- application port와 domain에는 `GridApi`, `GridRowParams`, MUI event, React synthetic event, web DTO를 노출하지 않는다. Grid 정렬 결과나 사용자 입력은 페이지에서 application command 또는 일반 TypeScript 값으로 변환해 전달한다.
+
+### 업무 모듈 기본 구조
+
+새 업무 모듈은 기능 규모에 따라 아래 구조를 우선 검토한다.
+
+```text
+modules/<area>/<feature>/
+  api.ts                         # HTTP output adapter and API DTO
+  domain/models.ts               # domain/application models
+  domain/rules.ts                # pure business rules, when needed
+  application/queryKeys.ts       # feature query-key factory
+  application/use<Feature>.ts    # query and mutation orchestration
+  presentation/<Feature>Grid.tsx
+  presentation/<Feature>Filters.tsx
+  <Feature>Page.tsx              # screen composition and local UI state
+```
+
+작은 단순 조회 화면은 `application/`을 생략할 수 있지만, 다음 중 하나라도 있으면 application 계층을 만든다.
+
+- 조회가 두 개 이상이고 선택 대상이나 탭 상태에 따라 서로 의존한다.
+- 저장·수정·삭제·일괄 처리·동기화 mutation이 있다.
+- mutation 이후 두 개 이상의 query를 무효화하거나 다른 업무 모듈을 함께 갱신한다.
+- API 응답을 화면 행으로 변환하거나 여러 API 응답을 하나의 화면 모델로 조합한다.
+- 권한, 선택 상태, 순번, 중복 제거, 기간 계산 같은 업무 규칙이 있다.
+
+### Query와 mutation 규칙
+
+- query와 mutation은 application hook에서 선언하고 페이지에는 결과와 command를 반환한다.
+- 페이지 하나에서 같은 업무 mutation을 두 번 선언하지 않는다. application hook으로 이동한 mutation은 페이지에 레거시 구현을 남기지 않는다.
+- query key는 `application/queryKeys.ts`에서 factory로 관리한다. 페이지나 mutation 안에 문자열 배열을 새로 하드코딩하지 않는다.
+- 같은 feature의 전체 목록을 무효화할 때는 `all`, 특정 항목을 무효화할 때는 구체적인 factory key를 사용한다.
+- query의 `enabled`는 `canRead`, `useTabQueryEnabled()`, 선택 대상의 존재 여부를 모두 반영한다. 비활성 탭이나 선택 대상이 없는 상세 query를 실행하지 않는다.
+- mutation의 권한 검사는 버튼의 `disabled`만 믿지 말고 application command에서도 수행한다.
+- mutation 성공 후에는 관련 query key를 application 계층에서 무효화하고, 페이지는 필요한 화면 상태만 초기화한다.
+- 여러 mutation을 한 번에 실행할 때는 부분 성공 가능성을 검토한다. 서로 독립된 요청만 `Promise.all`로 묶고, 순서가 중요한 요청은 순차 실행한다.
+- API 에러를 페이지에서 임의의 문자열로 변환하지 않는다. API adapter의 공통 에러 처리와 application의 업무별 fallback 메시지를 사용한다.
+
+### 타입과 DTO 규칙
+
+- API 응답 타입과 화면 행 타입을 같은 타입으로 재사용하지 않는다. API 응답은 `api.ts`, 업무 모델은 `domain/`, 화면 행은 `presentation` 또는 application mapper에 둔다.
+- `api.ts`의 타입이 특정 Dialog나 Grid 파일에서 export되도록 만들지 않는다. 여러 계층에서 사용하는 타입은 `domain/models.ts` 또는 API 전용 타입 파일에 둔다.
+- inbound 화면 입력은 application command로 명시적으로 변환한다. `FormEvent`, `GridRowParams`, MUI selection model을 application에 전달하지 않는다.
+- API 응답을 화면에 그대로 전달하지 말고 필요한 경우 `toViewModel`, `toRow`, `toRequest` 같은 명시적인 변환 함수를 둔다.
+- `null`, 빈 문자열, 선택적 컬럼의 기본값은 domain/application 변환 단계에서 정한다. 각 JSX 셀에서 같은 null 처리를 반복하지 않는다.
+- 코드값을 화면에 표시할 때는 reference hook의 `labelByValue`를 application 또는 presentation mapper에 주입한다. 페이지마다 같은 코드명 변환 함수를 새로 만들지 않는다.
+
+### 상태와 이벤트 규칙
+
+- 서버 상태는 TanStack Query가 소유하고, 선택 행·다이얼로그·패널 크기·현재 탭 같은 일시적 화면 상태만 React state가 소유한다.
+- 서버 응답을 필요 이상으로 별도 React state에 복제하지 않는다. 사용자가 편집 중인 draft처럼 원본과 다른 값이 필요한 경우에만 분리한다.
+- 같은 대상의 `selectedIds`와 `activeId`는 의미가 다르면 별도 상태로 둔다. 체크 상태를 상세 조회 대상의 대체값으로 사용하지 않는다.
+- row 클릭, checkbox 클릭, Ctrl/Meta 다중 선택, Shift 범위 선택은 presentation component에서 이벤트를 해석하고 application에는 최종 ID 목록만 전달한다.
+- 화면 초기화는 필터, 선택 행, active 대상, 페이지 번호, anchor, pending dialog 상태를 함께 정의한다. 일부 상태만 초기화해 이전 대상의 상세 query가 남지 않게 한다.
+- `useCallback`, `useMemo`는 자식 Grid의 props 안정화나 실제 비용이 있는 변환에만 사용한다. 무조건 모든 함수를 감싸지 않는다.
+
+### 권한, 알림, 외부 연동
+
+- `useCurrentMenuPermission()`은 페이지에서 읽되, 권한에 따른 업무 실행 차단은 application command에서도 확인한다.
+- `useAppSnackbar()`의 표시 함수 자체를 domain이나 `api.ts`에 전달하지 않는다. application hook에는 `showSuccess`, `showError` 같은 좁은 callback만 주입할 수 있다.
+- Excel, HWPX, 파일 다운로드처럼 브라우저 API가 필요한 기능은 application에서 순수 업무 데이터와 파일 작업을 분리한다. `window`, `Blob`, anchor click은 presentation adapter 또는 전용 service에 둔다.
+- 다른 업무 모듈의 API를 함께 갱신해야 하는 경우 application use case에서 orchestration하고, 페이지에서 두 API를 연속 호출하지 않는다.
+- 공통코드·reference 조회는 전용 reference hook을 사용하고, 해당 결과의 캐시 정책과 무효화 규칙을 임의로 덮어쓰지 않는다.
+
+### 기존 페이지 개선 순서
+
+기존 페이지를 리팩터링할 때는 한 번에 UI를 다시 만들지 말고 다음 순서로 진행한다.
+
+1. 페이지에서 API 호출, query key, mutation, 업무 변환 함수를 목록화한다.
+2. `domain/models.ts`에 API 모델과 화면 모델을 구분하고, 순수 규칙을 domain으로 이동한다.
+3. `application/queryKeys.ts`와 `application/use<Feature>.ts`를 만든다.
+4. 조회와 mutation을 application hook으로 옮기고, 성공 후 캐시 무효화를 같은 hook에 둔다.
+5. 페이지가 직접 참조하는 API 호출과 중복 mutation을 제거한다. 옮긴 뒤 레거시 구현을 남기지 않는다.
+6. Grid와 필터를 `presentation/`으로 분리하고, 페이지에는 조합과 화면 상태만 남긴다.
+7. 타입 검사, 대상 ESLint, 관련 테스트를 실행한다. 기존 오류가 있으면 새 오류와 구분해 기록한다.
+
+### 제출 전 아키텍처 점검
+
+- `*Page.tsx`에 `apiClient`, `apiRequest`, 직접 API 함수 호출이 없는가?
+- 페이지에 `useQuery`와 `useMutation`이 남아 있다면 단순 조회 화면인지, application으로 이동해야 할 업무 로직인지 설명 가능한가?
+- 같은 mutation 또는 query key가 페이지와 application에 중복 선언되지 않았는가?
+- domain이 React, MUI, TanStack Query, axios, API adapter를 의존하지 않는가?
+- application이 Dialog, Grid, DTO, `window` 같은 presentation/infrastructure 세부사항을 받지 않는가?
+- mutation의 권한 검사, 성공 후 캐시 무효화, 실패 알림이 한 곳에 모여 있는가?
+- API 모델, domain 모델, 화면 행 타입의 경계가 명확한가?
+- 비활성 탭, 선택 대상 없음, 빈 응답, null 선택 컬럼에서 불필요한 조회나 전체 화면 실패가 발생하지 않는가?
+- 리팩터링 후 기존 레거시 구현과 새 구현이 동시에 실행되지 않는가?
+
 ## 인코딩 및 한글 텍스트 주의사항
 
 - 한글이 들어간 파일은 셸 리다이렉션, `Set-Content`, `Out-File`, `>`, `>>`로 직접 덮어쓰지 않는다. UTF-8 저장이 끝까지 보장되는 경우에만 사용한다.
