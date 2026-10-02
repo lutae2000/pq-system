@@ -340,14 +340,14 @@ export function ServicePerformanceManagementPage() {
       {
         field: "fieldName",
         headerName: "분야",
-        minWidth: 150,
+        minWidth: 130,
         flex: 0.7,
         valueGetter: (_value, row) => display(row.fieldName),
       },
       {
         field: "siteName",
         headerName: "현장명",
-        minWidth: 220,
+        minWidth: 600,
         flex: 1.3,
         valueGetter: (_value, row) => display(row.siteName),
       },

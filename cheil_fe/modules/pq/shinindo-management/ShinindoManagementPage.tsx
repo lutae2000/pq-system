@@ -281,8 +281,8 @@ export function ShinindoManagementPage() {
 
   const columns = useMemo<GridColDef<ShinindoManagementRecord>[]>(
     () => [
-      { field: "clientName", headerName: T.client, minWidth: 180, flex: 1 },
-      { field: "itemName", headerName: T.itemName, minWidth: 260, flex: 1.4 },
+      { field: "clientName", headerName: T.client, minWidth: 180, flex: 1, align: "center", headerAlign: "center" },
+      { field: "itemName", headerName: T.itemName, minWidth: 260, flex: 1.4, align: "center", headerAlign: "center" },
       {
         field: "appliedYn",
         headerName: T.appliedYn,
@@ -298,7 +298,7 @@ export function ShinindoManagementPage() {
         field: "score",
         headerName: T.score,
         width: 100,
-        align: "right",
+        align: "center",
         headerAlign: "center",
         valueFormatter: (value) => formatNumber(value as number | null, 1),
       },

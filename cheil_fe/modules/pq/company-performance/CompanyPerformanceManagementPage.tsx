@@ -215,7 +215,7 @@ export function CompanyPerformanceManagementPage() {
       {
         field: "jobFinishYn",
         headerName: "진행상태",
-        width: 110,
+        width: 70,
         align: "center",
         headerAlign: "center",
         renderCell: (params) => {
@@ -245,8 +245,8 @@ export function CompanyPerformanceManagementPage() {
       },
       {
         field: "jobOwnYn",
-        headerName: "자사/타사",
-        width: 100,
+        headerName: "자/타사",
+        width: 70,
         align: "center",
         headerAlign: "center",
         renderCell: (params) => (
@@ -261,7 +261,7 @@ export function CompanyPerformanceManagementPage() {
       {
         field: "jobName",
         headerName: "용역명",
-        minWidth: 260,
+        minWidth: 480,
         flex: 1.4,
         renderCell: (params) => {
           const summary = text(params.row.summary).trim();
@@ -287,11 +287,11 @@ export function CompanyPerformanceManagementPage() {
           );
         },
       },
-      { field: "orderClient", headerName: "발주처", minWidth: 180, flex: 1, valueGetter: (_value, row) => display(row.orderClient) },
-      { field: "businessType", headerName: "사업유형", width: 130, valueGetter: (_value, row) => codeLabel(businessTypeLabelByValue, row.businessType) },
-      { field: "contractFromDate", headerName: "계약시작일", width: 120, valueGetter: (_value, row) => formatDateDisplay(row.contractFromDate) },
-      { field: "contractToDate", headerName: "계약종료일", width: 120, valueGetter: (_value, row) => formatDateDisplay(row.contractToDate) },
-      { field: "divisionRate", headerName: "지분율(%)", width: 90, align: "right", headerAlign: "right", valueGetter: (_value, row) => (row.divisionRate === null || row.divisionRate === undefined ? "-" : String(row.divisionRate)) },
+      { field: "orderClient", headerName: "발주처", minWidth: 160, flex: 1, valueGetter: (_value, row) => display(row.orderClient) },
+      { field: "businessType", headerName: "사업유형", align: "center", headerAlign: "center", width: 100, valueGetter: (_value, row) => codeLabel(businessTypeLabelByValue, row.businessType) },
+      { field: "contractFromDate", headerName: "계약시작일", align: "center", headerAlign: "center", width: 110, valueGetter: (_value, row) => formatDateDisplay(row.contractFromDate) },
+      { field: "contractToDate", headerName: "계약종료일", align: "center", headerAlign: "center", width: 110, valueGetter: (_value, row) => formatDateDisplay(row.contractToDate) },
+      { field: "divisionRate", headerName: "지분율(%)", width: 80, align: "right", headerAlign: "right", valueGetter: (_value, row) => (row.divisionRate === null || row.divisionRate === undefined ? "-" : String(row.divisionRate)) },
       { field: "contractAmt", headerName: "계약금액", width: 140, align: "right", headerAlign: "right", valueFormatter: (value) => formatMoney(typeof value === "number" ? value : Number(value ?? 0)) },
       { field: "ownAmt", headerName: "자사금액", width: 140, align: "right", headerAlign: "right", valueFormatter: (value) => formatMoney(typeof value === "number" ? value : Number(value ?? 0)) },
     ],
