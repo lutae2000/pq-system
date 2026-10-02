@@ -1,7 +1,7 @@
 "use client";
 
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import { Button } from "@mui/material";
+import { Button, CircularProgress } from "@mui/material";
 import { useState } from "react";
 
 import type { PerformanceCertificateGenerateRequest } from "./hwpxApi";
@@ -12,6 +12,7 @@ type Props = PerformanceCertificateGenerateRequest & {
   engineerNames?: Record<string, string>;
   filenamePrefix?: string;
   label?: string;
+  onGeneratingChange?: (generating: boolean) => void;
   onError?: (message: string) => void;
   onSuccess?: (message: string) => void;
 };
@@ -21,6 +22,7 @@ export function PerformanceCertificateGenerationButton({
   engineerNames,
   filenamePrefix,
   label,
+  onGeneratingChange,
   onError,
   onSuccess,
   ...request
@@ -29,6 +31,7 @@ export function PerformanceCertificateGenerationButton({
 
   const handleClick = async () => {
     setGenerating(true);
+    onGeneratingChange?.(true);
 
     try {
       const engineerIds = request.engineerIds ?? [];
@@ -78,6 +81,7 @@ export function PerformanceCertificateGenerationButton({
       onError?.(error instanceof Error ? error.message : "실적증명서 생성에 실패했습니다.");
     } finally {
       setGenerating(false);
+      onGeneratingChange?.(false);
     }
   };
 
@@ -85,7 +89,7 @@ export function PerformanceCertificateGenerationButton({
     <Button
       disabled={disabled || generating}
       onClick={() => void handleClick()}
-      startIcon={<DownloadOutlinedIcon />}
+      startIcon={generating ? <CircularProgress color="inherit" size={18} /> : <DownloadOutlinedIcon />}
       sx={{ minWidth: label ? 230 : 150, whiteSpace: "nowrap" }}
       variant="contained"
     >

@@ -3,7 +3,7 @@
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Alert, Box, Button, Card, CardContent, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Checkbox, Chip, FormControlLabel, LinearProgress, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
@@ -121,7 +121,7 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, contracts, e
   };
 
   const handleDownload = async (includeParticipantList: boolean) => {
-    if (!bidNotice?.bidSeq || !workDutyId || engineerIds.length === 0) return;
+    if (!bidNotice?.bidSeq || !workDutyId || engineerIds.length === 0 || generating) return;
     setGenerating(true);
     try {
       const blob = await generateWorkOverlapHwpxDocuments({ bidSeq: bidNotice.bidSeq, workDutyId, includeParticipantList });
@@ -142,7 +142,7 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, contracts, e
   };
 
   const handleTemplateDownload = async () => {
-    if (!template || !bidNotice?.bidSeq || !workDutyId) return;
+    if (!template || !bidNotice?.bidSeq || !workDutyId || generating) return;
     setGenerating(true);
     try {
       const blob = await generateWorkOverlapHwpxTemplateDocument(template, {
@@ -177,11 +177,12 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, contracts, e
             <Stack direction="row" spacing={1}>
               <Button disabled={generating || !bidNotice || !workDutyId || engineerIds.length === 0} onClick={() => void handleDownload(false)} startIcon={<DownloadOutlinedIcon />} variant="contained">계약서</Button>
               <Button disabled={generating || !bidNotice || !workDutyId || engineerIds.length === 0} onClick={() => void handleDownload(true)} startIcon={<DownloadOutlinedIcon />} variant="contained">계약서 + 참여자 명단</Button>
-              <Button onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
+              <Button disabled={generating} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
               <Button disabled={generating || !template || !bidNotice || !workDutyId} onClick={() => void handleTemplateDownload()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
             </Stack>
             <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
           </Box>
+          {generating ? <Alert severity="info" sx={{ alignItems: "center" }}><Box sx={{ mb: 0.75 }}>문서를 생성하고 있습니다. 파일 생성이 완료될 때까지 잠시 기다려 주세요.</Box><LinearProgress /></Alert> : null}
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
           {template ? <Chip label={`${template.name} · ${mappings.length}개 필드 · ${contracts.length}건 계약`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(280px, 1fr) minmax(0, 1fr)" } }}>

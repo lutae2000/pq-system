@@ -3,6 +3,7 @@
 import {
   Box,
   Autocomplete,
+  Alert,
   Button,
   Card,
   CardContent,
@@ -102,11 +103,11 @@ function toRetireYn(status: EngineerFilterState["status"]) {
 const fieldSx = standardFieldSx;
 
 const detailTabs: Array<{ label: string; value: DetailTab }> = [
-  { label: "\uACBD\uB825", value: "career" },
-  { label: "\uC790\uACA9\uC99D", value: "certificate" },
-  { label: "\uD559\uB825", value: "education" },
+  { label: "경력", value: "career" },
+  { label: "자격증", value: "certificate" },
+  { label: "학력", value: "education" },
   { label: "상훈/제재", value: "award" },
-  { label: "\uAD50\uC721\uD6C8\uB828", value: "training" },
+  { label: "교육훈련", value: "training" },
   { label: "실적", value: "performance" },
 ];
 
@@ -160,13 +161,15 @@ function createSummaryColumns(
   specialtyFieldLabelByCode: Record<string, string>,
 ): GridColDef<EngineerSummary>[] {
   return [
-    { field: "name", headerName: "성명", width: 110 },
-    { field: "department", headerName: "부서", width: 120 },
-    { field: "position", headerName: "직위", width: 80 },
+    { field: "name", headerName: "성명", width: 80, align: "center", headerAlign: "center" },
+    { field: "department", headerName: "부서", width: 120, align: "center", headerAlign: "center" },
+    { field: "position", headerName: "직위", width: 80, align: "center", headerAlign: "center" },
     {
       field: "workField",
       headerName: "직무분야",
       width: 110,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => {
         const code = String(params.value ?? "").trim();
         const label = jobFieldLabelByCode[code];
@@ -177,6 +180,8 @@ function createSummaryColumns(
       field: "specialtyField",
       headerName: "전문분야",
       width: 110,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => {
         const code = String(params.value ?? "").trim();
         const label = specialtyFieldLabelByCode[code];
@@ -187,6 +192,8 @@ function createSummaryColumns(
       field: "status",
       headerName: "재직상태",
       width: 100,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => {
         const isActive = params.value === "재직";
         const color = isActive ? "success" : params.value === "휴직" ? "default" : "warning";
@@ -480,19 +487,19 @@ function createNewEngineerId(existingIds: string[]) {
 
 function createEmptyEngineerProfile(nextId: string, filters: EngineerFilterState): EngineerProfile {
   const keyword = filters.keyword.trim();
-  const matchedLabel = keyword ? `${keyword} \uC2E0\uADDC \uAE30\uC220\uC790` : "\uC2E0\uADDC \uAE30\uC220\uC790";
+  const matchedLabel = keyword ? `${keyword} 신규 기술자` : "신규 기술자";
 
   return {
     summary: {
       id: nextId,
       rrn: "",
       name: matchedLabel,
-      department: "\uBBF8\uC9C0\uC815",
-      position: "\uBBF8\uC9C0\uC815",
+      department: "미지정",
+      position: "미지정",
       status: filters.status === "전체" ? "재직" : filters.status,
       active: true,
-      workField: filters.jobField || "\uBBF8\uC9C0\uC815",
-      specialtyField: filters.specialtyField || "\uBBF8\uC9C0\uC815",
+      workField: filters.jobField || "미지정",
+      specialtyField: filters.specialtyField || "미지정",
       isNew: true,
       assessmentDate: filters.assessmentDate || initialFilters.assessmentDate,
       assessmentMethod: filters.assessmentMethod === "전체" ? "자체평정" : filters.assessmentMethod,
@@ -737,7 +744,7 @@ export function EngineerPersonalInfoPage() {
       const matchesKeyword =
         !keyword ||
         [profile.summary.id, profile.summary.name, profile.summary.department, profile.detail.title].some(
-          (value) => value.toLowerCase().includes(keyword),
+          (value) => String(value ?? "").toLowerCase().includes(keyword),
         );
 
       return (
@@ -2061,6 +2068,12 @@ export function EngineerPersonalInfoPage() {
         title="기술인 인사 정보"
       />
 
+      {engineersQuery.isError ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          기술인 목록을 불러오지 못했습니다. 잠시 후 다시 메뉴를 선택해 주세요.
+        </Alert>
+      ) : null}
+
       <SearchPanel
         keywordIndex={1}
         keyword={filters.keyword}
@@ -2207,7 +2220,7 @@ export function EngineerPersonalInfoPage() {
                 getRowId={(row) => row.id}
                 hideFooterSelectedRowCount
                 initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
-                loading={false}
+                loading={engineersQuery.isLoading || engineersQuery.isFetching}
                 onRowClick={handleRowClick}
                 pageSizeOptions={[50, 100, 200]}
                 showPageInfo

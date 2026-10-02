@@ -3,7 +3,7 @@
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Alert, Box, Button, Card, CardContent, Checkbox, Chip, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Checkbox, Chip, FormControlLabel, LinearProgress, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
@@ -62,6 +62,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
   const [mappings, setMappings] = useState<MappingRow[]>([]);
   const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [certificateGenerating, setCertificateGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
   const [fieldKeywordDraft, setFieldKeywordDraft] = useState("");
   const [fieldKeyword, setFieldKeyword] = useState("");
@@ -77,6 +78,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
     const keyword = fieldKeyword.trim().toLocaleLowerCase();
     return keyword ? fieldRows.filter((row) => row.fieldName.toLocaleLowerCase().includes(keyword)) : fieldRows;
   }, [fieldKeyword, fieldRows]);
+  const documentGenerating = generating || certificateGenerating;
   const columns = useMemo<GridColDef<CommonCodeFieldRow>[]>(() => [
     { field: "fieldName", headerName: "필드명", minWidth: 300, flex: 1 },
     { field: "path", headerName: "매핑 경로", minWidth: 240, flex: 0.8 },
@@ -102,7 +104,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
     } catch (error) { setMessage({ severity: "error", text: error instanceof Error ? error.message : "HWPX 양식을 읽지 못했습니다." }); }
   };
   const handleGenerate = async () => {
-    if (!template || !bidNotice?.bidSeq || targets.length === 0) return;
+    if (!template || !bidNotice?.bidSeq || targets.length === 0 || documentGenerating) return;
     setGenerating(true);
     try {
       const blob = await generateCompanyPerformanceHwpxDocuments(template, {
@@ -122,25 +124,31 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
         <PerformanceCertificateGenerationButton
           bidSeq={bidNotice?.bidSeq ?? 0}
           companyPerformanceSeqs={targets.slice().sort((a, b) => (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER)).map((target) => target.companyPerformanceSeq)}
-          disabled={!bidNotice?.bidSeq || targets.length === 0}
+          disabled={!bidNotice?.bidSeq || targets.length === 0 || documentGenerating}
           filenamePrefix={bidNotice?.projectName ?? undefined}
           onError={(text) => setMessage({ severity: "error", text })}
           onSuccess={(text) => setMessage({ severity: "success", text })}
+          onGeneratingChange={setCertificateGenerating}
         />
-        <Button disabled={hbFields.isLoading} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
-        <Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || generating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
+        <Button disabled={hbFields.isLoading || documentGenerating} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>
+        <Button disabled={!template || !bidNotice?.bidSeq || targets.length === 0 || documentGenerating} onClick={() => void handleGenerate()} startIcon={<DownloadOutlinedIcon />} variant="contained">{generating ? "생성 중..." : "문서 다운로드"}</Button>
       </Stack>
       <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
     </Box>
+    {documentGenerating ? <Alert severity="info" sx={{ alignItems: "center" }}><Box sx={{ mb: 0.75 }}>문서를 생성하고 있습니다. 파일 생성이 완료될 때까지 잠시 기다려 주세요.</Box><LinearProgress /></Alert> : null}
     {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
     {template ? <Chip label={`${template.name} · ${mappings.length}개 필드 · ${targets.length}건 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
     <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(280px, 0.75fr) minmax(0, 1.25fr)" } }}>
       <Stack spacing={1}>
-        <Typography sx={{ fontWeight: 800 }} variant="subtitle1">한글문서 자동생성 안내사항</Typography>
-        <Alert severity="info">HWPX 파일만 업로드할 수 있습니다. HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.</Alert>
-        <Alert severity="info">양식의 셀 필드명과 PQ/HB 필드명이 일치해야 데이터가 정상적으로 맵핑됩니다.</Alert>
-        <Alert severity="info">HWPX 필드명에 xx가 포함되면 맵핑된 값의 줄바꿈이 제거되어 한 줄로 출력됩니다.</Alert>
-        <Alert severity="info">문서 다운로드 후 회사실적 대상을 꼭 확인해 주세요</Alert>
+        <Alert severity="info">
+          <Box sx={{ fontWeight: 800, mb: 0.5 }}>한글문서 자동생성 안내사항</Box>
+          <Box component="ul" sx={{ m: 0, pl: 2.5, "& > li + li": { mt: 0.5 } }}>
+            <Box component="li">HWPX 파일만 업로드할 수 있습니다. HWP 파일은 한글 프로그램에서 HWPX로 변환한 후 업로드해 주세요.</Box>
+            <Box component="li">양식의 셀 필드명과 PQ/HB 필드명이 일치해야 데이터가 정상적으로 맵핑됩니다.</Box>
+            <Box component="li">HWPX 필드명에 xx가 포함되면 맵핑된 값의 줄바꿈이 제거되어 한 줄로 출력됩니다.</Box>
+            <Box component="li">문서 다운로드 후 회사실적 대상을 꼭 확인해 주세요</Box>
+          </Box>
+        </Alert>
         <FormControlLabel
           control={<Checkbox checked={autoCopyOnCellClick} onChange={(event) => setAutoCopyOnCellClick(event.target.checked)} />}
           label="필드명 셀 클릭 시 자동복사 (Ctrl+C)"

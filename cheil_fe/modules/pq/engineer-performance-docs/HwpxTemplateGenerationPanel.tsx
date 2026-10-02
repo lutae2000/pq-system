@@ -3,7 +3,7 @@
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, Checkbox, FormControlLabel, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Checkbox, FormControlLabel, LinearProgress, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useRef, useState } from "react";
 
@@ -151,6 +151,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [certificateGenerating, setCertificateGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
   const [showMappings, setShowMappings] = useState(false);
   const fieldGroupsQuery = useCommonCodeGroupOptions(ENGINEER_HWPX_REFERENCE_GROUPS, { enabled: open });
@@ -253,7 +254,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
   };
 
   const handleGenerate = async () => {
-    if (!template || !bidNotice?.bidSeq || profiles.length === 0) return;
+    if (!template || !bidNotice?.bidSeq || profiles.length === 0 || certificateGenerating) return;
     setGenerating(true);
     try {
       const blob = await generateHwpxDocuments(template, {
@@ -270,6 +271,8 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
       setGenerating(false);
     }
   };
+
+  const documentGenerating = generating || certificateGenerating;
 
   return (
     <Card variant="outlined">
@@ -292,28 +295,30 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
               {showParticipantListButton ? <PerformanceCertificateGenerationButton
                 bidSeq={bidNotice?.bidSeq ?? 0}
-                disabled={!bidNotice?.bidSeq || profiles.length === 0}
+                disabled={!bidNotice?.bidSeq || profiles.length === 0 || documentGenerating}
                 engineerIds={profiles.map((profile) => profile.summary.id)}
                 engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
                 filenamePrefix={bidNotice?.projectName ?? undefined}
                 includeParticipantList
                 label="참여자명단 + 실적증명서"
+                onGeneratingChange={setCertificateGenerating}
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}
                 relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
               /> : null}
               <PerformanceCertificateGenerationButton
                 bidSeq={bidNotice?.bidSeq ?? 0}
-                disabled={!bidNotice?.bidSeq || profiles.length === 0}
+                disabled={!bidNotice?.bidSeq || profiles.length === 0 || documentGenerating}
                 engineerIds={profiles.map((profile) => profile.summary.id)}
                 engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
                 filenamePrefix={bidNotice?.projectName ?? undefined}
+                onGeneratingChange={setCertificateGenerating}
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}
                 relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
               />
               <Button
-                disabled={basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading}
+                disabled={documentGenerating || basicFieldsQuery.isLoading || careerFieldsQuery.isLoading || historyFieldsQuery.isLoading}
                 fullWidth
                 onClick={() => inputRef.current?.click()}
                 startIcon={<UploadFileOutlinedIcon />}
@@ -323,7 +328,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 한글양식(HWPX) 업로드
               </Button>
               <Button
-                disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || generating}
+                disabled={!template || !bidNotice?.bidSeq || profiles.length === 0 || documentGenerating}
                 fullWidth
                 onClick={() => void handleGenerate()}
                 startIcon={<DownloadOutlinedIcon />}
@@ -333,8 +338,14 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 {generating ? "생성 중..." : "선택 기술인별 HWPX 생성"}
               </Button>
             </Stack>
-            <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
+          <input accept=".hwpx" hidden onChange={(event) => void handleUpload(event.target.files?.[0])} ref={inputRef} type="file" />
           </Box>
+          {documentGenerating ? (
+            <Alert severity="info" sx={{ alignItems: "center" }}>
+              <Box sx={{ mb: 0.75 }}>문서를 생성하고 있습니다. 파일 생성이 완료될 때까지 잠시 기다려 주세요.</Box>
+              <LinearProgress />
+            </Alert>
+          ) : null}
           {message ? <Alert severity={message.severity}>{message.text}</Alert> : null}
           {template ? <Chip label={`${templateName} · ${mappings.length}개 필드 · ${profiles.length}명 대상`} size="small" sx={{ alignSelf: "flex-start" }} /> : null}
           <Typography sx={{ fontWeight: 800 }} variant="subtitle1">화면 매핑 기준 항목</Typography>

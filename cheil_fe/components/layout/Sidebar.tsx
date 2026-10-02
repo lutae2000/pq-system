@@ -4,7 +4,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Box,
   CircularProgress,
@@ -49,6 +49,7 @@ function hasActiveChild(item: MenuItemDto, pathname: string) {
 
 export function Sidebar({ drawerWidth }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const { guardTabNavigation } = useTabNavigationGuard();
   const { settings: brandingSettings } = useBrandingSettings();
@@ -142,7 +143,12 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
             return;
           }
 
-          guardTabNavigation(item.href, event);
+          if (!guardTabNavigation(item.href, event)) {
+            return;
+          }
+
+          event.preventDefault();
+          router.push(item.href);
         }}
         selected={selected}
         sx={{

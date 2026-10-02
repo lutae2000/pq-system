@@ -74,28 +74,28 @@ export async function listShinindoManagements(params: ShinindoManagementSearchPa
         size: Math.max(1, Math.trunc(params.size)),
       },
     }),
-    "\uc2e0\uc778\ub3c4 \ubaa9\ub85d\uc744 \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.",
+    "신인도 목록을 불러오지 못했습니다.",
   );
 }
 
 export async function getShinindoManagement(id: number): Promise<ShinindoManagementRecord> {
   return apiRequest(
     apiClient.get<ShinindoManagementRecord>(`${SHININDO_MANAGEMENT_API}/${encodeURIComponent(String(id))}`),
-    "\uc2e0\uc778\ub3c4 \uc815\ubcf4\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.",
+    "신인도 정보를 불러오지 못했습니다.",
   );
 }
 
 export async function createShinindoManagement(requestBody: ShinindoManagementRequest): Promise<ShinindoManagementRecord> {
-  return apiRequest(apiClient.post<ShinindoManagementRecord>(SHININDO_MANAGEMENT_API, requestBody), "\uc2e0\uc778\ub3c4 \uc815\ubcf4\ub97c \uc800\uc7a5\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.");
+  return apiRequest(apiClient.post<ShinindoManagementRecord>(SHININDO_MANAGEMENT_API, requestBody), "신인도 정보를 저장하지 못했습니다.");
 }
 
 export async function updateShinindoManagement(id: number, requestBody: ShinindoManagementRequest): Promise<ShinindoManagementRecord> {
   return apiRequest(
     apiClient.put<ShinindoManagementRecord>(`${SHININDO_MANAGEMENT_API}/${encodeURIComponent(String(id))}`, requestBody),
-    "\uc2e0\uc778\ub3c4 \uc815\ubcf4\ub97c \uc800\uc7a5\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.",
+    "신인도 정보를 저장하지 못했습니다.",
   );
 }
 
 export async function deleteShinindoManagement(id: number): Promise<void> {
-  await apiRequest(apiClient.delete(`${SHININDO_MANAGEMENT_API}/${encodeURIComponent(String(id))}`), "\uc2e0\uc778\ub3c4 \uc815\ubcf4\ub97c \uc0ad\uc81c\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.");
+  await apiRequest(apiClient.delete(`${SHININDO_MANAGEMENT_API}/${encodeURIComponent(String(id))}`), "신인도 정보를 삭제하지 못했습니다.");
 }
