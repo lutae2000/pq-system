@@ -12,7 +12,6 @@ import {
   MenuItem,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
@@ -40,7 +39,6 @@ import { EducationReminderBasicInfoEngineerSelectDialog } from "./EducationRemin
 import { EducationReminderBasicInfoRightPanel } from "./EducationReminderBasicInfoRightPanel";
 import {
   emptyBasicInfo,
-  formatDateTime,
   type EducationReminderBasicInfoEngineerRecord,
   type EducationReminderBasicInfoRecord,
   type EducationReminderBasicInfoRequest,
@@ -176,15 +174,17 @@ export function EducationReminderBasicInfoManagementTab() {
 
   const basicInfoColumns = useMemo<GridColDef<EducationReminderBasicInfoRecord>[]>(
     () => [
-      { field: "code", headerName: "코드", width: 130 },
-      { field: "name", headerName: "교육명", minWidth: 220, flex: 1.1 },
+      { field: "code", headerName: "코드", width: 130, align: "center", headerAlign: "center" },
+      { field: "name", headerName: "교육명", minWidth: 220, flex: 1.1, align: "center", headerAlign: "center" },
       {
         field: "cycle",
         headerName: "주기",
         width: 120,
+        align: "center",
+        headerAlign: "center",
         valueGetter: (_value, row) => `${row.cycleValue}${cycleUnitLabel(row.cycleUnit)}`,
       },
-      { field: "description", headerName: "설명", minWidth: 220, flex: 1 },
+      { field: "description", headerName: "설명", minWidth: 220, flex: 1, align: "center", headerAlign: "center" },
       {
         field: "active",
         headerName: "사용",
@@ -195,32 +195,30 @@ export function EducationReminderBasicInfoManagementTab() {
           <Chip color={row.active ? "success" : "default"} label={row.active ? "사용" : "미사용"} size="small" variant={row.active ? "filled" : "outlined"} />
         ),
       },
-      {
-        field: "lastChangedAt",
-        headerName: "수정시각",
-        width: 170,
-        valueGetter: (_value, row) => formatDateTime(row.lastChangedAt),
-      },
     ],
     [],
   );
 
   const assignmentColumns = useMemo<GridColDef<EducationReminderBasicInfoEngineerRecord>[]>(
     () => [
-      { field: "engineerId", headerName: "기술인ID", width: 120 },
-      { field: "engineerName", headerName: "성명", width: 110 },
-      { field: "departmentName", headerName: "부서", minWidth: 160, flex: 1 },
-      { field: "grade", headerName: "직위", width: 100 },
+      { field: "engineerId", headerName: "기술인ID", width: 120, align: "center", headerAlign: "center" },
+      { field: "engineerName", headerName: "성명", width: 110, align: "center", headerAlign: "center" },
+      { field: "departmentName", headerName: "부서", minWidth: 160, flex: 1, align: "center", headerAlign: "center" },
+      { field: "grade", headerName: "직위", width: 100, align: "center", headerAlign: "center" },
       {
         field: "jobField",
         headerName: "직무분야",
         width: 140,
+        align: "center",
+        headerAlign: "center",
         valueGetter: (_value, row) => formatReferenceLabel(jobFieldLabelByValue, row.jobField),
       },
       {
         field: "specialtyField",
         headerName: "전문분야",
         width: 140,
+        align: "center",
+        headerAlign: "center",
         valueGetter: (_value, row) => formatReferenceLabel(specialtyFieldLabelByValue, row.specialtyField),
       },
       {
@@ -341,9 +339,7 @@ export function EducationReminderBasicInfoManagementTab() {
           <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
               <Box>
-                <Typography sx={{ fontWeight: 800 }} variant="h6">
-                  교육 알림 기본정보 목록
-                </Typography>
+
               </Box>
               <Stack direction="row" spacing={1}>
                 <Button

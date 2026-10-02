@@ -30,7 +30,6 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   channelLabel,
   emptyTemplate,
-  formatDateTime,
   type EducationReminderTemplateRecord,
   type EducationReminderTemplateRequest,
 } from "../types";
@@ -182,8 +181,8 @@ export function EducationReminderTemplateManagementTab() {
   const columns = useMemo<GridColDef<EducationReminderTemplateRecord>[]>(
     () => [
       { field: "name", headerName: "템플릿명", minWidth: 220, flex: 1.1 },
-      { field: "title", headerName: "제목", minWidth: 200, flex: 1 },
       { field: "channel", headerName: "채널", width: 90, valueGetter: (_value, row) => channelLabel[row.channel] },
+      { field: "title", headerName: "제목", minWidth: 200, flex: 1 },
       { field: "description", headerName: "설명", minWidth: 220, flex: 1 },
       {
         field: "active",
@@ -200,7 +199,6 @@ export function EducationReminderTemplateManagementTab() {
           />
         ),
       },
-      { field: "lastChangedAt", headerName: "수정시각", width: 170, valueGetter: (_value, row) => formatDateTime(row.lastChangedAt) },
     ],
     [],
   );
@@ -345,7 +343,7 @@ export function EducationReminderTemplateManagementTab() {
                   rows={filteredRows}
                   showPageNumbers
                   showXlsxExportButton
-                  wrapperMinHeight={620}
+                  wrapperMinHeight={860}
                   sx={{ height: 620, minWidth: 0, width: "100%", "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
                 />
               </Box>

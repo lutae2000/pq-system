@@ -136,9 +136,19 @@ export function EducationReminderBasicInfoRightPanel({
                 <Typography variant="body2">사용</Typography>
               </Box>
 
-              <Button onClick={onReset} variant="outlined">
-                초기화
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button onClick={onReset} variant="outlined">
+                  초기화
+                </Button>
+                <Button
+                  disabled={!canEdit}
+                  onClick={onSave}
+                  startIcon={<SaveOutlinedIcon />}
+                  variant="contained"
+                >
+                  저장
+                </Button>
+              </Stack>
             </Box>
 
             <AuditFields
@@ -148,16 +158,6 @@ export function EducationReminderBasicInfoRightPanel({
               updatedBy={selectedRecord?.lastChangedId}
             />
 
-            <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}>
-              <Button
-                disabled={!canEdit}
-                onClick={onSave}
-                startIcon={<SaveOutlinedIcon />}
-                variant="contained"
-              >
-                저장
-              </Button>
-            </Box>
           </Stack>
         ) : (
           <Stack spacing={2} sx={{ flex: 1, minHeight: 0 }}>
@@ -197,9 +197,9 @@ export function EducationReminderBasicInfoRightPanel({
               rows={assignedEngineers}
               pageSizeOptions={[25, 50, 100]}
               showPageNumbers
-              wrapperMinHeight={520}
+              wrapperMinHeight={560}
               sx={{
-                height: 520,
+                height: 560,
                 minWidth: 0,
                 width: "100%",
                 "& .MuiDataGrid-row:hover": {
