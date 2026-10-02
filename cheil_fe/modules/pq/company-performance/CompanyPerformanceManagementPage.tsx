@@ -412,6 +412,7 @@ export function CompanyPerformanceManagementPage() {
         onReset={handleReset}
         onSearch={handleSearch}
         searchDisabled={!canRead}
+        keywordSx={{ flex: "1 1 360px", maxWidth: 520, minWidth: 450 }}
         actions={
           <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="outlined">
             신규

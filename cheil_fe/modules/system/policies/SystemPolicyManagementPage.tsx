@@ -58,8 +58,8 @@ export function SystemPolicyManagementPage() {
       {
         field: "policyKey",
         headerName: "정책 코드",
-        minWidth: 230,
-        width: 230,
+        minWidth: 280,
+        width: 280,
       },
       {
         field: "policyName",
@@ -159,9 +159,6 @@ export function SystemPolicyManagementPage() {
               <Box>
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   정책 목록
-                </Typography>
-                <Typography color="text.secondary" variant="body2">
-                  정책별 사용 여부와 기간·횟수 설정값을 한 곳에서 조정합니다.
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>

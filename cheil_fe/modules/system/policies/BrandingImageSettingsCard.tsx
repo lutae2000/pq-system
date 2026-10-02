@@ -419,11 +419,8 @@ export function BrandingImageSettingsCard({ canUpdate, onUploaded }: BrandingIma
           <Box>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <AspectRatioOutlinedIcon color="primary" />
-              <Typography sx={{ fontWeight: 850 }} variant="h6">화면 브랜딩</Typography>
+              <Typography sx={{ fontWeight: 850 }} variant="h6">화면 이미지</Typography>
             </Stack>
-            <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
-              현재 적용 이미지를 확인하고 필요할 때만 빠르게 교체할 수 있습니다.
-            </Typography>
           </Box>
           <Chip label="PNG · JPG · GIF" size="small" variant="outlined" />
         </Box>

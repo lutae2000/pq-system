@@ -275,19 +275,23 @@ export function UserManagementPage() {
   const users = usersQuery.data?.content ?? EMPTY_USERS;
   const userColumns = useMemo<GridColDef<AuthUserAccount>[]>(
     () => [
-      { field: "userName", headerName: "이름", width: 120 },
-      { field: "loginId", headerName: "로그인 ID", minWidth: 150, flex: 0.9 },
+      { field: "userName", headerName: "이름", width: 120, align: "center", headerAlign: "center" },
+      { field: "loginId", headerName: "로그인 ID", minWidth: 130, flex: 0.9, align: "center", headerAlign: "center" },
       {
         field: "deptCode",
         headerName: "부서",
-        minWidth: 180,
+        width: 120,
         flex: 1,
+        align: "center",
+        headerAlign: "center",
         valueGetter: (_value, row) => optionLabel(deptOptions, row.deptCode),
       },
       {
         field: "groupCode",
         headerName: "그룹",
-        width: 130,
+        width: 170,
+        align: "center",
+        headerAlign: "center",
         valueGetter: (_value, row) => optionLabel(groupOptions, row.groupCode),
       },
       {
@@ -311,8 +315,10 @@ export function UserManagementPage() {
       {
         field: "loginDt",
         headerName: "최근 로그인",
-        minWidth: 160,
+        minWidth: 170,
         flex: 0.8,
+        align: "center",
+        headerAlign: "center",
         valueFormatter: (value) => formatValue(typeof value === "string" ? value : ""),
       },
     ],

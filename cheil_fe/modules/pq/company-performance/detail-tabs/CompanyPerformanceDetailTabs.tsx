@@ -64,7 +64,7 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
       <Stack spacing={1.5} sx={{ minWidth: 0 }}>
         <FileActionCard
           attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PERFORMANCE" } : undefined}
-          description="실적증명서 파일"
+          description="업로드된 파일이 없습니다"
           multiple
           showFileOrder
           title="실적증명서"
@@ -73,7 +73,7 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
         />
         <FileActionCard
           attachmentTarget={attachmentTarget ? { ...attachmentTarget, attachmentType: "PARTICIPANT_LIST" } : undefined}
-          description="참여자 명단 파일"
+          description="업로드된 파일이 없습니다"
           multiple
           showFileOrder
           title="참여자 명단"

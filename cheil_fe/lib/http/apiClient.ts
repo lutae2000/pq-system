@@ -127,6 +127,34 @@ export const toApiErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const readErrorData = async (data: unknown) => {
+  if (typeof Blob !== "undefined" && data instanceof Blob) {
+    const text = await data.text();
+    if (!text.trim()) return undefined;
+
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return text;
+    }
+  }
+
+  return data;
+};
+
+export const toApiErrorMessageAsync = async (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<unknown>;
+    return extractErrorMessage(await readErrorData(axiosError.response?.data), fallback);
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export async function logoutSession(): Promise<void> {
   const session = readAuthSessionSnapshot();
   clearAuthSession();

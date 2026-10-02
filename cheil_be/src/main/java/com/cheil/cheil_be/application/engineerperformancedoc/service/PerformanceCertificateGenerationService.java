@@ -88,11 +88,24 @@ public class PerformanceCertificateGenerationService {
                         )
                         .contractNos()
                         .add(target.contractNo()));
+        List<String> contractNos = engineers.values().stream()
+                .flatMap(engineer -> engineer.contractNos().stream())
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        Map<String, List<AppFileAttachmentEntity>> attachmentsByContractNo = new LinkedHashMap<>();
+        if (!contractNos.isEmpty()) {
+            attachmentRepository
+                    .findByOwnerTypeAndOwnerIdInOrderByCreatedAtAsc("WORK_OVERLAP_CONTRACT", contractNos)
+                    .forEach(attachment -> attachmentsByContractNo
+                            .computeIfAbsent(attachment.getOwnerId(), ignored -> new ArrayList<>())
+                            .add(attachment));
+        }
         List<BatchDocument> documents = new ArrayList<>();
         for (WorkOverlapEngineer engineer : engineers.values()) {
             List<RenderedImage> pages = new ArrayList<>();
             for (String contractNo : engineer.contractNos()) {
-                attachmentRepository.findByOwnerTypeAndOwnerIdOrderByCreatedAtAsc("WORK_OVERLAP_CONTRACT", contractNo)
+                attachmentsByContractNo.getOrDefault(contractNo, List.of())
                         .stream()
                         .filter(attachment -> "EVIDENCE".equalsIgnoreCase(attachment.getAttachmentType())
                                 || (includeParticipantList && "PARTICIPANT_LIST".equalsIgnoreCase(attachment.getAttachmentType())))
@@ -100,7 +113,7 @@ public class PerformanceCertificateGenerationService {
                                         java.util.Comparator.nullsLast(Integer::compareTo))
                                 .thenComparing(AppFileAttachmentEntity::getCreatedAt,
                                         java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
-                        .forEach(attachment -> pages.addAll(renderAttachment(attachment)));
+                        .forEach(attachment -> pages.addAll(renderAttachmentIfAvailable(attachment)));
             }
             if (!pages.isEmpty()) {
                 documents.add(new BatchDocument(engineer.engineerId(), buildHwpx(pages)));
@@ -151,15 +164,21 @@ public class PerformanceCertificateGenerationService {
         }
 
         List<RenderedImage> pages = new ArrayList<>();
+        List<String> ownerIds = performanceSeqs.stream().map(String::valueOf).toList();
+        Map<String, List<AppFileAttachmentEntity>> attachmentsByOwnerId = new LinkedHashMap<>();
+        attachmentRepository
+                .findByOwnerTypeAndOwnerIdInOrderByCreatedAtAsc(OWNER_TYPE, ownerIds)
+                .forEach(attachment -> attachmentsByOwnerId
+                        .computeIfAbsent(attachment.getOwnerId(), ignored -> new ArrayList<>())
+                        .add(attachment));
         for (Long seq : performanceSeqs) {
-            List<AppFileAttachmentEntity> attachments = attachmentRepository
-                    .findByOwnerTypeAndOwnerIdOrderByCreatedAtAsc(OWNER_TYPE, String.valueOf(seq));
+            List<AppFileAttachmentEntity> attachments = attachmentsByOwnerId.getOrDefault(String.valueOf(seq), List.of());
             for (AppFileAttachmentEntity attachment : attachments) {
                 boolean isPerformance = ATTACHMENT_TYPE.equalsIgnoreCase(attachment.getAttachmentType());
                 boolean isParticipantList = request.includeParticipantList() == Boolean.TRUE
                         && PARTICIPANT_LIST_ATTACHMENT_TYPE.equalsIgnoreCase(attachment.getAttachmentType());
                 if (!isPerformance && !isParticipantList) continue;
-                pages.addAll(renderAttachment(attachment));
+                pages.addAll(renderAttachmentIfAvailable(attachment));
             }
         }
         if (pages.isEmpty()) {
@@ -167,6 +186,17 @@ public class PerformanceCertificateGenerationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택한 회사실적에 첨부파일이 없습니다.");
         }
         return buildHwpx(pages);
+    }
+
+    private List<RenderedImage> renderAttachmentIfAvailable(AppFileAttachmentEntity attachment) {
+        try {
+            return renderAttachment(attachment);
+        } catch (ResponseStatusException exception) {
+            if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
+                return List.of();
+            }
+            throw exception;
+        }
     }
 
     private byte[] buildZip(List<BatchDocument> documents, Map<String, String> engineerNames, boolean includeParticipantList) {
@@ -216,7 +246,7 @@ public class PerformanceCertificateGenerationService {
     }
 
     private List<RenderedImage> renderAttachment(AppFileAttachmentEntity attachment) {
-        FileDownloadResult download = fileStorageService.download(attachment.getFileId());
+        FileDownloadResult download = fileStorageService.download(attachment);
         try (InputStream input = download.resource().getInputStream()) {
             byte[] bytes = input.readAllBytes();
             String filename = attachment.getOriginalFilename() == null ? "" : attachment.getOriginalFilename().toLowerCase();

@@ -5,13 +5,14 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button } from "@mui/material";
+import { Autocomplete, Box, Button, TextField } from "@mui/material";
 import {
   GridActionsCellItem,
   GridRowEditStopReasons,
   GridRowModes,
   type DataGridProps,
   type GridColDef,
+  type GridRenderEditCellParams,
   type GridRowModesModel,
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,56 @@ const toConstructionKindRequest = (
   level2Code: text(row.level2Code) || null,
   level3Code: text(row.level3Code) || null,
 });
+
+const hasConstructionKindChanges = (
+  updatedRow: CompanyPerformanceConstructionKindRecord,
+  originalRow: CompanyPerformanceConstructionKindRecord,
+) => JSON.stringify(toConstructionKindRequest(updatedRow)) !== JSON.stringify(toConstructionKindRequest(originalRow));
+
+function ConstructionKindAutocompleteEditCell({
+  onCancel,
+  onChange,
+  options,
+  params,
+}: {
+  onCancel: () => void;
+  onChange: (value: string, submitAfterChange: boolean) => void;
+  options: CodeOption[];
+  params: GridRenderEditCellParams<CompanyPerformanceConstructionKindRecord, string | null>;
+}) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const value = options.find((option) => String(option.value) === text(params.value)) ?? null;
+
+  return (
+    <Autocomplete
+      autoHighlight
+      disablePortal
+      fullWidth
+      getOptionLabel={(option) => option.label}
+      isOptionEqualToValue={(option, currentValue) => String(option.value) === String(currentValue.value)}
+      onChange={(event, nextValue) => {
+        const nativeEvent = event.nativeEvent as KeyboardEvent;
+        onChange(String(nextValue?.value ?? ""), event.type === "keydown" && nativeEvent.key === "Enter");
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          event.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (event.key === "Enter" && popupOpen && !event.nativeEvent.isComposing) {
+          event.stopPropagation();
+        }
+      }}
+      onClose={() => setPopupOpen(false)}
+      onOpen={() => setPopupOpen(true)}
+      options={options}
+      renderInput={(inputParams) => <TextField {...inputParams} autoFocus={params.hasFocus} size="small" />}
+      value={value}
+    />
+  );
+}
 
 export function ConstructionKindsTab({ readOnly = false, record, requestConfirmation }: ConstructionKindsTabProps) {
   const queryClient = useQueryClient();
@@ -157,6 +208,27 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
     return labels;
   }, [constructionTypeRecords]);
 
+  const constructionKindTargetLabel = useCallback(
+    (row: CompanyPerformanceConstructionKindRecord) => {
+      const level1Name = constructionTypeRecords.find(
+        (code) => code.codeLevel === 1 && code.level1Code === row.level1Code,
+      )?.codeName;
+      const level2Name = constructionTypeRecords.find(
+        (code) => code.codeLevel === 2 && code.level1Code === row.level1Code && code.level2Code === row.level2Code,
+      )?.codeName;
+      const level3Name = constructionTypeRecords.find(
+        (code) =>
+          code.codeLevel === 3 &&
+          code.level1Code === row.level1Code &&
+          code.level2Code === row.level2Code &&
+          code.level3Code === row.level3Code,
+      )?.codeName;
+
+      return [level1Name, level2Name, level3Name].filter(Boolean).join(" / ");
+    },
+    [constructionTypeRecords],
+  );
+
   const rows = useMemo(
     () => [...newRows, ...(constructionKindsQuery.data ?? [])].sort(sortConstructionKindRows),
     [constructionKindsQuery.data, newRows],
@@ -208,8 +280,14 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceConstructionKindRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+    (
+      row: CompanyPerformanceConstructionKindRecord,
+      originalRow: CompanyPerformanceConstructionKindRecord,
+    ): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
       if (row.isNew && !text(row.level1Code) && !text(row.level2Code) && !text(row.level3Code)) {
+        return null;
+      }
+      if (!row.isNew && !hasConstructionKindChanges(row, originalRow)) {
         return null;
       }
 
@@ -218,13 +296,13 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         confirmLabel: row.isNew ? "등록" : "수정",
         message: row.isNew ? "공사종류를 등록하시겠습니까?" : "공사종류를 수정하시겠습니까?",
         targetLabel: displayTarget(
-          [row.level1Code, row.level2Code, row.level3Code].filter(Boolean).join(" / "),
+          constructionKindTargetLabel(row),
           row.isNew ? "신규 공사종류" : String(row.id),
         ),
         title: row.isNew ? "공사종류 등록" : "공사종류 수정",
       };
     },
-    [],
+    [constructionKindTargetLabel],
   );
 
   const confirmDeleteRow = useCallback(
@@ -233,12 +311,12 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         confirmColor: "error",
         confirmLabel: "삭제",
         message: "공사종류를 삭제하시겠습니까?",
-        targetLabel: displayTarget([row.level1Code, row.level2Code, row.level3Code].filter(Boolean).join(" / "), String(row.id)),
+        targetLabel: displayTarget(constructionKindTargetLabel(row), String(row.id)),
         title: "공사종류 삭제",
         onConfirm: () => deleteMutation.mutateAsync(row.id),
       });
     },
-    [deleteMutation, requestConfirmation],
+    [constructionKindTargetLabel, deleteMutation, requestConfirmation],
   );
 
   const addRow = () => {
@@ -267,26 +345,15 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
     }
   };
 
-  const handleNewRowEditCancel = (
-    row: CompanyPerformanceConstructionKindRecord,
-    params: { reason?: GridRowEditStopReasons },
-  ) => {
-    if (params.reason !== GridRowEditStopReasons.rowFocusOut || !row.isNew) {
-      return;
+  const cancelRowEdit = useCallback((row: CompanyPerformanceConstructionKindRecord) => {
+    setRowModesModel((current) => ({
+      ...current,
+      [row.id]: { mode: GridRowModes.View, ignoreModifications: true },
+    }));
+    if (row.isNew) {
+      setNewRows((current) => current.filter((item) => item.id !== row.id));
     }
-
-    if (text(row.level1Code) || text(row.level2Code) || text(row.level3Code)) {
-      return false;
-    }
-
-    setRowModesModel((current) => {
-      const next = { ...current };
-      delete next[String(row.id)];
-      return next;
-    });
-    setNewRows((current) => current.filter((item) => item.id !== row.id));
-    return true;
-  };
+  }, []);
 
   const columns = useMemo<GridColDef<CompanyPerformanceConstructionKindRecord>[]>(
     () => [
@@ -297,6 +364,20 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         editable: true,
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
         getOptionValue: (option) => (option as CodeOption).value ?? option,
+        renderEditCell: (params) => (
+          <ConstructionKindAutocompleteEditCell
+            onCancel={() => cancelRowEdit(params.row)}
+            onChange={(value) => {
+              void Promise.all([
+                params.api.setEditCellValue({ id: params.id, field: "level1Code", value }),
+                params.api.setEditCellValue({ id: params.id, field: "level2Code", value: "" }),
+                params.api.setEditCellValue({ id: params.id, field: "level3Code", value: "" }),
+              ]);
+            }}
+            options={level1Options}
+            params={params}
+          />
+        ),
         rowSpanValueGetter: (_value, row) => text(row.level1Code),
         renderCell: (params) => level1LabelByCode.get(text(params.row.level1Code)) ?? displayBlank(params.row.level1Code),
         type: "singleSelect",
@@ -309,6 +390,19 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         editable: true,
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
         getOptionValue: (option) => (option as CodeOption).value ?? option,
+        renderEditCell: (params) => (
+          <ConstructionKindAutocompleteEditCell
+            onCancel={() => cancelRowEdit(params.row)}
+            onChange={(value) => {
+              void Promise.all([
+                params.api.setEditCellValue({ id: params.id, field: "level2Code", value }),
+                params.api.setEditCellValue({ id: params.id, field: "level3Code", value: "" }),
+              ]);
+            }}
+            options={level2Options.filter((option) => !text(params.row.level1Code) || option.level1Code === text(params.row.level1Code))}
+            params={params}
+          />
+        ),
         rowSpanValueGetter: (_value, row) => constructionTypePathKey(row.level1Code, row.level2Code),
         renderCell: (params) =>
           level2LabelByPath.get(constructionTypePathKey(params.row.level1Code, params.row.level2Code)) ?? displayBlank(params.row.level2Code),
@@ -324,6 +418,24 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
         editable: true,
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
         getOptionValue: (option) => (option as CodeOption).value ?? option,
+        renderEditCell: (params) => (
+          <ConstructionKindAutocompleteEditCell
+            onCancel={() => cancelRowEdit(params.row)}
+            onChange={(value, submitAfterChange) => {
+              void Promise.resolve(params.api.setEditCellValue({ id: params.id, field: "level3Code", value })).then(() => {
+                if (submitAfterChange) {
+                  setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View } }));
+                }
+              });
+            }}
+            options={level3Options.filter(
+              (option) =>
+                (!text(params.row.level1Code) || option.level1Code === text(params.row.level1Code)) &&
+                (!text(params.row.level2Code) || option.level2Code === text(params.row.level2Code)),
+            )}
+            params={params}
+          />
+        ),
         renderCell: (params) =>
           level3LabelByPath.get(constructionTypePathKey(params.row.level1Code, params.row.level2Code, params.row.level3Code)) ??
           displayBlank(params.row.level3Code),
@@ -394,6 +506,7 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
       canCreate,
       canDelete,
       canUpdate,
+      cancelRowEdit,
       confirmDeleteRow,
       deleteMutation.isPending,
       level1LabelByCode,
@@ -422,6 +535,9 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
 
     if (readOnly) {
       return updatedRow;
+    }
+    if (!updatedRow.isNew && !hasConstructionKindChanges(updatedRow, originalRow)) {
+      return originalRow;
     }
     const saved = await saveMutation.mutateAsync(updatedRow);
     return saved;
@@ -454,7 +570,18 @@ export function ConstructionKindsTab({ readOnly = false, record, requestConfirma
           deleteMutation.isPending
         }
         onProcessRowUpdateError={() => undefined}
-        onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
+        onCellKeyDown={(params, event) => {
+          if (
+            event.key !== "Enter" ||
+            event.nativeEvent.isComposing ||
+            rowModesModel[params.id]?.mode !== GridRowModes.Edit
+          ) {
+            return;
+          }
+
+          event.defaultMuiPrevented = true;
+          setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View } }));
+        }}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
         processRowUpdate={readOnly ? undefined : processRowUpdate}

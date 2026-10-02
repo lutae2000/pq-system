@@ -173,7 +173,6 @@ export function WorkOverlapHwpxTemplateGenerationPanel({ bidNotice, contracts, e
           <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
             <Box>
               <Typography sx={{ fontWeight: 800 }} variant="h6">업무중복도 HWPX 문서 생성</Typography>
-              <Typography color="text.secondary" variant="body2">선택한 기술인의 업무중복도 계약 내역을 HWPX 서식에 매핑합니다.</Typography>
             </Box>
             <Stack direction="row" spacing={1}>
               <Button disabled={generating || !bidNotice || !workDutyId || engineerIds.length === 0} onClick={() => void handleDownload(false)} startIcon={<DownloadOutlinedIcon />} variant="contained">계약서</Button>

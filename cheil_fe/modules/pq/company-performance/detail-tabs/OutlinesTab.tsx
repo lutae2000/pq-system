@@ -4,20 +4,25 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button, MenuItem, TextField } from "@mui/material";
+import { Autocomplete, Box, Button, MenuItem, Popover, TextField, Typography } from "@mui/material";
 import {
   GridActionsCellItem,
+  GridRowEditStartReasons,
   GridRowEditStopReasons,
   GridRowModes,
   type DataGridProps,
   type GridColDef,
+  type GridRenderEditCellParams,
   type GridRowModesModel,
+  type GridRowSelectionModel,
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid, type EnterpriseRowActionConfirm } from "@/components/common/EnterpriseDataGrid";
+import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { listCommonCodes, type CommonCodeRecord } from "@/modules/code/common-codes/api";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
@@ -41,6 +46,7 @@ type OutlinesTabProps = {
 
 type OutlineCommonCodeMeta = {
   ddlbGroupCode?: unknown;
+  ddlbHeadYn?: unknown;
   ddlbYn?: unknown;
   subcateUnit?: unknown;
 };
@@ -60,20 +66,86 @@ const parseOutlineCommonCodeMeta = (refValue1: string | null): OutlineCommonCode
 
 const metadataText = (value: unknown) => (typeof value === "string" ? value : "");
 
+const outlineDetailCodeName = (code: CommonCodeRecord) =>
+  text(code.codeDetailName) || text(code.codeName) || code.level3Code;
+
+function OutlineDetailAutocompleteEditCell({
+  params,
+}: {
+  params: GridRenderEditCellParams<CompanyPerformanceOutlineRecord, string | null>;
+}) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const categoryCode = text(params.row.categoryCode);
+  const detailCodesQuery = useQuery({
+    queryKey: ["common-codes", "company-performance-outline-details", categoryCode],
+    queryFn: () => listCommonCodes({
+      codeLevel: 3,
+      level1Code: "PQCT",
+      level2Code: categoryCode,
+      sort: "level3Code",
+      useYn: "Y",
+    }),
+    enabled: Boolean(categoryCode),
+  });
+  const options = detailCodesQuery.data ?? [];
+  const value = options.find((code) => code.level3Code === text(params.row.subcategoryCode))
+    ?? options.find((code) => outlineDetailCodeName(code) === text(params.value))
+    ?? null;
+
+  return (
+    <Autocomplete
+      autoHighlight
+      disablePortal
+      disabled={!categoryCode}
+      fullWidth
+      getOptionLabel={outlineDetailCodeName}
+      isOptionEqualToValue={(option, currentValue) => option.codeId === currentValue.codeId}
+      loading={detailCodesQuery.isLoading || detailCodesQuery.isFetching}
+      noOptionsText={categoryCode ? "선택 가능한 공사상세가 없습니다." : "공사종류를 먼저 선택하세요."}
+      onChange={(event, nextValue) => {
+        const metadata = parseOutlineCommonCodeMeta(nextValue?.refValue1 ?? null);
+        void Promise.all([
+          params.api.setEditCellValue({ id: params.id, field: "subcategoryCode", value: nextValue?.level3Code ?? "" }, event),
+          params.api.setEditCellValue({ id: params.id, field: "subcategoryName", value: nextValue ? outlineDetailCodeName(nextValue) : "" }, event),
+          params.api.setEditCellValue({ id: params.id, field: "subcategoryUnit", value: metadataText(metadata.subcateUnit) }, event),
+          params.api.setEditCellValue({ id: params.id, field: "ddlbYn", value: metadataText(metadata.ddlbYn).toUpperCase() === "Y" ? "Y" : "N" }, event),
+          params.api.setEditCellValue({ id: params.id, field: "ddlbGroupCode", value: metadataText(metadata.ddlbGroupCode) }, event),
+        ]);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && popupOpen && !event.nativeEvent.isComposing) {
+          event.stopPropagation();
+        }
+      }}
+      onClose={() => setPopupOpen(false)}
+      onOpen={() => setPopupOpen(true)}
+      options={options}
+      renderInput={(inputParams) => (
+        <TextField {...inputParams} autoFocus={params.hasFocus} size="small" sx={standardFieldSx} />
+      )}
+      value={value}
+    />
+  );
+}
+
 const outlineGroupSeqFromCategoryCode = (categoryCode: string) => {
   const parsed = Number.parseInt(categoryCode.replace(/^\D+/, ""), 10);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const listOutlineDetailCodes = (categoryCode: string) =>
-  listCommonCodes({
+const listOutlineDetailCodes = async (categoryCode: string) => {
+  const detailCodes = await listCommonCodes({
     codeLevel: 3,
     level1Code: "PQCT",
     level2Code: categoryCode,
-    refValue1Contains: "\"ddlbHeadYn\":\"Y\"",
     sort: "level3Code",
     useYn: "Y",
   });
+
+  return detailCodes.filter((code) => (
+    metadataText(parseOutlineCommonCodeMeta(code.refValue1).ddlbHeadYn).toUpperCase() === "Y"
+  ));
+};
 
 const toOutlineRequest = (row: CompanyPerformanceOutlineRecord): CompanyPerformanceOutlineRequest => ({
   categoryCode: text(row.categoryCode) || null,
@@ -81,7 +153,7 @@ const toOutlineRequest = (row: CompanyPerformanceOutlineRecord): CompanyPerforma
   ddlbGroupCode: text(row.ddlbGroupCode) || null,
   ddlbYn: text(row.ddlbYn).toUpperCase() === "Y" ? "Y" : "N",
   outlineContent: text(row.outlineContent) || null,
-  outlineGroupSeq: toNullableNumber(row.outlineGroupSeq),
+  outlineGroupSeq: toNullableNumber(row.outlineGroupSeq) ?? outlineGroupSeqFromCategoryCode(text(row.categoryCode)),
   outlineLineSeq: toNullableNumber(row.outlineLineSeq),
   sortSeq: toNullableNumber(row.sortSeq),
   subcategoryCode: text(row.subcategoryCode) || null,
@@ -89,12 +161,27 @@ const toOutlineRequest = (row: CompanyPerformanceOutlineRecord): CompanyPerforma
   subcategoryUnit: text(row.subcategoryUnit) || null,
 });
 
+const comparableOutlineRequest = (row: CompanyPerformanceOutlineRecord) => ({
+  ...toOutlineRequest(row),
+  categoryName: null,
+});
+
+const hasOutlineChanges = (
+  updatedRow: CompanyPerformanceOutlineRecord,
+  originalRow: CompanyPerformanceOutlineRecord,
+) => JSON.stringify(comparableOutlineRequest(updatedRow)) !== JSON.stringify(comparableOutlineRequest(originalRow));
+
+const isTemplateInputRow = (row: CompanyPerformanceOutlineRecord) =>
+  row.isNew === true && row.outlineLineSeq !== null;
+
 export function OutlinesTab({ readOnly = false, record, requestConfirmation }: OutlinesTabProps) {
   const queryClient = useQueryClient();
   const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
   const [newRows, setNewRows] = useState<CompanyPerformanceOutlineRecord[]>([]);
   const [rowModesModel, setRowModesModel] = useState<GridRowModesModel>({});
+  const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
   const [selectedCategoryCode, setSelectedCategoryCode] = useState("");
+  const [guideAnchorEl, setGuideAnchorEl] = useState<HTMLElement | null>(null);
 
   const outlinesQuery = useQuery({
     queryKey: ["company-performance-outlines", record.seq],
@@ -118,6 +205,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
     () => [...newRows, ...(outlinesQuery.data ?? [])],
     [newRows, outlinesQuery.data],
   );
+  const hasTemplateInputRows = useMemo(() => rows.some(isTemplateInputRow), [rows]);
 
   const invalidateOutlines = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ["company-performance-outlines", record.seq] }),
@@ -140,6 +228,10 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
     },
     onSuccess: (_saved, row) => {
       setNewRows((current) => current.filter((item) => item.id !== row.id));
+      setRowSelectionModel((current) => ({
+        ...current,
+        ids: new Set([...current.ids].filter((id) => id !== row.id)),
+      }));
       void invalidateOutlines();
     },
   });
@@ -180,7 +272,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
           seq: record.seq,
           sortSeq: baseRowCount + index + 1,
           subcategoryCode: code.level3Code,
-          subcategoryName: code.codeDetailName ?? "",
+          subcategoryName: text(code.codeDetailName) || text(code.codeName) || code.level3Code,
           subcategoryUnit: metadataText(metadata.subcateUnit),
         };
       });
@@ -210,9 +302,14 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceOutlineRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
-      const hasEditableValue = [row.ddlbGroupCode, row.outlineContent, row.subcategoryCode, row.subcategoryName, row.subcategoryUnit].some((value) => text(value));
-      if (row.isNew && !hasEditableValue) {
+    (
+      row: CompanyPerformanceOutlineRecord,
+      originalRow: CompanyPerformanceOutlineRecord,
+    ): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+      if (row.isNew && !text(row.outlineContent)) {
+        return null;
+      }
+      if (!row.isNew && !hasOutlineChanges(row, originalRow)) {
         return null;
       }
 
@@ -250,18 +347,47 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
     outlineDetailCodesMutation.mutate(categoryCode);
   };
 
+  const removeNewRow = useCallback((id: number) => {
+    setRowModesModel((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+    setNewRows((current) => current.filter((row) => row.id !== id));
+    setRowSelectionModel((current) => ({
+      ...current,
+      ids: new Set([...current.ids].filter((selectedId) => selectedId !== id)),
+    }));
+  }, []);
+
+  const removeSelectedNewRows = useCallback(() => {
+    const selectedIds = rowSelectionModel.ids;
+    if (selectedIds.size === 0) {
+      return;
+    }
+
+    setNewRows((current) => current.filter((row) => !selectedIds.has(row.id)));
+    setRowModesModel((current) => {
+      const next = { ...current };
+      selectedIds.forEach((id) => delete next[id]);
+      return next;
+    });
+    setRowSelectionModel({ ids: new Set(), type: "include" });
+  }, [rowSelectionModel.ids]);
+
   const addRow = () => {
     const id = tempId();
     const defaultCategory = outlineCategoryReferences.options[0];
+    const defaultCategoryCode = defaultCategory?.value ?? "";
     const newRow: CompanyPerformanceOutlineRecord = {
-      categoryCode: defaultCategory?.value ?? "",
+      categoryCode: defaultCategoryCode,
       categoryName: defaultCategory?.label ?? "",
       ddlbGroupCode: "",
       ddlbYn: "N",
       id,
       isNew: true,
       outlineContent: "",
-      outlineGroupSeq: null,
+      outlineGroupSeq: outlineGroupSeqFromCategoryCode(defaultCategoryCode),
       outlineLineSeq: null,
       seq: record.seq,
       sortSeq: rows.length + 1,
@@ -283,33 +409,6 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
       setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View, ignoreModifications: true } }));
       setNewRows((current) => current.filter((row) => row.id !== params.id));
     }
-  };
-
-  const handleNewRowEditCancel = (
-    row: CompanyPerformanceOutlineRecord,
-    params: { reason?: GridRowEditStopReasons },
-  ) => {
-    if (params.reason !== GridRowEditStopReasons.rowFocusOut || !row.isNew) {
-      return;
-    }
-
-    if (
-      text(row.ddlbGroupCode) ||
-      text(row.outlineContent) ||
-      text(row.subcategoryCode) ||
-      text(row.subcategoryName) ||
-      text(row.subcategoryUnit)
-    ) {
-      return false;
-    }
-
-    setRowModesModel((current) => {
-      const next = { ...current };
-      delete next[String(row.id)];
-      return next;
-    });
-    setNewRows((current) => current.filter((item) => item.id !== row.id));
-    return true;
   };
 
   const shouldShowGroupSeq = useCallback((row: CompanyPerformanceOutlineRecord) => {
@@ -360,10 +459,18 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
             ...row,
             categoryCode,
             categoryName: formatReferenceLabel(outlineCategoryNameByCode, categoryCode),
+            outlineGroupSeq: outlineGroupSeqFromCategoryCode(categoryCode),
           };
         },
       },
-      { field: "subcategoryName", headerName: "공사상세", width: 150, editable: true, renderCell: (params) => display(params.row.subcategoryName) },
+      {
+        field: "subcategoryName",
+        headerName: "공사상세",
+        width: 150,
+        editable: true,
+        renderCell: (params) => display(params.row.subcategoryName),
+        renderEditCell: (params) => <OutlineDetailAutocompleteEditCell params={params} />,
+      },
       { field: "subcategoryUnit", headerName: "측량기준", width: 95, editable: true, renderCell: (params) => display(params.row.subcategoryUnit) },
       { field: "outlineContent", headerName: "측량수치", minWidth: 150, flex: 1, editable: true, renderCell: (params) => display(params.row.outlineContent) },
       {
@@ -409,11 +516,17 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
             />,
             <GridActionsCellItem
               color="inherit"
-              disabled={!canDelete || deleteMutation.isPending || params.row.isNew}
+              disabled={params.row.isNew ? !canCreate : !canDelete || deleteMutation.isPending}
               icon={<DeleteOutlineOutlinedIcon />}
               key="delete"
               label="삭제"
-              onClick={() => confirmDeleteRow(params.row)}
+              onClick={() => {
+                if (params.row.isNew) {
+                  removeNewRow(params.row.id);
+                  return;
+                }
+                confirmDeleteRow(params.row);
+              }}
             />,
           ];
         },
@@ -427,6 +540,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
       deleteMutation.isPending,
       outlineCategoryNameByCode,
       outlineCategoryOptions,
+      removeNewRow,
       rowModesModel,
       shouldShowCategoryName,
       shouldShowGroupSeq,
@@ -459,19 +573,18 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
       return originalRow;
     }
 
+    if (updatedRow.isNew && !text(updatedRow.outlineContent)) {
+      setNewRows((current) => current.map((row) => (
+        row.id === updatedRow.id ? { ...updatedRow, isNew: true } : row
+      )));
+      return updatedRow;
+    }
+
     if (readOnly) {
       return updatedRow;
     }
-    const updatedCategoryCode = text(updatedRow.categoryCode);
-    const originalCategoryCode = text(originalRow.categoryCode);
-
-    if (updatedCategoryCode && updatedCategoryCode !== originalCategoryCode && canCreate) {
-      const detailCodes = await listOutlineDetailCodes(updatedCategoryCode);
-      appendOutlineRowsFromCodes(updatedCategoryCode, detailCodes, updatedRow.isNew ? updatedRow.id : undefined);
-
-      if (updatedRow.isNew) {
-        return originalRow;
-      }
+    if (!updatedRow.isNew && !hasOutlineChanges(updatedRow, originalRow)) {
+      return originalRow;
     }
 
     const saved = await saveMutation.mutateAsync(updatedRow);
@@ -485,22 +598,52 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
   return (
     <Box sx={{ p: 1.5 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1, gap: 1, alignItems: "center" }}>
-        <TextField
-          disabled={readOnly || !canCreate || !record.seq || outlineCategoryReferences.isLoading || outlineDetailCodesMutation.isPending}
-          label="공사 추가 템플릿"
-          onChange={(event) => handleOutlineCategoryChange(event.target.value)}
-          select
-          size="small"
-          sx={{ minWidth: 180 }}
-          value={selectedCategoryCode}
-        >
-          <MenuItem value="">선택</MenuItem>
-          {outlineCategoryOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Box sx={{ alignItems: "center", display: "flex", gap: 0.75 }}>
+          <TextField
+            disabled={readOnly || !canCreate || !record.seq || outlineCategoryReferences.isLoading || outlineDetailCodesMutation.isPending}
+            label="공사 추가 템플릿"
+            onChange={(event) => handleOutlineCategoryChange(event.target.value)}
+            select
+            size="small"
+            sx={{ minWidth: 180 }}
+            value={selectedCategoryCode}
+          >
+            <MenuItem value="">선택</MenuItem>
+            {outlineCategoryOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            onClick={(event) => setGuideAnchorEl(event.currentTarget)}
+            size="small"
+            startIcon={<HelpOutlineOutlinedIcon />}
+            variant="text"
+          >
+            사용 가이드
+          </Button>
+          <Popover
+            anchorEl={guideAnchorEl}
+            anchorOrigin={{ horizontal: "left", vertical: "bottom" }}
+            onClose={() => setGuideAnchorEl(null)}
+            open={Boolean(guideAnchorEl)}
+            transformOrigin={{ horizontal: "left", vertical: "top" }}
+          >
+            <Box sx={{ maxWidth: "calc(100vw - 32px)", p: 2, width: 520 }}>
+              <Typography sx={{ fontWeight: 800, mb: 0.75 }} variant="subtitle2">
+                공사개요 입력 가이드
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.5, "& li": { mb: 0.5 }, "& li:last-child": { mb: 0 } }}>
+                <li>템플릿을 선택하면 지정된 공사상세 행이 자동으로 입력됩니다.</li>
+                <li>공사상세를 선택하면 공통코드의 측량기준이 함께 입력됩니다.</li>
+                <li>템플릿 행을 여러 개 선택하고 Delete 키를 누르면 선택한 행을 일괄 삭제할 수 있습니다.</li>
+                <li>행 입력을 취소하려면 ESC 키를 누르세요.</li>
+                <li>측량수치를 입력한 행만 등록 확인 후 저장됩니다.</li>
+              </Box>
+            </Box>
+          </Popover>
+        </Box>
         <Button
           disabled={
             !canCreate ||
@@ -520,10 +663,14 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
         </Button>
       </Box>
       <EnterpriseDataGrid<CompanyPerformanceOutlineRecord>
+        checkboxSelection={!readOnly && canCreate && hasTemplateInputRows}
         columns={gridColumns}
         confirmProcessRowUpdate={readOnly ? undefined : confirmProcessRowUpdate}
+        disableRowSelectionExcludeModel
         editMode={readOnly ? undefined : "row"}
         getRowId={(row) => row.id}
+        getRowClassName={(params) => (isTemplateInputRow(params.row) ? "outline-template-input-row" : "")}
+        isRowSelectable={(params) => isTemplateInputRow(params.row)}
         isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
         loading={
@@ -536,20 +683,91 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
           deleteMutation.isPending
         }
         onProcessRowUpdateError={() => undefined}
-        onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
+        onCellClick={(params) => {
+          if (
+            params.field === "outlineContent" &&
+            params.row.isNew &&
+            rowModesModel[params.id]?.mode !== GridRowModes.Edit
+          ) {
+            setRowModesModel((current) => ({
+              ...current,
+              [params.id]: { mode: GridRowModes.Edit, fieldToFocus: "outlineContent" },
+            }));
+          }
+        }}
+        onCellKeyDown={(params, event) => {
+          if (
+            event.key === "Delete" &&
+            rowSelectionModel.ids.size > 0 &&
+            !Object.values(rowModesModel).some((mode) => mode.mode === GridRowModes.Edit)
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.nativeEvent.stopImmediatePropagation();
+            event.defaultMuiPrevented = true;
+            removeSelectedNewRows();
+            return;
+          }
+
+          if (rowModesModel[params.id]?.mode !== GridRowModes.Edit || event.nativeEvent.isComposing) {
+            return;
+          }
+
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            event.nativeEvent.stopImmediatePropagation();
+            event.defaultMuiPrevented = true;
+            setRowModesModel((current) => ({
+              ...current,
+              [params.id]: { mode: GridRowModes.View, ignoreModifications: true },
+            }));
+            if (params.row.isNew) {
+              setNewRows((current) => current.filter((row) => row.id !== params.row.id));
+            }
+            return;
+          }
+
+          if (event.key !== "Enter") {
+            return;
+          }
+
+          event.defaultMuiPrevented = true;
+          if (params.field !== "categoryCode") {
+            setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View } }));
+          }
+        }}
+        onRowEditStart={(params, event) => {
+          if (
+            params.field !== "outlineContent" ||
+            !params.row.isNew ||
+            params.reason !== GridRowEditStartReasons.printableKeyDown
+          ) {
+            return;
+          }
+
+          event.defaultMuiPrevented = true;
+          setRowModesModel((current) => ({
+            ...current,
+            [params.id]: { mode: GridRowModes.Edit, fieldToFocus: "outlineContent" },
+          }));
+        }}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
+        onRowSelectionModelChange={setRowSelectionModel}
         processRowUpdate={readOnly ? undefined : processRowUpdate}
         readOnly={readOnly}
         wrapperMinHeight={475}
         rowHeight={34}
         rowModesModel={readOnly ? undefined : rowModesModel}
+        rowSelectionModel={rowSelectionModel}
         rows={rows}
         showPageNumbers
         showToolbar={false}
         sx={{
           border: 0,
           "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
+          "& .MuiDataGrid-row:not(.outline-template-input-row) .MuiDataGrid-cellCheckbox": { visibility: "hidden" },
         }}
       />
     </Box>

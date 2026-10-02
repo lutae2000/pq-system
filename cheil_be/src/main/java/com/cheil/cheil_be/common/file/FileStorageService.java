@@ -96,6 +96,13 @@ public class FileStorageService {
     public FileDownloadResult download(String fileId) {
         AppFileAttachmentEntity metadata = attachmentRepository.findByFileId(fileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."));
+        return download(metadata);
+    }
+
+    public FileDownloadResult download(AppFileAttachmentEntity metadata) {
+        if (metadata == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
+        }
         requireDownloadAccess(metadata.getOwnerType());
 
         Path contentPath = appFileProperties.storageRoot().resolve(metadata.getStoredPath()).resolve(metadata.getStoredFilename());

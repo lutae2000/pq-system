@@ -121,29 +121,29 @@ export function NewTechnologyDevelopmentManagementPage() {
 
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
     () => [
-      { field: "sequenceLabel", headerName: "\uc5f0\ubc88", width: 80, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.sequenceLabel ?? "" },
-      { field: "targetField", headerName: "\uc801\uc6a9\ub300\uc0c1", width: 120, valueGetter: (_value, row) => row.targetField ?? "" },
-      { field: "title", headerName: "\ucd9c\uc6d0\uba85", minWidth: 320, flex: 1.5 },
+      { field: "sequenceLabel", headerName: "연번", width: 60, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.sequenceLabel ?? "" },
+      { field: "targetField", headerName: "적용대상", width: 120, valueGetter: (_value, row) => row.targetField ?? "" },
+      { field: "title", headerName: "출원명", minWidth: 320, flex: 1.5 },
       {
         field: "technologyType",
-        headerName: "\uad6c\ubd84",
+        headerName: "구분",
         width: 95,
-        renderCell: (params) => <Chip color={params.row.technologyType === "\uc2e0\uae30\uc220" ? "primary" : "default"} label={display(params.row.technologyType)} size="small" variant="outlined" />,
+        renderCell: (params) => <Chip color={params.row.technologyType === "신기술" ? "primary" : "default"} label={display(params.row.technologyType)} size="small" variant="outlined" />,
       },
       {
         field: "applicantCount",
-        headerName: "\ucd9c\uc6d0\uc778 \uc218",
+        headerName: "출원인 수",
         width: 95,
         align: "right",
         headerAlign: "center",
         valueFormatter: (value) => (value === null || value === undefined ? "" : Number(value).toLocaleString("ko-KR")),
       },
-      { field: "applicationDate", headerName: "\ucd9c\uc6d0\uc77c", width: 120, align: "center", headerAlign: "center", valueFormatter: (value) => formatGridDate(value as string | null) },
-      { field: "validUntil", headerName: "\uc720\ud6a8\uae30\uac04", width: 120, align: "center", headerAlign: "center", valueFormatter: (value) => formatGridDate(value as string | null) },
+      { field: "applicationDate", headerName: "출원일", width: 120, align: "center", headerAlign: "center", valueFormatter: (value) => formatGridDate(value as string | null) },
+      { field: "validUntil", headerName: "유효기간", width: 120, align: "center", headerAlign: "center", valueFormatter: (value) => formatGridDate(value as string | null) },
       {
         field: "validityStatus",
-        headerName: "\uc720\ud6a8\uc5ec\ubd80",
-        width: 100,
+        headerName: "유효여부",
+        width: 85,
         align: "center",
         headerAlign: "center",
         sortable: false,
@@ -152,7 +152,7 @@ export function NewTechnologyDevelopmentManagementPage() {
         valueGetter: (_value, row) => getValidityLabel(row.validUntil, scoreReferenceDate),
         renderCell: (params) => (
           <Chip
-            color={params.value === "\uc720\ud6a8" ? "success" : params.value === "\ub9cc\ub8cc" ? "error" : "default"}
+            color={params.value === "유효" ? "success" : params.value === "만료" ? "error" : "default"}
             label={params.value as string}
             size="small"
             variant={params.value === "유효" ? "filled" : "outlined"}
@@ -161,37 +161,37 @@ export function NewTechnologyDevelopmentManagementPage() {
       },
       {
         field: "elapsedYears",
-        headerName: "\uacbd\uacfc\uae30\uac04(\ub144)",
-        width: 120,
+        headerName: "경과기간(년)",
+        width: 100,
         align: "right",
         headerAlign: "center",
         valueFormatter: (value) => formatNumber(value as number | null, 2),
       },
       {
         field: "calculatedScore",
-        headerName: "\uae30\uc900\uc810\uc218",
-        width: 110,
+        headerName: "기준점수",
+        width: 90,
         align: "right",
         headerAlign: "center",
         valueFormatter: (value) => formatNumber(value as number | null, 2),
       },
       {
         field: "autoCalculatedScore",
-        headerName: "\uc790\ub3d9\uc0b0\uc815\uc810\uc218",
-        width: 120,
+        headerName: "자동산정점수",
+        width: 105,
         align: "right",
         headerAlign: "center",
           valueGetter: (_value, row) => calculateAutoScore(row.technologyType, row.applicantCount, row.elapsedYears),
         valueFormatter: (value) => formatNumber(value as number | null, 2),
       },
-      { field: "applicationNo", headerName: "\ucd9c\uc6d0\ubc88\ud638", width: 150, valueGetter: (_value, row) => row.applicationNo ?? "" },
-      { field: "registrationNo", headerName: "\ub4f1\ub85d\ubc88\ud638", width: 130, valueGetter: (_value, row) => row.registrationNo ?? "" },
-      { field: "summary", headerName: "\ub0b4\uc6a9", width: 220, valueGetter: (_value, row) => row.summary ?? "" },
+      { field: "applicationNo", headerName: "출원번호", width: 150, valueGetter: (_value, row) => row.applicationNo ?? "" },
+      { field: "registrationNo", headerName: "등록번호", width: 130, valueGetter: (_value, row) => row.registrationNo ?? "" },
+      { field: "summary", headerName: "내용", width: 220, valueGetter: (_value, row) => row.summary ?? "" },
     ],
     [scoreReferenceDate],
   ).map<GridColDef<NewTechnologyDevelopmentRecord>>((column) => ({
     ...column,
-    align: column.align ?? "center",
+    align: column.field === "title" || column.field === "summary" ? "left" : "center",
     headerAlign: column.headerAlign ?? "center",
   }));
 

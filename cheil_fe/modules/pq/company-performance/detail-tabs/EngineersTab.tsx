@@ -81,19 +81,27 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
   specialtyField: text(row.specialtyField) || null,
 });
 
+const hasEngineerChanges = (
+  updatedRow: CompanyPerformanceEngineerRecord,
+  originalRow: CompanyPerformanceEngineerRecord,
+) => JSON.stringify(toEngineerRequest(updatedRow)) !== JSON.stringify(toEngineerRequest(originalRow));
+
 function EngineerAutocompleteEditCell({
   loading,
+  onCancel,
   onSearch,
   onSelectEngineer,
   options,
   params,
 }: {
   loading: boolean;
+  onCancel: () => void;
   onSearch: (keyword: string) => void;
   onSelectEngineer: (engineerId: string) => void;
   options: CodeOption[];
   params: GridRenderEditCellParams<CompanyPerformanceEngineerRecord, string | null>;
 }) {
+  const [popupOpen, setPopupOpen] = useState(false);
   const value =
     options.find((option) => String(option.value) === text(params.value)) ??
     (text(params.value)
@@ -121,6 +129,19 @@ function EngineerAutocompleteEditCell({
           onSearch(nextInputValue);
         }
       }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+          event.preventDefault();
+          event.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (event.key === "Enter" && popupOpen && !event.nativeEvent.isComposing) {
+          event.stopPropagation();
+        }
+      }}
+      onClose={() => setPopupOpen(false)}
+      onOpen={() => setPopupOpen(true)}
       options={options}
       renderInput={(inputParams) => <TextField {...inputParams} autoFocus size="small" sx={standardFieldSx} />}
       value={value}
@@ -199,7 +220,10 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     [engineerProfilesQuery.data],
   );
 
-  const engineerNameById = useMemo(() => new Map(engineerOptions.map((option) => [String(option.value), option.label])), [engineerOptions]);
+  const engineerNameById = useMemo(
+    () => new Map((engineerProfilesQuery.data ?? []).map((engineer) => [engineer.engineerId, text(engineer.name)])),
+    [engineerProfilesQuery.data],
+  );
 
   const categoryOptions = useMemo<CodeOption[]>(() => toSelectOptions(categoryReferences.options), [categoryReferences.options]);
   const categoryLabelByCode = categoryReferences.labelByValue;
@@ -281,20 +305,27 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   });
 
   const confirmProcessRowUpdate = useCallback(
-    (row: CompanyPerformanceEngineerRecord): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
-      if (row.isNew && !text(row.name)) {
+    (
+      row: CompanyPerformanceEngineerRecord,
+      originalRow: CompanyPerformanceEngineerRecord,
+    ): Omit<EnterpriseRowActionConfirm, "onConfirm"> | null => {
+      if (row.isNew && !text(row.engineerId)) {
         return null;
       }
+      if (!row.isNew && !hasEngineerChanges(row, originalRow)) {
+        return null;
+      }
+      const engineerName = text(row.name) || text(engineerCandidateById.get(text(row.engineerId))?.name);
 
       return {
         confirmColor: "primary",
         confirmLabel: row.isNew ? "등록" : "수정",
         message: row.isNew ? "참여기술인를 등록하시겠습니까?" : "참여기술인 정보를 수정하시겠습니까?",
-        targetLabel: displayTarget(row.name, row.isNew ? "신규 참여기술인" : String(row.id)),
+        targetLabel: displayTarget(engineerName, row.isNew ? "신규 참여기술인" : String(row.id)),
         title: row.isNew ? "참여기술인 등록" : "참여기술인 수정",
       };
     },
-    [],
+    [engineerCandidateById],
   );
 
   const confirmDeleteRow = useCallback(
@@ -382,7 +413,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       return;
     }
 
-    if (text(row.name)) {
+    if (text(row.engineerId)) {
       return false;
     }
 
@@ -396,19 +427,30 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   };
 
   const columns = useMemo<GridColDef<CompanyPerformanceEngineerRecord>[]>(
-    () => [
+    () => ([
       {
         field: "engineerId",
         headerName: "성명",
         width: 190,
         editable: true,
-        // 화면에는 기술인명을 표시하지만 실제 값은 engineerId이므로,
-        // 기본 그리드 필터가 성명으로도 검색할 수 있도록 필터용 값을 명시한다.
-        valueGetter: (_value, row) => [text(row.name), text(row.engineerId)].filter(Boolean).join(" "),
+        getApplyQuickFilterFn: (filterValue) => {
+          const keyword = text(filterValue).trim().toLocaleLowerCase();
+          if (!keyword) return null;
+          return (_value, row) => [text(row.name), text(row.engineerId)].join(" ").toLocaleLowerCase().includes(keyword);
+        },
         renderCell: (params) => engineerNameById.get(text(params.row.engineerId)) ?? displayBlank(params.row.name),
         renderEditCell: (params) => (
           <EngineerAutocompleteEditCell
             loading={engineerProfilesQuery.isFetching}
+            onCancel={() => {
+              setRowModesModel((current) => ({
+                ...current,
+                [params.id]: { mode: GridRowModes.View, ignoreModifications: true },
+              }));
+              if (params.row.isNew) {
+                setNewRows((current) => current.filter((row) => row.id !== params.row.id));
+              }
+            }}
             onSearch={setEngineerKeyword}
             onSelectEngineer={(engineerId) => applyEngineerMasterValues(params, engineerId)}
             options={engineerOptions}
@@ -568,7 +610,11 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
           ];
         },
       },
-    ],
+    ] satisfies GridColDef<CompanyPerformanceEngineerRecord>[]).map<GridColDef<CompanyPerformanceEngineerRecord>>((column) => ({
+      ...column,
+      align: column.align ?? "center",
+      headerAlign: column.headerAlign ?? "center",
+    })),
     [
       applyEngineerMasterValues,
       canCreate,
@@ -596,7 +642,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     updatedRow: CompanyPerformanceEngineerRecord,
     originalRow: CompanyPerformanceEngineerRecord,
   ) => {
-    if (updatedRow.isNew && !text(updatedRow.name)) {
+    if (updatedRow.isNew && !text(updatedRow.engineerId)) {
       setRowModesModel((current) => {
         const next = { ...current };
         delete next[String(updatedRow.id)];
@@ -608,6 +654,9 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
 
     if (readOnly) {
       return updatedRow;
+    }
+    if (!updatedRow.isNew && !hasEngineerChanges(updatedRow, originalRow)) {
+      return originalRow;
     }
     const saved = await saveMutation.mutateAsync(updatedRow);
     return saved;
@@ -633,6 +682,18 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         hideFooterSelectedRowCount
         loading={engineersQuery.isLoading || engineersQuery.isFetching || saveMutation.isPending || deleteMutation.isPending}
         onProcessRowUpdateError={() => undefined}
+        onCellKeyDown={(params, event) => {
+          if (
+            event.key !== "Enter" ||
+            event.nativeEvent.isComposing ||
+            rowModesModel[params.id]?.mode !== GridRowModes.Edit
+          ) {
+            return;
+          }
+
+          event.defaultMuiPrevented = true;
+          setRowModesModel((current) => ({ ...current, [params.id]: { mode: GridRowModes.View } }));
+        }}
         onNewRowEditCancel={readOnly ? undefined : handleNewRowEditCancel}
         onRowEditStop={readOnly ? undefined : handleRowEditStop}
         onRowModesModelChange={readOnly ? undefined : setRowModesModel}
