@@ -91,7 +91,7 @@ export function CompanyPerformanceDocumentsPage() {
       { field: "contractAmt", headerName: "총계약금액", width: 130, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayMoney(row.contractAmt) },
       { field: "ownAmt", headerName: "당사금액", width: 130, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayMoney(row.ownAmt) },
       { field: "jobRatio", headerName: "공동도급내역", minWidth: 160, flex: 1, valueGetter: (_value, row) => display(row.jobRatio) },
-      { field: "divisionRate", headerName: "지분율", width: 90, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayRate(row.divisionRate) },
+      { field: "divisionRate", headerName: "지분율(%)", width: 90, align: "right", headerAlign: "right", valueGetter: (_value, row) => displayRate(row.divisionRate) },
       { field: "jobType", headerName: "용역구분", width: 120, valueGetter: (_value, row) => serviceTypeReferences.labelByValue[row.jobType ?? ""] ?? display(row.jobType) },
       { field: "generalManagementYn", headerName: "총괄", width: 80, align: "center", headerAlign: "center", valueGetter: (_value, row) => displayGeneralManagement(row.generalManagementYn) },
     ],

@@ -37,6 +37,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { toApiErrorMessage } from "@/lib/http/apiClient";
 
+import { CompanyAttachmentDeleteDialog } from "./CompanyAttachmentDeleteDialog";
 import {
   createCompanyAttachment,
   deleteCompanyAttachment,
@@ -119,6 +120,7 @@ export function HeadquartersManagementPage() {
   const [profileDraft, setProfileDraft] = useState<CompanyProfile>(emptyProfile);
   const [attachmentTab, setAttachmentTab] = useState<CompanyAttachmentType>("FINANCIAL");
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+  const [deleteAttachmentTarget, setDeleteAttachmentTarget] = useState<CompanyAttachment | null>(null);
   const [attachmentDraft, setAttachmentDraft] = useState(emptyAttachmentDraft);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [snackbar, setSnackbar] = useState("");
@@ -175,6 +177,7 @@ export function HeadquartersManagementPage() {
     mutationFn: deleteCompanyAttachment,
     onSuccess: () => {
       invalidate();
+      setDeleteAttachmentTarget(null);
       setSnackbar("첨부파일을 삭제했습니다.");
     },
     onError: (error) => setSnackbar(toApiErrorMessage(error, "첨부파일 삭제에 실패했습니다.")),
@@ -212,15 +215,19 @@ export function HeadquartersManagementPage() {
     },
     {
       field: "actions",
-      headerName: "관리",
+      headerName: "삭제",
       width: 80,
       sortable: false,
       renderCell: (params) => (
-        <Tooltip title="삭제">
+        <Tooltip title={canDelete ? "삭제" : "삭제 권한 없음"}>
           <IconButton
             color="inherit"
             disabled={!canDelete || deleteAttachmentMutation.isPending}
-            onClick={() => deleteAttachmentMutation.mutate(params.row.attachmentId)}
+            onClick={() => {
+              if (canDelete) {
+                setDeleteAttachmentTarget(params.row);
+              }
+            }}
             size="small"
           >
             <DeleteOutlineOutlinedIcon fontSize="small" />
@@ -377,6 +384,14 @@ export function HeadquartersManagementPage() {
               </Button>
             </DialogActions>
           </Dialog>
+
+          <CompanyAttachmentDeleteDialog
+            canDelete={canDelete}
+            isPending={deleteAttachmentMutation.isPending}
+            onClose={() => setDeleteAttachmentTarget(null)}
+            onConfirm={(attachmentId) => deleteAttachmentMutation.mutate(attachmentId)}
+            target={deleteAttachmentTarget}
+          />
         </>
       )}
 
