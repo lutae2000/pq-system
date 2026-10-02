@@ -24,6 +24,7 @@ type Props = {
   disabled?: boolean;
   existingSimilarityThreshold?: number;
   onRegister: (rows: EngineerPdfExtractionRow[]) => Promise<void>;
+  onDeleteRows?: (rowNumbers: number[]) => void;
   result: EngineerPdfExtraction;
 };
 
@@ -56,7 +57,7 @@ function markAsNewPerformance(values: Record<string, string>, manuallySelected =
   return { ...nextValues, [PDF_MERGE_STATUS_FIELD]: "insert", _manual_new: manuallySelected ? "Y" : "N", match_similarity: "-" };
 }
 
-export function EngineerPdfExtractionCompanyPerformanceStep({ active, disabled = false, existingSimilarityThreshold = 0.8, onRegister, result }: Props) {
+export function EngineerPdfExtractionCompanyPerformanceStep({ active, disabled = false, existingSimilarityThreshold = 0.8, onDeleteRows, onRegister, result }: Props) {
   const [rows, setRows] = useState<EngineerPdfExtractionRow[]>(result.sections.companyPerformances ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
@@ -148,11 +149,18 @@ export function EngineerPdfExtractionCompanyPerformanceStep({ active, disabled =
     closeLinkDialog();
   };
 
+  const deleteRows = (rowNumbers: number[]) => {
+    const deleted = new Set(rowNumbers);
+    setRows((current) => current.filter((row) => !deleted.has(row.rowNumber)));
+    onDeleteRows?.(rowNumbers);
+  };
+
   if (!active) return null;
 
   return <Box>
     <Alert severity="info" sx={{ mb: 1.25 }}>
-      사업명 공백 제거 후 유사도가 80% 이상인 용역은 검토 필요로 표시하고 기존 SEQ를 사용합니다. 검색 버튼으로 연결 대상을 직접 변경할 수 있습니다.
+      사업명 공백 제거 후 유사도가 80% 이상인 용역은 검토 필요로 표시하고 기존 SEQ를 사용합니다. 검색 버튼으로 연결 대상을 직접 변경할 수 있습니다.<br />
+      입력하지 않을 행은 체크박스로 여러 건을 선택한 후 Delete 키를 누르면 일괄 삭제할 수 있습니다.
     </Alert>
     {matchQuery.isPending ? <Alert severity="info" sx={{ mb: 1.25 }}>기존 회사실적과 사업명 유사도를 비교하고 있습니다.</Alert> : null}
     {matchQuery.isError ? <Alert severity="error" sx={{ mb: 1.25 }}>기존 회사실적 비교에 실패했습니다. 행별 검색으로 기존 용역을 연결해 주세요.</Alert> : null}
@@ -172,7 +180,8 @@ export function EngineerPdfExtractionCompanyPerformanceStep({ active, disabled =
       <ExtractionGrid
         allowDeleteAll
         height={500}
-        onDeleteRow={(rowNumber) => setRows((current) => current.filter((row) => row.rowNumber !== rowNumber))}
+        onDeleteRow={(rowNumber) => deleteRows([rowNumber])}
+        onDeleteRows={deleteRows}
         onLinkRow={openLinkDialog}
         onRowsChange={(nextRows) => setRows(nextRows.map((nextRow) => {
           const previousRow = displayRows.find((row) => row.rowNumber === nextRow.rowNumber);

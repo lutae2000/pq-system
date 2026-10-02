@@ -45,6 +45,7 @@ export function EngineerPdfExtractionReviewDialog({ canCreate, canUpdate, certif
   const [workflowMode, setWorkflowMode] = useState<"new" | "update" | null>(null);
   const [updateTargetId, setUpdateTargetId] = useState("");
   const [registeredCompanyPerformances, setRegisteredCompanyPerformances] = useState<RegisteredCompanyPerformance[]>([]);
+  const [deletedCompanyPerformanceRowNumbers, setDeletedCompanyPerformanceRowNumbers] = useState<Set<number>>(new Set());
   const extractionQuery = useQuery({
     queryKey: ["pq-engineer-pdf-extraction", file?.name, file?.size, file?.lastModified],
     queryFn: () => extractEngineerPdf(file as File),
@@ -213,11 +214,13 @@ export function EngineerPdfExtractionReviewDialog({ canCreate, canUpdate, certif
           active={activeStep === 1}
           disabled={saving || !canCreate || !activeEngineerId || registeredCompanyPerformances.length > 0}
           onRegister={registerCompanyPerformances}
+          onDeleteRows={(rowNumbers) => setDeletedCompanyPerformanceRowNumbers((current) => new Set([...current, ...rowNumbers]))}
           result={result}
         /></Box> : null}
         {result && effectiveMode ? <Box><EngineerPdfExtractionProjectHistoryStep
           active={activeStep === 2}
           companyPerformances={registeredCompanyPerformances}
+          excludedCompanyPerformanceRowNumbers={deletedCompanyPerformanceRowNumbers}
           disabled={saving || registeredCompanyPerformances.length === 0 || (effectiveMode === "new" ? !canCreate : !canUpdate)}
           engineerId={activeEngineerId}
           key={`projects-${effectiveMode}-${effectiveTargetId}`}

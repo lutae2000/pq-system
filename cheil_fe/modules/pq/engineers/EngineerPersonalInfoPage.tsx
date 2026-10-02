@@ -758,6 +758,19 @@ export function EngineerPersonalInfoPage() {
       ? selectedEngineerId
       : filteredEngineers[0]?.summary.id ?? "";
 
+  useEffect(() => {
+    if (filteredEngineers.length !== 1) {
+      return;
+    }
+
+    const onlyEngineerId = filteredEngineers[0]?.summary.id;
+    if (onlyEngineerId && selectedEngineerId !== onlyEngineerId) {
+      startTransition(() => {
+        setSelectedEngineerId(onlyEngineerId);
+      });
+    }
+  }, [filteredEngineers, selectedEngineerId]);
+
   const selectedListEngineer =
     profiles.find((profile) => profile.summary.id === activeSelectedEngineerId) ??
     filteredEngineers.find((profile) => profile.summary.id === activeSelectedEngineerId) ??

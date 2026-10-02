@@ -3,7 +3,7 @@
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
 import { Autocomplete, Box, Chip, Paper, TextField, Typography } from "@mui/material";
-import { GridActionsCellItem, type GridCellParams, type GridColDef, type GridPaginationModel, type GridRenderCellParams, type GridRenderEditCellParams, type GridValidRowModel } from "@mui/x-data-grid";
+import { GridActionsCellItem, type GridCellParams, type GridColDef, type GridPaginationModel, type GridRenderCellParams, type GridRenderEditCellParams, type GridRowSelectionModel, type GridValidRowModel } from "@mui/x-data-grid";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -66,26 +66,26 @@ const sectionColumns: Record<string, Array<{ field: string; headerName: string; 
     { field: "compname", headerName: "근무처" },
   ],
   companyPerformances: [
-    { field: "job_own_yn", headerName: "자사/타사", minWidth: 80 },
+    { field: "job_own_yn", headerName: "자/타사", minWidth: 70 },
     { field: "job_name", headerName: "사업명", minWidth: 280 },
     { field: "business_type", headerName: "사업 유형", minWidth: 130 },
     { field: "job_type", headerName: "용역구분", minWidth: 140 },
     { field: "match_similarity", headerName: "사업명 유사도", minWidth: 120 },
     { field: "summary", headerName: "공사(용역)개요", minWidth: 260 },
-    { field: "order_client", headerName: "발주처", minWidth: 180 },
+    { field: "order_client", headerName: "발주처", minWidth: 140 },
     { field: "construction_type", headerName: "공사종류", minWidth: 160 },
-    { field: "contract_amt_million", headerName: "공사(용역)금액(백만원)", minWidth: 190 },
-    { field: "remark", headerName: "비고", minWidth: 220 },
+    { field: "contract_amt_million", headerName: "공사(용역)금액(백만원)", minWidth: 160 },
+    { field: "remark", headerName: "비고", minWidth: 130 },
   ],
   projectHistories: [
     { field: "seq", headerName: "회사실적 SEQ", minWidth: 110 },
     { field: "jobname", headerName: "사업명", minWidth: 260 },
-    { field: "startdt", headerName: "참여시작일", minWidth: 120 },
-    { field: "enddt", headerName: "참여종료일", minWidth: 120 },
+    { field: "startdt", headerName: "참여시작일", minWidth: 100 },
+    { field: "enddt", headerName: "참여종료일", minWidth: 100 },
     { field: "jobclass", headerName: "참여분야직위", minWidth: 160 },
-    { field: "jobpart", headerName: "직무분야", minWidth: 120 },
+    { field: "jobpart", headerName: "직무분야", minWidth: 70 },
     { field: "propart", headerName: "전문분야", minWidth: 130 },
-    { field: "englevel", headerName: "등급", minWidth: 90 },
+    { field: "englevel", headerName: "등급", minWidth: 70 },
     { field: "compname", headerName: "참여회사", minWidth: 170 },
     { field: "deptname", headerName: "참여부서", minWidth: 140 },
     { field: "grade", headerName: "참여직급", minWidth: 110 },
@@ -150,10 +150,11 @@ export function SectionFrame({ title, count, actions, children }: { title: strin
   </Paper>;
 }
 
-export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, onLinkRow, onRowsChange, sectionKey, rows, valueLabel, valueLabels }: {
+export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, onDeleteRows, onLinkRow, onRowsChange, sectionKey, rows, valueLabel, valueLabels }: {
   allowDeleteAll?: boolean;
   height?: number;
   onDeleteRow?: (rowNumber: number) => void;
+  onDeleteRows?: (rowNumbers: number[]) => void;
   onLinkRow?: (rowNumber: number) => void;
   onRowsChange: (rows: EngineerPdfExtractionRow[]) => void;
   sectionKey: string;
@@ -162,6 +163,7 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
   valueLabels?: Readonly<Record<string, ReadonlyMap<string, string>>>;
 }) {
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 100 });
+  const [selectionModel, setSelectionModel] = useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
   const gridRows = useMemo<ExtractionGridRow[]>(() => rows.flatMap<ExtractionGridRow>((row): ExtractionGridRow[] => {
     const base = { confidence: row.confidence, sourceRowNumber: row.rowNumber };
     if (row.values[PDF_MERGE_STATUS_FIELD] !== "update") {
@@ -181,11 +183,20 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
   }), [rows]);
   const hasMergeStatus = rows.some((row) => Boolean(row.values[PDF_MERGE_STATUS_FIELD]));
   const columns = useMemo<GridColDef<ExtractionGridRow>[]>(() => [
-    { field: "id", headerName: "순번", width: 50, valueGetter: (_value: unknown, row: ExtractionGridRow) => row.sourceRowNumber },
+    {
+      field: "id",
+      headerName: "순번",
+      width: 50,
+      align: sectionKey === "projectHistories" ? "center" : undefined,
+      headerAlign: sectionKey === "projectHistories" ? "center" : undefined,
+      valueGetter: (_value: unknown, row: ExtractionGridRow) => row.sourceRowNumber,
+    },
     ...(hasMergeStatus ? [{
       field: "mergeStatus",
       headerName: "구분",
-      width: 60,
+      width: 50,
+      align: sectionKey === "projectHistories" ? "center" as const : undefined,
+      headerAlign: sectionKey === "projectHistories" ? "center" as const : undefined,
       valueGetter: (_value: unknown, row: ExtractionGridRow) => row.comparisonSide === "db"
         ? "기존 DB"
         : row.values[PDF_MERGE_STATUS_FIELD] === "update" ? sectionKey === "companyPerformances" ? "업데이트" : "PDF 변경"
@@ -198,6 +209,8 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
       headerName,
       flex: 1,
       minWidth: minWidth ?? 160,
+      align: sectionKey === "projectHistories" && !["jobname", "remark"].includes(field) ? "center" as const : undefined,
+      headerAlign: sectionKey === "projectHistories" && !["jobname", "remark"].includes(field) ? "center" as const : undefined,
       valueGetter: (_value: unknown, row: ExtractionGridRow) => {
         if (field === "valid_major_yn" || field === "returnyn") return row.values[field]?.trim() || "Y";
         const value = row.values[field] ?? "";
@@ -274,6 +287,8 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
       type: "actions" as const,
       headerName: "작업",
       width: onDeleteRow && onLinkRow ? 110 : 70,
+      align: sectionKey === "projectHistories" ? "center" as const : undefined,
+      headerAlign: sectionKey === "projectHistories" ? "center" as const : undefined,
       getActions: ({ row }: { row: ExtractionGridRow }) => [
         ...(onLinkRow && row.comparisonSide !== "db"
           ? [<GridActionsCellItem key="link" icon={<ManageSearchOutlinedIcon />} label="기존 회사실적 검색 및 연결" onClick={() => onLinkRow(row.sourceRowNumber)} />]
@@ -292,14 +307,43 @@ export function ExtractionGrid({ allowDeleteAll = false, height, onDeleteRow, on
     onRowsChange(rows.map((row) => row.rowNumber === newRow.sourceRowNumber ? { ...row, values } : row));
     return { ...newRow, values };
   };
+  const handleDeleteSelectedRows = () => {
+    if (!onDeleteRows || selectionModel.ids.size === 0) {
+      return;
+    }
+
+    const selectedIds = selectionModel.type === "exclude"
+      ? gridRows.filter((row) => !selectionModel.ids.has(row.id)).map((row) => row.sourceRowNumber)
+      : Array.from(selectionModel.ids, String).flatMap((id) => {
+        const row = gridRows.find((item) => item.id === id);
+        return row ? [row.sourceRowNumber] : [];
+      });
+    const rowNumbers = [...new Set(selectedIds)];
+    if (rowNumbers.length === 0) {
+      return;
+    }
+
+    onDeleteRows(rowNumbers);
+    setSelectionModel({ ids: new Set(), type: "include" });
+  };
   const rowHeight = 30;
   const gridHeight = height ?? 280;
   return <Box sx={{ height: gridHeight, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
     <EnterpriseDataGrid<ExtractionGridRow>
       columns={columns}
+      checkboxSelection={Boolean(onDeleteRows)}
+      disableRowSelectionExcludeModel
       disableRowSelectionOnClick
       isCellEditable={({ row }) => row.comparisonSide !== "db"}
       onPaginationModelChange={setPaginationModel}
+      onCellKeyDown={(_params, event) => {
+        if (event.key === "Delete" && !event.defaultMuiPrevented && selectionModel.ids.size > 0) {
+          event.preventDefault();
+          event.defaultMuiPrevented = true;
+          handleDeleteSelectedRows();
+        }
+      }}
+      onRowSelectionModelChange={onDeleteRows ? setSelectionModel : undefined}
       pageSizeOptions={[10, 25, 50, 100]}
       pagination
       paginationModel={paginationModel}
