@@ -229,8 +229,10 @@ const buildEngineerColumns = (
   {
     field: "name",
     headerName: "성명",
-    minWidth: 120,
+    minWidth: 80,
     flex: 0.8,
+    align: "center",
+    headerAlign: "center",
     renderCell: ({ row }: GridRenderCellParams<WorkOverlapEngineerRow>) => (
       <Typography color="primary.main" sx={{ fontSize: 13, fontWeight: 800 }}>
         {row.name}
@@ -238,18 +240,12 @@ const buildEngineerColumns = (
     ),
   },
   {
-    field: "responsibility",
-    headerName: "책임정도",
-    width: 90,
-    align: "center",
-    headerAlign: "center",
-    valueGetter: (_value, row) => row.responsibility || "-",
-  },
-  {
     field: "jobField",
     headerName: "직무분야",
-    minWidth: 120,
+    minWidth: 110,
     flex: 0.8,
+    align: "center",
+    headerAlign: "center",
     valueGetter: (_value, row) => jobFieldLabelByCode[row.jobField] ?? row.jobField,
   },
   {
@@ -257,6 +253,8 @@ const buildEngineerColumns = (
     headerName: "전문분야",
     minWidth: 150,
     flex: 1,
+    align: "center",
+    headerAlign: "center",
     valueGetter: (_value, row) => specialtyFieldLabelByCode[row.specialtyField] ?? row.specialtyField,
   },
   {
