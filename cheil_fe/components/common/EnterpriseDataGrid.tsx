@@ -29,7 +29,7 @@ import {
   type GridValidRowModel,
 } from "@mui/x-data-grid";
 import type { GridPrintExportOptions } from "@mui/x-data-grid/models";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { getPageLabel } from "@/shared/navigation/routeMeta";
@@ -1441,6 +1441,19 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     apiRef.current?.publishEvent("clipboardCopy", payload.plainText);
   };
 
+  const handleDragStartCapture = (event: DragEvent<HTMLDivElement>) => {
+    userSlotProps?.root?.onDragStartCapture?.(event);
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.closest(".MuiDataGrid-sortButton")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    (event.nativeEvent as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+  };
+
   const handleCellClick: NonNullable<DataGridProps<Row>["onCellClick"]> = (params, event, details) => {
     userOnCellClick?.(params, event, details);
 
@@ -1550,6 +1563,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
           root: {
             ...userSlotProps?.root,
             onCopyCapture: handleCopyCapture,
+            onDragStartCapture: handleDragStartCapture,
             onKeyDownCapture: handleKeyDownCapture,
           },
           toolbar: {
@@ -1583,6 +1597,10 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
           },
           "& .MuiDataGrid-columnSeparator": {
             color: "#d7e3ef",
+          },
+          "& .MuiDataGrid-sortButton, & .MuiDataGrid-sortIcon": {
+            WebkitUserDrag: "none",
+            userSelect: "none",
           },
           "& .MuiDataGrid-cell": {
             alignContent: "center",
