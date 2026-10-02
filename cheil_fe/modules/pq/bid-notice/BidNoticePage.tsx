@@ -22,6 +22,7 @@ import {
   formatBidSuccessForXlsx,
   formatDepartmentForXlsx,
   formatOrderClientForXlsx,
+  formatRegistrantForXlsx,
 } from "@/modules/pq/bid-notice/bidNoticeXlsxFormatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
@@ -322,6 +323,7 @@ export function BidNoticePage() {
       businessType: businessTypeOptions.labelByValue,
       department: departmentOptions.labelByValue,
       orderMethod: orderMethodOptions.labelByValue,
+      registrant: userNameByEmployeeNo,
     }),
     [
       bidMethodOptions.labelByValue,
@@ -329,6 +331,7 @@ export function BidNoticePage() {
       businessTypeOptions.labelByValue,
       departmentOptions.labelByValue,
       orderMethodOptions.labelByValue,
+      userNameByEmployeeNo,
     ],
   );
 
@@ -555,6 +558,7 @@ export function BidNoticePage() {
         width: 90,
         align: "center",
         headerAlign: "center",
+        valueFormatter: formatRegistrantForXlsx(userNameByEmployeeNo),
         renderCell: ({ value }) => userNameByEmployeeNo[String(value ?? "")] ?? String(value ?? ""),
       },
     ],

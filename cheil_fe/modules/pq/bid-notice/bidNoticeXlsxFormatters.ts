@@ -27,3 +27,8 @@ export const formatBidSuccessForXlsx = (value: unknown, row?: BidNoticeRecord) =
 export const formatDepartmentForXlsx = formatLabelFieldForXlsx("departmentName");
 
 export const formatOrderClientForXlsx = formatLabelFieldForXlsx("orderClientName");
+
+export const formatRegistrantForXlsx = (userNameByEmployeeNo: Record<string, string>) => (value: unknown, row?: BidNoticeRecord) => {
+  const employeeNo = textOrEmpty(row?.pqDecideEmpno ?? value);
+  return userNameByEmployeeNo[employeeNo] ?? (textOrEmpty(row?.writerName) || employeeNo);
+};
