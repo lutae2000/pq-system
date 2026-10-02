@@ -96,7 +96,11 @@ export const calculateInclusiveDayCount = (fromValue: string | null | undefined,
   return Math.max(0, Math.round((inclusiveTo.getTime() - from.getTime()) / 86400000));
 };
 
-export const calculateRecentThreeYearPeriod = (referenceDate: string | null | undefined, contractFromDate: string | null | undefined, contractToDate: string | null | undefined) => {
+export const calculateRecentThreeYearPeriodRange = (
+  referenceDate: string | null | undefined,
+  contractFromDate: string | null | undefined,
+  contractToDate: string | null | undefined,
+) => {
   const reference = parseDateInput(referenceDate);
   const contractFrom = parseDateInput(contractFromDate);
   const contractTo = parseDateInput(contractToDate);
@@ -105,10 +109,15 @@ export const calculateRecentThreeYearPeriod = (referenceDate: string | null | un
   const periodStart = maxDate(contractFrom, windowStart);
 
   if (!periodStart || !effectiveEnd || effectiveEnd < periodStart) {
-    return "-";
+    return { fromDate: null, toDate: null };
   }
 
-  return formatPeriodText(formatYmd(periodStart), formatYmd(effectiveEnd));
+  return { fromDate: formatYmd(periodStart), toDate: formatYmd(effectiveEnd) };
+};
+
+export const calculateRecentThreeYearPeriod = (referenceDate: string | null | undefined, contractFromDate: string | null | undefined, contractToDate: string | null | undefined) => {
+  const { fromDate, toDate } = calculateRecentThreeYearPeriodRange(referenceDate, contractFromDate, contractToDate);
+  return formatPeriodText(fromDate, toDate);
 };
 
 export const calculateRecentThreeYearRatio = (referenceDate: string | null | undefined, contractFromDate: string | null | undefined, contractToDate: string | null | undefined) => {

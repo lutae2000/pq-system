@@ -11,6 +11,7 @@ import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import {
   calculateAppliedAmount,
+  calculateRecentThreeYearPeriod,
   defaultSimilarServicePerformanceRecord,
   formatDateInputValue,
   formatNumberInputValue,
@@ -33,6 +34,7 @@ type SimilarServicePerformanceDialogProps = {
     canDelete: boolean;
     canUpdate: boolean;
   };
+  referenceDate: string;
   record: SimilarServicePerformanceRecord | null;
   saveDisabled?: boolean;
   saving?: boolean;
@@ -82,6 +84,7 @@ export function SimilarServicePerformanceDialog({
   onSave,
   open,
   permissions,
+  referenceDate,
   record,
   saveDisabled = false,
   saving = false,
@@ -135,50 +138,68 @@ export function SimilarServicePerformanceDialog({
               </Box>
             </Section>
 
-            <Section title="기간 정보">
-              <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
+            <Stack spacing={1.25}>
+              <Section title="계약기간">
+                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
+                  <TextField
+                    disabled={formDisabled}
+                    label="계약 시작일"
+                    onChange={(event) => onFieldChange("contractFromDate", event.target.value || null)}
+                    size="small"
+                    sx={standardFieldSx}
+                    type="date"
+                    value={formatDateInputValue(draft.contractFromDate)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <TextField
+                    disabled={formDisabled}
+                    label="계약 종료일"
+                    onChange={(event) => onFieldChange("contractToDate", event.target.value || null)}
+                    size="small"
+                    sx={standardFieldSx}
+                    type="date"
+                    value={formatDateInputValue(draft.contractToDate)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                </Box>
+              </Section>
+
+              <Section title="최근 3년간 수행기간">
                 <TextField
-                  disabled={formDisabled}
-                  label="계약 시작일"
-                  onChange={(event) => onFieldChange("contractFromDate", event.target.value || null)}
+                  disabled
+                  fullWidth
+                  label="수행기간"
                   size="small"
                   sx={standardFieldSx}
-                  type="date"
-                  value={formatDateInputValue(draft.contractFromDate)}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  value={calculateRecentThreeYearPeriod(referenceDate, draft.contractFromDate, draft.contractToDate)}
                 />
-                <TextField
-                  disabled={formDisabled}
-                  label="계약 종료일"
-                  onChange={(event) => onFieldChange("contractToDate", event.target.value || null)}
-                  size="small"
-                  sx={standardFieldSx}
-                  type="date"
-                  value={formatDateInputValue(draft.contractToDate)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  disabled={formDisabled}
-                  label="공사 시작일"
-                  onChange={(event) => onFieldChange("constructionFromDate", event.target.value || null)}
-                  size="small"
-                  sx={standardFieldSx}
-                  type="date"
-                  value={formatDateInputValue(draft.constructionFromDate)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-                <TextField
-                  disabled={formDisabled}
-                  label="공사 종료일"
-                  onChange={(event) => onFieldChange("constructionToDate", event.target.value || null)}
-                  size="small"
-                  sx={standardFieldSx}
-                  type="date"
-                  value={formatDateInputValue(draft.constructionToDate)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Box>
-            </Section>
+              </Section>
+
+              <Section title="공사기간">
+                <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
+                  <TextField
+                    disabled={formDisabled}
+                    label="공사 시작일"
+                    onChange={(event) => onFieldChange("constructionFromDate", event.target.value || null)}
+                    size="small"
+                    sx={standardFieldSx}
+                    type="date"
+                    value={formatDateInputValue(draft.constructionFromDate)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <TextField
+                    disabled={formDisabled}
+                    label="공사 종료일"
+                    onChange={(event) => onFieldChange("constructionToDate", event.target.value || null)}
+                    size="small"
+                    sx={standardFieldSx}
+                    type="date"
+                    value={formatDateInputValue(draft.constructionToDate)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                </Box>
+              </Section>
+            </Stack>
 
             <Section title="수치 정보">
               <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>

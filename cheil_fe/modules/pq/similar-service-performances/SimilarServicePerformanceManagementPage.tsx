@@ -26,12 +26,12 @@ import { useSimilarServicePerformanceMutations } from "@/modules/pq/similar-serv
 import { useSimilarServicePerformanceQueries } from "@/modules/pq/similar-service-performances/application/useSimilarServicePerformanceQueries";
 import {
   calculateAppliedAmount,
-  calculateRecentThreeYearPeriod,
+  calculateRecentThreeYearPeriodRange,
   calculateRecentThreeYearRatio,
   defaultSimilarServicePerformanceRecord,
   displayText,
+  formatDateInputValue,
   formatNumberText,
-  formatPeriodText,
   getTodayDateInputValue,
 } from "@/modules/pq/similar-service-performances/similarServicePerformanceForm";
 
@@ -191,12 +191,39 @@ export function SimilarServicePerformanceManagementPage() {
       { field: "serviceName", headerName: "용역명", minWidth: 260, flex: 1.2, valueGetter: (_value, row) => displayText(row.serviceName) },
       { field: "constructionType", headerName: "공종", width: 150, valueGetter: (_value, row) => displayText(row.constructionType) },
       { field: "client", headerName: "발주처", minWidth: 170, flex: 0.8, valueGetter: (_value, row) => displayText(row.client) },
-      { field: "contractPeriod", headerName: "계약기간", width: 180, valueGetter: (_value, row) => formatPeriodText(row.contractFromDate, row.contractToDate) },
       {
-        field: "recentThreeYearPeriod",
-        headerName: "최근 3년간 수행한 기간",
-        width: 190,
-        valueGetter: (_value, row) => calculateRecentThreeYearPeriod(referenceDate, row.contractFromDate, row.contractToDate),
+        field: "contractFromDate",
+        headerName: "계약 시작일",
+        width: 125,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatDateInputValue(row.contractFromDate) || "-",
+      },
+      {
+        field: "contractToDate",
+        headerName: "계약 종료일",
+        width: 125,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatDateInputValue(row.contractToDate) || "-",
+      },
+      {
+        field: "recentThreeYearFromDate",
+        headerName: "최근 3년간 수행 시작일",
+        width: 145,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) =>
+          formatDateInputValue(calculateRecentThreeYearPeriodRange(referenceDate, row.contractFromDate, row.contractToDate).fromDate) || "-",
+      },
+      {
+        field: "recentThreeYearToDate",
+        headerName: "최근 3년간 수행 종료일",
+        width: 145,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) =>
+          formatDateInputValue(calculateRecentThreeYearPeriodRange(referenceDate, row.contractFromDate, row.contractToDate).toDate) || "-",
       },
       {
         field: "recentThreeYearRatio",
@@ -212,8 +239,23 @@ export function SimilarServicePerformanceManagementPage() {
         valueGetter: (_value, row) => calculateRecentThreeYearRatio(referenceDate, row.contractFromDate, row.contractToDate),
         valueFormatter: (value) => formatOneDecimalText(value as number | null),
       },
-      { field: "constructionPeriod", headerName: "공사기간", width: 180, valueGetter: (_value, row) => formatPeriodText(row.constructionFromDate, row.constructionToDate) },
-      { field: "contractPrice", headerName: "용역비", width: 130, align: "right", headerAlign: "center", valueFormatter: (value) => formatNumberText(value as number | null) },
+      {
+        field: "constructionFromDate",
+        headerName: "공사 시작일",
+        width: 125,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatDateInputValue(row.constructionFromDate) || "-",
+      },
+      {
+        field: "constructionToDate",
+        headerName: "공사 종료일",
+        width: 125,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatDateInputValue(row.constructionToDate) || "-",
+      },
+      { field: "contractPrice", headerName: "용역비(백만원)", width: 130, align: "right", headerAlign: "center", valueFormatter: (value) => formatNumberText(value as number | null) },
       { field: "shareRatio", headerName: "지분율(%)", width: 90, align: "right", headerAlign: "center", valueFormatter: (value) => formatNumberText(value as number | null) },
       {
         field: "weight",
@@ -469,6 +511,7 @@ export function SimilarServicePerformanceManagementPage() {
           open
           permissions={{ canCreate, canDelete, canUpdate }}
           record={editingRecord}
+          referenceDate={referenceDate}
           saving={saveMutation.isPending}
         />
       ) : null}
