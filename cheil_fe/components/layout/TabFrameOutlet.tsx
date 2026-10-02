@@ -2,15 +2,23 @@
 
 import { Box } from "@mui/material";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { TabActivityProvider } from "@/components/layout/TabActivityContext";
-import { pageRegistry } from "@/shared/navigation/pageRegistry.generated";
 import { useLayoutStore } from "@/store/layoutStore";
 
-const pageCache = new Map<string, ReactNode>();
 const DASHBOARD_HREF = "/dashboard";
+
+function CachedTabContent({ active, page }: { active: boolean; page: ReactNode }) {
+  const [cachedPage, setCachedPage] = useState<ReactNode>(page);
+
+  if (active && cachedPage !== page) {
+    setCachedPage(page);
+  }
+
+  return active ? page : cachedPage;
+}
 
 export function TabFrameOutlet({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -21,33 +29,11 @@ export function TabFrameOutlet({ children }: { children: ReactNode }) {
     [pathname, tabs],
   );
 
-  const activePathname = pathname === "/login" ? "" : pathname;
-  useEffect(() => {
-    const openHrefSet = new Set(tabHrefs);
-
-    if (activePathname && !pageCache.has(activePathname)) {
-      const RegisteredPage = pageRegistry[activePathname as keyof typeof pageRegistry];
-      pageCache.set(activePathname, RegisteredPage ? <RegisteredPage /> : children);
-    }
-
-    for (const cachedHref of pageCache.keys()) {
-      if (!openHrefSet.has(cachedHref)) {
-        pageCache.delete(cachedHref);
-      }
-    }
-  }, [activePathname, children, tabHrefs]);
-
   return (
     <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, position: "relative" }}>
       {tabHrefs.map((href) => {
         const active = href === pathname;
         const shouldUnmountWhenInactive = href === DASHBOARD_HREF || href.startsWith(`${DASHBOARD_HREF}/`);
-        const page =
-          pageCache.get(href) ??
-          (active ? (() => {
-            const RegisteredPage = pageRegistry[href as keyof typeof pageRegistry];
-            return RegisteredPage ? <RegisteredPage /> : children;
-          })() : null);
 
         return (
           <Box
@@ -81,7 +67,7 @@ export function TabFrameOutlet({ children }: { children: ReactNode }) {
             >
               <TabActivityProvider active={active}>
                 {active ? <Breadcrumbs /> : null}
-                {active || !shouldUnmountWhenInactive ? page : null}
+                {active || !shouldUnmountWhenInactive ? <CachedTabContent active={active} page={active ? children : null} /> : null}
               </TabActivityProvider>
             </Box>
           </Box>
