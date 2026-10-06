@@ -7,7 +7,6 @@
 export const generatedPagePaths = [
   "/bid/bid-results",
   "/bid/qualification-criteria",
-  "/code",
   "/code/certifications",
   "/code/clients",
   "/code/common-codes",

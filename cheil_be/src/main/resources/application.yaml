@@ -187,6 +187,7 @@ app:
       authenticated-only-paths:
         - /dashboard/**
         - /system/notices/**
+        - /system/notification-preferences/**
         - /auth/menu-permissions
         - /auth/me
         - /auth/password
