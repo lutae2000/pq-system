@@ -12,6 +12,7 @@ import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent a
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
 import { CommonSelectField } from "@/components/common/CommonSelectField";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { compactFieldSx } from "@/components/common/FormControls";
@@ -545,7 +546,6 @@ export function BidNoticePage() {
       { field: "bidClosingDate", headerName: "입찰등록 마감", width: 145 },
       { field: "bidSubmissionDate", headerName: "투찰마감", width: 145 },
       { field: "bidDate", headerName: "입찰일", width: 145 },
-      { field: "interviewDate", headerName: "면접 일정", width: 110 },
       {
         field: "designAmt",
         headerName: "설계금액",
@@ -592,6 +592,12 @@ export function BidNoticePage() {
     [bidNoticeGridCardHeight],
   );
 
+  const handleBidNoticeGridResizeClick = useCallback(() => {
+    setBidNoticeGridCardHeight((currentHeight) =>
+      currentHeight >= BID_NOTICE_GRID_CARD_MAX_HEIGHT ? BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT : BID_NOTICE_GRID_CARD_MAX_HEIGHT,
+    );
+  }, []);
+
   const handleExportPrint = () => {
     const gridApi = gridApiRef.current;
     const sortedRecords = gridApi
@@ -610,7 +616,7 @@ export function BidNoticePage() {
         title="공고문"
         action={
           <Button disabled={!canCreate} onClick={openNew} startIcon={<AddOutlinedIcon />} variant="contained">
-            신규 등록
+            신규
           </Button>
         }
       />
@@ -760,8 +766,10 @@ export function BidNoticePage() {
             showXlsxExportButton
             showPrintButton
             showPageNumbers
+            pageSizeOptions={[20, 40, 80, 120]}
             getRowId={(row) => row.id}
             onRowDoubleClick={(params: GridRowParams<BidNoticeRecord>) => openEditor(params.row)}
+            initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
             rows={filteredRecords}
             wrapperMinHeight={bidNoticeGridHeight}
             sx={{
@@ -770,32 +778,12 @@ export function BidNoticePage() {
             }}
           />
         </CardContent>
-        <Box
-          aria-label="공고문 그리드 높이 조정"
+        <ResizeHandle
+          ariaLabel="공고문 그리드 높이 조정"
+          onClick={handleBidNoticeGridResizeClick}
           onPointerDown={handleBidNoticeGridResizeStart}
-          role="separator"
-          sx={{
-            alignItems: "center",
-            bottom: 0,
-            cursor: "row-resize",
-            display: { xs: "none", lg: "flex" },
-            height: 14,
-            justifyContent: "center",
-            left: 0,
-            position: "absolute",
-            right: 0,
-            touchAction: "none",
-            "&::before": {
-              bgcolor: "divider",
-              borderRadius: 1,
-              content: '""',
-              height: 3,
-              width: 48,
-            },
-            "&:hover::before": {
-              bgcolor: "primary.main",
-            },
-          }}
+          orientation="horizontal"
+          sx={{ display: { xs: "none", lg: "flex" } }}
         />
       </Card>
 

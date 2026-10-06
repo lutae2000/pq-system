@@ -94,12 +94,16 @@ export type GeneratedPagePath = (typeof generatedPagePaths)[number];
 const registryComponents = pageEntries
   .map(
     ({ componentName, exportName, modulePath }) =>
-      `const ${componentName} = dynamic(() => import("${modulePath}").then((module) => module.${exportName}), { ssr: false });`,
+      `const load${componentName} = () => import("${modulePath}").then((module) => module.${exportName});\nconst ${componentName} = dynamic(load${componentName}, { ssr: false });`,
   )
   .join("\n");
 
 const registryEntries = pageEntries
   .map(({ componentName, routePath }) => `  "${routePath}": ${componentName},`)
+  .join("\n");
+
+const preloaderEntries = pageEntries
+  .map(({ componentName, routePath }) => `  "${routePath}": load${componentName},`)
   .join("\n");
 
 const generatedRegistry = normalizeSource(`
@@ -120,6 +124,17 @@ import type { GeneratedPagePath } from "@/shared/navigation/pagePaths.generated"
 export const pageRegistry: Record<GeneratedPagePath, ComponentType> = {
 ${registryEntries}
 };
+
+const pagePreloaders: Record<GeneratedPagePath, () => Promise<ComponentType>> = {
+${preloaderEntries}
+};
+
+export function preloadRegisteredPage(pathname: string) {
+  const preloader = pagePreloaders[pathname as GeneratedPagePath];
+  if (preloader) {
+    void preloader().catch(() => undefined);
+  }
+}
 `);
 
 const currentPaths = await readFile(pathsOutputFile, "utf8").catch(() => "");

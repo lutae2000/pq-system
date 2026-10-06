@@ -71,6 +71,7 @@ export function SystemPolicyManagementPage() {
         field: "useYn",
         headerAlign: "center",
         headerName: "사용",
+        align: "center",
         renderCell: (params) => (
           <FormControlLabel
             control={
@@ -84,7 +85,7 @@ export function SystemPolicyManagementPage() {
                 }}
               />
             }
-            label={params.row.useYn ? "사용" : "미사용"}
+            label=""
             sx={{ m: 0 }}
           />
         ),

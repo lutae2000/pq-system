@@ -23,6 +23,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { menuIconMap } from "@/components/layout/navigation";
 import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
 import { getMenuItems, type MenuItemDto } from "@/shared/navigation/menu";
+import { preloadRegisteredPage } from "@/shared/navigation/pageRegistry.generated";
 import { useBrandingSettings } from "@/modules/system/branding/useBrandingSettings";
 
 const emptyMenuItems: MenuItemDto[] = [];
@@ -68,6 +69,11 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
   );
 
   const isGroupOpen = (item: MenuItemDto) => openGroups[item.id] ?? activeGroupIds.includes(item.id);
+
+  const preloadMenuPage = (href: string) => {
+    router.prefetch(href);
+    preloadRegisteredPage(href);
+  };
 
   const renderItem = (item: MenuItemDto, depth = 0) => {
     const Icon = menuIconMap[item.icon] ?? SettingsOutlinedIcon;
@@ -136,7 +142,7 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
 
     const listItem = (
       <ListItemButton
-        {...(item.href && routeAvailable ? { LinkComponent: Link, href: item.href } : {})}
+        {...(item.href && routeAvailable ? { LinkComponent: Link, href: item.href, prefetch: false } : {})}
         disabled={!routeAvailable || !item.href}
         onClick={(event) => {
           if (!item.href || !routeAvailable) {
@@ -148,17 +154,8 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
           }
 
           event.preventDefault();
+          preloadMenuPage(item.href);
           router.push(item.href);
-        }}
-        onFocus={() => {
-          if (item.href && routeAvailable) {
-            router.prefetch(item.href);
-          }
-        }}
-        onMouseEnter={() => {
-          if (item.href && routeAvailable) {
-            router.prefetch(item.href);
-          }
         }}
         selected={selected}
         sx={{

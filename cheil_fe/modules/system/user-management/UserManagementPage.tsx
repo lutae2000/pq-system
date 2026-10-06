@@ -933,15 +933,6 @@ export function UserManagementPage() {
                           <TextField fullWidth label="최종 변경일" size="small" sx={standardFieldSx} value={draftUser.lastChngDt} disabled />
                         </Box>
                       </Box>
-
-                      <Divider />
-
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                        <Chip label={selectedUser ? "수정 모드" : "신규 등록"} />
-                        <Chip label={`그룹 ${optionLabel(groupOptions, draftUser.groupCode)}`} variant="outlined" />
-                        <Chip label={`부서 ${optionLabel(deptOptions, draftUser.deptCode)}`} variant="outlined" />
-                        <Chip label={`최종 변경 ${formatValue(draftUser.lastChngDt)}`} variant="outlined" />
-                      </Box>
                     </Box>
                   </Box>
                 ) : (
