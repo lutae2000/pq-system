@@ -31,6 +31,10 @@ export function OpenTabs() {
     void useLayoutStore.persist.rehydrate();
   }, []);
 
+  useEffect(() => {
+    tabs.forEach((tab) => router.prefetch(tab.href));
+  }, [router, tabs]);
+
   const currentTab = useMemo(
     () => ({ closable: pathname !== "/dashboard", href: pathname, label: getPageLabel(pathname, permissions) }),
     [pathname, permissions],

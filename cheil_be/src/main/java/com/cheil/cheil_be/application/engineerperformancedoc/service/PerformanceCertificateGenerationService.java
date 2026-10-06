@@ -7,32 +7,38 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.PerformanceCertificateGenerateRequest;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapHwpxGenerateRequest;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentEntity;
 import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentJpaRepository;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository.PerformanceTarget;
 import com.cheil.cheil_be.common.file.FileDownloadResult;
 import com.cheil.cheil_be.common.file.FileStorageService;
+import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +50,6 @@ public class PerformanceCertificateGenerationService {
     private static final String HWP_NS = "http://www.hancom.co.kr/hwpml/2011/paragraph";
     private static final String BASE_TEMPLATE = "hwpx/blank-a4.hwpx";
 
-    private final EngineerPerformanceDocumentService performanceDocumentService;
     private final AppFileAttachmentJpaRepository attachmentRepository;
     private final FileStorageService fileStorageService;
     private final PerformanceCertificateQueryRepository queryRepository;
@@ -59,20 +64,147 @@ public class PerformanceCertificateGenerationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "기술인별 실적증명서 생성 대상이 없습니다.");
         }
 
-        List<BatchDocument> documents = new ArrayList<>();
-        for (String engineerId : request.engineerIds()) {
-            if (!StringUtils.hasText(engineerId)) continue;
-            PerformanceCertificateGenerateRequest singleRequest = new PerformanceCertificateGenerateRequest(
-                    request.bidSeq(), List.of(engineerId), request.engineerNames(), null, request.relatedProjectHistoryConditions(), request.includeParticipantList());
-            byte[] content = generateDocument(singleRequest, true);
-            if (content != null) {
-                documents.add(new BatchDocument(engineerId, content));
+        List<String> engineerIds = request.engineerIds().stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+        Map<String, List<Long>> performanceSeqsByEngineer = findPerformanceSeqsByEngineer(
+                request.bidSeq(),
+                engineerIds
+        );
+        List<String> ownerIds = performanceSeqsByEngineer.values().stream()
+                .flatMap(List::stream)
+                .distinct()
+                .map(String::valueOf)
+                .toList();
+        Map<String, List<AppFileAttachmentEntity>> attachmentsByOwnerId = findAttachmentsByOwnerId(ownerIds);
+        Map<Long, Integer> remainingPerformanceReferences = performanceReferenceCounts(performanceSeqsByEngineer);
+        Map<String, List<RenderedImage>> sharedRenderedAttachments = new HashMap<>();
+        boolean includeParticipantList = request.includeParticipantList() == Boolean.TRUE;
+
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            zip.setLevel(Deflater.BEST_SPEED);
+            int documentCount = 0;
+            for (String engineerId : engineerIds) {
+                List<RenderedImage> pages = collectPages(
+                        performanceSeqsByEngineer.getOrDefault(engineerId, List.of()),
+                        attachmentsByOwnerId,
+                        remainingPerformanceReferences,
+                        sharedRenderedAttachments,
+                        includeParticipantList
+                );
+                if (pages.isEmpty()) {
+                    continue;
+                }
+                writeBatchEntry(zip, engineerId, buildHwpx(pages), request.engineerNames(), includeParticipantList);
+                documentCount++;
+            }
+            if (documentCount == 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "첨부파일이 있는 기술인의 실적증명서가 없습니다.");
+            }
+            zip.finish();
+            return output.toByteArray();
+        } catch (IOException exception) {
+            throw new IllegalStateException("기술인별 실적증명서 ZIP 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private Map<String, List<Long>> findPerformanceSeqsByEngineer(Long bidSeq, List<String> engineerIds) {
+        Map<String, Integer> engineerOrder = new HashMap<>();
+        for (int index = 0; index < engineerIds.size(); index++) {
+            engineerOrder.put(engineerIds.get(index), index);
+        }
+        Map<String, LinkedHashMap<Long, Boolean>> ordered = new LinkedHashMap<>();
+        engineerIds.forEach(engineerId -> ordered.put(engineerId, new LinkedHashMap<>()));
+        queryRepository.findPerformanceTargets(bidSeq, engineerIds, AuditActorResolver.resolve()).stream()
+                .sorted(Comparator
+                        .comparingInt((PerformanceTarget target) -> engineerOrder.getOrDefault(target.engineerId(), Integer.MAX_VALUE))
+                        .thenComparing(PerformanceTarget::displayOrder, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(PerformanceTarget::reviewId))
+                .filter(target -> target.performanceSeq() != null && target.performanceSeq() > 0)
+                .forEach(target -> ordered
+                        .computeIfAbsent(target.engineerId(), ignored -> new LinkedHashMap<>())
+                        .put(target.performanceSeq(), true));
+
+        Map<String, List<Long>> result = new LinkedHashMap<>();
+        ordered.forEach((engineerId, seqs) -> result.put(engineerId, new ArrayList<>(seqs.keySet())));
+        return result;
+    }
+
+    private Map<String, List<AppFileAttachmentEntity>> findAttachmentsByOwnerId(List<String> ownerIds) {
+        Map<String, List<AppFileAttachmentEntity>> result = new LinkedHashMap<>();
+        if (ownerIds.isEmpty()) {
+            return result;
+        }
+        attachmentRepository.findByOwnerTypeAndOwnerIdInOrderByCreatedAtAsc(OWNER_TYPE, ownerIds)
+                .forEach(attachment -> result
+                        .computeIfAbsent(attachment.getOwnerId(), ignored -> new ArrayList<>())
+                        .add(attachment));
+        return result;
+    }
+
+    private Map<Long, Integer> performanceReferenceCounts(Map<String, List<Long>> performanceSeqsByEngineer) {
+        Map<Long, Integer> result = new HashMap<>();
+        performanceSeqsByEngineer.values().forEach(seqs -> seqs.forEach(seq -> result.merge(seq, 1, Integer::sum)));
+        return result;
+    }
+
+    private List<RenderedImage> collectPages(
+            List<Long> performanceSeqs,
+            Map<String, List<AppFileAttachmentEntity>> attachmentsByOwnerId,
+            Map<Long, Integer> remainingPerformanceReferences,
+            Map<String, List<RenderedImage>> sharedRenderedAttachments,
+            boolean includeParticipantList
+    ) {
+        List<RenderedImage> pages = new ArrayList<>();
+        for (Long performanceSeq : performanceSeqs) {
+            List<AppFileAttachmentEntity> attachments = attachmentsByOwnerId.getOrDefault(
+                    String.valueOf(performanceSeq),
+                    List.of()
+            );
+            for (AppFileAttachmentEntity attachment : attachments) {
+                if (!isIncludedAttachment(attachment, includeParticipantList)) {
+                    continue;
+                }
+                if (remainingPerformanceReferences.getOrDefault(performanceSeq, 0) > 1
+                        || sharedRenderedAttachments.containsKey(attachment.getFileId())) {
+                    pages.addAll(sharedRenderedAttachments.computeIfAbsent(
+                            attachment.getFileId(),
+                            ignored -> renderAttachmentIfAvailable(attachment)
+                    ));
+                } else {
+                    pages.addAll(renderAttachmentIfAvailable(attachment));
+                }
+            }
+            int remaining = remainingPerformanceReferences.merge(performanceSeq, -1, Integer::sum);
+            if (remaining <= 0) {
+                attachments.forEach(attachment -> sharedRenderedAttachments.remove(attachment.getFileId()));
             }
         }
-        if (documents.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "첨부파일이 있는 기술인의 실적증명서가 없습니다.");
-        }
-        return buildZip(documents, request.engineerNames(), request.includeParticipantList() == Boolean.TRUE);
+        return pages;
+    }
+
+    private boolean isIncludedAttachment(AppFileAttachmentEntity attachment, boolean includeParticipantList) {
+        return ATTACHMENT_TYPE.equalsIgnoreCase(attachment.getAttachmentType())
+                || (includeParticipantList
+                && PARTICIPANT_LIST_ATTACHMENT_TYPE.equalsIgnoreCase(attachment.getAttachmentType()));
+    }
+
+    private void writeBatchEntry(
+            ZipOutputStream zip,
+            String engineerId,
+            byte[] content,
+            Map<String, String> engineerNames,
+            boolean includeParticipantList
+    ) throws IOException {
+        String suffix = includeParticipantList ? "실적증명서_참여자명단.hwpx" : "실적증명서.hwpx";
+        String engineerName = engineerNames == null ? null : engineerNames.get(engineerId);
+        String filenamePrefix = StringUtils.hasText(engineerName) ? engineerName : engineerId;
+        zip.putNextEntry(new ZipEntry(safeFilename(filenamePrefix) + "_" + suffix));
+        zip.write(content);
+        zip.closeEntry();
     }
 
     public byte[] generateWorkOverlapBatch(WorkOverlapHwpxGenerateRequest request) {
@@ -134,6 +266,7 @@ public class PerformanceCertificateGenerationService {
                                         Map<String, WorkOverlapEngineer> engineers) {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            zip.setLevel(Deflater.BEST_SPEED);
             String suffix = includeParticipantList ? "업무중복도_계약서_참여자명단.hwpx" : "업무중복도_계약서.hwpx";
             for (BatchDocument document : documents) {
                 WorkOverlapEngineer engineer = engineers.get(document.engineerId());
@@ -199,26 +332,6 @@ public class PerformanceCertificateGenerationService {
         }
     }
 
-    private byte[] buildZip(List<BatchDocument> documents, Map<String, String> engineerNames, boolean includeParticipantList) {
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
-             ZipOutputStream zip = new ZipOutputStream(output, java.nio.charset.StandardCharsets.UTF_8)) {
-            for (BatchDocument document : documents) {
-                String suffix = includeParticipantList
-                        ? "실적증명서_참여자명단.hwpx"
-                        : "실적증명서.hwpx";
-                String engineerName = engineerNames == null ? null : engineerNames.get(document.engineerId());
-                String filenamePrefix = StringUtils.hasText(engineerName) ? engineerName : document.engineerId();
-                zip.putNextEntry(new ZipEntry(safeFilename(filenamePrefix) + "_" + suffix));
-                zip.write(document.content());
-                zip.closeEntry();
-            }
-            zip.finish();
-            return output.toByteArray();
-        } catch (IOException exception) {
-            throw new IllegalStateException("기술인별 실적증명서 ZIP 생성에 실패했습니다.", exception);
-        }
-    }
-
     private String safeFilename(String value) {
         return value.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
@@ -229,18 +342,23 @@ public class PerformanceCertificateGenerationService {
             request.companyPerformanceSeqs().stream().filter(seq -> seq != null && seq > 0).forEach(seq -> ordered.put(seq, true));
         }
         if (request.engineerIds() != null) {
-            for (String engineerId : request.engineerIds()) {
-                if (!StringUtils.hasText(engineerId)) continue;
-                List<EngineerProjectHistoryReviewResponse> reviews = performanceDocumentService.findReviewResults(
-                        request.bidSeq(), engineerId, request.relatedProjectHistoryConditions());
-                reviews.stream()
-                        .sorted(java.util.Comparator.comparing(
-                                EngineerProjectHistoryReviewResponse::displayOrder,
-                                java.util.Comparator.nullsLast(Integer::compareTo)))
-                        .map(EngineerProjectHistoryReviewResponse::seq)
-                        .filter(seq -> seq != null && seq > 0)
-                        .forEach(seq -> ordered.put(seq.longValue(), true));
+            List<String> engineerIds = request.engineerIds().stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .distinct()
+                    .toList();
+            Map<String, Integer> engineerOrder = new HashMap<>();
+            for (int index = 0; index < engineerIds.size(); index++) {
+                engineerOrder.put(engineerIds.get(index), index);
             }
+            queryRepository.findPerformanceTargets(request.bidSeq(), engineerIds, AuditActorResolver.resolve()).stream()
+                    .sorted(Comparator
+                            .comparingInt((PerformanceTarget target) -> engineerOrder.getOrDefault(target.engineerId(), Integer.MAX_VALUE))
+                            .thenComparing(PerformanceTarget::displayOrder, Comparator.nullsLast(Integer::compareTo))
+                            .thenComparing(PerformanceTarget::reviewId))
+                    .map(PerformanceTarget::performanceSeq)
+                    .filter(seq -> seq != null && seq > 0)
+                    .forEach(seq -> ordered.put(seq, true));
         }
         return new ArrayList<>(ordered.keySet());
     }
@@ -248,14 +366,11 @@ public class PerformanceCertificateGenerationService {
     private List<RenderedImage> renderAttachment(AppFileAttachmentEntity attachment) {
         FileDownloadResult download = fileStorageService.download(attachment);
         try (InputStream input = download.resource().getInputStream()) {
-            byte[] bytes = input.readAllBytes();
             String filename = attachment.getOriginalFilename() == null ? "" : attachment.getOriginalFilename().toLowerCase();
             String contentType = attachment.getContentType() == null ? "" : attachment.getContentType().toLowerCase();
-            if (contentType.contains("pdf") || filename.endsWith(".pdf")) return renderPdf(bytes);
+            if (contentType.contains("pdf") || filename.endsWith(".pdf")) return renderPdf(input);
             if (contentType.startsWith("image/") || filename.matches(".*\\.(jpg|jpeg|png|bmp|gif)$")) {
-                BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
-                if (image == null) throw new IOException("이미지를 읽을 수 없습니다.");
-                return List.of(toPngPage(image));
+                return List.of(readImagePage(input));
             }
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PDF, JPG, PNG 파일만 실적증명서에 포함할 수 있습니다.");
         } catch (IOException exception) {
@@ -263,9 +378,9 @@ public class PerformanceCertificateGenerationService {
         }
     }
 
-    private List<RenderedImage> renderPdf(byte[] bytes) throws IOException {
+    private List<RenderedImage> renderPdf(InputStream input) throws IOException {
         List<RenderedImage> result = new ArrayList<>();
-        try (PDDocument document = PDDocument.load(bytes)) {
+        try (PDDocument document = PDDocument.load(input)) {
             PDFRenderer renderer = new PDFRenderer(document);
             for (int page = 0; page < document.getNumberOfPages(); page++) {
                 result.add(toPngPage(renderer.renderImageWithDPI(page, 150)));
@@ -274,10 +389,39 @@ public class PerformanceCertificateGenerationService {
         return result;
     }
 
+    private RenderedImage readImagePage(InputStream input) throws IOException {
+        byte[] bytes = input.readAllBytes();
+        try (ImageInputStream imageInput = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (imageInput == null) {
+                throw new IOException("이미지를 읽을 수 없습니다.");
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInput);
+            if (!readers.hasNext()) {
+                throw new IOException("이미지를 읽을 수 없습니다.");
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(imageInput, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                String format = reader.getFormatName().toLowerCase();
+                if ("png".equals(format)) {
+                    return new RenderedImage(bytes, width, height, "png", "image/png");
+                }
+                if ("jpeg".equals(format) || "jpg".equals(format)) {
+                    return new RenderedImage(bytes, width, height, "jpg", "image/jpeg");
+                }
+                return toPngPage(reader.read(0));
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
     private RenderedImage toPngPage(BufferedImage image) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ImageIO.write(image, "png", output);
-        return new RenderedImage(output.toByteArray(), image.getWidth(), image.getHeight());
+        return new RenderedImage(output.toByteArray(), image.getWidth(), image.getHeight(), "png", "image/png");
     }
 
     private byte[] buildHwpx(List<RenderedImage> pages) {
@@ -287,16 +431,23 @@ public class PerformanceCertificateGenerationService {
             String section = new String(entries.get("Contents/section0.xml"), StandardCharsets.UTF_8);
             String contentHpf = new String(entries.get("Contents/content.hpf"), StandardCharsets.UTF_8);
             StringBuilder paragraphs = new StringBuilder();
+            StringBuilder manifestItems = new StringBuilder();
             for (int i = 0; i < pages.size(); i++) {
                 RenderedImage page = pages.get(i);
                 String id = "image" + (i + 1);
-                String filename = id + ".png";
+                String filename = id + "." + page.extension();
                 // content.hpf와 section0.xml의 BinData 참조는 HWPX 루트 기준이다.
                 entries.put("BinData/" + filename, page.bytes());
-                contentHpf = contentHpf.replace("</opf:manifest>",
-                        "<opf:item id=\"" + id + "\" href=\"BinData/" + filename + "\" media-type=\"image/png\" isEmbeded=\"1\"/></opf:manifest>");
+                manifestItems.append("<opf:item id=\"")
+                        .append(id)
+                        .append("\" href=\"BinData/")
+                        .append(filename)
+                        .append("\" media-type=\"")
+                        .append(page.mediaType())
+                        .append("\" isEmbeded=\"1\"/>");
                 paragraphs.append(imageParagraph(id, page.width(), page.height(), i > 0));
             }
+            contentHpf = contentHpf.replace("</opf:manifest>", manifestItems + "</opf:manifest>");
             section = applyNarrowPageMargins(section);
             RenderedImage firstPage = pages.get(0);
             String firstImageRun = imageRun("image1", firstPage.width(), firstPage.height());
@@ -361,6 +512,7 @@ public class PerformanceCertificateGenerationService {
     private byte[] writeZip(Map<String, byte[]> entries) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            zip.setLevel(Deflater.BEST_SPEED);
             if (entries.containsKey("mimetype")) {
                 zip.putNextEntry(new ZipEntry("mimetype"));
                 zip.write(entries.get("mimetype"));
@@ -390,7 +542,7 @@ public class PerformanceCertificateGenerationService {
         }
     }
 
-    private record RenderedImage(byte[] bytes, int width, int height) {
+    private record RenderedImage(byte[] bytes, int width, int height, String extension, String mediaType) {
     }
 
     private record BatchDocument(String engineerId, byte[] content) {

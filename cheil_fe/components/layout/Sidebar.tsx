@@ -150,6 +150,16 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
           event.preventDefault();
           router.push(item.href);
         }}
+        onFocus={() => {
+          if (item.href && routeAvailable) {
+            router.prefetch(item.href);
+          }
+        }}
+        onMouseEnter={() => {
+          if (item.href && routeAvailable) {
+            router.prefetch(item.href);
+          }
+        }}
         selected={selected}
         sx={{
           borderRadius: 1,

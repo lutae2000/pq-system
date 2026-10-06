@@ -41,6 +41,38 @@ public class PerformanceCertificateQueryRepositoryAdapter
     }
 
     @Override
+    public List<PerformanceTarget> findPerformanceTargets(Long bidSeq, List<String> engineerIds, String actor) {
+        if (engineerIds == null || engineerIds.isEmpty()) {
+            return List.of();
+        }
+        return jdbcClient.sql("""
+                        SELECT r.engr_id,
+                               cp.seq AS performance_seq,
+                               r.display_order,
+                               r.review_id
+                        FROM pq_engineer_project_history_review_results r
+                        JOIN pq_engineer_project_history h
+                          ON h.engr_id = r.engr_id
+                         AND h.id = r.source_seq
+                        JOIN company_performances cp
+                          ON cp.seq = h.seq
+                        WHERE r.bid_seq = :bidSeq
+                          AND r.engr_id IN (:engineerIds)
+                          AND r.created_id = :actor
+                        """)
+                .param("bidSeq", bidSeq)
+                .param("engineerIds", engineerIds)
+                .param("actor", actor)
+                .query((resultSet, rowNumber) -> new PerformanceTarget(
+                        resultSet.getString("engr_id"),
+                        resultSet.getLong("performance_seq"),
+                        resultSet.getObject("display_order", Integer.class),
+                        resultSet.getLong("review_id")
+                ))
+                .list();
+    }
+
+    @Override
     public Optional<String> findProjectName(Long bidSeq) {
         return jdbcClient.sql("""
                         SELECT project_name

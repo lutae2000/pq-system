@@ -35,13 +35,13 @@ public class LoginSessionPolicyService {
     }
 
     public boolean isPasswordChangeExpired(String passwordResetDt, boolean passwordReset, Instant now) {
-        if (passwordReset) {
-            return true;
-        }
-
         Optional<SystemPolicyCacheService.CachedPolicy> policy = enabledPolicy("PASSWORD_CHANGE_PERIOD_DAYS");
         if (policy.isEmpty()) {
             return false;
+        }
+
+        if (passwordReset) {
+            return true;
         }
 
         int days = numberValue(policy.get(), 0);
@@ -87,7 +87,9 @@ public class LoginSessionPolicyService {
         if (systemPolicyRepository == null) {
             return Optional.empty();
         }
-        return systemPolicyCacheService.getOrLoad(policyKey, () -> systemPolicyRepository.findById(policyKey));
+        return systemPolicyCacheService
+                .getOrLoad(policyKey, () -> systemPolicyRepository.findById(policyKey))
+                .filter(SystemPolicyCacheService.CachedPolicy::enabled);
     }
 
     private static int numberValue(SystemPolicyCacheService.CachedPolicy policy, int fallback) {
