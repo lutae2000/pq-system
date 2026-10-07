@@ -14,7 +14,7 @@ public interface NewTechnologyDevelopmentRepository {
     int update(Long id, NewTechnologyDevelopmentRequest request, String actor);
     int delete(Long id);
 
-    record Record(Long id, String sequenceLabel, String title, String technologyType, BigDecimal applicantCount,
+    record Record(Long id, Long sequenceLabel, String title, String technologyType, BigDecimal applicantCount,
                   boolean useYn, String applicationDate, BigDecimal calculatedScore, String targetField,
                   String applicationNo, String registrationNo, String validUntil, String summary, String remark,
                   Instant createdAt, String createdId, Instant lastChangedAt, String lastChangedId) {}

@@ -366,7 +366,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                 </Box>
 
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField label="연번" onChange={(event) => updateDraft("sequenceLabel", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.sequenceLabel)} />
+                  <TextField disabled label="연번" size="small" sx={standardFieldSx} value={draft.sequenceLabel ?? ""} />
                   <TextField label="구분" onChange={(event) => updateDraft("technologyType", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.technologyType)}>
                     {TECHNOLOGY_TYPES.map((type) => (
                       <MenuItem key={type} value={type}>

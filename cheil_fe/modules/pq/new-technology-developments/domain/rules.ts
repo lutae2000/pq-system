@@ -6,7 +6,7 @@ export const today = () => new Date().toISOString().slice(0, 10).replaceAll("-",
 
 export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
   id: 0,
-  sequenceLabel: "",
+  sequenceLabel: null,
   title: "",
   technologyType: "신기술",
   applicantCount: 1,
@@ -70,7 +70,6 @@ export const toDevelopmentRequest = (draft: NewTechnologyDevelopmentRecord): New
   calculatedScore: draft.calculatedScore,
   registrationNo: text(draft.registrationNo).trim(),
   remark: text(draft.remark).trim(),
-  sequenceLabel: text(draft.sequenceLabel).trim(),
   summary: text(draft.summary).trim(),
   targetField: text(draft.targetField).trim(),
   technologyType: text(draft.technologyType).trim(),
