@@ -6,7 +6,6 @@ export const today = () => new Date().toISOString().slice(0, 10).replaceAll("-",
 
 export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
   id: 0,
-  sequenceLabel: null,
   title: "",
   technologyType: "신기술",
   applicantCount: 1,

@@ -8,7 +8,6 @@ export const NEW_TECHNOLOGY_ATTACHMENT_TYPE = "REFERENCE";
 
 export type NewTechnologyDevelopmentRecord = {
   id: number;
-  sequenceLabel: number | null;
   title: string;
   technologyType: string | null;
   applicantCount: number | null;
@@ -52,7 +51,7 @@ export type NewTechnologyDevelopmentSearchParams = {
 
 export type NewTechnologyDevelopmentRequest = Omit<
   NewTechnologyDevelopmentRecord,
-  "id" | "sequenceLabel" | "elapsedYears" | "createdAt" | "createdId" | "lastChangedAt" | "lastChangedId"
+  "id" | "elapsedYears" | "createdAt" | "createdId" | "lastChangedAt" | "lastChangedId"
 >;
 
 const normalizeQueryValue = (value: string | number | null | undefined) => {

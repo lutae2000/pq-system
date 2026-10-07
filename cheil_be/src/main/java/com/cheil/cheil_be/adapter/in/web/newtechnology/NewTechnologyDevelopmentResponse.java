@@ -5,7 +5,6 @@ import java.time.Instant;
 
 public record NewTechnologyDevelopmentResponse(
         Long id,
-        Long sequenceLabel,
         String title,
         String technologyType,
         BigDecimal applicantCount,

@@ -121,7 +121,7 @@ export function NewTechnologyDevelopmentManagementPage() {
 
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
     () => [
-      { field: "sequenceLabel", headerName: "연번", width: 60, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.sequenceLabel ?? "" },
+      { field: "id", headerName: "연번", width: 70, align: "center", headerAlign: "center" },
       { field: "targetField", headerName: "적용대상", width: 120, valueGetter: (_value, row) => row.targetField ?? "" },
       { field: "title", headerName: "출원명", minWidth: 320, flex: 1.5 },
       {
@@ -366,7 +366,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                 </Box>
 
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField disabled label="연번" size="small" sx={standardFieldSx} value={draft.sequenceLabel ?? ""} />
+                  <TextField disabled label="연번" size="small" sx={standardFieldSx} value={draft.id > 0 ? draft.id : ""} />
                   <TextField label="구분" onChange={(event) => updateDraft("technologyType", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.technologyType)}>
                     {TECHNOLOGY_TYPES.map((type) => (
                       <MenuItem key={type} value={type}>
