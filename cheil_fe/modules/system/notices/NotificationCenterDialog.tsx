@@ -1,6 +1,5 @@
 "use client";
 
-import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
 import NotificationsOffOutlinedIcon from "@mui/icons-material/NotificationsOffOutlined";
@@ -11,7 +10,7 @@ import type { NoticeRecord } from "./notice.types";
 type NotificationCenterDialogProps = {
   notices: NoticeRecord[];
   onClose: () => void;
-  onMuteMenu: (targetPath: string) => void;
+  onMuteMenu?: (targetPath: string) => void;
   onNoticeClick: (notice: NoticeRecord) => void;
   open: boolean;
   readNoticeIds: ReadonlySet<string>;
@@ -29,7 +28,7 @@ export function NotificationCenterDialog({ notices, onClose, onMuteMenu, onNotic
           <Box sx={{ alignItems: "center", bgcolor: "rgba(255,255,255,0.16)", borderRadius: 1.5, display: "flex", height: 32, justifyContent: "center", width: 32 }}>
             <NotificationsActiveRoundedIcon fontSize="small" />
           </Box>
-          <Typography sx={{ fontSize: 17, fontWeight: 800 }}>업무 알림</Typography>
+          <Typography sx={{ fontSize: 17, fontWeight: 800 }}>알림사항</Typography>
           <Chip label={`${sortedNotices.length}건`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.18)", color: "inherit", fontSize: 11, fontWeight: 700, height: 22 }} />
         </Stack>
         <IconButton aria-label="업무 알림 닫기" onClick={onClose} size="small" sx={{ color: "inherit" }}><CloseRoundedIcon /></IconButton>
@@ -39,8 +38,8 @@ export function NotificationCenterDialog({ notices, onClose, onMuteMenu, onNotic
         {sortedNotices.length === 0 ? (
           <Box sx={{ alignItems: "center", color: "text.secondary", display: "flex", flexDirection: "column", gap: 0.75, justifyContent: "center", minHeight: 160, textAlign: "center" }}>
             <NotificationsActiveRoundedIcon sx={{ color: "action.disabled", fontSize: 38 }} />
-            <Typography sx={{ fontWeight: 700 }}>새로운 업무 알림이 없습니다.</Typography>
-            <Typography variant="body2">알림 수신을 설정한 메뉴의 신규 등록 내역이 여기에 표시됩니다.</Typography>
+            <Typography sx={{ fontWeight: 700 }}>새로운 알림사항이 없습니다.</Typography>
+            <Typography variant="body2">시스템 공지와 알림 수신을 설정한 메뉴의 신규 등록 내역이 여기에 표시됩니다.</Typography>
           </Box>
         ) : (
           <Stack spacing={0.75}>
@@ -61,8 +60,7 @@ export function NotificationCenterDialog({ notices, onClose, onMuteMenu, onNotic
                     <Typography color="text.secondary" noWrap sx={{ fontSize: 12, mt: 0.15 }} variant="body2">{notice.content}</Typography>
                   </Box>
                   <Stack direction="row" spacing={0} sx={{ alignItems: "center", flex: "0 0 auto" }}>
-                    {notice.targetPath ? <Tooltip title="이 메뉴 알림 미수신"><IconButton aria-label="이 메뉴 알림 미수신" onClick={() => onMuteMenu(notice.targetPath!)} size="small" sx={{ p: 0.5 }}><NotificationsOffOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip> : null}
-                    <Tooltip title="등록 내역 확인"><IconButton aria-label="등록 내역 확인" color="primary" onClick={() => onNoticeClick(notice)} size="small" sx={{ p: 0.5 }}><ArrowForwardRoundedIcon sx={{ fontSize: 19 }} /></IconButton></Tooltip>
+                    {notice.targetPath && onMuteMenu ? <Tooltip title="이 메뉴 알림 미수신"><IconButton aria-label="이 메뉴 알림 미수신" onClick={() => onMuteMenu(notice.targetPath!)} size="small" sx={{ p: 0.5 }}><NotificationsOffOutlinedIcon sx={{ fontSize: 18 }} /></IconButton></Tooltip> : null}
                   </Stack>
                 </Box>
               );

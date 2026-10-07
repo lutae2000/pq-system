@@ -48,10 +48,16 @@ const createEmptyNotice = (): NoticeDraft => ({
   content: "",
   exposureStartAt: "",
   exposureEndAt: "",
-  publishAt: "",
+  publishAt: currentDateTimeValue(),
   important: false,
   active: true,
 });
+
+const currentDateTimeValue = () => {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+};
 
 const formatDateTime = (value: string) => value.replace("T", " ").slice(0, 16);
 
@@ -119,7 +125,7 @@ export function NotificationManagementPage() {
     onError: handleMutationError,
     onSaved: (saved, created) => {
       setSelectedId(saved.id);
-      setDraft(saved);
+      setDraft(null);
       setSaveTarget(null);
       showSnackbar({ message: created ? "공지사항이 등록되었습니다." : "공지사항이 저장되었습니다.", severity: "success" });
     },
@@ -282,8 +288,8 @@ export function NotificationManagementPage() {
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <DateTimeInput
+                  disabled
                   label="게시 시각"
-                  onChange={(value) => setDraft((current) => (current ? { ...current, publishAt: value } : current))}
                   value={draft.publishAt}
                 />
               </Grid>

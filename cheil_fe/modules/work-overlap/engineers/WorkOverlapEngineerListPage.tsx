@@ -289,7 +289,7 @@ const buildContractColumns = (
       return <Chip color={status.color} label={status.label} size="small" variant="filled" />;
     },
   },
-  { field: "contractNo", headerName: "계약번호", width: 80 },
+  { field: "contractNo", headerName: "관리번호", width: 80, align: "center" },
   { field: "serviceType", headerName: "구분", width: 40, valueGetter: (_value, row) => row.serviceType ?? "" },
   {
     field: "publicContractYn",

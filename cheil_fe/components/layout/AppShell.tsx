@@ -23,6 +23,7 @@ const drawerWidth = 280;
 const noticeDismissKey = "system-notice-dismiss-date";
 const noticeReadKey = "system-notice-read";
 const notificationRetentionMs = 7 * 24 * 60 * 60 * 1000;
+const hasTargetPath = (notice: { targetPath?: string | null }) => Boolean(notice.targetPath?.trim());
 
 const readStoredIds = (key: string) => {
   try {
@@ -115,7 +116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     const preferences = notificationPreferencesQuery.data ?? {};
     return (noticesQuery.data ?? []).filter((notice) => {
-      if (!notice.active || !notice.targetPath || preferences[notice.targetPath] !== true) {
+      if (!notice.active || !hasTargetPath(notice) || preferences[notice.targetPath!.trim()] !== true) {
         return false;
       }
       const publishedAt = new Date(notice.publishAt.replace(" ", "T")).getTime();
@@ -123,11 +124,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   }, [notificationPreferencesQuery.data, noticesQuery.data, notificationRetentionStart, shouldLoadNotices]);
 
+  const systemNotices = useMemo(() => (noticesQuery.data ?? []).filter((notice) => notice.active && !hasTargetPath(notice)), [noticesQuery.data]);
+  const notificationNotices = useMemo(() => [...businessNotifications, ...systemNotices], [businessNotifications, systemNotices]);
   const unreadNotificationCount = useMemo(
-    () => businessNotifications.filter((notice) => !readNoticeIds.has(notice.id)).length,
-    [businessNotifications, readNoticeIds],
+    () => notificationNotices.filter((notice) => !readNoticeIds.has(notice.id)).length,
+    [notificationNotices, readNoticeIds],
   );
-  const systemNotices = useMemo(() => (noticesQuery.data ?? []).filter((notice) => notice.active && !notice.targetPath), [noticesQuery.data]);
 
   const markNoticeRead = (noticeId: string) => {
     const userKey = readAuthSession()?.employeeNo ?? readAuthSession()?.userName ?? "anonymous";
@@ -256,7 +258,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {shouldLoadNotices ? (
         <NotificationCenterDialog
-          notices={businessNotifications}
+          notices={notificationNotices}
           onClose={() => setNotificationOpen(false)}
           onMuteMenu={muteNoticeMenu}
           onNoticeClick={(notice) => {

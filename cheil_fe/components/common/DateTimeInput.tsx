@@ -4,8 +4,9 @@ import { TextField } from "@mui/material";
 import { standardFieldSx } from "@/components/common/FormControls";
 
 export type DateTimeInputProps = {
+  disabled?: boolean;
   label?: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   readOnly?: boolean;
   value: string;
 };
@@ -32,12 +33,13 @@ function fromInputValue(value: string) {
   return `${datePart} ${timePart.slice(0, 5)}`;
 }
 
-export function DateTimeInput({ label, onChange, readOnly = false, value }: DateTimeInputProps) {
+export function DateTimeInput({ disabled = false, label, onChange, readOnly = false, value }: DateTimeInputProps) {
   return (
     <TextField
+      disabled={disabled}
       fullWidth
       label={label}
-      onChange={(event) => onChange(fromInputValue(event.target.value))}
+      onChange={(event) => onChange?.(fromInputValue(event.target.value))}
       size="small"
       slotProps={{ htmlInput: { readOnly }, inputLabel: { shrink: true } }}
       sx={standardFieldSx}
