@@ -19,6 +19,7 @@ import com.cheil.cheil_be.common.text.StringValues;
 public class FileAttachmentService {
 
     private final AppFileAttachmentJpaRepository attachmentRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public List<AppFileAttachmentEntity> findAll(String ownerType, String ownerId) {
@@ -73,15 +74,23 @@ public class FileAttachmentService {
         AppFileAttachmentEntity attachment = attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "첨부파일을 찾을 수 없습니다."));
         requireDeleteAccess(attachment.getOwnerType());
+        fileStorageService.deleteStoredFile(attachment);
         attachmentRepository.delete(attachment);
     }
 
     @Transactional
     public void deleteAll(String ownerType, String ownerId) {
-        List<AppFileAttachmentEntity> attachments = findAll(ownerType, ownerId);
+        String requiredOwnerType = StringValues.required(ownerType, "ownerType");
+        String requiredOwnerId = StringValues.required(ownerId, "ownerId");
+        requireDeleteAccess(requiredOwnerType);
+        List<AppFileAttachmentEntity> attachments = attachmentRepository.findByOwnerTypeAndOwnerIdOrderByCreatedAtDesc(
+                requiredOwnerType,
+                requiredOwnerId
+        );
         if (attachments.isEmpty()) {
             return;
         }
+        attachments.forEach(fileStorageService::deleteStoredFile);
         attachmentRepository.deleteAllInBatch(attachments);
     }
 

@@ -129,6 +129,28 @@ public class FileStorageService {
         );
     }
 
+    public void deleteStoredFile(AppFileAttachmentEntity attachment) {
+        if (attachment == null || !StringUtils.hasText(attachment.getStoredPath())
+                || !StringUtils.hasText(attachment.getStoredFilename())) {
+            return;
+        }
+
+        Path storageRoot = appFileProperties.storageRoot().toAbsolutePath().normalize();
+        Path contentPath = storageRoot
+                .resolve(attachment.getStoredPath())
+                .resolve(attachment.getStoredFilename())
+                .normalize();
+        if (!contentPath.startsWith(storageRoot)) {
+            throw new IllegalStateException("Stored file path is outside the configured storage root.");
+        }
+
+        try {
+            Files.deleteIfExists(contentPath);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Stored file deletion failed.", exception);
+        }
+    }
+
     private void requireUploadAccess(String ownerType) {
     }
 

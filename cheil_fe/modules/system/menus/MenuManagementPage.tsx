@@ -432,21 +432,20 @@ export function MenuManagementPage() {
       >
         <Card sx={{ borderRadius: 1, minWidth: 0 }}>
           <CardContent>
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1.5, flexWrap: "wrap" }}>
               <Box>
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   메뉴 트리
                 </Typography>
               </Box>
-            </Box>
-
-            <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
-              <Button disabled={!canCreate} onClick={handleNewRoot} startIcon={<AddOutlinedIcon />} variant="outlined">
-                최상위 추가
-              </Button>
-              <Button disabled={!canCreate} onClick={handleNewChild} startIcon={<AddOutlinedIcon />} variant="outlined">
-                하위 추가
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <Button disabled={!canCreate} onClick={handleNewRoot} startIcon={<AddOutlinedIcon />} variant="outlined">
+                  최상위 추가
+                </Button>
+                <Button disabled={!canCreate} onClick={handleNewChild} startIcon={<AddOutlinedIcon />} variant="outlined">
+                  하위 추가
+                </Button>
+              </Stack>
             </Box>
 
             <Divider sx={{ mb: 1.5 }} />

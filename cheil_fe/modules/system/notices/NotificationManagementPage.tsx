@@ -205,9 +205,6 @@ export function NotificationManagementPage() {
               <Typography sx={{ fontWeight: 800 }} variant="h6">
                 공지사항 목록
               </Typography>
-              <Typography color="text.secondary" variant="body2">
-                노출 기간과 게시 시각을 관리하고, 팝업 미리보기로 바로 확인할 수 있습니다.
-              </Typography>
             </Box>
             <Stack direction="row" spacing={1}>
               <Chip label={`활성 ${activeNotices.length}건`} size="small" variant="outlined" />
@@ -231,7 +228,7 @@ export function NotificationManagementPage() {
                 localeText={{ noRowsLabel: "조회된 공지사항이 없습니다." }}
                 onRowClick={(params) => setSelectedId(params.id)}
                 onRowDoubleClick={(params) => handleEdit(params.row)}
-                pageSizeOptions={[100]}
+                pageSizeOptions={[10, 50, 100]}
                 rowSelectionModel={rowSelectionModel}
                 rows={records}
                 showPageNumbers
@@ -386,10 +383,6 @@ export function NotificationManagementPage() {
       />
 
       <NoticeLayerDialog notices={activeNotices} onClose={() => setPreviewOpen(false)} open={previewOpen} />
-
-      <Typography color="text.secondary" sx={{ mt: 1.5 }} variant="caption">
-        선택 항목: {selectedRecord ? selectedRecord.title : "-"}
-      </Typography>
     </Box>
   );
 }

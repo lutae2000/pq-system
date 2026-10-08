@@ -603,8 +603,9 @@ public class EngineerPerformanceDocumentService {
         String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : normalize(condition.valueType());
         boolean numberType = "number".equals(valueType);
         boolean dateType = "date".equals(valueType);
+        String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
         String expression = numberType
-                ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)"
+                ? "CASE WHEN " + numericText + " ~ '^-?[0-9]+([.][0-9]+)?$' THEN CAST(" + numericText + " AS NUMERIC) END"
                 : column;
         String paramName = "historyValue" + index;
         String valueToParamName = "historyValueTo" + index;

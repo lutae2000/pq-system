@@ -11,6 +11,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
 import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -261,6 +262,7 @@ export function BidNoticePage() {
   const [filters, setFilters] = useState<BidNoticeFilters>(() => buildDefaultFilters());
   const [searchDraft, setSearchDraft] = useState<BidNoticeFilters>(() => buildDefaultFilters());
   const [open, setOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [snackMessage, setSnackMessage] = useState("");
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
@@ -402,6 +404,7 @@ export function BidNoticePage() {
       queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
       queryClient.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(deletedBidSeq)] });
       setSnackMessage("삭제되었습니다.");
+      setDeleteConfirmOpen(false);
       setOpen(false);
     },
     onError: (error) => {
@@ -428,6 +431,7 @@ export function BidNoticePage() {
   };
 
   const closeDialog = () => {
+    setDeleteConfirmOpen(false);
     setOpen(false);
   };
 
@@ -458,7 +462,13 @@ export function BidNoticePage() {
       setOpen(false);
       return;
     }
-    deleteMutation.mutate(draft.seqNo);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteRecord = () => {
+    if (draft.seqNo) {
+      deleteMutation.mutate(draft.seqNo);
+    }
   };
 
   const handleSearch = () => {
@@ -800,6 +810,15 @@ export function BidNoticePage() {
           deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
         />
       ) : null}
+      <ConfirmDeleteDialog
+        loading={deleteMutation.isPending}
+        message="삭제 후에는 복구할 수 없습니다. 연결된 첨부파일도 함께 삭제됩니다. 계속하시겠습니까?"
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDeleteRecord}
+        open={deleteConfirmOpen}
+        targetLabel={draft.projectName}
+        title="입찰공고 삭제 확인"
+      />
 
       <Snackbar autoHideDuration={2500} message={snackMessage} onClose={() => setSnackMessage("")} open={Boolean(snackMessage)} />
     </Box>

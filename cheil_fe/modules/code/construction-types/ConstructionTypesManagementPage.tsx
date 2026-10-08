@@ -417,8 +417,7 @@ export function ConstructionTypesManagementPage() {
 
   return (
     <Box>
-      <PageHeader title="공사종류" description="공사종류를 1단계, 2단계, 3단계 구조로 조회하고 관리합니다." />
-
+      <PageHeader title="공사종류" />
 
       <SearchPanel
         keyword={searchKeyword}

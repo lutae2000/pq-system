@@ -380,11 +380,11 @@ export function RolePermissionManagementPage() {
           display: "grid",
           gap: 2,
           gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 4fr) minmax(0, 8fr)" },
-          alignItems: "start",
+          alignItems: "stretch",
         }}
       >
-        <Card sx={{ borderRadius: 2, minWidth: 0 }}>
-          <CardContent>
+        <Card sx={{ borderRadius: 2, minWidth: 0, height: "100%", display: "flex", flexDirection: "column" }}>
+          <CardContent sx={{ display: "flex", flex: 1, flexDirection: "column", minHeight: 0 }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 1.5 }}>
               <Box>
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -421,30 +421,37 @@ export function RolePermissionManagementPage() {
             <Divider sx={{ mb: 1.5 }} />
 
             {rolesQuery.isLoading || menusQuery.isLoading ? (
-              <Box sx={{ minHeight: 560, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Box sx={{ flex: 1, minHeight: 560, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <CircularProgress size={28} />
               </Box>
             ) : (
-              <EnterpriseDataGrid<SystemRoleRecord>
-                columns={roleColumns}
-                getRowId={(row) => row.roleCode}
-                hideFooterSelectedRowCount
-                loading={rolesQuery.isFetching || menusQuery.isFetching}
-                onRowClick={(params) => {
-                  setIsNewRole(false);
-                  setSelectedRoleCode(params.row.roleCode);
-                  setDraft(toRoleFormState(params.row));
-                }}
-                rowSelectionModel={roleSelectionModel}
-                rows={filteredRoles}
-                sx={{
-                  border: 0,
-                  minHeight: 560,
-                  "& .MuiDataGrid-row:hover": {
-                    cursor: "pointer",
-                  },
-                }}
-              />
+              <Box sx={{ flex: 1, height: "100%", minHeight: 560, minWidth: 0 }}>
+                <EnterpriseDataGrid<SystemRoleRecord>
+                  columns={roleColumns}
+                  getRowId={(row) => row.roleCode}
+                  hideFooterSelectedRowCount
+                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 50 } } }}
+                  loading={rolesQuery.isFetching || menusQuery.isFetching}
+                  onRowClick={(params) => {
+                    setIsNewRole(false);
+                    setSelectedRoleCode(params.row.roleCode);
+                    setDraft(toRoleFormState(params.row));
+                  }}
+                  rowSelectionModel={roleSelectionModel}
+                  rows={filteredRoles}
+                  pageSizeOptions={[10, 50, 100]}
+                  wrapperMinHeight="100%"
+                  sx={{
+                    border: 0,
+                    height: "100%",
+                    minHeight: 560,
+                    minWidth: 0,
+                    "& .MuiDataGrid-row:hover": {
+                      cursor: "pointer",
+                    },
+                  }}
+                />
+              </Box>
             )}
           </CardContent>
         </Card>
@@ -573,5 +580,3 @@ export function RolePermissionManagementPage() {
     </Box>
   );
 }
-
-

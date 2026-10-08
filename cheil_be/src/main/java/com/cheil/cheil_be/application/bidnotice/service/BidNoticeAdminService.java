@@ -17,6 +17,7 @@ import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeUpsertCommand;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
+import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeAttachmentRepository;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 @Service
@@ -31,6 +32,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     private static final int AUDIT_ID_MAX_LENGTH = 100;
 
     private final BidNoticeRepository bidNoticeRepository;
+    private final BidNoticeAttachmentRepository bidNoticeAttachmentRepository;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -70,7 +72,9 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     @Transactional
     public void delete(Long bidSeq) {
         findByBidSeq(bidSeq);
-        bidNoticeRepository.deleteByBidSeq(requiredBidSeq(bidSeq));
+        Long requiredBidSeq = requiredBidSeq(bidSeq);
+        bidNoticeAttachmentRepository.deleteAllByBidSeq(requiredBidSeq);
+        bidNoticeRepository.deleteByBidSeq(requiredBidSeq);
     }
 
     private NormalizedBidNotice normalize(BidNoticeUpsertCommand command, BidNotice existing) {

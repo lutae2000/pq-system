@@ -175,9 +175,9 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
                 ? "="
                 : condition.operator().toUpperCase(Locale.ROOT);
         boolean numberValue = "number".equals(condition.valueType());
+        String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
         String leftOperand = numberValue
-                ? "CAST(NULLIF(REGEXP_REPLACE(CAST(" + column
-                        + " AS TEXT), '[^0-9.-]', '', 'g'), '') AS NUMERIC)"
+                ? "CASE WHEN " + numericText + " ~ '^-?[0-9]+([.][0-9]+)?$' THEN CAST(" + numericText + " AS NUMERIC) END"
                 : column;
         Object typedValue = numberValue
                 ? new BigDecimal(value.replace(",", ""))
