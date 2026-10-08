@@ -4,6 +4,7 @@ public record EducationReminderAssignedEngineer(
         String basicInfoCode,
         String engineerId,
         String engineerName,
+        String birthDate,
         String departmentName,
         String grade,
         String jobField,

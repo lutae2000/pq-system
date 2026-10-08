@@ -39,6 +39,7 @@ import { EducationReminderBasicInfoEngineerSelectDialog } from "./EducationRemin
 import { EducationReminderBasicInfoRightPanel } from "./EducationReminderBasicInfoRightPanel";
 import {
   emptyBasicInfo,
+  formatDateText,
   type EducationReminderBasicInfoEngineerRecord,
   type EducationReminderBasicInfoRecord,
   type EducationReminderBasicInfoRequest,
@@ -201,8 +202,35 @@ export function EducationReminderBasicInfoManagementTab() {
 
   const assignmentColumns = useMemo<GridColDef<EducationReminderBasicInfoEngineerRecord>[]>(
     () => [
-      { field: "engineerId", headerName: "기술인ID", width: 120, align: "center", headerAlign: "center" },
+      {
+        field: "retireYn",
+          headerName: "재직여부",
+        width: 80,
+        align: "center",
+        headerAlign: "center",
+        renderCell: ({ value }) => {
+          const active = value !== "Y";
+
+          return (
+            <Chip
+              color={active ? "success" : "default"}
+              label={active ? "재직" : "퇴직"}
+              size="small"
+              variant={active ? "filled" : "outlined"}
+            />
+          );
+        },
+      },
+      { field: "engineerId", headerName: "기술인ID", width: 80, align: "center", headerAlign: "center" },
       { field: "engineerName", headerName: "성명", width: 110, align: "center", headerAlign: "center" },
+      {
+        field: "birthDate",
+        headerName: "생년월일",
+        width: 125,
+        align: "center",
+        headerAlign: "center",
+        valueFormatter: (value) => formatDateText(typeof value === "string" ? value : ""),
+      },
       { field: "departmentName", headerName: "부서", minWidth: 160, flex: 1, align: "center", headerAlign: "center" },
       { field: "grade", headerName: "직위", width: 100, align: "center", headerAlign: "center" },
       {
@@ -220,14 +248,6 @@ export function EducationReminderBasicInfoManagementTab() {
         align: "center",
         headerAlign: "center",
         valueGetter: (_value, row) => formatReferenceLabel(specialtyFieldLabelByValue, row.specialtyField),
-      },
-      {
-        field: "retireYn",
-        headerName: "재직",
-        width: 90,
-        align: "center",
-        headerAlign: "center",
-        renderCell: ({ value }) => <Chip label={value === "Y" ? "퇴직" : "재직"} size="small" variant="outlined" />,
       },
     ],
     [jobFieldLabelByValue, specialtyFieldLabelByValue],

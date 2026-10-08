@@ -19,6 +19,7 @@ export type EducationReminderBasicInfoEngineerRecord = {
   createdAt: string;
   createdId: string | null;
   departmentName: string;
+  birthDate: string;
   engineerId: string;
   engineerName: string;
   grade: string;
