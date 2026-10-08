@@ -85,9 +85,10 @@ export function useNewTechnologyDevelopmentMutations({
       }
       return deleteNewTechnologyDevelopment(id);
     },
-    onSuccess: async () => {
-      await invalidateAll();
+    onSuccess: async (_data, deletedId) => {
+      queryClient.removeQueries({ queryKey: [...newTechnologyDevelopmentQueryKeys.all, "detail", deletedId] });
       onDeleted();
+      await queryClient.invalidateQueries({ queryKey: newTechnologyDevelopmentQueryKeys.lists });
     },
     onError: (error) => onError(error, "삭제에 실패했습니다."),
   });

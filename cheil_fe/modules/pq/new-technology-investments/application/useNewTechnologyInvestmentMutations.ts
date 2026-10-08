@@ -48,9 +48,10 @@ export function useNewTechnologyInvestmentMutations({
       if (!canDelete) throw new Error("투자실적 삭제 권한이 없습니다.");
       return deleteNewTechnologyInvestment(target.id);
     },
-    onSuccess: async () => {
-      await invalidate();
+    onSuccess: async (_data, deletedTarget) => {
+      queryClient.removeQueries({ queryKey: newTechnologyInvestmentQueryKeys.detail(deletedTarget.id), exact: true });
       onDeleted();
+      await queryClient.invalidateQueries({ queryKey: newTechnologyInvestmentQueryKeys.lists });
     },
     onError: (error) => onError(error, "삭제에 실패했습니다."),
   });

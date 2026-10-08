@@ -73,9 +73,10 @@ export function useNewTechnologyUsageMutations({
       if (!canDelete) throw new Error("신인도 사용실적 삭제 권한이 없습니다.");
       return deleteNewTechnologyUsage(id);
     },
-    onSuccess: async () => {
-      await invalidateAll();
+    onSuccess: async (_data, deletedId) => {
+      queryClient.removeQueries({ queryKey: newTechnologyUsageQueryKeys.detail(deletedId), exact: true });
       onDeleted();
+      await queryClient.invalidateQueries({ queryKey: newTechnologyUsageQueryKeys.lists });
     },
     onError: (error) => onError(error, "삭제에 실패했습니다."),
   });

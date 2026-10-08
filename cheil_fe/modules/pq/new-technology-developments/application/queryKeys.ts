@@ -4,6 +4,7 @@ const root = ["new-technology-developments"] as const;
 
 export const newTechnologyDevelopmentQueryKeys = {
   all: root,
+  lists: [...root, "list"] as const,
   list: (params: NewTechnologyDevelopmentSearchParams) => [...root, "list", params] as const,
   detail: (id: number, scoreReferenceDate: string) => [...root, "detail", id, scoreReferenceDate] as const,
 } as const;
