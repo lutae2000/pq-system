@@ -52,40 +52,42 @@ const loadGeneratedPageComponent20 = () => import("@/modules/pq/engineers/Engine
 const GeneratedPageComponent20 = dynamic(loadGeneratedPageComponent20, { ssr: false });
 const loadGeneratedPageComponent21 = () => import("@/modules/pq/engineers/EngineerPersonalInfoPage").then((module) => module.EngineerPersonalInfoPage);
 const GeneratedPageComponent21 = dynamic(loadGeneratedPageComponent21, { ssr: false });
-const loadGeneratedPageComponent22 = () => import("@/modules/pq/new-employment-rates/NewEmploymentRateManagementPage").then((module) => module.NewEmploymentRateManagementPage);
+const loadGeneratedPageComponent22 = () => import("@/modules/pq/g2b-bid-notice-candidates/G2bBidNoticeCandidatePage").then((module) => module.G2bBidNoticeCandidatePage);
 const GeneratedPageComponent22 = dynamic(loadGeneratedPageComponent22, { ssr: false });
-const loadGeneratedPageComponent23 = () => import("@/modules/pq/new-technology-developments/NewTechnologyDevelopmentManagementPage").then((module) => module.NewTechnologyDevelopmentManagementPage);
+const loadGeneratedPageComponent23 = () => import("@/modules/pq/new-employment-rates/NewEmploymentRateManagementPage").then((module) => module.NewEmploymentRateManagementPage);
 const GeneratedPageComponent23 = dynamic(loadGeneratedPageComponent23, { ssr: false });
-const loadGeneratedPageComponent24 = () => import("@/modules/pq/new-technology-investments/NewTechnologyInvestmentManagementPage").then((module) => module.NewTechnologyInvestmentManagementPage);
+const loadGeneratedPageComponent24 = () => import("@/modules/pq/new-technology-developments/NewTechnologyDevelopmentManagementPage").then((module) => module.NewTechnologyDevelopmentManagementPage);
 const GeneratedPageComponent24 = dynamic(loadGeneratedPageComponent24, { ssr: false });
-const loadGeneratedPageComponent25 = () => import("@/modules/pq/new-technology-usages/NewTechnologyUsageManagementPage").then((module) => module.NewTechnologyUsageManagementPage);
+const loadGeneratedPageComponent25 = () => import("@/modules/pq/new-technology-investments/NewTechnologyInvestmentManagementPage").then((module) => module.NewTechnologyInvestmentManagementPage);
 const GeneratedPageComponent25 = dynamic(loadGeneratedPageComponent25, { ssr: false });
-const loadGeneratedPageComponent26 = () => import("@/modules/pq/partnerCodes/PartnerCodesManagementPage").then((module) => module.PartnerCodesManagementPage);
+const loadGeneratedPageComponent26 = () => import("@/modules/pq/new-technology-usages/NewTechnologyUsageManagementPage").then((module) => module.NewTechnologyUsageManagementPage);
 const GeneratedPageComponent26 = dynamic(loadGeneratedPageComponent26, { ssr: false });
-const loadGeneratedPageComponent27 = () => import("@/modules/pq/service-performance-management/ServicePerformanceManagementPage").then((module) => module.ServicePerformanceManagementPage);
+const loadGeneratedPageComponent27 = () => import("@/modules/pq/partnerCodes/PartnerCodesManagementPage").then((module) => module.PartnerCodesManagementPage);
 const GeneratedPageComponent27 = dynamic(loadGeneratedPageComponent27, { ssr: false });
-const loadGeneratedPageComponent28 = () => import("@/modules/pq/shinindo-management/ShinindoManagementPage").then((module) => module.ShinindoManagementPage);
+const loadGeneratedPageComponent28 = () => import("@/modules/pq/service-performance-management/ServicePerformanceManagementPage").then((module) => module.ServicePerformanceManagementPage);
 const GeneratedPageComponent28 = dynamic(loadGeneratedPageComponent28, { ssr: false });
-const loadGeneratedPageComponent29 = () => import("@/modules/pq/similar-service-performances/SimilarServicePerformanceManagementPage").then((module) => module.SimilarServicePerformanceManagementPage);
+const loadGeneratedPageComponent29 = () => import("@/modules/pq/shinindo-management/ShinindoManagementPage").then((module) => module.ShinindoManagementPage);
 const GeneratedPageComponent29 = dynamic(loadGeneratedPageComponent29, { ssr: false });
-const loadGeneratedPageComponent30 = () => import("@/modules/system/SystemMenuPage").then((module) => module.SystemMenuPage);
+const loadGeneratedPageComponent30 = () => import("@/modules/pq/similar-service-performances/SimilarServicePerformanceManagementPage").then((module) => module.SimilarServicePerformanceManagementPage);
 const GeneratedPageComponent30 = dynamic(loadGeneratedPageComponent30, { ssr: false });
-const loadGeneratedPageComponent31 = () => import("@/modules/system/menus/MenuManagementPage").then((module) => module.MenuManagementPage);
+const loadGeneratedPageComponent31 = () => import("@/modules/system/SystemMenuPage").then((module) => module.SystemMenuPage);
 const GeneratedPageComponent31 = dynamic(loadGeneratedPageComponent31, { ssr: false });
-const loadGeneratedPageComponent32 = () => import("@/modules/system/notices/NotificationManagementPage").then((module) => module.NotificationManagementPage);
+const loadGeneratedPageComponent32 = () => import("@/modules/system/menus/MenuManagementPage").then((module) => module.MenuManagementPage);
 const GeneratedPageComponent32 = dynamic(loadGeneratedPageComponent32, { ssr: false });
-const loadGeneratedPageComponent33 = () => import("@/modules/system/policies/SystemPolicyManagementPage").then((module) => module.SystemPolicyManagementPage);
+const loadGeneratedPageComponent33 = () => import("@/modules/system/notices/NotificationManagementPage").then((module) => module.NotificationManagementPage);
 const GeneratedPageComponent33 = dynamic(loadGeneratedPageComponent33, { ssr: false });
-const loadGeneratedPageComponent34 = () => import("@/modules/system/roles/RolePermissionManagementPage").then((module) => module.RolePermissionManagementPage);
+const loadGeneratedPageComponent34 = () => import("@/modules/system/policies/SystemPolicyManagementPage").then((module) => module.SystemPolicyManagementPage);
 const GeneratedPageComponent34 = dynamic(loadGeneratedPageComponent34, { ssr: false });
-const loadGeneratedPageComponent35 = () => import("@/modules/system/user-management/UserManagementPage").then((module) => module.UserManagementPage);
+const loadGeneratedPageComponent35 = () => import("@/modules/system/roles/RolePermissionManagementPage").then((module) => module.RolePermissionManagementPage);
 const GeneratedPageComponent35 = dynamic(loadGeneratedPageComponent35, { ssr: false });
-const loadGeneratedPageComponent36 = () => import("@/modules/work-overlap/contracts/WorkOverlapContractManagementPage").then((module) => module.WorkOverlapContractManagementPage);
+const loadGeneratedPageComponent36 = () => import("@/modules/system/user-management/UserManagementPage").then((module) => module.UserManagementPage);
 const GeneratedPageComponent36 = dynamic(loadGeneratedPageComponent36, { ssr: false });
-const loadGeneratedPageComponent37 = () => import("@/modules/work-overlap/engineers/WorkOverlapEngineerListPage").then((module) => module.WorkOverlapEngineerListPage);
+const loadGeneratedPageComponent37 = () => import("@/modules/work-overlap/contracts/WorkOverlapContractManagementPage").then((module) => module.WorkOverlapContractManagementPage);
 const GeneratedPageComponent37 = dynamic(loadGeneratedPageComponent37, { ssr: false });
-const loadGeneratedPageComponent38 = () => import("@/modules/pq/work-overlap-docs/WorkOverlapDocumentsPage").then((module) => module.WorkOverlapDocumentsPage);
+const loadGeneratedPageComponent38 = () => import("@/modules/work-overlap/engineers/WorkOverlapEngineerListPage").then((module) => module.WorkOverlapEngineerListPage);
 const GeneratedPageComponent38 = dynamic(loadGeneratedPageComponent38, { ssr: false });
+const loadGeneratedPageComponent39 = () => import("@/modules/pq/work-overlap-docs/WorkOverlapDocumentsPage").then((module) => module.WorkOverlapDocumentsPage);
+const GeneratedPageComponent39 = dynamic(loadGeneratedPageComponent39, { ssr: false });
 
 import type { GeneratedPagePath } from "@/shared/navigation/pagePaths.generated";
 
@@ -112,23 +114,24 @@ export const pageRegistry: Record<GeneratedPagePath, ComponentType> = {
   "/pq/education-reminders": GeneratedPageComponent19,
   "/pq/engineers/performance": GeneratedPageComponent20,
   "/pq/engineers/profile": GeneratedPageComponent21,
-  "/pq/new-employment-rates": GeneratedPageComponent22,
-  "/pq/new-technology-developments": GeneratedPageComponent23,
-  "/pq/new-technology-investments": GeneratedPageComponent24,
-  "/pq/new-technology-usages": GeneratedPageComponent25,
-  "/pq/partner-order-codes": GeneratedPageComponent26,
-  "/pq/service-performance-management": GeneratedPageComponent27,
-  "/pq/shinindo-management": GeneratedPageComponent28,
-  "/pq/similar-service-performances": GeneratedPageComponent29,
-  "/system": GeneratedPageComponent30,
-  "/system/menus": GeneratedPageComponent31,
-  "/system/notices": GeneratedPageComponent32,
-  "/system/policies": GeneratedPageComponent33,
-  "/system/roles": GeneratedPageComponent34,
-  "/system/user-management": GeneratedPageComponent35,
-  "/work-overlap/contracts": GeneratedPageComponent36,
-  "/work-overlap/engineers": GeneratedPageComponent37,
-  "/work-overlap/work-overlap-docs": GeneratedPageComponent38,
+  "/pq/g2b-bid-notice-candidates": GeneratedPageComponent22,
+  "/pq/new-employment-rates": GeneratedPageComponent23,
+  "/pq/new-technology-developments": GeneratedPageComponent24,
+  "/pq/new-technology-investments": GeneratedPageComponent25,
+  "/pq/new-technology-usages": GeneratedPageComponent26,
+  "/pq/partner-order-codes": GeneratedPageComponent27,
+  "/pq/service-performance-management": GeneratedPageComponent28,
+  "/pq/shinindo-management": GeneratedPageComponent29,
+  "/pq/similar-service-performances": GeneratedPageComponent30,
+  "/system": GeneratedPageComponent31,
+  "/system/menus": GeneratedPageComponent32,
+  "/system/notices": GeneratedPageComponent33,
+  "/system/policies": GeneratedPageComponent34,
+  "/system/roles": GeneratedPageComponent35,
+  "/system/user-management": GeneratedPageComponent36,
+  "/work-overlap/contracts": GeneratedPageComponent37,
+  "/work-overlap/engineers": GeneratedPageComponent38,
+  "/work-overlap/work-overlap-docs": GeneratedPageComponent39,
 };
 
 const pagePreloaders: Record<GeneratedPagePath, () => Promise<ComponentType>> = {
@@ -154,23 +157,24 @@ const pagePreloaders: Record<GeneratedPagePath, () => Promise<ComponentType>> = 
   "/pq/education-reminders": loadGeneratedPageComponent19,
   "/pq/engineers/performance": loadGeneratedPageComponent20,
   "/pq/engineers/profile": loadGeneratedPageComponent21,
-  "/pq/new-employment-rates": loadGeneratedPageComponent22,
-  "/pq/new-technology-developments": loadGeneratedPageComponent23,
-  "/pq/new-technology-investments": loadGeneratedPageComponent24,
-  "/pq/new-technology-usages": loadGeneratedPageComponent25,
-  "/pq/partner-order-codes": loadGeneratedPageComponent26,
-  "/pq/service-performance-management": loadGeneratedPageComponent27,
-  "/pq/shinindo-management": loadGeneratedPageComponent28,
-  "/pq/similar-service-performances": loadGeneratedPageComponent29,
-  "/system": loadGeneratedPageComponent30,
-  "/system/menus": loadGeneratedPageComponent31,
-  "/system/notices": loadGeneratedPageComponent32,
-  "/system/policies": loadGeneratedPageComponent33,
-  "/system/roles": loadGeneratedPageComponent34,
-  "/system/user-management": loadGeneratedPageComponent35,
-  "/work-overlap/contracts": loadGeneratedPageComponent36,
-  "/work-overlap/engineers": loadGeneratedPageComponent37,
-  "/work-overlap/work-overlap-docs": loadGeneratedPageComponent38,
+  "/pq/g2b-bid-notice-candidates": loadGeneratedPageComponent22,
+  "/pq/new-employment-rates": loadGeneratedPageComponent23,
+  "/pq/new-technology-developments": loadGeneratedPageComponent24,
+  "/pq/new-technology-investments": loadGeneratedPageComponent25,
+  "/pq/new-technology-usages": loadGeneratedPageComponent26,
+  "/pq/partner-order-codes": loadGeneratedPageComponent27,
+  "/pq/service-performance-management": loadGeneratedPageComponent28,
+  "/pq/shinindo-management": loadGeneratedPageComponent29,
+  "/pq/similar-service-performances": loadGeneratedPageComponent30,
+  "/system": loadGeneratedPageComponent31,
+  "/system/menus": loadGeneratedPageComponent32,
+  "/system/notices": loadGeneratedPageComponent33,
+  "/system/policies": loadGeneratedPageComponent34,
+  "/system/roles": loadGeneratedPageComponent35,
+  "/system/user-management": loadGeneratedPageComponent36,
+  "/work-overlap/contracts": loadGeneratedPageComponent37,
+  "/work-overlap/engineers": loadGeneratedPageComponent38,
+  "/work-overlap/work-overlap-docs": loadGeneratedPageComponent39,
 };
 
 export function preloadRegisteredPage(pathname: string) {

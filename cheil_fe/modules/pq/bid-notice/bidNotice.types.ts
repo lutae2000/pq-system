@@ -52,6 +52,7 @@ export type BidNoticeRecord = {
   pqDecideEmpno: string;
   projectName: string;
   procurementMethod: string;
+  reasonOfAbsenceCode: string;
   orderMethodLabel: string;
   representativeVendor: string;
   bidSubmissionDate: string;

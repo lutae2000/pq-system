@@ -533,6 +533,7 @@ export function ServicePerformanceManagementPage() {
       <SearchPanel
         keyword={keyword}
         keywordLabel="통합검색"
+        keywordSx={{ flex: "1 1 360px", maxWidth: 420, minWidth: 300 }}
         keywordPlaceholder="용역명, 발주처, 현장명 검색"
         onKeywordChange={setKeyword}
         onReset={handleReset}

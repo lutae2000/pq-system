@@ -100,6 +100,7 @@ const emptyDraft = (): BidNoticeRecord => ({
   pqDecideEmpno: "",
   projectName: "",
   procurementMethod: "",
+  reasonOfAbsenceCode: "",
   orderMethodLabel: "",
   representativeVendor: "",
   bidSubmissionDate: "",
@@ -187,6 +188,7 @@ const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
   pqDecideEmpno: text(item.pqDecideEmpno),
   projectName: item.projectName,
   procurementMethod: text(item.orderMethod),
+  reasonOfAbsenceCode: text(item.reasonOfAbsenceCode),
   orderMethodLabel: text(item.orderMethodLabel),
   representativeVendor: text(item.primeContractor),
   bidSubmissionDate: dateTimeText(item.bidSubmissionDate),
@@ -225,7 +227,7 @@ const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => (
   bidClosingDate: apiDateTime(draft.bidClosingDate),
   fieldOfWorkCode: draft.businessField.trim(),
   scopeOfWorkCode: draft.businessScope.trim(),
-  reasonOfAbsenceCode: draft.participationStatus === "불참" ? draft.participationStatus : "",
+  reasonOfAbsenceCode: draft.reasonOfAbsenceCode.trim(),
   siteBriefingDate: apiDateTime(draft.onSiteMeetingDate),
   tpSubmitDate: apiDateTime(draft.tpSubmissionDate),
   tpPassYn: "",
@@ -284,6 +286,7 @@ export function BidNoticePage() {
   );
   const businessScopeOptions = useCommonCodeLevel2Options("T2");
   const finalParticipationOptions = useCommonCodeLevel2Options("YA");
+  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3");
   const departmentOptions = useDepartmentOptions({ useYn: true });
   const registrantOptions = useUserOptions({ useYn: "Y" });
   const userNameByEmployeeNo = useMemo(
@@ -299,6 +302,7 @@ export function BidNoticePage() {
       businessTypes: businessTypeOptions.options,
       businessScopes: businessScopeOptions.options,
       finalParticipationStatuses: finalParticipationOptions.options,
+      reasonsOfAbsence: reasonOfAbsenceOptions.options,
       clients: [],
       departments: departmentOptions.options,
     }),
@@ -310,6 +314,7 @@ export function BidNoticePage() {
       businessTypeOptions.options,
       businessScopeOptions.options,
       finalParticipationOptions.options,
+      reasonOfAbsenceOptions.options,
       departmentOptions.options,
     ],
   );
@@ -447,6 +452,12 @@ export function BidNoticePage() {
     }
     if (!draft.projectName.trim()) {
       setSnackMessage("사업명을 입력하세요.");
+      return;
+    }
+    const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
+    const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
+    if (isAbsent && !draft.reasonOfAbsenceCode.trim()) {
+      setSnackMessage("불참 사유를 선택하세요.");
       return;
     }
 

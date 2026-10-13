@@ -27,6 +27,7 @@ export const generatedPagePaths = [
   "/pq/education-reminders",
   "/pq/engineers/performance",
   "/pq/engineers/profile",
+  "/pq/g2b-bid-notice-candidates",
   "/pq/new-employment-rates",
   "/pq/new-technology-developments",
   "/pq/new-technology-investments",

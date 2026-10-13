@@ -7,29 +7,33 @@ import {
   Box,
   Autocomplete,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
-  MenuItem,
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DateTimeInput } from "@/components/common/DateTimeInput";
 import { FileActionCard, type FileActionCardFileItem } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { UserSelect } from "@/components/common/reference-selects";
 import { getClientCode, listClientCodes } from "@/modules/code/clients/api";
 import type { BidNoticeAttachmentState, BidNoticeRecord, AttachmentKey } from "@/modules/pq/bid-notice/bidNotice.types";
 import type { BidNoticeDetailOptions, BidNoticeOption } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type BidNoticeDetailDialogProps = {
   attachments?: BidNoticeAttachmentState;
+  clientSearchHint?: string;
+  sourceAttachments?: ReadonlyArray<{ downloadUrl: string; fileName: string }>;
   onAttachmentDeleteRequest?: (key: AttachmentKey, fileName: string) => void;
   onAttachmentUpload?: (key: AttachmentKey, file: FileActionCardFileItem) => void;
   onClose: () => void;
@@ -170,55 +174,65 @@ function SelectField({
   label,
   onChange,
   options,
+  required = false,
   readOnly = false,
   value,
 }: {
   label: string;
   onChange: (value: string) => void;
   options: readonly BidNoticeOption[];
+  required?: boolean;
   readOnly?: boolean;
   value: string;
 }) {
-  const hasCurrentValue = value === "" || options.some((option) => option.value === value);
+  const autocompleteOptions = value && !options.some((option) => option.value === value)
+    ? [{ label: value, value }, ...options]
+    : options;
+  const selectedOption = autocompleteOptions.find((option) => option.value === value) ?? null;
 
   return (
     <LabeledField label={label}>
-      <TextField
-        select
-        fullWidth
-        onChange={(event) => onChange(event.target.value)}
+      <Autocomplete
+        autoHighlight
+        clearOnEscape
         disabled={readOnly}
-        size="small"
-        sx={standardFieldSx}
-        value={value}
-      >
-        <MenuItem value="">선택</MenuItem>
-        {!hasCurrentValue ? (
-          <MenuItem value={value}>
-            {value}
-          </MenuItem>
-        ) : null}
-        {options.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </TextField>
+        getOptionLabel={(option) => option.label}
+        isOptionEqualToValue={(option, selected) => option.value === selected.value}
+        onChange={(_, nextValue) => {
+          onChange(nextValue?.value ?? "");
+        }}
+        options={autocompleteOptions}
+        value={selectedOption}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            fullWidth
+            placeholder="선택"
+            required={required}
+            size="small"
+            sx={standardFieldSx}
+          />
+        )}
+      />
     </LabeledField>
   );
 }
 
 function ClientAutocompleteField({
+  initialSearchKeyword = "",
+  label = "발주처",
   onChange,
   readOnly = false,
   value,
 }: {
+  initialSearchKeyword?: string;
+  label?: string;
   onChange: (value: string) => void;
   readOnly?: boolean;
   value: string;
 }) {
   const [keyword, setKeyword] = useState("");
-  const searchKeyword = keyword || value;
+  const searchKeyword = keyword || value || initialSearchKeyword;
   const selectedClientQuery = useQuery({
     queryKey: ["bid-notice-client", value],
     queryFn: () => getClientCode(value),
@@ -266,8 +280,19 @@ function ClientAutocompleteField({
   }, [clientsQuery.data?.content, selectedClientQuery.data, value]);
   const selectedOption = options.find((option) => option.value === value) ?? null;
 
+  useEffect(() => {
+    if (readOnly || value || !initialSearchKeyword.trim() || clientsQuery.isLoading) return;
+    const normalizedKeyword = initialSearchKeyword.trim().toLowerCase();
+    const matchedClient = clientsQuery.data?.content.find(
+      (client) => client.orderName?.trim().toLowerCase() === normalizedKeyword,
+    );
+    if (matchedClient) {
+      onChange(matchedClient.clientCode);
+    }
+  }, [clientsQuery.data?.content, clientsQuery.isLoading, initialSearchKeyword, onChange, readOnly, value]);
+
   return (
-    <LabeledField label="발주처">
+    <LabeledField label={label}>
       <Autocomplete
         autoHighlight
         filterOptions={(items) => items}
@@ -309,6 +334,55 @@ function ClientAutocompleteField({
           </Box>
         )}
         value={selectedOption}
+      />
+    </LabeledField>
+  );
+}
+
+function UserAutocompleteField({
+  onChange,
+  readOnly = false,
+  value,
+}: {
+  onChange: (value: string) => void;
+  readOnly?: boolean;
+  value: string;
+}) {
+  const [keyword, setKeyword] = useState("");
+  const searchKeyword = keyword || value;
+  const { isLoading, options } = useUserOptions({ deptCode: "All", keyword: searchKeyword, useYn: "Y" });
+  const autocompleteOptions = value && !options.some((option) => option.value === value)
+    ? [{ label: `사번 ${value}`, value }, ...options]
+    : options;
+  const selectedOption = autocompleteOptions.find((option) => option.value === value) ?? null;
+
+  return (
+    <LabeledField label="작성자">
+      <Autocomplete
+        autoHighlight
+        disabled={readOnly || isLoading}
+        getOptionLabel={(option) => option.label}
+        isOptionEqualToValue={(option, selected) => option.value === selected.value}
+        loading={isLoading}
+        onChange={(_, nextValue) => {
+          onChange(nextValue?.value ?? "");
+          setKeyword("");
+        }}
+        onInputChange={(_, nextInputValue, reason) => {
+          if (reason === "input") setKeyword(nextInputValue);
+          if (reason === "clear") setKeyword("");
+        }}
+        options={autocompleteOptions}
+        value={selectedOption}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            fullWidth
+            placeholder="선택"
+            size="small"
+            sx={standardFieldSx}
+          />
+        )}
       />
     </LabeledField>
   );
@@ -457,6 +531,7 @@ function CategoryBlock({
 
 export function BidNoticeDetailDialog({
   attachments,
+  clientSearchHint = "",
   onAttachmentDeleteRequest,
   onAttachmentUpload,
   onClose,
@@ -469,8 +544,13 @@ export function BidNoticeDetailDialog({
   readOnly = false,
   saveDisabled = false,
   deleteDisabled = false,
+  sourceAttachments = [],
 }: BidNoticeDetailDialogProps) {
   const emptyOptions: BidNoticeOption[] = [];
+  const participationOption = options?.finalParticipationStatuses.find((option) => option.value === record.finalParticipationStatus);
+  const isAbsent = record.finalParticipationStatus === "N"
+    || participationOption?.label.includes("\uBD88\uCC38") === true
+    || Boolean(record.reasonOfAbsenceCode);
   const attachmentState = attachments ?? {
     announcement: [],
     evaluation: [],
@@ -531,31 +611,8 @@ export function BidNoticeDetailDialog({
                     <TextInputField label="사업명" onChange={(value) => onFieldChange("projectName", value)} readOnly={readOnly} value={record.projectName} />
                   </Box>
 
-                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "1fr" } }}>
-                    <ClientAutocompleteField onChange={(value) => onFieldChange("client", value)} readOnly={readOnly} value={record.client} />
-                  </Box>
-
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
-                    <SelectField
-                      label="사업구분"
-                      onChange={(value) => onFieldChange("businessType", value)}
-                      options={options?.businessTypes ?? emptyOptions}
-                      readOnly={readOnly}
-                      value={record.businessType}
-                    />
-                    <MoneyField label="설계금액" onChange={(value) => onFieldChange("estimateAmount", value)} readOnly={readOnly} value={record.estimateAmount} />
-                    <SelectField
-                      label="발주방법"
-                      onChange={(value) => onFieldChange("procurementMethod", value)}
-                      options={options?.orderMethods ?? emptyOptions}
-                      readOnly={readOnly}
-                      value={record.procurementMethod}
-                    />
-                  </Box>
-                </CategoryBlock>
-
-                <CategoryBlock title="사업 정보">
-                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
+                    <ClientAutocompleteField initialSearchKeyword={clientSearchHint} label="수요기관" onChange={(value) => onFieldChange("client", value)} readOnly={readOnly} value={record.client} />
                     <SelectField
                       label="입찰구분"
                       onChange={(value) => onFieldChange("bidType", value)}
@@ -570,12 +627,67 @@ export function BidNoticeDetailDialog({
                       readOnly={readOnly}
                       value={record.bidMethod}
                     />
+                  </Box>
+
+                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
+                    <MoneyField label="설계금액" onChange={(value) => onFieldChange("estimateAmount", value)} readOnly={readOnly} value={record.estimateAmount} />
+                    <SelectField
+                      label="발주방법"
+                      onChange={(value) => onFieldChange("procurementMethod", value)}
+                      options={options?.orderMethods ?? emptyOptions}
+                      readOnly={readOnly}
+                      value={record.procurementMethod}
+                    />
+                    <SelectField
+                      label="최종참여 여부"
+                      onChange={(value) => {
+                        onFieldChange("finalParticipationStatus", value);
+                        const nextOption = options?.finalParticipationStatuses.find((option) => option.value === value);
+                        const nextIsAbsent = value === "N" || nextOption?.label.includes("\uBD88\uCC38") === true;
+                        if (!nextIsAbsent) onFieldChange("reasonOfAbsenceCode", "");
+                      }}
+                      options={options?.finalParticipationStatuses ?? emptyOptions}
+                      readOnly={readOnly}
+                      value={record.finalParticipationStatus}
+                    />
+                  </Box>
+
+                  {isAbsent ? (
+                    <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
+                      <SelectField
+                        label="불참 사유"
+                        onChange={(value) => onFieldChange("reasonOfAbsenceCode", value)}
+                        options={options?.reasonsOfAbsence ?? emptyOptions}
+                        readOnly={readOnly}
+                        required
+                        value={record.reasonOfAbsenceCode}
+                      />
+                    </Box>
+                  ) : null}
+                </CategoryBlock>
+
+                <CategoryBlock title="사업 정보">
+                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
+                    <SelectField
+                      label="사업구분"
+                      onChange={(value) => onFieldChange("businessType", value)}
+                      options={options?.businessTypes ?? emptyOptions}
+                      readOnly={readOnly}
+                      value={record.businessType}
+                    />
                     <SelectField
                       label="사업분야"
                       onChange={(value) => onFieldChange("businessField", value)}
                       options={options?.businessFields ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.businessField}
+                    />
+                    <SelectField
+                      label="사업범위"
+                      onChange={(value) => onFieldChange("businessScope", value)}
+                      options={options?.businessScopes ?? emptyOptions}
+                      readOnly={readOnly}
+                      value={record.businessScope}
                     />
                   </Box>
 
@@ -587,37 +699,16 @@ export function BidNoticeDetailDialog({
                       value={record.representativeVendor}
                     />
                     <SelectField
-                      label="사업범위"
-                      onChange={(value) => onFieldChange("businessScope", value)}
-                      options={options?.businessScopes ?? emptyOptions}
-                      readOnly={readOnly}
-                      value={record.businessScope}
-                    />
-                  </Box>
-
-                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "220px minmax(0, 1fr) 220px" } }}>
-                    <SelectField
                       label="부서"
                       onChange={(value) => onFieldChange("department", value)}
                       options={options?.departments ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.department}
                     />
-                    <LabeledField label="작성자">
-                      <UserSelect
-                        disabled={readOnly}
-                        label=""
-                        onChange={(value) => onFieldChange("writerName", value)}
-                        placeholder="선택"
-                        value={record.writerName}
-                      />
-                    </LabeledField>
-                    <SelectField
-                      label="최종참여 여부"
-                      onChange={(value) => onFieldChange("finalParticipationStatus", value)}
-                      options={options?.finalParticipationStatuses ?? emptyOptions}
+                    <UserAutocompleteField
+                      onChange={(value) => onFieldChange("writerName", value)}
                       readOnly={readOnly}
-                      value={record.finalParticipationStatus}
+                      value={record.writerName}
                     />
                   </Box>
                 </CategoryBlock>
@@ -721,6 +812,41 @@ export function BidNoticeDetailDialog({
             <Stack spacing={1.25}>
               <SectionCard title="첨부 자료">
                 <Stack spacing={1}>
+                  {sourceAttachments.length > 0 ? (
+                    <Box sx={{ bgcolor: "rgba(25, 118, 210, 0.035)", border: "1px solid", borderColor: "rgba(25, 118, 210, 0.22)", borderRadius: 1, p: 1 }}>
+                      <Typography sx={{ color: "primary.main", fontSize: 12, fontWeight: 800, mb: 0.75 }}>나라장터 원본 첨부파일</Typography>
+                      <Stack spacing={0.75}>
+                        {sourceAttachments.map((attachment, index) => (
+                          <Card
+                            key={`${attachment.fileName}-${index}`}
+                            component="a"
+                            href={attachment.downloadUrl || undefined}
+                            rel="noreferrer"
+                            target="_blank"
+                            variant="outlined"
+                            sx={{
+                              "&:hover": attachment.downloadUrl ? { bgcolor: "action.hover", borderColor: "primary.main" } : undefined,
+                              bgcolor: "background.paper",
+                              borderColor: "divider",
+                              borderRadius: 1.25,
+                              color: "inherit",
+                              display: "block",
+                              opacity: attachment.downloadUrl ? 1 : 0.65,
+                              textDecoration: "none",
+                            }}
+                          >
+                            <CardContent sx={{ minWidth: 0, p: 1, "&:last-child": { pb: 1 } }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Tooltip title={attachment.fileName} placement="top-start">
+                                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 600 }}>{attachment.fileName}</Typography>
+                                </Tooltip>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    </Box>
+                  ) : null}
                   {attachmentOrder.map((key) => (
                     <AttachmentCard
                       key={key}

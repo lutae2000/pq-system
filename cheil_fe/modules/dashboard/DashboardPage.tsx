@@ -208,6 +208,7 @@ const emptyBidNoticeRecord = (): BidNoticeRecord => ({
   pqDecideEmpno: "",
   projectName: "",
   procurementMethod: "",
+  reasonOfAbsenceCode: "",
   orderMethodLabel: "",
   representativeVendor: "",
   bidSubmissionDate: "",
@@ -256,6 +257,7 @@ const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
   pqDecideEmpno: item.pqDecideEmpno ?? "",
   projectName: item.projectName,
   procurementMethod: item.orderMethod ?? "",
+  reasonOfAbsenceCode: item.reasonOfAbsenceCode ?? "",
   orderMethodLabel: item.orderMethodLabel ?? item.orderMethod ?? "",
   representativeVendor: item.primeContractor ?? "",
   bidSubmissionDate: item.bidSubmissionDate ?? "",
@@ -278,6 +280,7 @@ export function DashboardPage() {
   const businessTypeOptions = useCommonCodeLevel2Options("CA", { useYn: "Y" }, { enabled: isTabActive });
   const businessScopeOptions = useCommonCodeLevel2Options("T2", { useYn: "Y" }, { enabled: isTabActive });
   const finalParticipationOptions = useCommonCodeLevel2Options("YA", { useYn: "Y" }, { enabled: isTabActive });
+  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3", { useYn: "Y" }, { enabled: isTabActive });
   const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: isTabActive });
   const detailOptions = useMemo<BidNoticeDetailOptions>(
     () => ({
@@ -288,6 +291,7 @@ export function DashboardPage() {
       businessTypes: businessTypeOptions.options,
       businessScopes: businessScopeOptions.options,
       finalParticipationStatuses: finalParticipationOptions.options,
+      reasonsOfAbsence: reasonOfAbsenceOptions.options,
       clients: [],
       departments: departmentOptions.options,
     }),
@@ -299,6 +303,7 @@ export function DashboardPage() {
       businessTypeOptions.options,
       businessScopeOptions.options,
       finalParticipationOptions.options,
+      reasonOfAbsenceOptions.options,
       departmentOptions.options,
     ],
   );

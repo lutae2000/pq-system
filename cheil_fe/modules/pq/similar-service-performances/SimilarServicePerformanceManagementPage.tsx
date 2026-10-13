@@ -348,6 +348,7 @@ export function SimilarServicePerformanceManagementPage() {
             keyword={filters.keyword}
             keywordLabel="검색어"
             keywordPlaceholder="용역명, 공종, 발주처, 개요"
+            keywordSx={{ flex: "1 1 360px", maxWidth: 420, minWidth: 300 }}
             onKeywordChange={(keyword) => setFilters((current) => ({ ...current, keyword }))}
             onReset={handleReset}
             onSearch={handleSearch}

@@ -126,7 +126,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         addEqualsIfPresent(predicate, bidNoticeEntity.businessType, condition.businessType());
         addEqualsIfPresent(predicate, bidNoticeEntity.fieldOfWorkCode, condition.fieldOfWorkCode());
         addEqualsIfPresent(predicate, bidNoticeEntity.scopeOfWorkCode, condition.scopeOfWorkCode());
-        addDateRangeIfPresent(predicate, bidNoticeEntity.bidClosingDate, condition.bidClosingDateFrom(), condition.bidClosingDateTo());
+        addDateRangeIfPresent(predicate, bidNoticeEntity.announceDate, condition.bidClosingDateFrom(), condition.bidClosingDateTo());
         addDateRangeIfPresent(predicate, bidNoticeEntity.bidDate, condition.bidDateFrom(), condition.bidDateTo());
         addDateRangeIfPresent(predicate, bidNoticeEntity.pqSubmitDate, condition.pqSubmitDateFrom(), condition.pqSubmitDateTo());
         addEqualsIfPresent(predicate, bidNoticeEntity.bidSuccessYn, condition.bidSuccessYn());

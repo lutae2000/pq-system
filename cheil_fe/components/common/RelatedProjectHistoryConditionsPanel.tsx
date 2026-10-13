@@ -94,6 +94,7 @@ export function RelatedProjectHistoryConditionsPanel({
   });
 
   const relatedConditionLabels = useMemo(() => value.map((condition) => condition.label || "조건 입력 중"), [value]);
+  const conditionDisabled = disabled || !bidSeq;
 
   return (
     <>
@@ -126,7 +127,7 @@ export function RelatedProjectHistoryConditionsPanel({
         ))}
         {relatedConditionLabels.length > 2 ? <Chip label={`외 ${relatedConditionLabels.length - 2}개`} size="small" variant="outlined" /> : null}
         <Button
-          disabled={disabled}
+          disabled={conditionDisabled}
           onClick={() => setOpen(true)}
           size="small"
           startIcon={<SearchOutlinedIcon />}
@@ -139,7 +140,7 @@ export function RelatedProjectHistoryConditionsPanel({
 
       <RelatedProjectHistoryConditionDialog
         applyLoading={saveConditionsMutation.isPending}
-        disabled={disabled}
+        disabled={conditionDisabled}
         onApply={(conditions) => {
           void saveConditionsMutation.mutateAsync(conditions);
         }}

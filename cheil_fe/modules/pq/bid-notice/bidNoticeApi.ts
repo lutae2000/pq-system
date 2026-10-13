@@ -76,6 +76,7 @@ export type BidNoticeDetailOptions = {
   clients: BidNoticeOption[];
   departments: BidNoticeOption[];
   finalParticipationStatuses: BidNoticeOption[];
+  reasonsOfAbsence: BidNoticeOption[];
   orderMethods: BidNoticeOption[];
 };
 

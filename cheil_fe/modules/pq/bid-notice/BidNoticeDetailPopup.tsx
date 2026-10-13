@@ -53,6 +53,7 @@ const emptyBidNoticeRecord = (): BidNoticeRecord => ({
   onSiteMeetingDate: "",
   participationStatus: "",
   finalParticipationStatus: "",
+  reasonOfAbsenceCode: "",
   pqRegistrationDate: "",
   pqSubmissionDate: "",
   pqDecideEmpno: "",
@@ -107,6 +108,7 @@ const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
   onSiteMeetingDate: dateTimeText(item.siteBriefingDate),
   participationStatus: text(item.participateYnLabel) || text(item.participateYn),
   finalParticipationStatus: text(item.participateYn),
+  reasonOfAbsenceCode: text(item.reasonOfAbsenceCode),
   pqRegistrationDate: dateTimeText(item.pqRegistDate),
   pqSubmissionDate: dateTimeText(item.pqSubmitDate),
   pqDecideEmpno: text(item.pqDecideEmpno),
@@ -139,6 +141,7 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
   const businessTypeOptions = useCommonCodeLevel2Options("CA", undefined, { enabled: open });
   const businessScopeOptions = useCommonCodeLevel2Options("T2", undefined, { enabled: open });
   const finalParticipationOptions = useCommonCodeLevel2Options("YA", undefined, { enabled: open });
+  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3", undefined, { enabled: open });
   const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: open });
 
   const detailOptions = useMemo<BidNoticeDetailOptions>(
@@ -150,6 +153,7 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
       businessTypes: businessTypeOptions.options,
       businessScopes: businessScopeOptions.options,
       finalParticipationStatuses: finalParticipationOptions.options,
+      reasonsOfAbsence: reasonOfAbsenceOptions.options,
       clients: [],
       departments: departmentOptions.options,
     }),
@@ -161,6 +165,7 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
       businessTypeOptions.options,
       businessScopeOptions.options,
       finalParticipationOptions.options,
+      reasonOfAbsenceOptions.options,
       departmentOptions.options,
     ],
   );
