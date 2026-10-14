@@ -13,7 +13,7 @@ import { ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, type AuthSession
 import { frontendIdleTimeoutMs } from "@/lib/config/timeouts";
 import { NoticeLayerDialog } from "@/modules/system/notices/NoticeLayerDialog";
 import { NotificationCenterDialog } from "@/modules/system/notices/NotificationCenterDialog";
-import { getNotificationPreferences, listNoticesDashboard, saveNotificationPreference } from "@/modules/system/notices/api";
+import { getNotificationPreferences, listNoticesDashboard } from "@/modules/system/notices/api";
 import { findMenuPermissionByPath, getReadableMenuPermissions } from "@/shared/navigation/menuPermissionUtils";
 import { useMounted } from "@/hooks/useMounted";
 import { useLayoutStore } from "@/store/layoutStore";
@@ -22,8 +22,18 @@ import { BrandingFavicon } from "@/modules/system/branding/BrandingFavicon";
 const drawerWidth = 280;
 const noticeDismissKey = "system-notice-dismiss-date";
 const noticeReadKey = "system-notice-read";
-const notificationRetentionMs = 7 * 24 * 60 * 60 * 1000;
+const notificationRetentionMs = 14 * 24 * 60 * 60 * 1000;
 const hasTargetPath = (notice: { targetPath?: string | null }) => Boolean(notice.targetPath?.trim());
+const getNotificationMenuPath = (targetPath: string) => targetPath.split(/[?#]/, 1)[0];
+const resolveNoticeTargetPath = (notice: { content: string; targetPath?: string | null }) => {
+  const targetPath = notice.targetPath?.trim() ?? "";
+  const menuPath = getNotificationMenuPath(targetPath);
+  if (menuPath !== "/pq/g2b-bid-notice-candidates" || targetPath.includes("?bidNtceNo=")) {
+    return targetPath;
+  }
+  const bidNtceNo = notice.content.match(/[A-Za-z][0-9]{2}[A-Za-z]{2}[0-9]{8,}/)?.[0];
+  return bidNtceNo ? `${menuPath}?bidNtceNo=${encodeURIComponent(bidNtceNo)}` : targetPath;
+};
 
 const readStoredIds = (key: string) => {
   try {
@@ -116,7 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     const preferences = notificationPreferencesQuery.data ?? {};
     return (noticesQuery.data ?? []).filter((notice) => {
-      if (!notice.active || !hasTargetPath(notice) || preferences[notice.targetPath!.trim()] !== true) {
+      if (!notice.active || !hasTargetPath(notice) || preferences[getNotificationMenuPath(notice.targetPath!.trim())] !== true) {
         return false;
       }
       const publishedAt = new Date(notice.publishAt.replace(" ", "T")).getTime();
@@ -140,10 +150,27 @@ export function AppShell({ children }: { children: ReactNode }) {
     setReadNoticeIds(current);
   };
 
-  const muteNoticeMenu = async (targetPath: string) => {
-    await saveNotificationPreference(targetPath, false);
-    await notificationPreferencesQuery.refetch();
-  };
+  useEffect(() => {
+    if (!noticesQuery.isSuccess) {
+      return;
+    }
+
+    const userKey = readAuthSession()?.employeeNo ?? readAuthSession()?.userName ?? "anonymous";
+    const key = `${noticeReadKey}:${userKey}`;
+    const current = readStoredIds(key);
+    const retentionStart = Date.now() - notificationRetentionMs;
+    const activeNoticeIds = new Set(
+      (noticesQuery.data ?? [])
+        .filter((notice) => new Date(notice.publishAt.replace(" ", "T")).getTime() >= retentionStart)
+        .map((notice) => notice.id),
+    );
+    const retainedIds = new Set([...current].filter((noticeId) => activeNoticeIds.has(noticeId)));
+
+    if (retainedIds.size !== current.size) {
+      window.localStorage.setItem(key, JSON.stringify([...retainedIds]));
+    }
+  }, [noticesQuery.data, noticesQuery.isSuccess]);
+
   useEffect(() => {
     if (!ROUTE_GUARD_ENABLED || isPublicRoute) {
       dispatchAuthState("allowed");
@@ -260,12 +287,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NotificationCenterDialog
           notices={notificationNotices}
           onClose={() => setNotificationOpen(false)}
-          onMuteMenu={muteNoticeMenu}
+          onNoticeDismiss={(notice) => markNoticeRead(notice.id)}
           onNoticeClick={(notice) => {
             markNoticeRead(notice.id);
             setNotificationOpen(false);
             if (notice.targetPath) {
-              router.push(notice.targetPath);
+              router.push(resolveNoticeTargetPath(notice));
             }
           }}
           open={notificationOpen}

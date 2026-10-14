@@ -6,6 +6,7 @@ import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-gri
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
@@ -217,8 +218,18 @@ export function G2bBidNoticeCandidatePage() {
   const { showError, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const queryEnabled = useTabQueryEnabled(canRead);
-  const [draftFilters, setDraftFilters] = useState<G2bBidNoticeCandidateSearchFilters>(() => emptyG2bBidNoticeCandidateSearchFilters());
-  const [appliedFilters, setAppliedFilters] = useState<G2bBidNoticeCandidateSearchFilters>(() => emptyG2bBidNoticeCandidateSearchFilters());
+  const routeSearchParams = useSearchParams();
+  const notificationBidNtceNo = routeSearchParams.get("bidNtceNo")?.trim() ?? "";
+  const [draftFilters, setDraftFilters] = useState<G2bBidNoticeCandidateSearchFilters>(() => {
+    const filters = emptyG2bBidNoticeCandidateSearchFilters();
+    filters.bidNtceNo = notificationBidNtceNo;
+    return filters;
+  });
+  const [appliedFilters, setAppliedFilters] = useState<G2bBidNoticeCandidateSearchFilters>(() => {
+    const filters = emptyG2bBidNoticeCandidateSearchFilters();
+    filters.bidNtceNo = notificationBidNtceNo;
+    return filters;
+  });
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE });
   const [detailRecord, setDetailRecord] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);
@@ -284,6 +295,14 @@ export function G2bBidNoticeCandidatePage() {
     inputMappingSource.orderMethod,
     orderMethodOptions.options,
   ]);
+
+  useEffect(() => {
+    if (!notificationBidNtceNo) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraftFilters((current) => current.bidNtceNo === notificationBidNtceNo ? current : { ...current, bidNtceNo: notificationBidNtceNo });
+    setAppliedFilters((current) => current.bidNtceNo === notificationBidNtceNo ? current : { ...current, bidNtceNo: notificationBidNtceNo });
+    setPaginationModel((current) => current.page === 0 ? current : { ...current, page: 0 });
+  }, [notificationBidNtceNo]);
 
   useEffect(() => {
     if (!inputDraft || Object.values(autoMappedInputFields).every((value) => !value)) return;

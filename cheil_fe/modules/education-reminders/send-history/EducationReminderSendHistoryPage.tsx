@@ -19,7 +19,7 @@ import { useEducationReminderSendHistory } from "./application/useEducationRemin
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 type FilterState = {
-  channel: "" | "LMS" | "SMS" | "KAKAO";
+  channel: "" | "LMS" | "SMS";
   keyword: string;
   requestedFrom: string;
   requestedTo: string;
@@ -158,37 +158,50 @@ export function EducationReminderSendHistoryPage() {
         {
             field: "status",
             headerName: "결과",
-            width: 100,
+            width: 80,
             align: "center",
             headerAlign: "center",
             renderCell: ({ row }) => statusChip(row.status),
         },
-      { field: "requestedAt", headerName: "요청시각", width: 180, valueGetter: (_value, row) => formatRequestDateTime(row.requestedAt) },
-      { field: "requestedBy", headerName: "요청자", width: 120 },
-      { field: "templateName", headerName: "템플릿", minWidth: 180, flex: 0.9 },
+      {
+        field: "requestedAt",
+        headerName: "요청시각",
+        width: 150,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatRequestDateTime(row.requestedAt),
+      },
+      { field: "requestedBy", headerName: "요청자", width: 90, align: "center", headerAlign: "center" },
+      { field: "templateName", headerName: "템플릿", minWidth: 140, flex: 0.8 },
       {
         field: "channel",
         headerName: "채널",
-        width: 100,
+        width: 75,
         align: "center",
         headerAlign: "center",
         renderCell: ({ row }) => channelChip(row.channel),
       },
-      { field: "engineerName", headerName: "대상자", width: 120 },
-      { field: "departmentName", headerName: "부서", minWidth: 160, flex: 0.8 },
-      { field: "targetPhoneNo", headerName: "대상번호", width: 140 },
-      { field: "actualPhoneNo", headerName: "발송번호", width: 140 },
+      { field: "engineerName", headerName: "대상자", width: 100 },
+      { field: "departmentName", headerName: "부서", minWidth: 120, flex: 0.7 },
+      { field: "targetPhoneNo", headerName: "대상번호", width: 120, align: "center", headerAlign: "center" },
       {
         field: "testSend",
         headerName: "테스트",
-        width: 90,
+        width: 75,
         align: "center",
         headerAlign: "center",
         renderCell: ({ row }) => <Chip color={row.testSend ? "warning" : "default"} label={row.testSend ? "테스트" : "실발송"} size="small" variant={row.testSend ? "filled" : "outlined"} />,
       },
-      { field: "sentAt", headerName: "발송시각", width: 180, valueGetter: (_value, row) => formatRequestDateTime(row.sentAt) },
-      { field: "failureReason", headerName: "실패사유", minWidth: 220, flex: 1, valueGetter: (_value, row) => row.failureReason ?? "-" },
-      { field: "messageContent", headerName: "발송문구", minWidth: 320, flex: 1.3 },
+      {
+        field: "sentAt",
+        headerName: "발송시각",
+        width: 150,
+        align: "center",
+        headerAlign: "center",
+        valueGetter: (_value, row) => formatRequestDateTime(row.sentAt),
+      },
+      { field: "failureReason", headerName: "실패사유", minWidth: 160, flex: 0.9, valueGetter: (_value, row) => row.failureReason ?? "-" },
+      { field: "messageContent", headerName: "발송문구", minWidth: 240, flex: 1.1 },
     ],
     [],
   );
@@ -279,7 +292,6 @@ export function EducationReminderSendHistoryPage() {
           <MenuItem value="">전체</MenuItem>
           <MenuItem value="LMS">LMS</MenuItem>
           <MenuItem value="SMS">SMS</MenuItem>
-          <MenuItem value="KAKAO">KAKAO</MenuItem>
         </TextField>
       </SearchPanel>
 

@@ -5,32 +5,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.education-reminder.send")
 public record AppEducationReminderSendProperties(
         boolean enabled,
-        ChannelProperties lms,
-        ChannelProperties sms,
-        ChannelProperties kakao
+        MunjaNaraProperties munjanara
 ) {
-    public ChannelProperties channel(String channel) {
-        if (channel == null) {
-            return ChannelProperties.disabled();
-        }
-
-        return switch (channel.trim().toUpperCase()) {
-            case "LMS" -> lms == null ? ChannelProperties.disabled() : lms;
-            case "SMS" -> sms == null ? ChannelProperties.disabled() : sms;
-            case "KAKAO" -> kakao == null ? ChannelProperties.disabled() : kakao;
-            default -> ChannelProperties.disabled();
-        };
-    }
-
-    public record ChannelProperties(
+    public record MunjaNaraProperties(
             boolean enabled,
-            boolean simulate,
             String endpointUrl,
-            String senderName,
-            String apiKey
+            String userId,
+            String secondPassword,
+            String senderNumber,
+            String adminNumber,
+            String messageCharset
     ) {
-        static ChannelProperties disabled() {
-            return new ChannelProperties(false, true, "", "", "");
+        static MunjaNaraProperties disabled() {
+            return new MunjaNaraProperties(false, "", "", "", "", "", "UTF-8");
         }
     }
 }

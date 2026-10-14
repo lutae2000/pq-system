@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRES_HOST:merp-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
+    username: ${POSTGRES_USER:cheil}
+    password: ${POSTGRES_PASSWORD:cheil}
+  batch:
+    jdbc:
+      initialize-schema: always
+
+batch:
+  cleanup:
+    api-call-logs:
+      enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:false}
+  g2b:
+    bid-notice:
+      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
+      run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
+
+external-api:
+  g2b:
+    base-url: ${G2B_API_BASE_URL:https://apis.data.go.kr/1230000/ad/BidPublicInfoService}
+    service-key: ${G2B_SERVICE_KEY:}
+
+logging:
+  level:
+    com.cheil.batch: INFO

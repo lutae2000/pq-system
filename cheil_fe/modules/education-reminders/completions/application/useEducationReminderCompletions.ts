@@ -10,11 +10,10 @@ import type { EducationReminderCompletionSearchParams } from "@/modules/educatio
 
 type Params = {
   completionSearchParams: EducationReminderCompletionSearchParams;
-  sendDialogOpen: boolean;
   tabQueryEnabled: boolean;
 };
 
-export function useEducationReminderCompletions({ completionSearchParams, sendDialogOpen, tabQueryEnabled }: Params) {
+export function useEducationReminderCompletions({ completionSearchParams, tabQueryEnabled }: Params) {
   const basicInfosQuery = useQuery({
     queryKey: educationReminderCompletionQueryKeys.basicInfos,
     queryFn: listEducationReminderBasicInfos,
@@ -28,7 +27,7 @@ export function useEducationReminderCompletions({ completionSearchParams, sendDi
   const notificationTargetQuery = useQuery({
     queryKey: educationReminderCompletionQueryKeys.notificationTargets,
     queryFn: () => listEducationReminderNotificationTargets(),
-    enabled: tabQueryEnabled && sendDialogOpen,
+    enabled: tabQueryEnabled,
   });
   const completionQuery = useQuery({
     queryKey: educationReminderCompletionQueryKeys.completions(completionSearchParams),

@@ -131,6 +131,10 @@ public class EducationReminderAdminService {
     private EducationReminderTemplateRequest normalizeTemplate(EducationReminderTemplateRequest request) {
         String name = StringValues.required(request.name(), "name");
         String channel = StringValues.required(request.channel(), "channel");
+        if (!"SMS".equalsIgnoreCase(channel) && !"LMS".equalsIgnoreCase(channel)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "channel must be SMS or LMS.");
+        }
+        channel = channel.toUpperCase();
         String title = StringValues.required(request.title(), "title");
         String content = StringValues.required(request.content(), "content");
         StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");

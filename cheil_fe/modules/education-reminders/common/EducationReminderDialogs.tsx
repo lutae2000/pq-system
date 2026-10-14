@@ -176,7 +176,6 @@ export function EducationReminderTemplateDialog({ audit, open, record, onClose, 
             >
               <MenuItem value="LMS">LMS</MenuItem>
               <MenuItem value="SMS">SMS</MenuItem>
-              <MenuItem value="KAKAO">카카오 알림톡</MenuItem>
             </TextField>
             <TextField
               label="제목"

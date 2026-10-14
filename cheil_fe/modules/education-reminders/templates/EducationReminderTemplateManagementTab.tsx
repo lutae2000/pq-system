@@ -37,7 +37,7 @@ import { useEducationReminderTemplates } from "./application/useEducationReminde
 
 type FilterState = {
   active: "" | "Y" | "N";
-  channel: "" | "LMS" | "SMS" | "KAKAO";
+  channel: "" | "LMS" | "SMS";
   keyword: string;
 };
 
@@ -174,8 +174,7 @@ export function EducationReminderTemplateManagementTab() {
     const inactive = templates.filter((row) => !row.active).length;
     const lms = templates.filter((row) => row.channel === "LMS").length;
     const sms = templates.filter((row) => row.channel === "SMS").length;
-    const kakao = templates.filter((row) => row.channel === "KAKAO").length;
-    return { active, inactive, kakao, lms, sms };
+    return { active, inactive, lms, sms };
   }, [templates]);
 
   const columns = useMemo<GridColDef<EducationReminderTemplateRecord>[]>(
@@ -214,7 +213,6 @@ export function EducationReminderTemplateManagementTab() {
         <SummaryCard color="text.secondary" label="미사용" value={`${summary.inactive}건`} />
         <SummaryCard color="success.main" label="LMS" value={`${summary.lms}건`} />
         <SummaryCard color="warning.main" label="SMS" value={`${summary.sms}건`} />
-        <SummaryCard color="info.main" label="카카오 알림톡" value={`${summary.kakao}건`} />
       </Box>
 
       <SearchPanel
@@ -253,7 +251,6 @@ export function EducationReminderTemplateManagementTab() {
           <MenuItem value="">전체</MenuItem>
           <MenuItem value="LMS">LMS</MenuItem>
           <MenuItem value="SMS">SMS</MenuItem>
-          <MenuItem value="KAKAO">카카오 알림톡</MenuItem>
         </TextField>
         <TextField
           select
@@ -376,7 +373,6 @@ export function EducationReminderTemplateManagementTab() {
                       >
                         <MenuItem value="LMS">LMS</MenuItem>
                         <MenuItem value="SMS">SMS</MenuItem>
-                        <MenuItem value="KAKAO">카카오 알림톡</MenuItem>
                       </TextField>
                       <TextField
                         label="제목"

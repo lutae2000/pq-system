@@ -4,6 +4,8 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+      # 자체 JWT/서비스 헤더 인증을 사용하므로 Spring Boot 기본 사용자와 임시 비밀번호를 생성하지 않는다.
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   docker:
     compose:
       enabled: false
@@ -205,21 +207,13 @@ app:
   education-reminder:
     send:
       enabled: ${APP_EDUCATION_REMINDER_SEND_ENABLED:true}
-      lms:
-        enabled: ${APP_EDUCATION_REMINDER_LMS_ENABLED:true}
-        simulate: ${APP_EDUCATION_REMINDER_LMS_SIMULATE:true}
-        endpoint-url: ${APP_EDUCATION_REMINDER_LMS_ENDPOINT_URL:}
-        sender-name: ${APP_EDUCATION_REMINDER_LMS_SENDER_NAME:}
-        api-key: ${APP_EDUCATION_REMINDER_LMS_API_KEY:}
-      sms:
-        enabled: ${APP_EDUCATION_REMINDER_SMS_ENABLED:true}
-        simulate: ${APP_EDUCATION_REMINDER_SMS_SIMULATE:true}
-        endpoint-url: ${APP_EDUCATION_REMINDER_SMS_ENDPOINT_URL:}
-        sender-name: ${APP_EDUCATION_REMINDER_SMS_SENDER_NAME:}
-        api-key: ${APP_EDUCATION_REMINDER_SMS_API_KEY:}
-      kakao:
-        enabled: ${APP_EDUCATION_REMINDER_KAKAO_ENABLED:true}
-        simulate: ${APP_EDUCATION_REMINDER_KAKAO_SIMULATE:true}
-        endpoint-url: ${APP_EDUCATION_REMINDER_KAKAO_ENDPOINT_URL:}
-        sender-name: ${APP_EDUCATION_REMINDER_KAKAO_SENDER_NAME:}
-        api-key: ${APP_EDUCATION_REMINDER_KAKAO_API_KEY:}
+      # 문자나라 실제 발송 설정
+      munjanara:
+        enabled: ${APP_EDUCATION_REMINDER_MUNJANARA_ENABLED:true}
+        endpoint-url: ${APP_EDUCATION_REMINDER_MUNJANARA_ENDPOINT_URL:https://munjanara.co.kr/send.sys}
+        user-id: ${APP_EDUCATION_REMINDER_MUNJANARA_USER_ID:cheileng}
+        second-password: ${APP_EDUCATION_REMINDER_MUNJANARA_SECOND_PASSWORD:cheil1026}
+        sender-number: ${APP_EDUCATION_REMINDER_MUNJANARA_SENDER_NUMBER:0234982616}
+        admin-number: ${APP_EDUCATION_REMINDER_MUNJANARA_ADMIN_NUMBER:0234982616}
+        # 문자나라에서 UTF-8 URL 디코딩 후 한글이 깨지는 경우를 위한 메시지 바이트 문자셋
+        message-charset: ${APP_EDUCATION_REMINDER_MUNJANARA_MESSAGE_CHARSET:EUC-KR}

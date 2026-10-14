@@ -1,11 +1,5 @@
 package com.cheil.cheil_be.application.educationreminder.service;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -16,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +33,10 @@ import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderSend
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderTemplateResponse;
 import com.cheil.cheil_be.adapter.out.persistence.educationreminder.EducationReminderTemplateEntity;
 import com.cheil.cheil_be.adapter.out.persistence.educationreminder.EducationReminderTemplateJpaRepository;
+import com.cheil.cheil_be.application.educationreminder.model.EducationReminderMessageSendCommand;
+import com.cheil.cheil_be.application.educationreminder.model.EducationReminderMessageSendResult;
+import com.cheil.cheil_be.application.educationreminder.port.out.EducationReminderMessageSender;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
-import com.cheil.cheil_be.config.educationreminder.AppEducationReminderSendProperties;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +52,7 @@ public class EducationReminderSendService {
     private final JdbcClient jdbcClient;
     private final EducationReminderCompletionService completionService;
     private final EducationReminderTemplateJpaRepository templateRepository;
-    private final AppEducationReminderSendProperties sendProperties;
+    private final EducationReminderMessageSender messageSender;
     @Qualifier("educationReminderSendExecutor")
     private final TaskExecutor educationReminderSendExecutor;
 
@@ -205,6 +200,7 @@ public class EducationReminderSendService {
                 .filter(row -> targetRowKeys.contains(row.rowKey()))
                 .toList();
         if (selectedTargets.isEmpty()) {
+            log.warn("교육 알림 발송 대상 매칭 실패: 요청 대상 키 개수={}, 대상 키={}", targetRowKeys.size(), targetRowKeys);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Selected send targets were not found.");
         }
 
@@ -232,6 +228,8 @@ public class EducationReminderSendService {
                 testSend,
                 testPhoneNo
         );
+        log.info("교육 알림 발송 요청 저장: batchId={}, channel={}, targetCount={}, testSend={}, actor={}",
+                batchId, channel, pendingItems.size(), testSend, actor);
         afterCommit(() -> educationReminderSendExecutor.execute(() -> processBatch(batchId, actor, pendingItems)));
 
         return new EducationReminderSendResponse(
@@ -679,6 +677,7 @@ public class EducationReminderSendService {
     }
 
     private void processBatch(long batchId, String actor, Collection<PendingSendItem> items) {
+        log.info("교육 알림 발송 시작: batchId={}, itemCount={}, actor={}", batchId, items.size(), actor);
         int successCount = 0;
         int failCount = 0;
 
@@ -690,53 +689,24 @@ public class EducationReminderSendService {
                 failCount += 1;
             }
             updateSendLog(item.logId(), actor, result);
+            log.info("교육 알림 발송 결과: batchId={}, logId={}, channel={}, receiver={}, success={}, failureReason={}",
+                    batchId, item.logId(), item.channel(), maskPhoneNo(item.actualPhoneNo()), result.success(), result.failureReason());
         }
 
         updateBatch(batchId, actor, successCount, failCount);
+        log.info("교육 알림 발송 완료: batchId={}, successCount={}, failCount={}", batchId, successCount, failCount);
     }
 
     private ChannelDispatchResult dispatch(PendingSendItem item) {
-        AppEducationReminderSendProperties.ChannelProperties channelProperties = sendProperties.channel(item.channel());
-        if (!sendProperties.enabled() || !channelProperties.enabled() || !StringUtils.hasText(channelProperties.endpointUrl()) || channelProperties.simulate()) {
-            return ChannelDispatchResult.success("SIMULATED");
+        if ("SMS".equalsIgnoreCase(item.channel()) || "LMS".equalsIgnoreCase(item.channel())) {
+            EducationReminderMessageSendResult result = messageSender.send(new EducationReminderMessageSendCommand(
+                    item.channel(), item.actualPhoneNo(), item.messageContent(), item.testSend()));
+            return result.success()
+                    ? ChannelDispatchResult.success(result.responsePayload())
+                    : ChannelDispatchResult.failure(result.failureReason(), result.responsePayload());
         }
 
-        try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
-            Map<String, Object> payload = Map.of(
-                    "channel", item.channel(),
-                    "phoneNo", item.actualPhoneNo(),
-                    "templateName", item.templateName(),
-                    "messageContent", item.messageContent(),
-                    "testSend", item.testSend(),
-                    "engineerId", item.engineerId(),
-                    "engineerName", item.engineerName(),
-                    "departmentName", item.departmentName()
-            );
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(channelProperties.endpointUrl()))
-                    .timeout(Duration.ofSeconds(15))
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .header("X-Sender-Name", nullToEmpty(channelProperties.senderName()))
-                    .header("X-Api-Key", nullToEmpty(channelProperties.apiKey()))
-                    .POST(HttpRequest.BodyPublishers.ofString(toJson(payload)))
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                return ChannelDispatchResult.success(response.body());
-            }
-            return ChannelDispatchResult.failure("Channel returned HTTP " + response.statusCode(), response.body());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return ChannelDispatchResult.failure("Dispatch interrupted.", ex.getMessage());
-        } catch (IOException ex) {
-            return ChannelDispatchResult.failure("Dispatch failed.", ex.getMessage());
-        } catch (RuntimeException ex) {
-            return ChannelDispatchResult.failure("Dispatch failed.", ex.getMessage());
-        }
+        return ChannelDispatchResult.failure("현재 문자나라 연동은 SMS와 LMS만 지원합니다.", null);
     }
 
     private void updateSendLog(long logId, String actor, ChannelDispatchResult result) {
@@ -840,29 +810,12 @@ public class EducationReminderSendService {
         return value == null ? "" : value;
     }
 
-    private String toJson(Map<String, Object> payload) {
-        return payload.entrySet().stream()
-                .map(entry -> "\"" + escapeJson(entry.getKey()) + "\":" + toJsonValue(entry.getValue()))
-                .collect(Collectors.joining(",", "{", "}"));
-    }
-
-    private String toJsonValue(Object value) {
-        if (value == null) {
-            return "null";
+    private String maskPhoneNo(String value) {
+        String phoneNo = nullToEmpty(value);
+        if (phoneNo.length() <= 4) {
+            return "****";
         }
-        if (value instanceof Boolean || value instanceof Number) {
-            return value.toString();
-        }
-        return "\"" + escapeJson(String.valueOf(value)) + "\"";
-    }
-
-    private String escapeJson(String value) {
-        return value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\r", "\\r")
-                .replace("\n", "\\n")
-                .replace("\t", "\\t");
+        return "*".repeat(Math.max(0, phoneNo.length() - 4)) + phoneNo.substring(phoneNo.length() - 4);
     }
 
     private String like(String value) {

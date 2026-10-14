@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cheil.batch.g2bbidnotice.adapter.out.persistence.G2bBidNoticeCandidateMapper">
+
+    <select id="findSyncKeys" resultType="string">
+        SELECT bid_ntce_no || '|' || bid_ntce_ord
+        FROM g2b_bid_notice_sync_items
+        WHERE
+        <foreach collection="notices" item="notice" separator=" OR " open="(" close=")">
+            (bid_ntce_no = #{notice.bidNoticeNumber} AND bid_ntce_ord = #{notice.bidNoticeOrder})
+        </foreach>
+    </select>
+
+    <insert id="upsertSyncItems">
+        INSERT INTO g2b_bid_notice_sync_items (
+            bid_ntce_no, bid_ntce_ord, bef_bid_bbanc_no, raw_payload,
+            first_seen_at, last_seen_at, last_api_request_date_from, last_api_request_date_to
+        ) VALUES
+        <foreach collection="rows" item="row" separator=",">
+            (
+                #{row.notice.bidNoticeNumber}, #{row.notice.bidNoticeOrder}, #{row.notice.previousBidNoticeNumber},
+                CAST(#{row.notice.rawPayload} AS jsonb),
+                #{row.fetchedAt}, #{row.fetchedAt}, #{row.requestFrom}, #{row.requestTo}
+            )
+        </foreach>
+        ON CONFLICT (bid_ntce_no, bid_ntce_ord) DO UPDATE SET
+            bef_bid_bbanc_no = EXCLUDED.bef_bid_bbanc_no,
+            raw_payload = EXCLUDED.raw_payload,
+            last_seen_at = EXCLUDED.last_seen_at,
+            last_api_request_date_from = EXCLUDED.last_api_request_date_from,
+            last_api_request_date_to = EXCLUDED.last_api_request_date_to
+    </insert>
+
+    <insert id="upsertAll">
+        INSERT INTO g2b_bid_notice_candidates (
+            bid_ntce_no, bid_ntce_ord, bef_bid_bbanc_no, ntce_kind_nm, bid_ntce_nm, ntce_instt_nm,
+            dminstt_nm, dminstt_cd, cntrct_cncls_mthd_nm, srvce_div_nm, prtcpt_lmt_rgn_cd,
+            cmmn_spldmd_methd_nm, sucsfbid_mthd_nm, indstryty_lmt_yn, pub_prcrmnt_mid_clsfc_nm,
+            pub_prcrmnt_clsfc_nm, sucsfbid_mthd_app_std, asign_bdgt_amt, bid_date,
+            bid_submission_date, pq_submit_date,
+            ntce_spec_file_nm1, ntce_spec_file_nm2, ntce_spec_file_nm3, ntce_spec_file_nm4,
+            ntce_spec_file_nm5, ntce_spec_file_nm6, ntce_spec_file_nm7, ntce_spec_file_nm8,
+            ntce_spec_file_nm9, ntce_spec_file_nm10,
+            ntce_spec_doc_url1, ntce_spec_doc_url2, ntce_spec_doc_url3, ntce_spec_doc_url4,
+            ntce_spec_doc_url5, ntce_spec_doc_url6, ntce_spec_doc_url7, ntce_spec_doc_url8,
+            ntce_spec_doc_url9, ntce_spec_doc_url10,
+            bid_ntce_date, bid_clse_dt, openg_dt, bid_ntce_url, raw_payload,
+            first_seen_at, last_seen_at, api_request_date_from, api_request_date_to
+        ) VALUES
+        <foreach collection="list" item="row" separator=",">
+            (
+                #{row.notice.bidNoticeNumber}, #{row.notice.bidNoticeOrder}, #{row.notice.previousBidNoticeNumber},
+                #{row.notice.noticeKindName}, #{row.notice.bidNoticeName}, #{row.notice.noticeInstitutionName},
+                #{row.notice.demandInstitutionName}, #{row.notice.demandInstitutionCode},
+                #{row.notice.contractConclusionMethodName}, #{row.notice.serviceDivisionName},
+                #{row.notice.participationLimitRegionCode}, #{row.notice.commonJointMethodName},
+                #{row.notice.successfulBidMethodName}, #{row.notice.industryLimitYn},
+                #{row.notice.publicProcurementMidClassificationName}, #{row.notice.publicProcurementClassificationName},
+                #{row.notice.successfulBidMethodApplicationStandard}, #{row.notice.assignedBudgetAmount},
+                #{row.notice.bidDate}, #{row.notice.bidSubmissionDate}, #{row.notice.pqSubmissionDate},
+                #{row.fileName1}, #{row.fileName2}, #{row.fileName3}, #{row.fileName4},
+                #{row.fileName5}, #{row.fileName6}, #{row.fileName7}, #{row.fileName8},
+                #{row.fileName9}, #{row.fileName10},
+                #{row.fileUrl1}, #{row.fileUrl2}, #{row.fileUrl3}, #{row.fileUrl4},
+                #{row.fileUrl5}, #{row.fileUrl6}, #{row.fileUrl7}, #{row.fileUrl8},
+                #{row.fileUrl9}, #{row.fileUrl10},
+                #{row.notice.bidNoticeDate}, #{row.notice.bidClosingDate}, #{row.notice.openingDate},
+                #{row.notice.bidNoticeUrl}, CAST(#{row.notice.rawPayload} AS jsonb),
+                #{row.fetchedAt}, #{row.fetchedAt}, #{row.requestFrom}, #{row.requestTo}
+            )
+        </foreach>
+        ON CONFLICT (bid_ntce_no, bid_ntce_ord) DO UPDATE SET
+            ntce_kind_nm = EXCLUDED.ntce_kind_nm,
+            bid_ntce_nm = EXCLUDED.bid_ntce_nm,
+            ntce_instt_nm = EXCLUDED.ntce_instt_nm,
+            dminstt_nm = EXCLUDED.dminstt_nm,
+            dminstt_cd = EXCLUDED.dminstt_cd,
+            cntrct_cncls_mthd_nm = EXCLUDED.cntrct_cncls_mthd_nm,
+            srvce_div_nm = EXCLUDED.srvce_div_nm,
+            prtcpt_lmt_rgn_cd = EXCLUDED.prtcpt_lmt_rgn_cd,
+            cmmn_spldmd_methd_nm = EXCLUDED.cmmn_spldmd_methd_nm,
+            sucsfbid_mthd_nm = EXCLUDED.sucsfbid_mthd_nm,
+            indstryty_lmt_yn = EXCLUDED.indstryty_lmt_yn,
+            pub_prcrmnt_mid_clsfc_nm = EXCLUDED.pub_prcrmnt_mid_clsfc_nm,
+            pub_prcrmnt_clsfc_nm = EXCLUDED.pub_prcrmnt_clsfc_nm,
+            sucsfbid_mthd_app_std = EXCLUDED.sucsfbid_mthd_app_std,
+            asign_bdgt_amt = EXCLUDED.asign_bdgt_amt,
+            bid_date = EXCLUDED.bid_date,
+            bid_submission_date = EXCLUDED.bid_submission_date,
+            pq_submit_date = EXCLUDED.pq_submit_date,
+            ntce_spec_file_nm1 = EXCLUDED.ntce_spec_file_nm1,
+            ntce_spec_file_nm2 = EXCLUDED.ntce_spec_file_nm2,
+            ntce_spec_file_nm3 = EXCLUDED.ntce_spec_file_nm3,
+            ntce_spec_file_nm4 = EXCLUDED.ntce_spec_file_nm4,
+            ntce_spec_file_nm5 = EXCLUDED.ntce_spec_file_nm5,
+            ntce_spec_file_nm6 = EXCLUDED.ntce_spec_file_nm6,
+            ntce_spec_file_nm7 = EXCLUDED.ntce_spec_file_nm7,
+            ntce_spec_file_nm8 = EXCLUDED.ntce_spec_file_nm8,
+            ntce_spec_file_nm9 = EXCLUDED.ntce_spec_file_nm9,
+            ntce_spec_file_nm10 = EXCLUDED.ntce_spec_file_nm10,
+            ntce_spec_doc_url1 = EXCLUDED.ntce_spec_doc_url1,
+            ntce_spec_doc_url2 = EXCLUDED.ntce_spec_doc_url2,
+            ntce_spec_doc_url3 = EXCLUDED.ntce_spec_doc_url3,
+            ntce_spec_doc_url4 = EXCLUDED.ntce_spec_doc_url4,
+            ntce_spec_doc_url5 = EXCLUDED.ntce_spec_doc_url5,
+            ntce_spec_doc_url6 = EXCLUDED.ntce_spec_doc_url6,
+            ntce_spec_doc_url7 = EXCLUDED.ntce_spec_doc_url7,
+            ntce_spec_doc_url8 = EXCLUDED.ntce_spec_doc_url8,
+            ntce_spec_doc_url9 = EXCLUDED.ntce_spec_doc_url9,
+            ntce_spec_doc_url10 = EXCLUDED.ntce_spec_doc_url10,
+            bid_ntce_date = EXCLUDED.bid_ntce_date,
+            bid_clse_dt = EXCLUDED.bid_clse_dt,
+            openg_dt = EXCLUDED.openg_dt,
+            bid_ntce_url = EXCLUDED.bid_ntce_url,
+            raw_payload = EXCLUDED.raw_payload,
+            last_seen_at = EXCLUDED.last_seen_at,
+            api_request_date_from = EXCLUDED.api_request_date_from,
+            api_request_date_to = EXCLUDED.api_request_date_to
+    </insert>
+
+    <update id="linkImportedNotices">
+        UPDATE g2b_bid_notice_candidates candidate
+        SET imported_bid_seq = notice.bid_seq
+        FROM bid_notices notice
+        WHERE candidate.bid_ntce_no = notice.g2b_bid_ntce_no
+          AND candidate.bid_ntce_ord = notice.g2b_bid_ntce_ord
+          AND candidate.imported_bid_seq IS DISTINCT FROM notice.bid_seq
+    </update>
+
+    <insert id="createChangeNotices">
+        INSERT INTO system_notices (
+            notice_id, title, content, target_path,
+            exposure_start_at, exposure_end_at, publish_at,
+            important, active, created_at, created_id,
+            last_changed_at, last_changed_id
+        )
+        SELECT
+            'G2B-CANDIDATE-' || current_candidate.id,
+            '나라장터 공고 변경 알림',
+            current_candidate.bid_ntce_no || ' 공고가 ' ||
+                REPLACE(COALESCE(NULLIF(current_candidate.ntce_kind_nm, ''), '변경공고'), '공고', '') ||
+                '되었습니다.',
+            '/pq/g2b-bid-notice-candidates?bidNtceNo=' || current_candidate.bid_ntce_no,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP + INTERVAL '14 days',
+            CURRENT_TIMESTAMP,
+            FALSE,
+            TRUE,
+            CURRENT_TIMESTAMP,
+            'g2b-bid-notice-batch',
+            CURRENT_TIMESTAMP,
+            'g2b-bid-notice-batch'
+        FROM g2b_bid_notice_candidates current_candidate
+        WHERE current_candidate.imported_bid_seq IS NULL
+          AND current_candidate.last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '1 day'
+          AND EXISTS (
+                SELECT 1
+                FROM g2b_bid_notice_candidates imported_candidate
+                WHERE (
+                        imported_candidate.bid_ntce_no = current_candidate.bid_ntce_no
+                     OR imported_candidate.bid_ntce_no = current_candidate.bef_bid_bbanc_no
+                )
+                  AND imported_candidate.imported_bid_seq IS NOT NULL
+                  AND imported_candidate.id &lt; current_candidate.id
+          )
+          AND (
+                current_candidate.ntce_kind_nm ILIKE '%변경%'
+             OR current_candidate.ntce_kind_nm ILIKE '%취소%'
+             OR current_candidate.ntce_kind_nm ILIKE '%재공고%'
+          )
+        ON CONFLICT (notice_id) DO NOTHING
+    </insert>
+</mapper>

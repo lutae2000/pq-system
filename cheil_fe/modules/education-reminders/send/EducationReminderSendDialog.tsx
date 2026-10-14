@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   Box,
@@ -59,15 +59,15 @@ const targetColumns: GridColDef<EducationReminderSendDialogTarget>[] = [
     minWidth: 120,
     valueFormatter: (value) => formatPhoneNo(String(value ?? "")),
   },
-  { field: "targetEducationNames", flex: 1.2, headerName: "교육명", minWidth: 150 },
-  { field: "scheduledEducation1", flex: 0.9, headerName: "교육 예정일1", minWidth: 110 },
-  { field: "scheduledEducation2", flex: 0.9, headerName: "교육 예정일2", minWidth: 110 },
+    { field: "targetEducationNames", flex: 1.2, headerName: "교육명", minWidth: 150 },
+  { field: "scheduledEducation1", flex: 0.9, headerName: "교육 예정일", minWidth: 110 },
+  { field: "scheduledEducation2", flex: 0.9, headerName: "교육 예정일", minWidth: 110 },
 ];
 
 const renderPreviewMessage = (templateContent: string, target: EducationReminderSendDialogTarget) => {
-  const educationName = target.targetEducationNames?.trim() || "교육알림";
+  const educationName = target.targetEducationNames?.trim() || "교육 알림";
   return (templateContent || "")
-    .replaceAll("{대상자명}", target.name || "")
+    .replaceAll("{수령자명}", target.name || "")
     .replaceAll("{이름}", target.name || "")
     .replaceAll("{부서명}", target.department || "")
     .replaceAll("{교육명}", educationName)
@@ -94,6 +94,7 @@ export function EducationReminderSendDialog({
   const selectedTarget = targets.find((target) => target.rowKey === selectedTargetRowKey) ?? targets[0];
   const defaultTestPhoneNo = formatPhoneNo(selectedTarget?.phoneNo ?? "");
   const isTestPhoneNo = Boolean(testPhoneNo && testPhoneNo !== defaultTestPhoneNo);
+  const canTestSend = Boolean(testPhoneNo.replace(/\D/g, ""));
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === templateId) ?? templates[0] ?? null,
@@ -133,13 +134,13 @@ export function EducationReminderSendDialog({
         },
       }}
     >
-      <DialogTitle>교육알림 발송</DialogTitle>
+      <DialogTitle>교육 알림 발송</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography color="text.secondary" variant="body2">
             {isTestPhoneNo
-              ? "수신 전화번호가 변경되어 테스트 발송 전화번호로 입력된 항목 1건만 발송됩니다."
-              : `선택된 대상 ${targets.length}건에 대해 발송합니다. 수신 전화번호를 변경하면 테스트 발송으로 전환됩니다.`}
+              ? "수신 전화번호가 변경되어 테스트 전화번호로 1건만 발송합니다."
+              : `선택한 ${targets.length}건에 대해 발송합니다. 수신 전화번호를 변경하면 테스트 발송으로 전환됩니다.`}
           </Typography>
 
           <Box sx={{ alignItems: "center", display: "flex", gap: 0.75, width: "fit-content" }}>
@@ -155,15 +156,14 @@ export function EducationReminderSendDialog({
               size="small"
             />
             <Typography color="text.secondary" variant="body2">
-              {manualMode ? "수기 입력" : "템플릿 사용"}
+              {manualMode ? "직접 입력" : "템플릿 사용"}
             </Typography>
           </Box>
 
           <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 1.5fr) minmax(300px, 1fr)" } }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography color="text.secondary" sx={{ mb: 1 }} variant="subtitle2">
-                발송 대상
-              </Typography>
+                발송 대상</Typography>
               <EnterpriseDataGrid<EducationReminderSendDialogTarget>
                 columns={targetColumns}
                 disableColumnMenu
@@ -225,7 +225,7 @@ export function EducationReminderSendDialog({
               </Box>
               {manualMode ? (
                 <TextField
-                  label="수기 입력 문구"
+                  label="직접 입력 문구"
                   multiline
                   minRows={8}
                   onChange={(event) => setManualContent(event.target.value)}
@@ -285,12 +285,19 @@ export function EducationReminderSendDialog({
           취소
         </Button>
         <Button
+          disabled={loading || !canSend || !canTestSend || !selectedTarget}
+          onClick={() => void handleSend(true)}
+          variant="outlined"
+        >
+          테스트 발송
+        </Button>
+        <Button
           disabled={loading || !canSend}
-          onClick={() => void handleSend(isTestPhoneNo)}
+          onClick={() => void handleSend(false)}
           sx={{ ml: 1 }}
           variant="contained"
         >
-          {isTestPhoneNo ? "테스트 발송" : "발송"}
+          발송
         </Button>
       </DialogActions>
     </Dialog>

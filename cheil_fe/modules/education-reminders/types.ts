@@ -1,5 +1,5 @@
 export type EducationReminderCycleUnit = "MONTH" | "YEAR";
-export type EducationReminderChannel = "LMS" | "SMS" | "KAKAO";
+export type EducationReminderChannel = "LMS" | "SMS";
 
 export type EducationReminderBasicInfoRecord = {
   active: boolean;
@@ -145,7 +145,6 @@ export const cycleUnitLabel: Record<EducationReminderCycleUnit, string> = {
 export const channelLabel: Record<EducationReminderChannel, string> = {
   LMS: "LMS",
   SMS: "SMS",
-  KAKAO: "카카오 알림톡",
 };
 
 export const emptyBasicInfo = (): EducationReminderBasicInfoRequest => ({

@@ -319,7 +319,6 @@ function EducationReminderCompletionManagementContent() {
     templatesQuery,
   } = useEducationReminderCompletions({
     completionSearchParams,
-    sendDialogOpen,
     tabQueryEnabled,
   });
 
@@ -329,15 +328,12 @@ function EducationReminderCompletionManagementContent() {
     [basicInfosQuery.data],
   );
 
-  const selectedEngineerIds = useMemo(() => {
-    const selectedRowKeys = new Set(Array.from(rowSelectionModel.ids).map(String));
-    return new Set(completionRows.filter((row) => selectedRowKeys.has(row.rowKey)).map((row) => row.engineerId));
-  }, [completionRows, rowSelectionModel]);
-
+  const selectedRowKeys = useMemo(() => new Set(Array.from(rowSelectionModel.ids).map(String)), [rowSelectionModel]);
   const selectedCompletionRows = useMemo(() => {
-    const selectedRowKeys = new Set(Array.from(rowSelectionModel.ids).map(String));
-    return completionRows.filter((row) => selectedRowKeys.has(row.rowKey));
-  }, [completionRows, rowSelectionModel]);
+    return completionRows.filter((row) =>
+      rowSelectionModel.type === "include" ? selectedRowKeys.has(row.rowKey) : !selectedRowKeys.has(row.rowKey),
+    );
+  }, [completionRows, rowSelectionModel.type, selectedRowKeys]);
 
   const selectedSendTargets = useMemo<EducationReminderSendDialogTarget[]>(
     () => {
@@ -350,14 +346,14 @@ function EducationReminderCompletionManagementContent() {
         rowsByEngineerId.set(row.engineerId, rows);
       }
 
-      return Array.from(rowsByEngineerId.entries()).map(([engineerId, rows]) => {
+      return Array.from(rowsByEngineerId.entries()).flatMap(([engineerId, rows]) => {
         const firstRow = rows[0];
         const notificationTarget = notificationTargetsByEngineerId.get(engineerId);
         const educationNames = Array.from(new Set(rows.map((row) => row.educationName).filter(Boolean))).join(", ");
         const scheduledEducation1 = Array.from(new Set(rows.map((row) => row.scheduledEducation1).filter(Boolean))).join(", ");
         const scheduledEducation2 = Array.from(new Set(rows.map((row) => row.scheduledEducation2).filter(Boolean))).join(", ");
 
-        return {
+        return [{
           department: notificationTarget?.department ?? firstRow.department,
           deadline: notificationTarget?.deadline ?? getClosestEducationDeadline([scheduledEducation1, scheduledEducation2]),
           engineerId,
@@ -369,7 +365,7 @@ function EducationReminderCompletionManagementContent() {
           scheduledEducation1,
           scheduledEducation2,
           targetEducationNames: educationNames || notificationTarget?.targetEducationNames || "",
-        };
+        }];
       });
     },
     [notificationTargetQuery.data, selectedCompletionRows],
@@ -647,7 +643,7 @@ function EducationReminderCompletionManagementContent() {
         searchLabel="조회"
         actions={
           <Button
-            disabled={!canCreate || activeLoading || selectedEngineerIds.size === 0}
+            disabled={!canCreate || activeLoading || selectedCompletionRows.length === 0}
             onClick={() => setSendDialogOpen(true)}
             startIcon={<SendIcon />}
             variant="outlined"

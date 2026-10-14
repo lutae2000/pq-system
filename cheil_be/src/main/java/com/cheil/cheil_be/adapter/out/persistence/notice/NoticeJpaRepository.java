@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +18,6 @@ public class NoticeJpaRepository implements NoticeRepository {
     private final JpaNoticeRepository jpaNoticeRepository;
 
     @Override
-    @Cacheable(
-            cacheNames = "systemNotices",
-            key = "T(com.cheil.cheil_be.common.cache.CacheKeys).systemNotices()"
-    )
     public List<Notice> findAll() {
         return jpaNoticeRepository.findAll().stream()
                 .map(NoticeEntity::toDomain)
