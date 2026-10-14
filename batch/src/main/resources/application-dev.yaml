@@ -11,11 +11,22 @@ spring:
 batch:
   cleanup:
     api-call-logs:
-      enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:false}
+      enabled: true
+      cron: "0 0 3 * * *"
+      zone: Asia/Seoul
+      retention-months: 3
   g2b:
     bid-notice:
-      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
-      run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
+      enabled: true
+      run-on-startup: false
+      cron: "0 */10 8-23 * * *"
+      zone: Asia/Seoul
+      page-size: 999
+      lookback-minutes: 1440
+      region-codes: "00,11"
+      request-from: ""
+      request-to: ""
+      include-unrestricted: true
 
 logging:
   level:
