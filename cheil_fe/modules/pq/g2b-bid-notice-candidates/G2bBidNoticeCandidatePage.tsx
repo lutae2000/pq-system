@@ -380,8 +380,10 @@ export function G2bBidNoticeCandidatePage() {
   };
 
   const handleSearch = () => {
+    const filtersChanged = JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
     setAppliedFilters({ ...draftFilters });
     setPaginationModel((current) => ({ ...current, page: 0 }));
+    if (!filtersChanged && paginationModel.page === 0) void candidatesQuery.refetch();
   };
 
   const handleReset = () => {

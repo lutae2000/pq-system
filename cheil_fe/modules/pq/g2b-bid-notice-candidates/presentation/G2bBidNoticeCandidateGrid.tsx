@@ -86,7 +86,7 @@ export function G2bBidNoticeCandidateGrid({ loading, paginationModel, rows, rowC
       getRowClassName={({ row }) => {
         if (row.ntceKindNm.includes("취소")) return "g2b-cancelled-row";
         if (row.ntceKindNm.includes("변경")) return "g2b-changed-row";
-        if (row.befBidBbancNo.trim()) return "g2b-reposted-row";
+        if (row.ntceKindNm.includes("재공고") && row.befBidBbancNo.trim()) return "g2b-reposted-row";
         return "";
       }}
       keepNonExistentRowsSelected
