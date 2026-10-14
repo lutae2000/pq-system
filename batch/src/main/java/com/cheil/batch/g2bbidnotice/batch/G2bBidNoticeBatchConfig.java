@@ -3,6 +3,7 @@ package com.cheil.batch.g2bbidnotice.batch;
 import com.cheil.batch.g2bbidnotice.application.model.G2bBidNoticeSyncCommand;
 import com.cheil.batch.g2bbidnotice.application.model.G2bBidNoticeSyncResult;
 import com.cheil.batch.g2bbidnotice.application.port.in.SyncG2bBidNoticeCandidatesUseCase;
+import com.cheil.batch.common.batch.BatchMetrics;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
@@ -35,7 +36,8 @@ public class G2bBidNoticeBatchConfig {
             JobRepository jobRepository,
             PlatformTransactionManager transactionManager,
             SyncG2bBidNoticeCandidatesUseCase syncUseCase,
-            G2bBidNoticeBatchProperties properties
+            G2bBidNoticeBatchProperties properties,
+            BatchMetrics batchMetrics
     ) {
         return new StepBuilder("g2bBidNoticeCandidateSyncStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
@@ -52,6 +54,8 @@ public class G2bBidNoticeBatchConfig {
                     ));
                     contribution.getStepExecution().getExecutionContext().putInt("totalCount", result.baseTotalCount());
                     contribution.getStepExecution().getExecutionContext().putInt("fetchedCount", result.fetchedCount());
+                    batchMetrics.recordRecords(JOB_NAME, "total", result.baseTotalCount());
+                    batchMetrics.recordRecords(JOB_NAME, "fetched", result.fetchedCount());
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();

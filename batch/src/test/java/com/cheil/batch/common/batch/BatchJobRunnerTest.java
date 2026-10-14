@@ -24,6 +24,9 @@ class BatchJobRunnerTest {
     private JobOperator jobOperator;
 
     @Mock
+    private BatchMetrics batchMetrics;
+
+    @Mock
     private Job job;
 
     @InjectMocks

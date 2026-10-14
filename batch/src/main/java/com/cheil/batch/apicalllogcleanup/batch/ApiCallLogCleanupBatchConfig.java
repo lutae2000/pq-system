@@ -1,5 +1,6 @@
 package com.cheil.batch.apicalllogcleanup.batch;
 
+import com.cheil.batch.common.batch.BatchMetrics;
 import com.cheil.batch.apicalllogcleanup.application.port.in.CleanupApiCallLogsUseCase;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -29,12 +30,14 @@ public class ApiCallLogCleanupBatchConfig {
             JobRepository jobRepository,
             PlatformTransactionManager transactionManager,
             CleanupApiCallLogsUseCase cleanupUseCase,
-            @Value("${batch.cleanup.api-call-logs.retention-months:3}") int retentionMonths
+            @Value("${batch.cleanup.api-call-logs.retention-months:3}") int retentionMonths,
+            BatchMetrics batchMetrics
     ) {
         return new StepBuilder("apiCallLogCleanupStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     int deletedCount = cleanupUseCase.cleanup(retentionMonths);
                     contribution.getStepExecution().getExecutionContext().putInt("deletedCount", deletedCount);
+                    batchMetrics.recordRecords(JOB_NAME, "deleted", deletedCount);
                     return RepeatStatus.FINISHED;
                 }, transactionManager)
                 .build();

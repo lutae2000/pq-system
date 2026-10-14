@@ -17,11 +17,6 @@ batch:
       enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
       run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
 
-external-api:
-  g2b:
-    base-url: ${G2B_API_BASE_URL:https://apis.data.go.kr/1230000/ad/BidPublicInfoService}
-    service-key: ${G2B_SERVICE_KEY:}
-
 logging:
   level:
     com.cheil.batch: INFO
