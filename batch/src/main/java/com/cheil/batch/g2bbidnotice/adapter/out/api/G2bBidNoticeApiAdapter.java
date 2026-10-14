@@ -1,6 +1,7 @@
 package com.cheil.batch.g2bbidnotice.adapter.out.api;
 
 import com.cheil.batch.g2bbidnotice.application.model.G2bBidNoticeQuery;
+import com.cheil.batch.common.web.QueryStringBuilder;
 import com.cheil.batch.g2bbidnotice.application.port.out.LoadG2bBidNoticesPort;
 import com.cheil.batch.g2bbidnotice.domain.G2bBidNotice;
 import com.cheil.batch.g2bbidnotice.domain.G2bBidNoticePage;
@@ -14,7 +15,6 @@ import org.springframework.web.client.RestClientException;
 
 import java.net.URI;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -38,8 +38,8 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
     @Override
     public G2bBidNoticePage load(G2bBidNoticeQuery query) {
         try {
-            log.debug("나라장터 API 요청: from={}, to={}, regionCode={}, page={}, pageSize={}",
-                    query.from(), query.to(), query.participationRegionCode(), query.pageNumber(), query.pageSize());
+            log.debug("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
+                    query.from(), query.to(), query.participationRegionCodes(), query.pageNumber(), query.pageSize());
             G2bBidNoticeApiResponse apiResponse = restClient.get()
                     .uri(buildRequestUri(query))
                     .retrieve()
@@ -159,24 +159,24 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
      */
     private URI buildRequestUri(G2bBidNoticeQuery query) {
         String baseUrl = properties.baseUrl().replaceAll("/+$", "");
-        String queryString = "serviceKey=" + encodeServiceKey(properties.serviceKey())
-                + "&pageNo=" + query.pageNumber()
-                + "&numOfRows=" + query.pageSize()
-                + "&inqryDiv=1"
-                + "&inqryBgnDt=" + QUERY_DATE_TIME_FORMATTER.format(query.from())
-                + "&inqryEndDt=" + QUERY_DATE_TIME_FORMATTER.format(query.to())
-                + "&type=json";
-        if (query.participationRegionCode() != null && !query.participationRegionCode().isBlank()) {
-            queryString += "&prtcptLmtRgnCd=" + query.participationRegionCode();
-        }
+        String queryString = new QueryStringBuilder()
+                .add("serviceKey", decodeServiceKey(properties.serviceKey()))
+                .add("pageNo", query.pageNumber())
+                .add("numOfRows", query.pageSize())
+                .add("inqryDiv", 1)
+                .add("inqryBgnDt", QUERY_DATE_TIME_FORMATTER.format(query.from()))
+                .add("inqryEndDt", QUERY_DATE_TIME_FORMATTER.format(query.to()))
+                .add("type", "json")
+                .addAll("prtcptLmtRgnCd", query.participationRegionCodes())
+                .build();
         return URI.create(baseUrl + OPERATION_PATH + "?" + queryString);
     }
 
-    private String encodeServiceKey(String serviceKey) {
+    private String decodeServiceKey(String serviceKey) {
         // 공공데이터포털은 인코딩 키와 디코딩 키를 모두 제공하므로 어떤 값을 설정해도 동일하게 전송합니다.
         String decodedKey = serviceKey.contains("%")
                 ? URLDecoder.decode(serviceKey, StandardCharsets.UTF_8)
                 : serviceKey;
-        return URLEncoder.encode(decodedKey, StandardCharsets.UTF_8).replace("+", "%20");
+        return decodedKey;
     }
 }

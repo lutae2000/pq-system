@@ -6,7 +6,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class G2bBidNoticeBatchPropertiesTest {
 
@@ -24,10 +23,12 @@ class G2bBidNoticeBatchPropertiesTest {
     }
 
     @Test
-    void rejectsUnsupportedRegionCode() {
-        assertThatThrownBy(() -> new G2bBidNoticeBatchProperties(
+    void keepsConfiguredRegionCodesWithoutValidation() {
+        var properties = new G2bBidNoticeBatchProperties(
                 true, false, "*", "Asia/Seoul", 100, 10,
                 "26", "", "", true
-        )).isInstanceOf(IllegalArgumentException.class);
+        );
+
+        assertThat(properties.regionCodeList()).containsExactly("26");
     }
 }

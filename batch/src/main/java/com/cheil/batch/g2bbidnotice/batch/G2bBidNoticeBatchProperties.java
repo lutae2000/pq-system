@@ -6,6 +6,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 @ConfigurationProperties(prefix = "batch.g2b.bid-notice")
 public record G2bBidNoticeBatchProperties(
@@ -22,25 +25,19 @@ public record G2bBidNoticeBatchProperties(
 ) {
     public G2bBidNoticeBatchProperties {
         if (pageSize < 1 || pageSize > 999) {
-            throw new IllegalArgumentException("batch.g2b.bid-notice.page-size??1 ??곴맒 999 ??꾨릭??鍮???몃빍??");
+            throw new IllegalArgumentException("batch.g2b.bid-notice.page-size는 1 이상 999 이하여야 합니다.");
         }
         if (lookbackMinutes < 1) {
             throw new IllegalArgumentException("batch.g2b.bid-notice.lookback-minutes must be at least 1");
         }
-        if (regionCodes != null && java.util.Arrays.stream(regionCodes.split(","))
-                .map(String::trim)
-                .filter(code -> !code.isBlank())
-                .anyMatch(code -> !"00".equals(code) && !"11".equals(code))) {
-            throw new IllegalArgumentException("region-codes??00(?袁㏓럢) ?癒?뮉 11(??뽰뒻)筌??????????됰뮸??덈뼄.");
-        }
     }
 
-    public java.util.List<String> regionCodeList() {
+    public List<String> regionCodeList() {
         if (regionCodes == null || regionCodes.isBlank()) {
-            // 筌왖???????곸뵠 ?袁⑷퍥 ?⑤벀?х몴?鈺곌퀬???롫뮉 API ?遺욧퍕????甕???묐뻬??몃빍??
-            return java.util.List.of("");
+            // 지역 코드가 없으면 지역 제한 없이 조회하도록 빈 문자열을 API 파라미터로 사용합니다.
+            return List.of("");
         }
-        return java.util.Arrays.stream(regionCodes.split(","))
+        return Arrays.stream(regionCodes.split(","))
                 .map(String::trim)
                 .filter(code -> !code.isBlank())
                 .distinct()
@@ -55,11 +52,11 @@ public record G2bBidNoticeBatchProperties(
         return resolveDate(requestTo).orElse(now);
     }
 
-    private java.util.Optional<ZonedDateTime> resolveDate(String value) {
+    private Optional<ZonedDateTime> resolveDate(String value) {
         if (value == null || value.isBlank()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
-        return java.util.Optional.of(LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
+        return Optional.of(LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
                 .atZone(ZoneId.of(zone)));
     }
 }

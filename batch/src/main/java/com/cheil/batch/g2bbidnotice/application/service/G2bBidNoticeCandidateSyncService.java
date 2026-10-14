@@ -35,12 +35,13 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
         int baseTotalCount = 0;
 
         if (command.includeUnrestricted()) {
-            baseTotalCount = fetchPages(command, noticeByKey, "");
+            baseTotalCount = fetchPages(command, noticeByKey, List.of());
         }
-        for (String regionCode : command.regionCodes()) {
-            if (!regionCode.isBlank()) {
-                fetchPages(command, noticeByKey, regionCode);
-            }
+        List<String> regionCodes = command.regionCodes().stream()
+                .filter(regionCode -> !regionCode.isBlank())
+                .toList();
+        if (!regionCodes.isEmpty()) {
+            fetchPages(command, noticeByKey, regionCodes);
         }
 
         List<G2bBidNotice> notices = new ArrayList<>(noticeByKey.values());
@@ -57,21 +58,21 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
     private int fetchPages(
             G2bBidNoticeSyncCommand command,
             Map<String, G2bBidNotice> noticeByKey,
-            String regionCode
+            List<String> regionCodes
     ) {
         int pageNumber = 1;
         int totalCount = 0;
         do {
             G2bBidNoticePage result = fetchG2bBidNoticesUseCase.fetch(new G2bBidNoticeQuery(
-                    command.from(), command.to(), regionCode, pageNumber, command.pageSize()
+                    command.from(), command.to(), regionCodes, pageNumber, command.pageSize()
             ));
             if (pageNumber == 1) {
                 totalCount = result.totalCount();
             }
             result.notices().stream()
-                    .map(notice -> regionCode.isBlank()
-                            ? notice
-                            : notice.withParticipationLimitRegionCode(regionCode))
+                    .map(notice -> regionCodes.size() == 1
+                            ? notice.withParticipationLimitRegionCode(regionCodes.getFirst())
+                            : notice)
                     .forEach(notice -> noticeByKey.merge(
                             noticeKey(notice),
                             notice,

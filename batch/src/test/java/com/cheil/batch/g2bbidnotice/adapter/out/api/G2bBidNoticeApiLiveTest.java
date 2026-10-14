@@ -8,6 +8,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,7 +34,7 @@ class G2bBidNoticeApiLiveTest {
         G2bBidNoticeApiAdapter adapter = new G2bBidNoticeApiAdapter(config.g2bRestClient(properties), properties);
 
         ZonedDateTime to = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
-        G2bBidNoticePage result = adapter.load(new G2bBidNoticeQuery(to.minusHours(2), to, "11", 1, 10));
+        G2bBidNoticePage result = adapter.load(new G2bBidNoticeQuery(to.minusHours(2), to, List.of("11"), 1, 10));
 
         assertThat(result.pageNumber()).isEqualTo(1);
         assertThat(result.totalCount()).isGreaterThanOrEqualTo(result.notices().size());

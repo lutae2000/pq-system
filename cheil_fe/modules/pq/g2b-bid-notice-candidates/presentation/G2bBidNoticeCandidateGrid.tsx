@@ -102,6 +102,7 @@ export function G2bBidNoticeCandidateGrid({ loading, paginationModel, rows, rowC
       rows={rows}
       showPageNumbers
       wrapperMinHeight={620}
+      initialState={{ sorting: { sortModel: [{ field: "bidNtceDate", sort: "desc" }] } }}
       sx={{
         height: 620,
         "& .MuiDataGrid-row:hover": { cursor: "pointer" },

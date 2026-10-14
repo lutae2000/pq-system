@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,7 +85,7 @@ class G2bBidNoticeApiAdapterTest {
         G2bBidNoticePage result = adapter.load(new G2bBidNoticeQuery(
                 ZonedDateTime.of(2026, 10, 8, 9, 0, 0, 0, zoneId),
                 ZonedDateTime.of(2026, 10, 8, 11, 0, 0, 0, zoneId),
-                "11",
+                List.of("00", "11"),
                 1,
                 100
         ));
@@ -93,7 +94,7 @@ class G2bBidNoticeApiAdapterTest {
                 .contains("serviceKey=test%2Fkey%2Bvalue%3D")
                 .contains("inqryBgnDt=202610080900")
                 .contains("inqryEndDt=202610081100")
-                .contains("prtcptLmtRgnCd=11")
+                .contains("prtcptLmtRgnCd=00&prtcptLmtRgnCd=11")
                 .contains("inqryDiv=1")
                 .contains("type=json");
         assertThat(result.totalCount()).isEqualTo(1);
