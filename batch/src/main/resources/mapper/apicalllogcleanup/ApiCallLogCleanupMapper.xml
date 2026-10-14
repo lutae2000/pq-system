@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.cheil.batch.apicalllogcleanup.ApiCallLogCleanupMapper">
+<mapper namespace="com.cheil.batch.apicalllogcleanup.adapter.out.persistence.ApiCallLogCleanupMapper">
 
     <delete id="deleteExpiredApiCallLogs"><![CDATA[
         DELETE FROM api_call_logs

@@ -16,13 +16,19 @@ public class BatchJobRunner {
 
     private final JobOperator jobOperator;
 
-    public void run(Job job, String jobName) {
+
+    public synchronized void run(Job job, String jobName) {
         try {
+            if (!jobOperator.getRunningExecutions(job.getName()).isEmpty()) {
+                log.warn("{} skipped because a previous execution is still running", jobName);
+                return;
+            }
+
             JobParameters parameters = new JobParametersBuilder()
                     .addLong("scheduledAt", System.currentTimeMillis())
                     .toJobParameters();
             JobExecution execution = jobOperator.start(job, parameters);
-            log.info("{} finished: executionId={}, status={}", jobName, execution.getId(), execution.getStatus());
+            log.info("{} completed: executionId={}, status={}", jobName, execution.getId(), execution.getStatus());
         } catch (Exception exception) {
             log.error("{} failed", jobName, exception);
         }

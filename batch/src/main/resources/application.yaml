@@ -13,15 +13,45 @@ spring:
       enabled: false
     jdbc:
       initialize-schema: always
+
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
+  configuration:
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 batch:
   cleanup:
     api-call-logs:
       enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:true}
       cron: ${BATCH_API_CALL_LOG_CLEANUP_CRON:0 0 3 * * *}
+      zone: ${BATCH_API_CALL_LOG_CLEANUP_ZONE:Asia/Seoul}
+      # API 호출 로그를 보관할 개월 수입니다.
       retention-months: ${BATCH_API_CALL_LOG_RETENTION_MONTHS:3}
+  g2b:
+    bid-notice:
+      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
+      run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
+      cron: ${BATCH_G2B_BID_NOTICE_CRON:0 */10 8-23 * * *}
+      zone: ${BATCH_G2B_BID_NOTICE_ZONE:Asia/Seoul}
+      # 나라장터 API의 페이지당 조회 건수입니다.
+      page-size: ${BATCH_G2B_BID_NOTICE_PAGE_SIZE:999}
+      # 10분 주기로 실행하더라도 최근 1일 범위를 조회합니다.
+      lookback-minutes: ${BATCH_G2B_BID_NOTICE_LOOKBACK_MINUTES:1440}
+      # 참가제한지역 조회 코드입니다. 00은 전국, 11은 서울입니다.
+      region-codes: ${BATCH_G2B_BID_NOTICE_REGION_CODES:00,11}
+      # 값을 입력하면 자동 조회 기간 대신 지정된 시작 시각을 사용합니다.
+      request-from: ${BATCH_G2B_BID_NOTICE_REQUEST_FROM:}
+      # 값을 입력하면 자동 조회 기간 대신 지정된 종료 시각을 사용합니다.
+      request-to: ${BATCH_G2B_BID_NOTICE_REQUEST_TO:}
+      # 지역 제한이 없는 공고도 함께 조회할지 여부입니다.
+      include-unrestricted: ${BATCH_G2B_BID_NOTICE_INCLUDE_UNRESTRICTED:true}
+
+external-api:
+  g2b:
+    base-url: ${G2B_API_BASE_URL:https://apis.data.go.kr/1230000/ad/BidPublicInfoService}
+    service-key: "${G2B_SERVICE_KEY:WJjerl6nOnfiDDnkxpc4soMRt9oWkeU6xNkASBMTd1tuVak8N6o2%2FHDnevq4vBRmyUEUN%2BvYEBGQbnXtmB%2FxlA%3D%3D}"
+    connect-timeout: ${G2B_API_CONNECT_TIMEOUT:5s}
+    read-timeout: ${G2B_API_READ_TIMEOUT:30s}
 
 logging:
   level:
