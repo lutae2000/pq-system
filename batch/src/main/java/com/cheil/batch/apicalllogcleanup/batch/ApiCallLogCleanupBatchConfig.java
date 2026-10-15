@@ -19,7 +19,12 @@ public class ApiCallLogCleanupBatchConfig {
     private static final String JOB_NAME = "apiCallLogCleanupJob";
 
     @Bean
-    Job apiCallLogCleanupJob(JobRepository jobRepository, Step apiCallLogCleanupStep) {
+    Job apiCallLogCleanupJob(
+            JobRepository jobRepository,
+            Step apiCallLogCleanupStep,
+            BatchMetrics batchMetrics
+    ) {
+        batchMetrics.initializeJob(JOB_NAME);
         return new JobBuilder(JOB_NAME, jobRepository)
                 .start(apiCallLogCleanupStep)
                 .build();
@@ -33,6 +38,7 @@ public class ApiCallLogCleanupBatchConfig {
             @Value("${batch.cleanup.api-call-logs.retention-months:3}") int retentionMonths,
             BatchMetrics batchMetrics
     ) {
+        batchMetrics.initializeRecords(JOB_NAME, "deleted");
         return new StepBuilder("apiCallLogCleanupStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     int deletedCount = cleanupUseCase.cleanup(retentionMonths);

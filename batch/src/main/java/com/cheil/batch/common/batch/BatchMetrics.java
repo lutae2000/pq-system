@@ -18,6 +18,21 @@ public class BatchMetrics {
         return Timer.start(meterRegistry);
     }
 
+    public void initializeJob(String jobName) {
+        counter("batch.job.runs", jobName, "run");
+        counter("batch.job.success", jobName, "success");
+        counter("batch.job.failure", jobName, "failure");
+        counter("batch.job.skipped", jobName, "skipped");
+        Timer.builder("batch.job.duration")
+                .description("Batch job execution duration")
+                .tag("job", jobName)
+                .register(meterRegistry);
+    }
+
+    public void initializeRecords(String jobName, String recordType) {
+        counter("batch.job.records", jobName, recordType);
+    }
+
     public void recordRun(String jobName) {
         counter("batch.job.runs", jobName, "run").increment();
     }
@@ -42,10 +57,10 @@ public class BatchMetrics {
     }
 
     public void recordRecords(String jobName, String recordType, long count) {
-        if (count <= 0) {
-            return;
+        Counter records = counter("batch.job.records", jobName, recordType);
+        if (count > 0) {
+            records.increment(count);
         }
-        counter("batch.job.records", jobName, recordType).increment(count);
     }
 
     private Counter counter(String name, String jobName, String type) {

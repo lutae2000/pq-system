@@ -25,7 +25,12 @@ public class G2bBidNoticeBatchConfig {
     public static final String JOB_NAME = "g2bBidNoticeCandidateSyncJob";
 
     @Bean
-    Job g2bBidNoticeCandidateSyncJob(JobRepository jobRepository, Step g2bBidNoticeCandidateSyncStep) {
+    Job g2bBidNoticeCandidateSyncJob(
+            JobRepository jobRepository,
+            Step g2bBidNoticeCandidateSyncStep,
+            BatchMetrics batchMetrics
+    ) {
+        batchMetrics.initializeJob(JOB_NAME);
         return new JobBuilder(JOB_NAME, jobRepository)
                 .start(g2bBidNoticeCandidateSyncStep)
                 .build();
@@ -39,6 +44,8 @@ public class G2bBidNoticeBatchConfig {
             G2bBidNoticeBatchProperties properties,
             BatchMetrics batchMetrics
     ) {
+        batchMetrics.initializeRecords(JOB_NAME, "total");
+        batchMetrics.initializeRecords(JOB_NAME, "fetched");
         return new StepBuilder("g2bBidNoticeCandidateSyncStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     ZonedDateTime to = ZonedDateTime.now(ZoneId.of(properties.zone()));

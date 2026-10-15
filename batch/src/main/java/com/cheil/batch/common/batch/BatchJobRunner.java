@@ -22,6 +22,7 @@ public class BatchJobRunner {
 
     public synchronized void run(Job job, String jobName) {
         Timer.Sample timer = batchMetrics.startTimer();
+        batchMetrics.initializeJob(jobName);
         batchMetrics.recordRun(jobName);
         try {
             if (!jobOperator.getRunningExecutions(job.getName()).isEmpty()) {
