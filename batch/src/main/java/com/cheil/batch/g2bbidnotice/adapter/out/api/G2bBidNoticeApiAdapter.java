@@ -37,10 +37,11 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
 
     @Override
     public G2bBidNoticePage load(G2bBidNoticeQuery query) {
+        URI requestUri = null;
         try {
             log.info("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
                     query.from(), query.to(), query.participationRegionCodes(), query.pageNumber(), query.pageSize());
-            URI requestUri = buildRequestUri(query);
+            requestUri = buildRequestUri(query);
             log.info("나라장터 API 요청 URI: {}", maskServiceKey(requestUri));
             G2bBidNoticeApiResponse apiResponse = restClient.get()
                     .uri(requestUri)
@@ -52,8 +53,14 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
             throw exception;
         } catch (RestClientException exception) {
             // 예외 원문에는 인증키가 포함된 요청 URL이 들어갈 수 있어 로그와 상위 예외에 포함하지 않습니다.
-            log.warn("나라장터 API 통신 실패: errorType={}", exception.getClass().getSimpleName());
-            throw new G2bBidNoticeCommunicationException("나라장터 용역 입찰공고 API 통신에 실패했습니다.");
+            log.warn(
+                    "나라장터 API 통신 실패: errorType={}, message={}, uri={}",
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage(),
+                    requestUri == null ? "-" : maskServiceKey(requestUri),
+                    exception
+            );
+            throw new G2bBidNoticeCommunicationException("나라장터 용역 입찰공고 API 통신에 실패했습니다.", exception);
         }
     }
 

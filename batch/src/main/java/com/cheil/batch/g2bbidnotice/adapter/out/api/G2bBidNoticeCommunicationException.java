@@ -8,4 +8,8 @@ public class G2bBidNoticeCommunicationException extends RuntimeException {
     public G2bBidNoticeCommunicationException(String message) {
         super(message);
     }
+
+    public G2bBidNoticeCommunicationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
