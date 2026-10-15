@@ -1,6 +1,7 @@
 "use client";
 
 import { TextField } from "@mui/material";
+import { DateRangeField } from "@/components/common/DateRangeField";
 
 import {
   CheckboxListInput,
@@ -91,6 +92,14 @@ export function G2bBidNoticeCandidateFilters({ filters, onChange }: Props) {
           value={filters[field]}
         />
       ))}
+      <DateRangeField
+        endValue={filters.bidNtceDateTo}
+        label="입찰공고일시"
+        onEndChange={(value) => onChange("bidNtceDateTo", value)}
+        onStartChange={(value) => onChange("bidNtceDateFrom", value)}
+        startValue={filters.bidNtceDateFrom}
+        sx={{ alignSelf: "center", minWidth: 340 }}
+      />
     </>
   );
 }

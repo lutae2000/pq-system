@@ -73,6 +73,9 @@ server:
     include-stacktrace: always
 
 app:
+  batch:
+    url: ${APP_BATCH_URL:http://localhost:8090}
+    api-key: ${APP_BATCH_API_KEY:}
   observability:
     jdbc:
       include-parameter-values: true

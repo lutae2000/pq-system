@@ -115,6 +115,9 @@ logging:
     console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5level) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%thread]){faint} %clr(%replace(%X{traceId}){'^(.+)$','trace_id=$1 '}){yellow}%clr(%logger{39}){cyan} %clr(:){faint} %msg%n%wEx"
 
 app:
+  batch:
+    url: ${APP_BATCH_URL:http://merp-batch:8090}
+    api-key: ${APP_BATCH_API_KEY:}
   completed-query-logging:
     # 개발/로컬 SQL 완료 로그에서 제외할 SQL 문자열 조각 목록.
     excluded-sql-patterns:

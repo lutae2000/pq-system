@@ -152,6 +152,8 @@ const loadBidNoticeHistory = async (record: G2bBidNoticeCandidateRow): Promise<G
     ntceInsttNm: "",
     befBidBbancNo: "",
     importedYn: [],
+    bidNtceDateFrom: "",
+    bidNtceDateTo: "",
     relatedBidNtceNos: referenceNumbers,
     orderById: false,
     page: 0,
@@ -170,28 +172,40 @@ const historyComparisonFields = [
   ["cntrctCnclsMthdNm", "계약구분"],
   ["srvceDivNm", "용역구분"],
   ["bidMethdNm", "입찰방식"],
+  ["cmmnSpldmdAgrmntRcptdocMethd", "공동수급협정서 제출 진행방법"],
   ["prtcptLmtRgnCd", "참가제한지역"],
   ["cmmnSpldmdMethdNm", "공동수급방식"],
-  ["sucsfbidMthdNm", "낙찰방법"],
-  ["sucsfbidMthdAppStd", "낙찰방법 적용기준"],
+  ["indstrytyLmtYn", "업종제한 여부"],
+  ["pqApplDocRcptMthdNm", "PQ심사신청기한 진행방법"],
+  ["sucsfbidMthdNm", "낙찰방식"],
+  ["sucsfbidMthdAppStd", "낙찰방식 적용기준"],
   ["pubPrcrmntMidClsfcNm", "공공조달 중분류"],
   ["pubPrcrmntClsfcNm", "공공조달 분류"],
   ["asignBdgtAmt", "배정예산"],
   ["bidNtceDate", "입찰공고일시"],
+  ["bidBeginDt", "입찰서 제출 시작일시"],
+  ["bidQlfctRgstDt", "입찰참가자격 등록마감일시"],
+  ["pqApplDocRcptDt", "PQ심사신청기한 종료일시"],
+  ["bidSubmissionDate", "입찰서 제출일시"],
   ["bidClseDt", "입찰마감일시"],
+  ["pqSubmitDate", "PQ심사신청일시"],
   ["opengDt", "개찰일시"],
 ] as const;
-
 function comparisonDisplayValue(field: string, value: string) {
   if (!value) return "-";
-  if (["bidNtceDate", "bidClseDt", "opengDt"].includes(field)) return dateTimeText(value);
+  if (["bidNtceDate", "bidBeginDt", "bidQlfctRgstDt", "pqApplDocRcptDt", "bidSubmissionDate", "bidClseDt", "pqSubmitDate", "opengDt"].includes(field)) return dateTimeText(value);
   if (field === "asignBdgtAmt") return formatMoney(Number(value.replaceAll(",", "")) || 0);
   return value;
 }
 
+function attachmentDisplayValue(attachments: G2bBidNoticeCandidateRow["attachments"]) {
+  const fileNames = [...new Set(attachments.map((attachment) => attachment.fileName.trim()).filter(Boolean))].sort();
+  return fileNames.length > 0 ? fileNames.join("\n") : "-";
+}
+
 function getHistoryChanges(current: G2bBidNoticeCandidateRow, previous: G2bBidNoticeCandidateRow | null) {
-  if (!previous) return [];
-  return historyComparisonFields.flatMap(([field, label]) => {
+  if (!previous || current.ntceKindNm.includes("취소")) return [];
+  const fieldChanges = historyComparisonFields.flatMap(([field, label]) => {
     const currentValue = current[field as keyof G2bBidNoticeCandidateRow] as string;
     const previousValue = previous[field as keyof G2bBidNoticeCandidateRow] as string;
     return currentValue.trim() === previousValue.trim() ? [] : [{
@@ -200,6 +214,15 @@ function getHistoryChanges(current: G2bBidNoticeCandidateRow, previous: G2bBidNo
       previous: comparisonDisplayValue(field, previousValue),
     }];
   });
+  const currentAttachments = attachmentDisplayValue(current.attachments);
+  const previousAttachments = attachmentDisplayValue(previous.attachments);
+  const attachmentChanges = currentAttachments === previousAttachments ? [] : [{
+    current: currentAttachments,
+    label: "첨부자료",
+    previous: previousAttachments,
+  }];
+
+  return [...fieldChanges, ...attachmentChanges];
 }
 
 export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, open, record, onClose, onEnterBidNoticeInput, onDeleteCandidate, bidNoticeInputLabel = "공고문 입력" }: Props) {
@@ -307,8 +330,8 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
                 {historyChanges.map((change) => (
                   <Box key={change.label} sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { md: "130px minmax(0, 1fr) minmax(0, 1fr)", xs: "1fr" } }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{change.label}</Typography>
-                    <Typography sx={{ bgcolor: "rgba(244, 67, 54, 0.08)", color: "error.dark", fontSize: 12, p: 0.5, wordBreak: "break-word" }}>이전: {change.previous}</Typography>
-                    <Typography sx={{ bgcolor: "rgba(33, 150, 243, 0.08)", color: "info.dark", fontSize: 12, p: 0.5, wordBreak: "break-word" }}>현재: {change.current}</Typography>
+                    <Typography sx={{ bgcolor: "rgba(244, 67, 54, 0.08)", color: "error.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>이전: {change.previous}</Typography>
+                    <Typography sx={{ bgcolor: "rgba(33, 150, 243, 0.08)", color: "info.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>현재: {change.current}</Typography>
                   </Box>
                 ))}
               </Stack>
@@ -348,9 +371,15 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
                 <EnterpriseDataGrid<G2bBidNoticeCandidateRow>
                   columns={historyColumns}
                   getRowId={(row) => row.id}
+                  getRowClassName={({ row }) => row.ntceKindNm.includes("취소") ? "g2b-history-cancelled-row" : ""}
                   loading={historyQuery.isLoading}
                   rows={historyQuery.data ?? []}
-                  sx={{ height: 260, "& .MuiDataGrid-row:hover": { cursor: "default" } }}
+                  sx={{
+                    height: 260,
+                    "& .MuiDataGrid-row:hover": { cursor: "default" },
+                    "& .MuiDataGrid-row.g2b-history-cancelled-row, & .MuiDataGrid-row.g2b-history-cancelled-row > .MuiDataGrid-cell": { backgroundColor: "rgba(244, 67, 54, 0.14) !important" },
+                    "& .MuiDataGrid-row.g2b-history-cancelled-row:hover, & .MuiDataGrid-row.g2b-history-cancelled-row:hover > .MuiDataGrid-cell": { backgroundColor: "rgba(244, 67, 54, 0.24) !important" },
+                  }}
                 />
               </Box>
             </Stack>

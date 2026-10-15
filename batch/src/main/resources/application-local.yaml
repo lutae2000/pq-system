@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
+    username: ${POSTGRES_USER:cheil}
+    password: ${POSTGRES_PASSWORD:cheil}
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
+
+server:
+  port: ${SERVER_PORT:8090}
+
+management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:8081}
+
+batch:
+  internal:
+    api-key: ${BATCH_INTERNAL_API_KEY:}
+  g2b:
+    bid-notice:
+      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
+

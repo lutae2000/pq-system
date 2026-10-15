@@ -14,6 +14,8 @@ public interface G2bBidNoticeCandidateRepository {
 
     Page<G2bBidNoticeCandidate> findAll(G2bBidNoticeCandidateSearchCondition condition, Pageable pageable);
 
+    Optional<String> findLatestSeenAt();
+
     void deleteAllById(List<Long> ids);
 
     void markImported(Long candidateId, Long bidSeq, String importedBy);

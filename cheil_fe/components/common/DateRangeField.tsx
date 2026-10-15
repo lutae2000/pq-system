@@ -31,11 +31,11 @@ export function DateRangeField({
   sx,
 }: DateRangeFieldProps) {
   return (
-    <Box sx={[{ alignSelf: "start", display: "grid", gap: 0.75 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}>
-      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</Typography>
+    <Box sx={[{ alignSelf: "start" }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}>
       <Box sx={{ alignItems: "center", display: "grid", gap: 1, gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)" }}>
         <TextField
           fullWidth
+          label={label}
           onChange={(event) => onStartChange(event.target.value)}
           placeholder={startLabel}
           size="small"

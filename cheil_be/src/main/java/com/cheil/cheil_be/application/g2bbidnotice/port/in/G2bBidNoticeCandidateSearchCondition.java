@@ -11,6 +11,8 @@ public record G2bBidNoticeCandidateSearchCondition(
         String previousBidNoticeNumber,
         String importedYn,
         String relatedBidNoticeNumbers,
+        String bidNoticeDateFrom,
+        String bidNoticeDateTo,
         boolean orderById
 ) {
 }

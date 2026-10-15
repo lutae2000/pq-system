@@ -145,6 +145,14 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
         return new PageImpl<>(content, pageable, total == null ? 0 : total);
     }
 
+    @Override
+    public Optional<String> findLatestSeenAt() {
+        return Optional.ofNullable(jdbcTemplate.queryForObject(
+                "SELECT to_char(MAX(last_seen_at) AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:MI') FROM g2b_bid_notice_candidates",
+                String.class
+        ));
+    }
+
     private QueryParts buildQueryParts(G2bBidNoticeCandidateSearchCondition condition) {
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         List<Object> parameters = new ArrayList<>();
@@ -157,10 +165,32 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
         addContains(where, parameters, "bef_bid_bbanc_no", value(condition == null ? null : condition.previousBidNoticeNumber()));
         addImportedFilter(where, parameters, value(condition == null ? null : condition.importedYn()));
         addRelatedNoticeFilter(where, parameters, value(condition == null ? null : condition.relatedBidNoticeNumbers()));
+        addDateFilter(where, parameters, value(condition == null ? null : condition.bidNoticeDateFrom()), value(condition == null ? null : condition.bidNoticeDateTo()));
         String orderClause = condition != null && condition.orderById()
                 ? " ORDER BY id ASC"
                 : " ORDER BY bid_ntce_date DESC NULLS LAST, bid_ntce_no DESC, bid_ntce_ord DESC, id ASC";
         return new QueryParts(where.toString(), parameters, orderClause);
+    }
+
+    private void addDateFilter(StringBuilder where, List<Object> parameters, String from, String to) {
+        String normalizedFrom = compactDate(from);
+        String normalizedTo = compactDate(to);
+        if (StringUtils.hasText(normalizedFrom)) {
+            where.append(" AND LEFT(REPLACE(COALESCE(bid_ntce_date, ''), '-', ''), 8) >= ?");
+            parameters.add(normalizedFrom);
+        }
+        if (StringUtils.hasText(normalizedTo)) {
+            where.append(" AND LEFT(REPLACE(COALESCE(bid_ntce_date, ''), '-', ''), 8) <= ?");
+            parameters.add(normalizedTo);
+        }
+    }
+
+    private String compactDate(String date) {
+        if (!StringUtils.hasText(date)) {
+            return null;
+        }
+        String compact = date.trim().replace("-", "");
+        return compact.length() >= 8 ? compact.substring(0, 8) : null;
     }
 
     private void addContains(StringBuilder where, List<Object> parameters, String column, String value) {

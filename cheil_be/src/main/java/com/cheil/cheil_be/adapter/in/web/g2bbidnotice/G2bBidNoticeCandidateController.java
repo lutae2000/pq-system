@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateQueryUseCase;
+import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateSyncUseCase;
+import com.cheil.cheil_be.application.g2bbidnotice.model.G2bBidNoticeBatchTriggerResult;
 import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateSearchCondition;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
@@ -26,11 +29,30 @@ import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 public class G2bBidNoticeCandidateController {
 
     private final G2bBidNoticeCandidateQueryUseCase queryUseCase;
+    private final G2bBidNoticeCandidateSyncUseCase syncUseCase;
+
+    @PostMapping("/pq/g2b-bid-notice-candidates/sync")
+    public ResponseEntity<G2bBidNoticeBatchTriggerResult> sync() {
+        G2bBidNoticeBatchTriggerResult result = syncUseCase.trigger();
+        HttpStatus status = switch (result.status()) {
+            case "COMPLETED" -> HttpStatus.OK;
+            case "SKIPPED" -> HttpStatus.CONFLICT;
+            default -> HttpStatus.BAD_GATEWAY;
+        };
+        return ResponseEntity.status(status).body(result);
+    }
 
     @DeleteMapping("/pq/g2b-bid-notice-candidates")
     public ResponseEntity<Void> delete(@RequestBody G2bBidNoticeCandidateDeleteRequest request) {
         queryUseCase.deleteAllById(request == null ? null : request.ids());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/pq/g2b-bid-notice-candidates/sync-status")
+    public ResponseEntity<G2bBidNoticeCandidateSyncStatusResponse> syncStatus() {
+        return ResponseEntity.ok(new G2bBidNoticeCandidateSyncStatusResponse(
+                queryUseCase.findLatestSeenAt().orElse(null)
+        ));
     }
 
     @GetMapping("/pq/g2b-bid-notice-candidates")
@@ -44,6 +66,8 @@ public class G2bBidNoticeCandidateController {
             @RequestParam(required = false) String befBidBbancNo,
             @RequestParam(required = false) String importedYn,
             @RequestParam(required = false) String relatedBidNtceNos,
+            @RequestParam(required = false) String bidNtceDateFrom,
+            @RequestParam(required = false) String bidNtceDateTo,
             @RequestParam(required = false, defaultValue = "false") boolean orderById,
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
@@ -59,6 +83,8 @@ public class G2bBidNoticeCandidateController {
                         befBidBbancNo,
                         importedYn,
                         relatedBidNtceNos,
+                        bidNtceDateFrom,
+                        bidNtceDateTo,
                         orderById
                 ),
                 PageRequests.of(page, size)

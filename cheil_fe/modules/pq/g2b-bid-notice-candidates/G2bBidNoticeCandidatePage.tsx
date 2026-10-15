@@ -3,7 +3,7 @@
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { Alert, Box, Button, Card, CardContent, Stack, Typography } from "@mui/material";
 import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -22,8 +22,10 @@ import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
   G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
   deleteG2bBidNoticeCandidates,
+  getG2bBidNoticeCandidateSyncStatus,
   getImportedG2bBidNoticeCandidateByNoticeNumber,
   markG2bBidNoticeCandidateImported,
+  syncG2bBidNoticeCandidates,
   type G2bBidNoticeCandidateSearchParams,
 } from "@/modules/pq/g2b-bid-notice-candidates/api";
 import { useG2bBidNoticeCandidateQueries } from "@/modules/pq/g2b-bid-notice-candidates/application/useG2bBidNoticeCandidateQueries";
@@ -367,11 +369,26 @@ export function G2bBidNoticeCandidatePage() {
     onError: (error) => showError(error instanceof Error ? error.message : "나라장터 공고 삭제에 실패했습니다."),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: syncG2bBidNoticeCandidates,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates", "sync-status"] });
+      showSuccess(result.message || "나라장터 용역 API 조회가 완료되었습니다.");
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "나라장터 용역 API 조회에 실패했습니다."),
+  });
+
   const searchParams = useMemo<G2bBidNoticeCandidateSearchParams>(
     () => ({ ...appliedFilters, page: paginationModel.page, size: paginationModel.pageSize }),
     [appliedFilters, paginationModel.page, paginationModel.pageSize],
   );
   const candidatesQuery = useG2bBidNoticeCandidateQueries({ enabled: queryEnabled, searchParams });
+  const syncStatusQuery = useQuery({
+    queryKey: ["g2b-bid-notice-candidates", "sync-status"],
+    queryFn: getG2bBidNoticeCandidateSyncStatus,
+    enabled: queryEnabled,
+  });
   const rows = useMemo(
     () => (candidatesQuery.data?.content ?? []).map(toG2bBidNoticeCandidateRow),
     [candidatesQuery.data?.content],
@@ -500,16 +517,30 @@ export function G2bBidNoticeCandidatePage() {
           <Card>
             <CardContent sx={{ p: 2 }}>
               <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1.5 }}>
-                <Typography sx={{ fontWeight: 800 }} variant="h6">나라장터 공고 후보 목록</Typography>
-                <Button
-                  color="error"
-                  disabled={!canDelete || rowSelectionModel.ids.size === 0 || deleteMutation.isPending}
-                  onClick={handleDeleteSelected}
-                  startIcon={<DeleteOutlineOutlinedIcon />}
-                  variant="outlined"
-                >
-                  선택 삭제
-                </Button>
+                <Box sx={{ alignItems: "baseline", display: "flex", gap: 1.5 }}>
+                  <Typography sx={{ fontWeight: 800 }} variant="h6">나라장터 공고 목록</Typography>
+                  <Typography color="text.secondary" sx={{ fontSize: 12 }}>
+                    조회 기준시간: {dateTimeText(syncStatusQuery.data?.lastSeenAt) || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button
+                    disabled={!canRead || syncMutation.isPending}
+                    onClick={() => syncMutation.mutate()}
+                    variant="outlined"
+                  >
+                    {syncMutation.isPending ? "나라장터 용역API 조회 중..." : "나라장터 용역API 조회"}
+                  </Button>
+                  <Button
+                    color="error"
+                    disabled={!canDelete || rowSelectionModel.ids.size === 0 || deleteMutation.isPending}
+                    onClick={handleDeleteSelected}
+                    startIcon={<DeleteOutlineOutlinedIcon />}
+                    variant="outlined"
+                  >
+                    선택 삭제
+                  </Button>
+                </Box>
               </Box>
               <G2bBidNoticeCandidateGrid
                 loading={candidatesQuery.isLoading || candidatesQuery.isFetching}

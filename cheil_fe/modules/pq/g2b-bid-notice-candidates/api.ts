@@ -57,6 +57,10 @@ export type G2bBidNoticeCandidatePageResponse = {
   last?: boolean;
 };
 
+export type G2bBidNoticeCandidateSyncStatusResponse = {
+  lastSeenAt: string | null;
+};
+
 export type G2bBidNoticeCandidateSearchParams = {
   bidNtceNo: string;
   ntceKindNm: string[];
@@ -66,6 +70,8 @@ export type G2bBidNoticeCandidateSearchParams = {
   ntceInsttNm: string;
   befBidBbancNo: string;
   importedYn: string[];
+  bidNtceDateFrom: string;
+  bidNtceDateTo: string;
   relatedBidNtceNos?: string[];
   orderById?: boolean;
   page: number;
@@ -92,6 +98,8 @@ export async function listG2bBidNoticeCandidates(
         ntceInsttNm: normalize(params.ntceInsttNm),
         befBidBbancNo: normalize(params.befBidBbancNo),
         importedYn: normalizeMultiValue(params.importedYn),
+        bidNtceDateFrom: normalize(params.bidNtceDateFrom),
+        bidNtceDateTo: normalize(params.bidNtceDateTo),
         relatedBidNtceNos: normalizeMultiValue(params.relatedBidNtceNos ?? []),
         orderById: params.orderById,
         page: Math.max(0, Math.trunc(params.page)),
@@ -99,6 +107,25 @@ export async function listG2bBidNoticeCandidates(
       },
     }),
     "나라장터 연계 공고문 목록을 불러오지 못했습니다.",
+  );
+}
+
+export type G2bBidNoticeBatchTriggerResponse = {
+  status: string;
+  message: string;
+};
+
+export async function syncG2bBidNoticeCandidates(): Promise<G2bBidNoticeBatchTriggerResponse> {
+  return apiRequest(
+    apiClient.post<G2bBidNoticeBatchTriggerResponse>(`${G2B_BID_NOTICE_CANDIDATES_API}/sync`),
+    "나라장터 용역 API 조회에 실패했습니다.",
+  );
+}
+
+export async function getG2bBidNoticeCandidateSyncStatus(): Promise<G2bBidNoticeCandidateSyncStatusResponse> {
+  return apiRequest(
+    apiClient.get<G2bBidNoticeCandidateSyncStatusResponse>(`${G2B_BID_NOTICE_CANDIDATES_API}/sync-status`),
+    "나라장터 최근 조회 시각을 불러오지 못했습니다.",
   );
 }
 

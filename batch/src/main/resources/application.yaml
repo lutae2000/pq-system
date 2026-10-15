@@ -3,16 +3,24 @@ spring:
     name: batch
   main:
     web-application-type: servlet
+
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
     username: ${POSTGRES_USER:cheil}
     password: ${POSTGRES_PASSWORD:cheil}
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
   batch:
     job:
       enabled: false
     jdbc:
       initialize-schema: always
+
+server:
+  port: ${SERVER_PORT:8090}
 
 mybatis:
   mapper-locations: classpath:/mapper/**/*.xml
@@ -20,6 +28,8 @@ mybatis:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 batch:
+  internal:
+    api-key: ${BATCH_INTERNAL_API_KEY:}
   cleanup:
     api-call-logs:
       enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:true}

@@ -20,7 +20,7 @@ public class BatchJobRunner {
     private final BatchMetrics batchMetrics;
 
 
-    public synchronized void run(Job job, String jobName) {
+    public synchronized BatchJobRunStatus run(Job job, String jobName) {
         Timer.Sample timer = batchMetrics.startTimer();
         batchMetrics.initializeJob(jobName);
         batchMetrics.recordRun(jobName);
@@ -28,7 +28,7 @@ public class BatchJobRunner {
             if (!jobOperator.getRunningExecutions(job.getName()).isEmpty()) {
                 log.warn("{} skipped because a previous execution is still running", jobName);
                 batchMetrics.recordSkipped(jobName);
-                return;
+                return BatchJobRunStatus.SKIPPED;
             }
 
             JobParameters parameters = new JobParametersBuilder()
@@ -38,12 +38,15 @@ public class BatchJobRunner {
             log.info("{} completed: executionId={}, status={}", jobName, execution.getId(), execution.getStatus());
             if (execution.getStatus() == BatchStatus.COMPLETED) {
                 batchMetrics.recordSuccess(jobName);
+                return BatchJobRunStatus.COMPLETED;
             } else {
                 batchMetrics.recordFailure(jobName);
+                return BatchJobRunStatus.FAILED;
             }
         } catch (Exception exception) {
             batchMetrics.recordFailure(jobName);
             log.error("{} failed", jobName, exception);
+            return BatchJobRunStatus.FAILED;
         } finally {
             batchMetrics.recordDuration(jobName, timer);
         }

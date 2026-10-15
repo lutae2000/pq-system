@@ -30,6 +30,12 @@ public class G2bBidNoticeCandidateQueryService implements G2bBidNoticeCandidateQ
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<String> findLatestSeenAt() {
+        return repository.findLatestSeenAt();
+    }
+
+    @Override
     @Transactional
     public void deleteAllById(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {

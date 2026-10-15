@@ -14,6 +14,15 @@ export type G2bBidNoticeCandidateSearchFilters = {
   ntceInsttNm: string;
   befBidBbancNo: string;
   importedYn: string[];
+  bidNtceDateFrom: string;
+  bidNtceDateTo: string;
+};
+
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export type G2bBidNoticeCandidateRow = {
@@ -63,6 +72,8 @@ export const emptyG2bBidNoticeCandidateSearchFilters = (): G2bBidNoticeCandidate
   ntceInsttNm: "",
   befBidBbancNo: "",
   importedYn: ["N"],
+  bidNtceDateFrom: formatLocalDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+  bidNtceDateTo: formatLocalDate(new Date()),
 });
 
 export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecord): G2bBidNoticeCandidateRow => ({
