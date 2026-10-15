@@ -38,10 +38,12 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
     @Override
     public G2bBidNoticePage load(G2bBidNoticeQuery query) {
         try {
-            log.debug("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
+            log.info("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
                     query.from(), query.to(), query.participationRegionCodes(), query.pageNumber(), query.pageSize());
+            URI requestUri = buildRequestUri(query);
+            log.info("나라장터 API 요청 URI: {}", maskServiceKey(requestUri));
             G2bBidNoticeApiResponse apiResponse = restClient.get()
-                    .uri(buildRequestUri(query))
+                    .uri(requestUri)
                     .retrieve()
                     .body(G2bBidNoticeApiResponse.class);
 
@@ -178,5 +180,13 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
                 ? URLDecoder.decode(serviceKey, StandardCharsets.UTF_8)
                 : serviceKey;
         return decodedKey;
+    }
+
+    private String maskServiceKey(URI requestUri) {
+        String query = requestUri.getRawQuery();
+        if (query == null || query.isBlank()) {
+            return requestUri.toString();
+        }
+        return requestUri.getRawPath() + "?" + query.replaceFirst("(^|&)serviceKey=[^&]*", "$1serviceKey=***");
     }
 }

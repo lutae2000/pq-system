@@ -2,7 +2,7 @@ spring:
   application:
     name: batch
   main:
-    web-application-type: none
+    web-application-type: servlet
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}

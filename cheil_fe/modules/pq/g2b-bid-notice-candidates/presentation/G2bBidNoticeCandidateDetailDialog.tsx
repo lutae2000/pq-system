@@ -122,7 +122,7 @@ const participationLimitRegionNames: Record<string, string> = {
 
 function participationLimitRegionText(code: string | null | undefined) {
   const normalizedCode = code?.trim() ?? "";
-  return (participationLimitRegionNames[normalizedCode] ?? normalizedCode) || "제한 없음";
+  return (participationLimitRegionNames[normalizedCode] ?? normalizedCode) || "-";
 }
 
 function noticeKindChipColor(noticeKind: string): "success" | "error" | "info" | "default" {
