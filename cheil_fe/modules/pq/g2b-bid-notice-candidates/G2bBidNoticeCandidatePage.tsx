@@ -17,11 +17,12 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, text } from "@/modules/common/formatters";
-import { createBidNotice, type BidNoticeApiRecord, type BidNoticeDetailOptions, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeDetailOptions, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
   G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
   deleteG2bBidNoticeCandidates,
+  getImportedG2bBidNoticeCandidateByNoticeNumber,
   markG2bBidNoticeCandidateImported,
   type G2bBidNoticeCandidateSearchParams,
 } from "@/modules/pq/g2b-bid-notice-candidates/api";
@@ -177,7 +178,7 @@ const toCandidateBidNoticeDraft = (record: ReturnType<typeof toG2bBidNoticeCandi
   return {
     ...emptyBidNoticeDraft(),
     bidDate: dateTimeText(record.bidDate),
-    bidClosingDate: dateTimeText(record.bidClseDt),
+    bidClosingDate: dateTimeText(record.bidQlfctRgstDt),
     bidSubmissionDate: dateTimeText(record.bidSubmissionDate),
     bidStyle: record.ntceKindNm,
     estimateAmount: amount,
@@ -214,7 +215,7 @@ const findAutoMappedOptionValue = (
 };
 
 export function G2bBidNoticeCandidatePage() {
-  const { canCreate, canDelete, canRead } = useCurrentMenuPermission();
+  const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showError, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const queryEnabled = useTabQueryEnabled(canRead);
@@ -340,7 +341,8 @@ export function G2bBidNoticeCandidatePage() {
       const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
       const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
       if (isAbsent && !draft.reasonOfAbsenceCode.trim()) throw new Error("불참 사유를 선택해주세요.");
-      const saved = await createBidNotice(toBidNoticeRequest(draft));
+      const request = toBidNoticeRequest(draft);
+      const saved = draft.seqNo ? await updateBidNotice(draft.seqNo, request) : await createBidNotice(request);
       if (!saved.bidSeq) throw new Error("저장된 공고 식별자를 확인할 수 없습니다.");
       await markG2bBidNoticeCandidateImported(candidateId, saved.bidSeq);
       return saved;
@@ -408,9 +410,21 @@ export function G2bBidNoticeCandidatePage() {
     });
   };
 
-  const openBidNoticeInput = () => {
+  const openDetail = async (row: ReturnType<typeof toG2bBidNoticeCandidateRow>) => {
+    const isChangeOrCancel = row.ntceKindNm.includes("변경") || row.ntceKindNm.includes("취소");
+    if (!isChangeOrCancel || row.importedBidSeq) {
+      setDetailRecord(row);
+      return;
+    }
+
+    const importedCandidate = await getImportedG2bBidNoticeCandidateByNoticeNumber(row.bidNtceNo).catch(() => null);
+    setDetailRecord(importedCandidate ? { ...row, importedBidSeq: importedCandidate.importedBidSeq } : row);
+  };
+
+  const openBidNoticeInput = async () => {
     if (!detailRecord) return;
-    if (!canCreate) {
+    const canEditImportedNotice = detailRecord.importedBidSeq ? canUpdate : canCreate;
+    if (!canEditImportedNotice) {
       showError("공고문 등록 권한이 없습니다.");
       return;
     }
@@ -425,10 +439,26 @@ export function G2bBidNoticeCandidatePage() {
       orderMethod: detailRecord.cntrctCnclsMthdNm,
     });
     const session = readAuthSession();
+    const candidateDraft = toCandidateBidNoticeDraft(detailRecord);
+    const existingRecord = detailRecord.importedBidSeq ? await getBidNotice(detailRecord.importedBidSeq) : null;
+    const baseDraft = existingRecord ? toEditableBidNoticeRecord(existingRecord) : emptyBidNoticeDraft();
+    const mergedDraft = existingRecord ? {
+      ...baseDraft,
+      bidClosingDate: candidateDraft.bidClosingDate || baseDraft.bidClosingDate,
+      bidDate: candidateDraft.bidDate || baseDraft.bidDate,
+      bidSubmissionDate: candidateDraft.bidSubmissionDate || baseDraft.bidSubmissionDate,
+      bidStyle: candidateDraft.bidStyle || baseDraft.bidStyle,
+      designAmt: candidateDraft.designAmt || baseDraft.designAmt,
+      estimateAmount: candidateDraft.estimateAmount || baseDraft.estimateAmount,
+      noticeDate: candidateDraft.noticeDate || baseDraft.noticeDate,
+      pqSubmissionDate: candidateDraft.pqSubmissionDate || baseDraft.pqSubmissionDate,
+      projectName: candidateDraft.projectName || baseDraft.projectName,
+    } : candidateDraft;
     setInputDraft({
-      ...toCandidateBidNoticeDraft(detailRecord),
-      department: session?.deptCode ?? "",
-      writerName: session?.employeeNo ?? "",
+      ...mergedDraft,
+      seqNo: existingRecord?.bidSeq ?? 0,
+      department: baseDraft.department || session?.deptCode || "",
+      writerName: baseDraft.writerName || session?.employeeNo || "",
     });
     setDetailRecord(null);
   };
@@ -487,7 +517,7 @@ export function G2bBidNoticeCandidatePage() {
                 paginationModel={paginationModel}
                 rowCount={candidatesQuery.data?.totalElements ?? 0}
                 rows={rows}
-                onRowDoubleClick={setDetailRecord}
+                onRowDoubleClick={(row) => void openDetail(row)}
                 onRowSelectionModelChange={setRowSelectionModel}
                 rowSelectionModel={rowSelectionModel}
               />
@@ -501,7 +531,11 @@ export function G2bBidNoticeCandidatePage() {
           record={detailRecord}
           onClose={() => setDetailRecord(null)}
           onDeleteCandidate={canDelete ? handleDeleteDetailCandidate : undefined}
-          onEnterBidNoticeInput={canCreate ? openBidNoticeInput : undefined}
+          onEnterBidNoticeInput={(detailRecord.importedBidSeq ? canUpdate : canCreate)
+            && (!detailRecord.ntceKindNm.includes("변경") && !detailRecord.ntceKindNm.includes("취소") || Boolean(detailRecord.importedBidSeq))
+            ? openBidNoticeInput
+            : undefined}
+          bidNoticeInputLabel={detailRecord.ntceKindNm.includes("변경") || detailRecord.ntceKindNm.includes("취소") ? "공고문 업데이트" : "공고문 입력"}
         />
       ) : null}
       {inputDraft ? (
@@ -511,13 +545,14 @@ export function G2bBidNoticeCandidatePage() {
           onClose={closeInput}
           onDeleteRequest={closeInput}
           onFieldChange={updateInputDraft}
-          onSave={() => inputCandidateId && inputSaveMutation.mutate({ candidateId: inputCandidateId, draft: inputDraft })}
+          onSave={(draft) => inputCandidateId && inputSaveMutation.mutate({ candidateId: inputCandidateId, draft })}
           open
           options={inputOptions}
           record={inputDraft}
           readOnly={false}
-          saveDisabled={inputSaveMutation.isPending || !canCreate}
+          saveDisabled={inputSaveMutation.isPending || (inputDraft.seqNo ? !canUpdate : !canCreate)}
           deleteDisabled
+          deferChanges
           sourceAttachments={inputSourceAttachments}
         />
       ) : null}

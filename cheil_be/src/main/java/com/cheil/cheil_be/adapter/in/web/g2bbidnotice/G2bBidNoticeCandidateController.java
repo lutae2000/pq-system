@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.g2bbidnotice;
 
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidate
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidate;
+import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 
 @RestController
 @RequiredArgsConstructor
@@ -70,5 +73,31 @@ public class G2bBidNoticeCandidateController {
     ) {
         queryUseCase.markImported(candidateId, request.bidSeq(), request.importedBy());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/pq/g2b-bid-notice-candidates/imported/{bidSeq}/attachments")
+    public ResponseEntity<List<G2bBidNoticeCandidateResponse.G2bBidNoticeCandidateAttachmentResponse>> importedAttachments(
+            @PathVariable Long bidSeq
+    ) {
+        List<G2bBidNoticeCandidateAttachment> attachments = queryUseCase.findAttachmentsByImportedBidSeq(bidSeq);
+        return ResponseEntity.ok(attachments.stream()
+                .map(G2bBidNoticeCandidateResponse.G2bBidNoticeCandidateAttachmentResponse::from)
+                .toList());
+    }
+
+    @GetMapping("/pq/g2b-bid-notice-candidates/imported/{bidSeq}")
+    public ResponseEntity<G2bBidNoticeCandidateResponse> importedCandidate(@PathVariable Long bidSeq) {
+        return queryUseCase.findByImportedBidSeq(bidSeq)
+                .map(candidate -> ResponseEntity.ok(G2bBidNoticeCandidateResponse.from(candidate)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/pq/g2b-bid-notice-candidates/imported/by-notice/{bidNoticeNumber}")
+    public ResponseEntity<G2bBidNoticeCandidateResponse> importedCandidateByNoticeNumber(
+            @PathVariable String bidNoticeNumber
+    ) {
+        return queryUseCase.findImportedByBidNoticeNumber(bidNoticeNumber)
+                .map(candidate -> ResponseEntity.ok(G2bBidNoticeCandidateResponse.from(candidate)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

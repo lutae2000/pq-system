@@ -24,7 +24,7 @@ export function G2bBidNoticeCandidateGrid({ loading, paginationModel, rows, rowC
   const columns = useMemo<GridColDef<G2bBidNoticeCandidateRow>[]>(
     () => {
       const baseColumns: GridColDef<G2bBidNoticeCandidateRow>[] = [
-      { field: "bidNtceNo", headerName: "입찰공고번호", width: 135 },
+      { field: "bidNtceNo", headerName: "입찰 공고번호", width: 135 },
       { field: "bidNtceOrd", headerName: "차수", width: 45, align: "center", headerAlign: "center" },
       {
         field: "bidNtceUrl",

@@ -2,6 +2,7 @@
 
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
   Box,
@@ -13,6 +14,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   Stack,
   Switch,
@@ -33,19 +35,22 @@ import { useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 type BidNoticeDetailDialogProps = {
   attachments?: BidNoticeAttachmentState;
   clientSearchHint?: string;
+  g2bBidNoticeNumber?: string;
+  g2bBidNoticeUrl?: string;
   sourceAttachments?: ReadonlyArray<{ downloadUrl: string; fileName: string }>;
   onAttachmentDeleteRequest?: (key: AttachmentKey, fileName: string) => void;
   onAttachmentUpload?: (key: AttachmentKey, file: FileActionCardFileItem) => void;
   onClose: () => void;
   onDeleteRequest: () => void;
   onFieldChange: <K extends keyof BidNoticeRecord>(field: K, value: BidNoticeRecord[K]) => void;
-  onSave: () => void;
+  onSave: (record: BidNoticeRecord) => void;
   open: boolean;
   options: BidNoticeDetailOptions | null;
   record: BidNoticeRecord;
   readOnly?: boolean;
   saveDisabled?: boolean;
   deleteDisabled?: boolean;
+  deferChanges?: boolean;
 };
 
 const attachmentLabels: Record<AttachmentKey, string> = {
@@ -494,36 +499,19 @@ function AttachmentCard({
   );
 }
 
-function CategoryBlock({
-  children,
-  title,
-}: {
-  children: ReactNode;
-  title: string;
-}) {
+function CategoryDivider({ title }: { title: string }) {
   return (
-    <Box
-      sx={{
-        border: "1px solid",
-        borderColor: "rgba(25, 118, 210, 0.22)",
-        borderLeft: "4px solid",
-        borderLeftColor: "primary.main",
-        borderRadius: 1,
-        bgcolor: "rgba(25, 118, 210, 0.035)",
-        p: 1,
-      }}
-    >
-      <Typography
-        sx={{
-          color: "primary.main",
-          fontSize: 11.5,
-          fontWeight: 800,
-          letterSpacing: 0.2,
-          mb: 0.75,
-        }}
-      >
-        {title}
-      </Typography>
+    <Box sx={{ alignItems: "center", display: "flex", gap: 1, mt: 0.5 }}>
+      <Typography sx={{ color: "primary.main", fontSize: 12, fontWeight: 800, letterSpacing: 0.2, whiteSpace: "nowrap" }}>{title}</Typography>
+      <Divider sx={{ flex: 1 }} />
+    </Box>
+  );
+}
+
+function CategoryBlock({ children, title }: { children: ReactNode; title: string }) {
+  return (
+    <Box sx={{ bgcolor: "rgba(25, 118, 210, 0.035)", border: "1px solid", borderColor: "rgba(25, 118, 210, 0.22)", borderLeft: "4px solid", borderLeftColor: "primary.main", borderRadius: 1, p: 1 }}>
+      <Typography sx={{ color: "primary.main", fontSize: 11.5, fontWeight: 800, letterSpacing: 0.2, mb: 0.75 }}>{title}</Typography>
       <Stack spacing={1}>{children}</Stack>
     </Box>
   );
@@ -532,21 +520,44 @@ function CategoryBlock({
 export function BidNoticeDetailDialog({
   attachments,
   clientSearchHint = "",
+  g2bBidNoticeNumber = "",
+  g2bBidNoticeUrl = "",
   onAttachmentDeleteRequest,
   onAttachmentUpload,
   onClose,
   onDeleteRequest,
-  onFieldChange,
+  onFieldChange: onFieldChangeProp,
   onSave,
   open,
   options,
-  record,
+  record: initialRecord,
   readOnly = false,
   saveDisabled = false,
   deleteDisabled = false,
+  deferChanges = false,
   sourceAttachments = [],
 }: BidNoticeDetailDialogProps) {
+  const [localRecord, setLocalRecord] = useState(initialRecord);
   const emptyOptions: BidNoticeOption[] = [];
+
+  useEffect(() => {
+    // 부모 draft는 저장 완료 후 갱신되므로, 저장 결과를 다이얼로그에 반영한다.
+    // 입력 중에는 부모가 갱신되지 않아 전체 페이지 재렌더링을 피한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (deferChanges) setLocalRecord(initialRecord);
+  }, [deferChanges, initialRecord]);
+
+  const record = deferChanges ? localRecord : initialRecord;
+
+  const onFieldChange = <K extends keyof BidNoticeRecord>(field: K, value: BidNoticeRecord[K]) => {
+    if (deferChanges) {
+      setLocalRecord((current) => ({ ...current, [field]: value }));
+      return;
+    }
+    onFieldChangeProp(field, value);
+  };
+
+  const handleSave = () => onSave(deferChanges ? localRecord : initialRecord);
   const participationOption = options?.finalParticipationStatuses.find((option) => option.value === record.finalParticipationStatus);
   const isAbsent = record.finalParticipationStatus === "N"
     || participationOption?.label.includes("\uBD88\uCC38") === true
@@ -600,10 +611,10 @@ export function BidNoticeDetailDialog({
           >
             <SectionCard title="기본 정보">
               <Stack spacing={1}>
-                <CategoryBlock title="공고">
+                <Stack spacing={1}>
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "110px minmax(0, 1fr)" } }}>
                     <TextInputField
-                      label="번호"
+                      label="관리번호"
                       onChange={(value) => onFieldChange("bidNo", value)}
                       readOnly
                       value={record.bidNo}
@@ -664,9 +675,10 @@ export function BidNoticeDetailDialog({
                       />
                     </Box>
                   ) : null}
-                </CategoryBlock>
+                </Stack>
 
-                <CategoryBlock title="사업 정보">
+                <CategoryDivider title="사업 정보" />
+                <Stack spacing={1}>
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
                     <SelectField
                       label="사업구분"
@@ -711,7 +723,7 @@ export function BidNoticeDetailDialog({
                       value={record.writerName}
                     />
                   </Box>
-                </CategoryBlock>
+                </Stack>
 
                 <Box
                   sx={{
@@ -791,9 +803,9 @@ export function BidNoticeDetailDialog({
 
                   <CategoryBlock title="입찰 일정">
                     <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr" }}>
-                      <DateTimeField label="입찰등록마감" onChange={(value) => onFieldChange("bidClosingDate", value)} readOnly={readOnly} value={record.bidClosingDate} />
-                      <DateTimeField label="입찰일자" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
-                      <DateTimeField label="투찰마감일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
+                      <DateTimeField label="PQ심사 신청 마감일" onChange={(value) => onFieldChange("bidClosingDate", value)} readOnly={readOnly} value={record.bidClosingDate} />
+                      <DateTimeField label="입찰서 마감일" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
+                      <DateTimeField label="투찰 마감일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
                     </Box>
                   </CategoryBlock>
 
@@ -869,11 +881,26 @@ export function BidNoticeDetailDialog({
         <Button color="error" disabled={deleteDisabled} onClick={onDeleteRequest} startIcon={<DeleteOutlineOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="outlined">
           삭제
         </Button>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button onClick={onClose} variant="outlined">
-            취소
-          </Button>
-          <Button disabled={saveDisabled} onClick={onSave} startIcon={<SaveOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="contained">
+        <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "flex-end" }}>
+          {g2bBidNoticeNumber ? (
+            <Typography color="text.secondary" noWrap sx={{ fontSize: 12 }}>
+              나라장터 공고번호: {g2bBidNoticeNumber}
+            </Typography>
+          ) : null}
+          {g2bBidNoticeUrl ? (
+            <Button
+              component="a"
+              href={g2bBidNoticeUrl}
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewOutlinedIcon />}
+              target="_blank"
+              variant="outlined"
+            >
+              나라장터 공고문 바로가기
+            </Button>
+          ) : null}
+          <Button disabled={saveDisabled} onClick={handleSave} startIcon={<SaveOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="contained">
             저장
           </Button>
         </Box>

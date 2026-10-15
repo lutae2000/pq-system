@@ -46,6 +46,13 @@ const contractMethodOptions: CheckboxOption<string>[] = [
 export function G2bBidNoticeCandidateFilters({ filters, onChange }: Props) {
   return (
     <>
+      <TextField
+        label="입찰공고명"
+        onChange={(event) => onChange("bidNtceNm", event.target.value)}
+        size="small"
+        sx={standardFieldSx}
+        value={filters.bidNtceNm}
+      />
       <CheckboxListInput
         label="공고구분"
         name="ntceKindNm"
@@ -74,7 +81,7 @@ export function G2bBidNoticeCandidateFilters({ filters, onChange }: Props) {
         options={contractMethodOptions}
         value={filters.cntrctCnclsMthdNm}
       />
-      {textFields.map(({ field, label }) => (
+      {textFields.slice(1).map(({ field, label }) => (
         <TextField
           key={field}
           label={label}

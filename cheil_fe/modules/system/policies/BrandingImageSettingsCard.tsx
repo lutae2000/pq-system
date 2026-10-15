@@ -403,7 +403,7 @@ export function BrandingImageSettingsCard({ canUpdate, onUploaded }: BrandingIma
 
   return (
     <>
-      <Card sx={{ borderRadius: 1, overflow: "hidden" }}>
+      <Card sx={{ borderRadius: 1, display: "none", overflow: "hidden" }}>
         <Box
           sx={{
             alignItems: { xs: "flex-start", sm: "center" },

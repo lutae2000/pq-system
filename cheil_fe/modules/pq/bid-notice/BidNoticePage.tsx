@@ -39,6 +39,7 @@ import {
   type BidNoticeSearchParams,
   type BidNoticeUpsertRequest,
 } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { getImportedG2bBidNoticeCandidate } from "@/modules/pq/g2b-bid-notice-candidates/api";
 import type {
   BidNoticeFilters,
   BidNoticeRecord,
@@ -268,6 +269,12 @@ export function BidNoticePage() {
   const [snackMessage, setSnackMessage] = useState("");
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
+  const sourceAttachmentsQuery = useQuery({
+    queryKey: ["g2b-bid-notice-candidate-imported-attachments", draft.seqNo],
+    queryFn: () => getImportedG2bBidNoticeCandidate(draft.seqNo),
+    enabled: open && draft.seqNo > 0,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const searchParams = useMemo(() => toSearchParams(filters), [filters]);
   const bidNoticesQuery = useQuery({
@@ -819,6 +826,12 @@ export function BidNoticePage() {
           record={draft}
           saveDisabled={saveMutation.isPending || (draft.seqNo ? !canUpdate : !canCreate)}
           deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
+          g2bBidNoticeNumber={sourceAttachmentsQuery.data?.bidNtceNo ?? ""}
+          g2bBidNoticeUrl={sourceAttachmentsQuery.data?.bidNtceUrl ?? ""}
+          sourceAttachments={sourceAttachmentsQuery.data?.attachments?.map((attachment) => ({
+            downloadUrl: attachment.downloadUrl ?? "",
+            fileName: attachment.fileName ?? "첨부파일",
+          })) ?? []}
         />
       ) : null}
       <ConfirmDeleteDialog

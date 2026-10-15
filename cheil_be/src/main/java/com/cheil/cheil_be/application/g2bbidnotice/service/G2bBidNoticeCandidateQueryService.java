@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.application.g2bbidnotice.service;
 
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,6 +12,7 @@ import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidate
 import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateSearchCondition;
 import com.cheil.cheil_be.application.g2bbidnotice.port.out.G2bBidNoticeCandidateRepository;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidate;
+import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 
 @Service
 @RequiredArgsConstructor
@@ -43,5 +45,32 @@ public class G2bBidNoticeCandidateQueryService implements G2bBidNoticeCandidateQ
             throw new IllegalArgumentException("candidateId and bidSeq must be positive");
         }
         repository.markImported(candidateId, bidSeq, importedBy);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<G2bBidNoticeCandidateAttachment> findAttachmentsByImportedBidSeq(Long bidSeq) {
+        if (bidSeq == null || bidSeq <= 0) {
+            return List.of();
+        }
+        return repository.findAttachmentsByImportedBidSeq(bidSeq);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<G2bBidNoticeCandidate> findByImportedBidSeq(Long bidSeq) {
+        if (bidSeq == null || bidSeq <= 0) {
+            return Optional.empty();
+        }
+        return repository.findByImportedBidSeq(bidSeq);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<G2bBidNoticeCandidate> findImportedByBidNoticeNumber(String bidNoticeNumber) {
+        if (bidNoticeNumber == null || bidNoticeNumber.isBlank()) {
+            return Optional.empty();
+        }
+        return repository.findImportedByBidNoticeNumber(bidNoticeNumber.trim());
     }
 }

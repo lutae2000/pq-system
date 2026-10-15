@@ -23,6 +23,9 @@ export type G2bBidNoticeCandidateRow = {
   befBidBbancNo: string;
   ntceKindNm: string;
   bidMethdNm: string;
+  cmmnSpldmdAgrmntRcptdocMethd: string;
+  pqApplDocRcptMthdNm: string;
+  pqApplDocRcptDt: string;
   cntrctCnclsMthdNm: string;
   srvceDivNm: string;
   prtcptLmtRgnCd: string;
@@ -41,6 +44,8 @@ export type G2bBidNoticeCandidateRow = {
   dminsttNm: string;
   dminsttCd: string;
   bidNtceDate: string;
+  bidBeginDt: string;
+  bidQlfctRgstDt: string;
   bidClseDt: string;
   opengDt: string;
   bidNtceUrl: string;
@@ -67,6 +72,9 @@ export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecor
   befBidBbancNo: record.befBidBbancNo ?? "",
   ntceKindNm: record.ntceKindNm ?? "",
   bidMethdNm: record.bidMethdNm ?? "",
+  cmmnSpldmdAgrmntRcptdocMethd: record.cmmnSpldmdAgrmntRcptdocMethd ?? "",
+  pqApplDocRcptMthdNm: record.pqApplDocRcptMthdNm ?? "",
+  pqApplDocRcptDt: record.pqApplDocRcptDt ?? "",
   cntrctCnclsMthdNm: record.cntrctCnclsMthdNm ?? "",
   srvceDivNm: record.srvceDivNm ?? "",
   prtcptLmtRgnCd: record.prtcptLmtRgnCd ?? "",
@@ -85,6 +93,8 @@ export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecor
   dminsttNm: record.dminsttNm ?? "",
   dminsttCd: record.dminsttCd ?? "",
   bidNtceDate: record.bidNtceDate ?? "",
+  bidBeginDt: record.bidBeginDt ?? "",
+  bidQlfctRgstDt: record.bidQlfctRgstDt ?? "",
   bidClseDt: record.bidClseDt ?? "",
   opengDt: record.opengDt ?? "",
   bidNtceUrl: record.bidNtceUrl ?? "",

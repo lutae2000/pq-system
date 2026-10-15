@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,9 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
             SELECT id, bid_ntce_no, bid_ntce_ord, bef_bid_bbanc_no,
                    ntce_kind_nm,
                    CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'bidMethdNm' ELSE raw_payload ->> 'bidMethdNm' END AS bid_methd_nm,
+                   CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'cmmnSpldmdAgrmntRcptdocMethd' ELSE raw_payload ->> 'cmmnSpldmdAgrmntRcptdocMethd' END AS cmmn_spldmd_agrmnt_rcptdoc_methd,
+                   CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'pqApplDocRcptMthdNm' ELSE raw_payload ->> 'pqApplDocRcptMthdNm' END AS pq_appl_doc_rcpt_mthd_nm,
+                   CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'pqApplDocRcptDt' ELSE raw_payload ->> 'pqApplDocRcptDt' END AS pq_appl_doc_rcpt_dt,
                    cntrct_cncls_mthd_nm, srvce_div_nm,
                    prtcpt_lmt_rgn_cd, cmmn_spldmd_methd_nm,
                    sucsfbid_mthd_nm, indstryty_lmt_yn, pub_prcrmnt_mid_clsfc_nm,
@@ -36,7 +40,10 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
                    bid_ntce_nm, ntce_instt_nm,
                    COALESCE(dminstt_nm, CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'dminsttNm' ELSE raw_payload ->> 'dminsttNm' END) AS dminstt_nm,
                    COALESCE(dminstt_cd, CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'dminsttCd' ELSE raw_payload ->> 'dminsttCd' END) AS dminstt_cd,
-                   bid_ntce_date, bid_clse_dt, openg_dt, bid_ntce_url,
+                   bid_ntce_date,
+                   CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'bidBeginDt' ELSE raw_payload ->> 'bidBeginDt' END AS bid_begin_dt,
+                   CASE WHEN jsonb_typeof(raw_payload) = 'array' THEN raw_payload -> -1 ->> 'bidQlfctRgstDt' ELSE raw_payload ->> 'bidQlfctRgstDt' END AS bid_qlfct_rgst_dt,
+                   bid_clse_dt, openg_dt, bid_ntce_url,
                    imported_at, imported_bid_seq,
                    ntce_spec_file_nm1, ntce_spec_doc_url1,
                    ntce_spec_file_nm2, ntce_spec_doc_url2,
@@ -73,6 +80,43 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
                 bidSeq,
                 candidateId
         );
+    }
+
+    @Override
+    public List<G2bBidNoticeCandidateAttachment> findAttachmentsByImportedBidSeq(Long bidSeq) {
+        String sql = """
+                SELECT ntce_spec_file_nm1, ntce_spec_doc_url1,
+                       ntce_spec_file_nm2, ntce_spec_doc_url2,
+                       ntce_spec_file_nm3, ntce_spec_doc_url3,
+                       ntce_spec_file_nm4, ntce_spec_doc_url4,
+                       ntce_spec_file_nm5, ntce_spec_doc_url5,
+                       ntce_spec_file_nm6, ntce_spec_doc_url6,
+                       ntce_spec_file_nm7, ntce_spec_doc_url7,
+                       ntce_spec_file_nm8, ntce_spec_doc_url8,
+                       ntce_spec_file_nm9, ntce_spec_doc_url9,
+                       ntce_spec_file_nm10, ntce_spec_doc_url10
+                  FROM g2b_bid_notice_candidates
+                 WHERE imported_bid_seq = ?
+                 ORDER BY imported_at DESC NULLS LAST, id DESC
+                 LIMIT 1
+                """;
+        return jdbcTemplate.query(sql, resultSet -> resultSet.next() ? loadAttachments(resultSet) : List.of(), bidSeq);
+    }
+
+    @Override
+    public Optional<G2bBidNoticeCandidate> findByImportedBidSeq(Long bidSeq) {
+        String sql = BASE_SELECT + " WHERE imported_bid_seq = ? ORDER BY imported_at DESC NULLS LAST, id DESC LIMIT 1";
+        return jdbcTemplate.query(sql, resultSet -> resultSet.next()
+                ? Optional.of(mapRow(resultSet, 0))
+                : Optional.empty(), bidSeq);
+    }
+
+    @Override
+    public Optional<G2bBidNoticeCandidate> findImportedByBidNoticeNumber(String bidNoticeNumber) {
+        String sql = BASE_SELECT + " WHERE bid_ntce_no = ? AND imported_bid_seq IS NOT NULL ORDER BY imported_at DESC NULLS LAST, id DESC LIMIT 1";
+        return jdbcTemplate.query(sql, resultSet -> resultSet.next()
+                ? Optional.of(mapRow(resultSet, 0))
+                : Optional.empty(), bidNoticeNumber);
     }
 
     @Override
@@ -203,6 +247,9 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
                 resultSet.getString("bef_bid_bbanc_no"),
                 resultSet.getString("ntce_kind_nm"),
                 resultSet.getString("bid_methd_nm"),
+                resultSet.getString("cmmn_spldmd_agrmnt_rcptdoc_methd"),
+                resultSet.getString("pq_appl_doc_rcpt_mthd_nm"),
+                resultSet.getString("pq_appl_doc_rcpt_dt"),
                 resultSet.getString("cntrct_cncls_mthd_nm"),
                 resultSet.getString("srvce_div_nm"),
                 resultSet.getString("prtcpt_lmt_rgn_cd"),
@@ -221,6 +268,8 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
                 resultSet.getString("dminstt_nm"),
                 resultSet.getString("dminstt_cd"),
                 resultSet.getString("bid_ntce_date"),
+                resultSet.getString("bid_begin_dt"),
+                resultSet.getString("bid_qlfct_rgst_dt"),
                 resultSet.getString("bid_clse_dt"),
                 resultSet.getString("openg_dt"),
                 resultSet.getString("bid_ntce_url"),

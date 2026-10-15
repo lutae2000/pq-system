@@ -11,6 +11,9 @@ export type G2bBidNoticeCandidateApiRecord = {
   befBidBbancNo: string | null;
   ntceKindNm: string | null;
   bidMethdNm: string | null;
+  cmmnSpldmdAgrmntRcptdocMethd: string | null;
+  pqApplDocRcptMthdNm: string | null;
+  pqApplDocRcptDt: string | null;
   cntrctCnclsMthdNm: string | null;
   srvceDivNm: string | null;
   prtcptLmtRgnCd: string | null;
@@ -29,6 +32,8 @@ export type G2bBidNoticeCandidateApiRecord = {
   dminsttNm: string | null;
   dminsttCd: string | null;
   bidNtceDate: string | null;
+  bidBeginDt: string | null;
+  bidQlfctRgstDt: string | null;
   bidClseDt: string | null;
   opengDt: string | null;
   bidNtceUrl: string | null;
@@ -101,6 +106,33 @@ export async function markG2bBidNoticeCandidateImported(candidateId: number, bid
   await apiRequest(
     apiClient.patch(`${G2B_BID_NOTICE_CANDIDATES_API}/${candidateId}/import`, { bidSeq, importedBy }),
     "공고문 반영 상태를 저장하지 못했습니다.",
+  );
+}
+
+export async function listImportedG2bBidNoticeCandidateAttachments(
+  bidSeq: number,
+): Promise<G2bBidNoticeCandidateAttachmentApiRecord[]> {
+  return apiRequest(
+    apiClient.get<G2bBidNoticeCandidateAttachmentApiRecord[]>(`${G2B_BID_NOTICE_CANDIDATES_API}/imported/${bidSeq}/attachments`),
+    "나라장터 원본 첨부파일을 불러오지 못했습니다.",
+  );
+}
+
+export async function getImportedG2bBidNoticeCandidate(
+  bidSeq: number,
+): Promise<G2bBidNoticeCandidateApiRecord> {
+  return apiRequest(
+    apiClient.get<G2bBidNoticeCandidateApiRecord>(`${G2B_BID_NOTICE_CANDIDATES_API}/imported/${bidSeq}`),
+    "나라장터 원본 공고 정보를 불러오지 못했습니다.",
+  );
+}
+
+export async function getImportedG2bBidNoticeCandidateByNoticeNumber(
+  bidNoticeNumber: string,
+): Promise<G2bBidNoticeCandidateApiRecord> {
+  return apiRequest(
+    apiClient.get<G2bBidNoticeCandidateApiRecord>(`${G2B_BID_NOTICE_CANDIDATES_API}/imported/by-notice/${encodeURIComponent(bidNoticeNumber)}`),
+    "기존 나라장터 공고 정보를 불러오지 못했습니다.",
   );
 }
 
