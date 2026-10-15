@@ -34,25 +34,45 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
         Map<String, G2bBidNotice> noticeByKey = new LinkedHashMap<>();
         int baseTotalCount = 0;
 
-        if (command.includeUnrestricted()) {
-            baseTotalCount = fetchPages(command, noticeByKey, List.of());
-        }
         List<String> regionCodes = command.regionCodes().stream()
                 .filter(regionCode -> !regionCode.isBlank())
                 .toList();
-        if (!regionCodes.isEmpty()) {
-            fetchPages(command, noticeByKey, regionCodes);
+        if (command.includeUnrestricted() && regionCodes.isEmpty()) {
+            Map<String, G2bBidNotice> unrestrictedNotices = new LinkedHashMap<>();
+            baseTotalCount = fetchPages(command, unrestrictedNotices, List.of());
+            save(unrestrictedNotices, command);
+            mergeNotices(noticeByKey, unrestrictedNotices);
+        }
+        for (String regionCode : regionCodes) {
+            Map<String, G2bBidNotice> regionNotices = new LinkedHashMap<>();
+            fetchPages(command, regionNotices, List.of(regionCode));
+            save(regionNotices, command);
+            mergeNotices(noticeByKey, regionNotices);
         }
 
         List<G2bBidNotice> notices = new ArrayList<>(noticeByKey.values());
+        log.info("나라장터 동기화 유스케이스 완료: 조회={}, 저장={}", baseTotalCount, notices.size());
+        return new G2bBidNoticeSyncResult(baseTotalCount, notices.size());
+    }
+
+    private void save(Map<String, G2bBidNotice> noticesByKey, G2bBidNoticeSyncCommand command) {
+        if (noticesByKey.isEmpty()) {
+            return;
+        }
         saveG2bBidNoticeCandidatesPort.upsertAll(
-                notices,
+                new ArrayList<>(noticesByKey.values()),
                 Instant.now(),
                 command.from().format(API_DATE_TIME_FORMATTER),
                 command.to().format(API_DATE_TIME_FORMATTER)
         );
-        log.info("나라장터 동기화 유스케이스 완료: 조회={}, 저장={}", baseTotalCount, notices.size());
-        return new G2bBidNoticeSyncResult(baseTotalCount, notices.size());
+    }
+
+    private void mergeNotices(Map<String, G2bBidNotice> target, Map<String, G2bBidNotice> source) {
+        source.values().forEach(notice -> target.merge(
+                noticeKey(notice),
+                notice,
+                G2bBidNotice::merge
+        ));
     }
 
     private int fetchPages(

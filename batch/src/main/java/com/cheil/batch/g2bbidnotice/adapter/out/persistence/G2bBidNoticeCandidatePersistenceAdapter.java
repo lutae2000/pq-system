@@ -59,13 +59,9 @@ public class G2bBidNoticeCandidatePersistenceAdapter implements SaveG2bBidNotice
 
         // 변경·취소 공고는 차수가 증가하고 재공고는 새로운 공고번호가 생성되므로,
         // 복합 키가 동기화 테이블에 없는 공고만 후보 테이블에 신규 등록합니다.
-        List<G2bBidNotice> newNotices = fetchedNotices.stream()
-                .filter(notice -> !existingSyncKeys.contains(syncKey(notice)))
-                .toList();
-
         int upsertedCount = 0;
-        if (!newNotices.isEmpty()) {
-            upsertedCount = mapper.upsertAll(newNotices.stream()
+        if (!fetchedNotices.isEmpty()) {
+            upsertedCount = mapper.upsertAll(fetchedNotices.stream()
                     .map(notice -> toPersistenceRow(notice, fetchedAt, requestFrom, requestTo))
                     .toList());
         }
