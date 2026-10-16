@@ -4,7 +4,6 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -28,6 +27,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import {
   CLIENT_CODE_PAGE_SIZE,
@@ -115,7 +115,7 @@ export function ClientCodesManagementPage() {
   const [selectedClientCode, setSelectedClientCode] = useState("");
   const [draft, setDraft] = useState<ClientCodeRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<ClientCodeRecord | null>(null);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showError, showInfo, showSuccess } = useAppSnackbar();
 
   const orderClassReferences = useCommonCodeLevel2Options("QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const companyTypeReferences = useCommonCodeLevel2Options("T7", { useYn: "Y" }, { enabled: tabQueryEnabled });
@@ -216,10 +216,10 @@ export function ClientCodesManagementPage() {
       setSelectedClientCode(saved.clientCode);
       setDraft(saved);
       queryClient.invalidateQueries({ queryKey: ["client-codes"] });
-      setNotice({ message: "거래처 정보를 저장했습니다.", severity: "success" });
+      showSuccess("거래처 정보를 저장했습니다.");
     },
     onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "거래처 저장에 실패했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "거래처 저장에 실패했습니다.");
     },
   });
 
@@ -230,10 +230,10 @@ export function ClientCodesManagementPage() {
       setSelectedClientCode("");
       setDraft(emptyDraft());
       queryClient.invalidateQueries({ queryKey: ["client-codes"] });
-      setNotice({ message: "거래처 정보를 삭제했습니다.", severity: "success" });
+      showSuccess("거래처 정보를 삭제했습니다.");
     },
     onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "거래처 삭제에 실패했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "거래처 삭제에 실패했습니다.");
     },
   });
 
@@ -260,20 +260,20 @@ export function ClientCodesManagementPage() {
   const handleNew = () => {
     setSelectedClientCode("");
     setDraft(emptyDraft());
-    setNotice({ message: "신규 거래처 입력 상태로 전환했습니다.", severity: "info" });
+    showInfo("신규 거래처 입력 상태로 전환했습니다.");
   };
 
   const handleSave = () => {
     if (!canUpdate && selectedClientCode) {
-      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
+      showError("수정 권한이 없습니다.");
       return;
     }
     if (!canCreate && !selectedClientCode) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showError("등록 권한이 없습니다.");
       return;
     }
     if (!draft.clientCode.trim() || !draft.orderName.trim()) {
-      setNotice({ message: "거래처 코드와 거래처명은 필수입니다.", severity: "error" });
+      showError("거래처 코드와 거래처명은 필수입니다.");
       return;
     }
     saveMutation.mutate(toRequest(draft));
@@ -281,11 +281,11 @@ export function ClientCodesManagementPage() {
 
   const handleDelete = () => {
     if (!canDelete) {
-      setNotice({ message: "삭제 권한이 없습니다.", severity: "error" });
+      showError("삭제 권한이 없습니다.");
       return;
     }
     if (!selectedClientCode || !draft.clientCode) {
-      setNotice({ message: "발주처를 먼저 선택하세요.", severity: "error" });
+      showError("발주처를 먼저 선택하세요.");
       return;
     }
     setDeleteTarget(draft);
@@ -295,13 +295,6 @@ export function ClientCodesManagementPage() {
     <Box>
       <PageHeader title="발주처 관리"/>
 
-      {notice ? (
-        <Box sx={{ position: "sticky", top: 16, zIndex: 2, mb: 2 }}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Box>
-      ) : null}
 
       <SearchPanel
         keyword={businessName}

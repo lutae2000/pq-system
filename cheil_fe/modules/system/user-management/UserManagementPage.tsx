@@ -162,7 +162,7 @@ const findMenuNode = (nodes: MenuTreeNode[], menuCode: string): MenuTreeNode | n
 export function UserManagementPage() {
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const { showError, showSuccess } = useAppSnackbar();
+  const { showError, showInfo, showSuccess } = useAppSnackbar();
   const queryClient = useQueryClient();
   const initialSelectionApplied = useRef(false);
   const [activeTab, setActiveTab] = useState<UserManagementTab>("details");
@@ -179,7 +179,6 @@ export function UserManagementPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [resetPasswordConfirmOpen, setResetPasswordConfirmOpen] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
 
   const [expandedMenuCodes, setExpandedMenuCodes] = useState<string[]>([]);
   const [permissionRows, setPermissionRows] = useState<PermissionRow[]>([]);
@@ -400,10 +399,7 @@ export function UserManagementPage() {
 
         setPermissionRows(buildPermissionRows(menus, []));
         setBaselinePermissionRows(buildPermissionRows(menus, []));
-        setNotice({
-          message: error instanceof Error ? error.message : "사용자 권한 정보를 불러오지 못했습니다.",
-          severity: "error",
-        });
+        showError(error instanceof Error ? error.message : "사용자 권한 정보를 불러오지 못했습니다.");
       })
       .finally(() => {
         if (active) {
@@ -415,7 +411,7 @@ export function UserManagementPage() {
       active = false;
     };
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [menus, selectedUser?.loginId]);
+  }, [menus, selectedUser?.loginId, showError]);
 
   const saveMutation = useMutation({
     mutationFn: saveUser,
@@ -424,13 +420,10 @@ export function UserManagementPage() {
       setDraftUser({ ...savedUser, userPassword: "" });
       setPasswordConfirm("");
       queryClient.invalidateQueries({ queryKey: ["auth-users"] });
-      setNotice({ message: "사용자 계정을 저장했습니다.", severity: "success" });
+      showSuccess("사용자 계정을 저장했습니다.");
     },
     onError: (error) => {
-      setNotice({
-        message: error instanceof Error ? error.message : "사용자 계정 저장에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "사용자 계정 저장에 실패했습니다.");
     },
   });
 
@@ -441,13 +434,10 @@ export function UserManagementPage() {
       setDraftUser({ ...savedUser, userPassword: "" });
       setPasswordConfirm("");
       queryClient.invalidateQueries({ queryKey: ["auth-users"] });
-      setNotice({ message: "비밀번호를 0000으로 초기화했습니다.", severity: "success" });
+      showSuccess("비밀번호를 0000으로 초기화했습니다.");
     },
     onError: (error) => {
-      setNotice({
-        message: error instanceof Error ? error.message : "비밀번호 초기화에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "비밀번호 초기화에 실패했습니다.");
     },
   });
 
@@ -470,14 +460,14 @@ export function UserManagementPage() {
     setShowPassword(false);
     setShowPasswordConfirm(false);
     setActiveTab("details");
-    setNotice({ message: "새 계정 등록 모드로 전환했습니다.", severity: "info" });
+    showInfo("새 계정 등록 모드로 전환했습니다.");
   };
 
 
 
   const handleSaveUser = () => {
     if ((draftUser.userPassword || passwordConfirm) && draftUser.userPassword !== passwordConfirm) {
-      setNotice({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다.", severity: "error" });
+      showError("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
       return;
     }
     saveMutation.mutate(draftUser);
@@ -485,7 +475,7 @@ export function UserManagementPage() {
 
   const handleResetPassword = () => {
     if (!selectedUser) {
-      setNotice({ message: "비밀번호를 초기화할 사용자를 먼저 선택하세요.", severity: "error" });
+      showError("비밀번호를 초기화할 사용자를 먼저 선택하세요.");
       return;
     }
 
@@ -564,13 +554,13 @@ export function UserManagementPage() {
     void _changedItems;
 
     if (!selectedUser) {
-      setNotice({ message: "먼저 권한을 저장할 사용자를 선택하세요.", severity: "error" });
+      showError("먼저 권한을 저장할 사용자를 선택하세요.");
       return;
     }
 
     const loginId = selectedUser.loginId.trim();
     if (!loginId) {
-      setNotice({ message: "로그인 ID가 없는 사용자는 권한을 저장할 수 없습니다.", severity: "error" });
+      showError("로그인 ID가 없는 사용자는 권한을 저장할 수 없습니다.");
       return;
     }
 
@@ -589,12 +579,9 @@ export function UserManagementPage() {
       const rows = buildPermissionRows(menus, savedPermissions);
       setPermissionRows(rows);
       setBaselinePermissionRows(rows);
-      setNotice({ message: "사용자 권한이 저장되었습니다.", severity: "success" });
+      showSuccess("사용자 권한이 저장되었습니다.");
     } catch (error) {
-      setNotice({
-        message: error instanceof Error ? error.message : "사용자 권한을 저장하지 못했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "사용자 권한을 저장하지 못했습니다.");
     } finally {
       setPermissionSaving(false);
     }
@@ -610,13 +597,6 @@ export function UserManagementPage() {
     <Box>
       <PageHeader title="사용자 관리" />
 
-      {notice ? (
-        <Box sx={{ position: "sticky", top: 16, zIndex: 2, mb: 2 }}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Box>
-      ) : null}
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <SearchPanel

@@ -17,7 +17,6 @@ import {
   Divider,
   IconButton,
   MenuItem,
-  Snackbar,
   Stack,
   Tab,
   Tabs,
@@ -35,6 +34,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { toApiErrorMessage } from "@/lib/http/apiClient";
 
 import { CompanyAttachmentDeleteDialog } from "./CompanyAttachmentDeleteDialog";
@@ -123,7 +123,7 @@ export function HeadquartersManagementPage() {
   const [deleteAttachmentTarget, setDeleteAttachmentTarget] = useState<CompanyAttachment | null>(null);
   const [attachmentDraft, setAttachmentDraft] = useState(emptyAttachmentDraft);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [snackbar, setSnackbar] = useState("");
+  const { showError, showSuccess } = useAppSnackbar();
 
   useEffect(() => {
     if (!detail?.profile) {
@@ -143,9 +143,9 @@ export function HeadquartersManagementPage() {
     mutationFn: updateCompanyProfile,
     onSuccess: () => {
       invalidate();
-      setSnackbar("회사 기초정보를 저장했습니다.");
+      showSuccess("회사 기초정보를 저장했습니다.");
     },
-    onError: (error) => setSnackbar(toApiErrorMessage(error, "회사 기초정보 저장에 실패했습니다.")),
+    onError: (error) => showError(toApiErrorMessage(error, "회사 기초정보 저장에 실패했습니다.")),
   });
 
   const attachmentMutation = useMutation({
@@ -168,9 +168,9 @@ export function HeadquartersManagementPage() {
       setAttachmentDialogOpen(false);
       setAttachmentDraft(emptyAttachmentDraft());
       setAttachmentFile(null);
-      setSnackbar("첨부파일을 등록했습니다.");
+      showSuccess("첨부파일을 등록했습니다.");
     },
-    onError: (error) => setSnackbar(toApiErrorMessage(error, "첨부파일 등록에 실패했습니다.")),
+    onError: (error) => showError(toApiErrorMessage(error, "첨부파일 등록에 실패했습니다.")),
   });
 
   const deleteAttachmentMutation = useMutation({
@@ -178,9 +178,9 @@ export function HeadquartersManagementPage() {
     onSuccess: () => {
       invalidate();
       setDeleteAttachmentTarget(null);
-      setSnackbar("첨부파일을 삭제했습니다.");
+      showSuccess("첨부파일을 삭제했습니다.");
     },
-    onError: (error) => setSnackbar(toApiErrorMessage(error, "첨부파일 삭제에 실패했습니다.")),
+    onError: (error) => showError(toApiErrorMessage(error, "첨부파일 삭제에 실패했습니다.")),
   });
 
   const attachments = useMemo(
@@ -395,7 +395,6 @@ export function HeadquartersManagementPage() {
         </>
       )}
 
-      <Snackbar autoHideDuration={2500} message={snackbar} onClose={() => setSnackbar("")} open={Boolean(snackbar)} />
     </Box>
   );
 }

@@ -5,7 +5,6 @@ import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -14,7 +13,6 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
-  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -28,6 +26,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createDepartment,
   getDepartment,
@@ -233,7 +232,7 @@ export function DepartmentManagementPage() {
   const [isNewDepartment, setIsNewDepartment] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
+  const { showError, showSuccess } = useAppSnackbar();
   const canSave = isNewDepartment ? canCreate : canUpdate;
 
   const selectedDepartment = useMemo(
@@ -373,15 +372,12 @@ export function DepartmentManagementPage() {
           setIsNewDepartment(true);
         }
       } catch (error) {
-        setNotice({
-          message: error instanceof Error ? error.message : "부서 데이터를 불러오지 못했습니다.",
-          severity: "error",
-        });
+        showError(error instanceof Error ? error.message : "부서 데이터를 불러오지 못했습니다.");
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [showError],
   );
 
   useEffect(() => {
@@ -399,10 +395,7 @@ export function DepartmentManagementPage() {
       setDraft(toFormState(record));
       setIsNewDepartment(false);
     } catch (error) {
-      setNotice({
-        message: error instanceof Error ? error.message : "부서 상세 정보를 불러오지 못했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "부서 상세 정보를 불러오지 못했습니다.");
     }
   };
 
@@ -423,7 +416,7 @@ export function DepartmentManagementPage() {
 
   const handleSave = async () => {
     if (!draft.deptCode.trim() || !draft.deptName.trim()) {
-      setNotice({ message: "부서코드와 부서명은 필수입니다.", severity: "error" });
+      showError("부서코드와 부서명은 필수입니다.");
       return;
     }
 
@@ -435,12 +428,9 @@ export function DepartmentManagementPage() {
         : await updateDepartment(draft.deptCode, request);
 
       await loadDepartments(appliedFilters, saved.deptCode);
-      setNotice({ message: "부서 정보가 저장되었습니다.", severity: "success" });
+      showSuccess("부서 정보가 저장되었습니다.");
     } catch (error) {
-      setNotice({
-        message: error instanceof Error ? error.message : "부서 정보를 저장하지 못했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "부서 정보를 저장하지 못했습니다.");
     } finally {
       setSaving(false);
     }
@@ -655,13 +645,6 @@ export function DepartmentManagementPage() {
         </Stack>
       </Box>
 
-      {notice ? (
-        <Snackbar autoHideDuration={2500} open onClose={() => setNotice(null)}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Snackbar>
-      ) : null}
     </Box>
   );
 }

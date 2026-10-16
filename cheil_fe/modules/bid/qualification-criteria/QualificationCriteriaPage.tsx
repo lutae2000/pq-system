@@ -12,7 +12,6 @@ import {
   CardContent,
   Chip,
   MenuItem,
-  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -35,6 +34,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 import {
   createQualificationReviewAgency,
@@ -166,7 +166,7 @@ export function QualificationCriteriaPage() {
   const [criterionRowModes, setCriterionRowModes] = useState<GridRowModesModel>({});
   const [scoreBandRowModes, setScoreBandRowModes] = useState<GridRowModesModel>({});
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [notice, setNotice] = useState<{ message: string; severity: "info" | "success" | "error" } | null>(null);
+  const { showError, showSuccess } = useAppSnackbar();
 
   const useYnParam = useYnFilterToBoolean(useYnFilter);
 
@@ -236,7 +236,7 @@ export function QualificationCriteriaPage() {
       setDraftAgencyRows((current) => current.filter((item) => item.id !== row.id));
       setSelectedAgencyId(saved.id);
       await invalidateAgencies();
-      setNotice({ message: "기관 정보를 저장했습니다.", severity: "success" });
+      showSuccess("기관 정보를 저장했습니다.");
     },
   });
 
@@ -247,7 +247,7 @@ export function QualificationCriteriaPage() {
       setDraftCriterionRows((current) => current.filter((item) => item.id !== row.id));
       setSelectedCriterionId(saved.id);
       await invalidateCriteria();
-      setNotice({ message: "시행기준을 저장했습니다.", severity: "success" });
+      showSuccess("시행기준을 저장했습니다.");
     },
   });
 
@@ -257,7 +257,7 @@ export function QualificationCriteriaPage() {
     onSuccess: async (_saved, row) => {
       setDraftScoreBandRows((current) => current.filter((item) => item.id !== row.id));
       await invalidateScoreBands();
-      setNotice({ message: "가격구간을 저장했습니다.", severity: "success" });
+      showSuccess("가격구간을 저장했습니다.");
     },
   });
 
@@ -288,10 +288,10 @@ export function QualificationCriteriaPage() {
         await invalidateScoreBands();
       }
       setDeleteTarget(null);
-      setNotice({ message: "선택한 항목을 삭제했습니다.", severity: "success" });
+      showSuccess("선택한 항목을 삭제했습니다.");
     },
     onError: (error) => {
-      setNotice({ message: error instanceof Error ? error.message : "삭제하지 못했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "삭제하지 못했습니다.");
     },
   });
 
@@ -427,7 +427,7 @@ export function QualificationCriteriaPage() {
   };
 
   const handleSaveError = (error: unknown) => {
-    setNotice({ message: error instanceof Error ? error.message : "저장하지 못했습니다.", severity: "error" });
+    showError(error instanceof Error ? error.message : "저장하지 못했습니다.");
   };
 
   const actionColumn = useCallback(
@@ -821,9 +821,6 @@ export function QualificationCriteriaPage() {
         targetLabel={deleteTarget?.label}
         title="삭제 확인"
       />
-      <Snackbar autoHideDuration={2200} onClose={() => setNotice(null)} open={Boolean(notice)}>
-        <Chip color={notice?.severity === "success" ? "success" : notice?.severity === "error" ? "error" : "default"} label={notice?.message ?? ""} />
-      </Snackbar>
     </Box>
   );
 }

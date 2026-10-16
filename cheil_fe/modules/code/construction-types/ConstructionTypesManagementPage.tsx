@@ -15,7 +15,6 @@ import {
   DialogTitle,
   Divider,
   MenuItem,
-  Snackbar,
   Switch,
   TextField,
   Typography,
@@ -31,6 +30,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   createConstructionType,
   deleteConstructionType,
@@ -127,7 +127,7 @@ export function ConstructionTypesManagementPage() {
   const [draft, setDraft] = useState<ConstructionTypeDraft>(() => emptyDraft());
   const [isCreating, setIsCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ConstructionTypeRecord | null>(null);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
+  const { showError, showInfo, showSuccess } = useAppSnackbar();
 
   const constructionTypesQuery = useQuery({
     queryKey: ["construction-types", appliedFilters],
@@ -259,12 +259,12 @@ export function ConstructionTypesManagementPage() {
 
   const handleNew = (level: ConstructionTypeLevel) => {
     if (level === 2 && !activeLevel1Code) {
-      setSnackbar({ message: "먼저 1단계 공사종류를 선택하세요.", severity: "error" });
+      showError("먼저 1단계 공사종류를 선택하세요.");
       return;
     }
 
     if (level === 3 && (!activeLevel1Code || !activeLevel2Code)) {
-      setSnackbar({ message: "먼저 1단계와 2단계 공사종류를 선택하세요.", severity: "error" });
+      showError("먼저 1단계와 2단계 공사종류를 선택하세요.");
       return;
     }
 
@@ -276,7 +276,7 @@ export function ConstructionTypesManagementPage() {
     setSelectedCodeId(null);
     setIsCreating(true);
     setDraft(emptyDraft(level, parent));
-    setSnackbar({ message: `${levelLabel(level)} 공사종류를 입력하세요.`, severity: "info" });
+    showInfo(`${levelLabel(level)} 공사종류를 입력하세요.`);
   };
 
   const handleSelect = (record: ConstructionTypeRecord) => {
@@ -334,7 +334,7 @@ export function ConstructionTypesManagementPage() {
     const errorMessage = validateDraft(activeDraft);
 
     if (errorMessage) {
-      setSnackbar({ message: errorMessage, severity: "error" });
+      showError(errorMessage);
       return;
     }
 
@@ -368,13 +368,10 @@ export function ConstructionTypesManagementPage() {
       setIsCreating(false);
       setDraft(toDraft(saved));
       queryClient.invalidateQueries({ queryKey: ["construction-types"] });
-      setSnackbar({ message: "공사종류를 저장했습니다.", severity: "success" });
+      showSuccess("공사종류를 저장했습니다.");
     },
     onError: (error) => {
-      setSnackbar({
-        message: error instanceof Error ? error.message : "공사종류 저장에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "공사종류 저장에 실패했습니다.");
     },
   });
 
@@ -386,13 +383,10 @@ export function ConstructionTypesManagementPage() {
       setIsCreating(false);
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      setSnackbar({ message: "공사종류를 삭제했습니다.", severity: "success" });
+      showSuccess("공사종류를 삭제했습니다.");
     },
     onError: (error) => {
-      setSnackbar({
-        message: error instanceof Error ? error.message : "공사종류 삭제에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "공사종류 삭제에 실패했습니다.");
     },
   });
 
@@ -752,7 +746,6 @@ export function ConstructionTypesManagementPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={Boolean(snackbar)} autoHideDuration={2500} onClose={() => setSnackbar(null)} message={snackbar?.message} />
     </Box>
   );
 }

@@ -6,7 +6,6 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -18,7 +17,6 @@ import {
   IconButton,
   MenuItem,
   Stack,
-  Snackbar,
   Switch,
   TextField,
   Typography,
@@ -142,7 +140,6 @@ export function MenuManagementPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SystemMenuRecord | null>(null);
   const { deleteMutation, saveMutation } = useSystemMenus({ canCreate, canDelete, canUpdate, showError, showSuccess });
 
@@ -191,11 +188,11 @@ export function MenuManagementPage() {
         setIsCreating(false);
       }
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "메뉴 목록을 불러오지 못했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "메뉴 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     if (!tabQueryEnabled) {
@@ -215,7 +212,7 @@ export function MenuManagementPage() {
       setDraft(toFormState(menu));
       setIsCreating(false);
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "메뉴 상세 정보를 불러오지 못했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "메뉴 상세 정보를 불러오지 못했습니다.");
     }
   };
 
@@ -262,12 +259,12 @@ export function MenuManagementPage() {
 
   const handleSave = async () => {
     if (!canSaveCurrent) {
-      setNotice({ message: "저장 권한이 없습니다.", severity: "error" });
+      showError("저장 권한이 없습니다.");
       return;
     }
 
     if (!draft.menuCode.trim() || !draft.menuName.trim()) {
-      setNotice({ message: "메뉴 코드와 메뉴명은 필수입니다.", severity: "error" });
+      showError("메뉴 코드와 메뉴명은 필수입니다.");
       return;
     }
 
@@ -291,9 +288,9 @@ export function MenuManagementPage() {
         request: requestBody,
       });
       await loadMenus(appliedFilters.keyword, saved.menuCode);
-      setNotice({ message: "메뉴가 저장되었습니다.", severity: "success" });
+      showSuccess("메뉴가 저장되었습니다.");
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "메뉴를 저장하지 못했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "메뉴를 저장하지 못했습니다.");
     } finally {
       setSaving(false);
     }
@@ -312,9 +309,9 @@ export function MenuManagementPage() {
       setDraft(defaultForm());
       setSelectedMenuCode(null);
       setIsCreating(false);
-      setNotice({ message: "메뉴가 삭제되었습니다.", severity: "success" });
+      showSuccess("메뉴가 삭제되었습니다.");
     } catch (error) {
-      setNotice({ message: error instanceof Error ? error.message : "메뉴를 삭제하지 못했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "메뉴를 삭제하지 못했습니다.");
     } finally {
       setSaving(false);
     }
@@ -625,13 +622,6 @@ export function MenuManagementPage() {
         targetLabel={deleteTarget ? `${deleteTarget.menuName} (${deleteTarget.menuCode})` : ""}
       />
 
-      {notice ? (
-        <Snackbar autoHideDuration={2500} open onClose={() => setNotice(null)}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Snackbar>
-      ) : null}
     </Box>
   );
 }

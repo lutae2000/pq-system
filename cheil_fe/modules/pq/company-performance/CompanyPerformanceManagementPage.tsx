@@ -2,7 +2,6 @@
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -27,6 +26,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import {
@@ -162,7 +162,7 @@ export function CompanyPerformanceManagementPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [draft, setDraft] = useState<CompanyPerformanceRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<CompanyPerformanceRecord | null>(null);
-  const [notice, setNotice] = useState<{ message: string; severity: "error" | "info" | "success" } | null>(null);
+  const { showError, showSuccess } = useAppSnackbar();
 
   const businessTypeReferences = useCommonCodeLevel2Options("CA");
   const jobFinishReferences = useCommonCodeLevel2Options("VA");
@@ -309,19 +309,19 @@ export function CompanyPerformanceManagementPage() {
       setDeleteTarget(null);
       setDetailOpen(false);
       setDraft(emptyDraft());
-      setNotice({ message: "회사 실적 정보를 삭제했습니다.", severity: "success" });
+      showSuccess("회사 실적 정보를 삭제했습니다.");
     },
     onDetailLoaded: (detail) => {
       setDraft(detail);
       setDetailOpen(true);
     },
     onError: (error, fallbackMessage) => {
-      setNotice({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" });
+      showError(error instanceof Error ? error.message : fallbackMessage);
     },
     onSaved: (saved) => {
       setDraft(saved);
       setDetailOpen(true);
-      setNotice({ message: "회사 실적 정보를 저장했습니다.", severity: "success" });
+      showSuccess("회사 실적 정보를 저장했습니다.");
     },
   });
 
@@ -369,7 +369,7 @@ export function CompanyPerformanceManagementPage() {
 
   const handleNew = () => {
     if (!canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showError("등록 권한이 없습니다.");
       return;
     }
     setDraft(emptyDraft());
@@ -378,15 +378,15 @@ export function CompanyPerformanceManagementPage() {
 
   const handleSave = () => {
     if (draft.seq && !canUpdate) {
-      setNotice({ message: "수정 권한이 없습니다.", severity: "error" });
+      showError("수정 권한이 없습니다.");
       return;
     }
     if (!draft.seq && !canCreate) {
-      setNotice({ message: "등록 권한이 없습니다.", severity: "error" });
+      showError("등록 권한이 없습니다.");
       return;
     }
     if (!text(draft.jobName).trim()) {
-      setNotice({ message: "용역명은 필수입니다.", severity: "error" });
+      showError("용역명은 필수입니다.");
       return;
     }
     saveMutation.mutate(toRequest(draft));
@@ -396,13 +396,6 @@ export function CompanyPerformanceManagementPage() {
     <Box>
       <PageHeader title="회사 실적 관리" />
 
-      {notice ? (
-        <Box sx={{ position: "sticky", top: 16, zIndex: 2, mb: 2 }}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Box>
-      ) : null}
 
       <SearchPanel
         keyword={keyword}
@@ -515,7 +508,7 @@ export function CompanyPerformanceManagementPage() {
         onClose={() => setDetailOpen(false)}
         onDelete={() => {
           if (!canDelete) {
-            setNotice({ message: "삭제 권한이 없습니다.", severity: "error" });
+            showError("삭제 권한이 없습니다.");
             return;
           }
           setDeleteTarget(draft);

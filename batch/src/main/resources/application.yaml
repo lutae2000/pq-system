@@ -41,7 +41,7 @@ batch:
     bid-notice:
       enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
       run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
-      cron: ${BATCH_G2B_BID_NOTICE_CRON:0 */10 8-23 * * *}
+      cron: ${BATCH_G2B_BID_NOTICE_CRON:0 */10 8-22 * * *}
       zone: ${BATCH_G2B_BID_NOTICE_ZONE:Asia/Seoul}
       # 나라장터 API의 페이지당 조회 건수입니다.
       page-size: ${BATCH_G2B_BID_NOTICE_PAGE_SIZE:999}

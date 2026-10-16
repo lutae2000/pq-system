@@ -41,10 +41,10 @@ type EngineerRow = {
   designGrade: string;
   engineerId: string;
   jobField: string;
+  birthDate: string;
   name: string;
   position: string;
   specialtyField: string;
-  status: string;
 };
 
 type CodeOption = { label: string; value: string };
@@ -67,6 +67,7 @@ const emptyFilters = (): EngineerSelectFilters => ({
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const INITIAL_PAGE_SIZE = 25;
+const centerColumn = { align: "center" as const, headerAlign: "center" as const };
 
 const toRow = (profile: EngineerProfile): EngineerRow => ({
   constructionManagementGrade: profile.detail.supervisionQualification ?? "",
@@ -74,10 +75,10 @@ const toRow = (profile: EngineerProfile): EngineerRow => ({
   designGrade: profile.detail.technicalField ?? "",
   engineerId: profile.summary.id,
   jobField: profile.summary.workField ?? "",
+  birthDate: profile.detail.birthDate ?? "",
   name: profile.summary.name ?? "",
   position: profile.summary.position ?? "",
   specialtyField: profile.summary.specialtyField ?? "",
-  status: profile.summary.status ?? "",
 });
 
 const matchesKeyword = (row: EngineerRow, keyword: string) => {
@@ -86,7 +87,7 @@ const matchesKeyword = (row: EngineerRow, keyword: string) => {
     return true;
   }
 
-  return [row.engineerId, row.name, row.department, row.position, row.jobField, row.specialtyField, row.status].some((value) =>
+  return [row.engineerId, row.name, row.birthDate, row.department, row.position, row.jobField, row.specialtyField].some((value) =>
     value.toLowerCase().includes(normalized),
   );
 };
@@ -171,41 +172,38 @@ export function EngineerSelectDialog({
 
   const columns = useMemo<GridColDef<EngineerRow>[]>(
     () => [
-      { field: "engineerId", headerName: "기술인ID", width: 120 },
-      { field: "name", headerName: "성명", width: 110 },
-      { field: "department", headerName: "부서", width: 120 },
-      { field: "position", headerName: "직위", width: 100 },
+      { field: "engineerId", headerName: "기술인ID", width: 80, ...centerColumn },
+      { field: "name", headerName: "성명", width: 110, ...centerColumn },
+      { field: "birthDate", headerName: "생년월일", width: 120, ...centerColumn },
+      { field: "department", headerName: "부서", width: 150, ...centerColumn },
+      { field: "position", headerName: "직위", width: 100, ...centerColumn },
       {
         field: "jobField",
         headerName: "직무분야",
         width: 140,
+        ...centerColumn,
         valueGetter: (_value, row) => formatReferenceLabel(jobFieldLabelByValue, row.jobField),
       },
       {
         field: "specialtyField",
         headerName: "전문분야",
         width: 140,
+        ...centerColumn,
         valueGetter: (_value, row) => formatReferenceLabel(specialtyFieldLabelByValue, row.specialtyField),
       },
       {
         field: "designGrade",
         headerName: "설계등급",
         width: 110,
+        ...centerColumn,
         valueGetter: (_value, row) => formatReferenceLabel(gradeLabelByValue, row.designGrade),
       },
       {
         field: "constructionManagementGrade",
         headerName: "건설사업관리 등급",
         width: 150,
+        ...centerColumn,
         valueGetter: (_value, row) => formatReferenceLabel(gradeLabelByValue, row.constructionManagementGrade),
-      },
-      {
-        field: "status",
-        headerName: "상태",
-        width: 90,
-        align: "center",
-        headerAlign: "center",
-        renderCell: ({ value }) => <Chip label={String(value)} size="small" variant="outlined" />,
       },
     ],
     [gradeLabelByValue, jobFieldLabelByValue, specialtyFieldLabelByValue],
@@ -276,7 +274,7 @@ export function EngineerSelectDialog({
           </Box>
 
           <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
-            <Chip label={`전체 ${filteredRows.length}명`} variant="outlined" />
+            <Chip label={`재직 ${filteredRows.length}명`} variant="outlined" />
             <Chip color="primary" label={`선택 ${selectedCount}명`} variant={selectedCount > 0 ? "filled" : "outlined"} />
           </Box>
 

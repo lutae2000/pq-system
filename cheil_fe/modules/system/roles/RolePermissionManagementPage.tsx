@@ -15,7 +15,6 @@ import {
   FormControlLabel,
   InputAdornment,
   CircularProgress,
-  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -32,6 +31,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { MenuPermissionCard, type MenuPermissionRowLike } from "@/components/common/MenuPermissionCard";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import type { SystemMenuRecord } from "@/modules/system/menus/api";
 import {
@@ -98,7 +98,7 @@ export function RolePermissionManagementPage() {
   const [permissionRows, setPermissionRows] = useState<PermissionRow[]>([]);
   const [baselinePermissionRows, setBaselinePermissionRows] = useState<PermissionRow[]>([]);
   const [roleKeyword, setRoleKeyword] = useState("");
-  const [notice, setNotice] = useState<{ message: string; severity: "success" | "info" | "error" } | null>(null);
+  const { showError, showInfo, showSuccess } = useAppSnackbar();
 
   const { menusQuery, permissionsQuery, rolesQuery } = useRolePermissionQueries({
     enabled: tabQueryEnabled,
@@ -202,18 +202,18 @@ export function RolePermissionManagementPage() {
       setDraft(defaultRoleForm());
       setPermissionRows([]);
       setBaselinePermissionRows([]);
-      setNotice({ message: "역할이 삭제되었습니다.", severity: "success" });
+      showSuccess("역할이 삭제되었습니다.");
     },
     onError: (error, fallbackMessage) =>
-      setNotice({ message: error instanceof Error ? error.message : fallbackMessage, severity: "error" }),
+      showError(error instanceof Error ? error.message : fallbackMessage),
     onPermissionsSaved: () => {
-      setNotice({ message: "메뉴 권한이 저장되었습니다.", severity: "success" });
+      showSuccess("메뉴 권한이 저장되었습니다.");
     },
     onRoleSaved: (saved) => {
       setIsNewRole(false);
       setSelectedRoleCode(saved.roleCode);
       setDraft(toRoleFormState(saved));
-      setNotice({ message: "역할 상세가 저장되었습니다.", severity: "success" });
+      showSuccess("역할 상세가 저장되었습니다.");
     },
   });
 
@@ -313,11 +313,11 @@ export function RolePermissionManagementPage() {
 
   const handleSaveRole = () => {
     if (selectedRoleCode ? !canUpdate : !canCreate) {
-      setNotice({ message: selectedRoleCode ? "역할 수정 권한이 없습니다." : "역할 등록 권한이 없습니다.", severity: "error" });
+      showError(selectedRoleCode ? "역할 수정 권한이 없습니다." : "역할 등록 권한이 없습니다.");
       return;
     }
     if (!draft.roleCode.trim() || !draft.roleName.trim()) {
-      setNotice({ message: "역할 코드와 역할명은 필수입니다.", severity: "error" });
+      showError("역할 코드와 역할명은 필수입니다.");
       return;
     }
 
@@ -333,12 +333,12 @@ export function RolePermissionManagementPage() {
 
   const handleSavePermissions = (changedItems: MenuPermissionRowLike[]) => {
     if (!selectedRoleCode) {
-      setNotice({ message: "먼저 역할을 저장하거나 선택하세요.", severity: "error" });
+      showError("먼저 역할을 저장하거나 선택하세요.");
       return;
     }
 
     if (changedItems.length === 0) {
-      setNotice({ message: "변경된 메뉴 권한이 없습니다.", severity: "info" });
+      showInfo("변경된 메뉴 권한이 없습니다.");
       return;
     }
 
@@ -555,13 +555,6 @@ export function RolePermissionManagementPage() {
         </Stack>
       </Box>
 
-      {notice ? (
-        <Snackbar autoHideDuration={2500} open onClose={() => setNotice(null)}>
-          <Alert severity={notice.severity} variant="filled">
-            {notice.message}
-          </Alert>
-        </Snackbar>
-      ) : null}
       <ConfirmActionDialog
         confirmColor="error"
         confirmLabel="삭제"

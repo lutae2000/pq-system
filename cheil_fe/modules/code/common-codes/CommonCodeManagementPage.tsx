@@ -4,7 +4,6 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -16,7 +15,6 @@ import {
   DialogTitle,
   Divider,
   MenuItem,
-  Snackbar,
   Switch,
   TextField,
   Typography,
@@ -32,6 +30,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 import {
   createCommonCode,
@@ -152,7 +151,7 @@ export function CommonCodeManagementPage() {
   const [draft, setDraft] = useState<CommonCodeDraft>(() => emptyDraft());
   const [isCreating, setIsCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommonCodeRecord | null>(null);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
+  const { showError, showInfo, showSuccess } = useAppSnackbar();
 
   const commonCodesQuery = useQuery({
     queryKey: ["common-codes-management", appliedFilters],
@@ -265,11 +264,11 @@ export function CommonCodeManagementPage() {
 
   const handleNew = (level: CommonCodeLevel) => {
     if (level === 2 && !selectedLevel1Record) {
-      setSnackbar({ message: "먼저 1레벨 코드를 선택하세요.", severity: "error" });
+      showError("먼저 1레벨 코드를 선택하세요.");
       return;
     }
     if (level === 3 && !selectedLevel2Record) {
-      setSnackbar({ message: "먼저 2레벨 코드를 선택하세요.", severity: "error" });
+      showError("먼저 2레벨 코드를 선택하세요.");
       return;
     }
 
@@ -277,7 +276,7 @@ export function CommonCodeManagementPage() {
     setSelectedCodeId(null);
     setIsCreating(true);
     setDraft(emptyDraft(level, parent ?? undefined));
-    setSnackbar({ message: `${levelLabel(level)} 공통코드를 입력하세요.`, severity: "info" });
+    showInfo(`${levelLabel(level)} 공통코드를 입력하세요.`);
   };
 
   const handleSelect = (record: CommonCodeRecord) => {
@@ -344,13 +343,10 @@ export function CommonCodeManagementPage() {
       queryClient.invalidateQueries({ queryKey: ["common-codes"] });
       queryClient.invalidateQueries({ queryKey: ["common-codes-management"] });
       queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
-      setSnackbar({
-        message: "공통코드를 추가하거나 수정했습니다. 변경된 내용은 현재 화면에 바로 반영되며, 다른 화면에는 잠시 후 반영될 수 있습니다.",
-        severity: "success",
-      });
+      showSuccess("공통코드를 추가하거나 수정했습니다. 변경된 내용은 현재 화면에 바로 반영되며, 다른 화면에는 잠시 후 반영될 수 있습니다.");
     },
     onError: (error) => {
-      setSnackbar({ message: error instanceof Error ? error.message : "공통코드 저장에 실패했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "공통코드 저장에 실패했습니다.");
     },
   });
 
@@ -364,25 +360,22 @@ export function CommonCodeManagementPage() {
       setIsCreating(false);
       setDraft(emptyDraft());
       setDeleteTarget(null);
-      setSnackbar({
-        message: "공통코드를 삭제했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 변경 내용을 조회합니다.",
-        severity: "success",
-      });
+      showSuccess("공통코드를 삭제했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 변경 내용을 조회합니다.");
     },
     onError: (error) => {
-      setSnackbar({ message: error instanceof Error ? error.message : "공통코드 삭제에 실패했습니다.", severity: "error" });
+      showError(error instanceof Error ? error.message : "공통코드 삭제에 실패했습니다.");
     },
   });
 
   const handleSave = () => {
     if (!canSaveCurrent) {
-      setSnackbar({ message: "저장 권한이 없습니다.", severity: "error" });
+      showError("저장 권한이 없습니다.");
       return;
     }
 
     const errorMessage = validateDraft(activeDraft);
     if (errorMessage) {
-      setSnackbar({ message: errorMessage, severity: "error" });
+      showError(errorMessage);
       return;
     }
 
@@ -693,11 +686,6 @@ export function CommonCodeManagementPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar autoHideDuration={2500} onClose={() => setSnackbar(null)} open={Boolean(snackbar)}>
-        <Alert severity={snackbar?.severity ?? "info"} sx={{ width: "100%" }} variant="filled">
-          {snackbar?.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

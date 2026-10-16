@@ -3,7 +3,7 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import { Autocomplete, Box, Button, Card, CardContent, Chip, Snackbar, Stack, TextField, Typography } from "@mui/material";
+import { Autocomplete, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import { useGridApiRef, type GridColDef, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -27,6 +27,7 @@ import {
   formatRegistrantForXlsx,
 } from "@/modules/pq/bid-notice/bidNoticeXlsxFormatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 import {
   BID_NOTICE_PAGE_SIZE,
@@ -266,7 +267,7 @@ export function BidNoticePage() {
   const [searchDraft, setSearchDraft] = useState<BidNoticeFilters>(() => buildDefaultFilters());
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [snackMessage, setSnackMessage] = useState("");
+  const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
   const sourceAttachmentsQuery = useQuery({
@@ -402,11 +403,11 @@ export function BidNoticePage() {
       const nextRecord = toBidNoticeRecord(saved);
       setDraft(nextRecord);
       queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
-      setSnackMessage("저장되었습니다.");
+      showSuccess("저장되었습니다.");
       setOpen(false);
     },
     onError: (error) => {
-      setSnackMessage(error instanceof Error ? error.message : "저장에 실패했습니다.");
+      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
     },
   });
 
@@ -415,18 +416,18 @@ export function BidNoticePage() {
     onSuccess: (_data, deletedBidSeq) => {
       queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
       queryClient.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(deletedBidSeq)] });
-      setSnackMessage("삭제되었습니다.");
+      showSuccess("삭제되었습니다.");
       setDeleteConfirmOpen(false);
       setOpen(false);
     },
     onError: (error) => {
-      setSnackMessage(error instanceof Error ? error.message : "삭제에 실패했습니다.");
+      showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     },
   });
 
   const openEditor = (record: BidNoticeRecord) => {
     if (!canRead) {
-      setSnackMessage("조회 권한이 없습니다.");
+      showError("조회 권한이 없습니다.");
       return;
     }
     setDraft({ ...record });
@@ -435,7 +436,7 @@ export function BidNoticePage() {
 
   const openNew = () => {
     if (!canCreate) {
-      setSnackMessage("등록 권한이 없습니다.");
+      showError("등록 권한이 없습니다.");
       return;
     }
     setDraft(emptyDraft());
@@ -454,17 +455,17 @@ export function BidNoticePage() {
   const saveRecord = () => {
     const canSaveCurrent = draft.seqNo ? canUpdate : canCreate;
     if (!canSaveCurrent) {
-      setSnackMessage(draft.seqNo ? "수정 권한이 없습니다." : "등록 권한이 없습니다.");
+      showError(draft.seqNo ? "수정 권한이 없습니다." : "등록 권한이 없습니다.");
       return;
     }
     if (!draft.projectName.trim()) {
-      setSnackMessage("사업명을 입력하세요.");
+      showError("사업명을 입력하세요.");
       return;
     }
     const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
     const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
     if (isAbsent && !draft.reasonOfAbsenceCode.trim()) {
-      setSnackMessage("불참 사유를 선택하세요.");
+      showError("불참 사유를 선택하세요.");
       return;
     }
 
@@ -473,7 +474,7 @@ export function BidNoticePage() {
 
   const requestDeleteRecord = () => {
     if (!canDelete) {
-      setSnackMessage("삭제 권한이 없습니다.");
+      showError("삭제 권한이 없습니다.");
       return;
     }
     if (!draft.seqNo) {
@@ -491,7 +492,7 @@ export function BidNoticePage() {
 
   const handleSearch = () => {
     if (!canRead) {
-      setSnackMessage("조회 권한이 없습니다.");
+      showError("조회 권한이 없습니다.");
       return;
     }
     setFilters({ ...searchDraft });
@@ -635,7 +636,7 @@ export function BidNoticePage() {
           .filter((row): row is BidNoticeRecord => Boolean(row))
       : filteredRecords;
 
-    openBidNoticePrintWindow(sortedRecords, filters, printLabelMaps, setSnackMessage);
+    openBidNoticePrintWindow(sortedRecords, filters, printLabelMaps, showError);
   };
 
   return (
@@ -844,7 +845,6 @@ export function BidNoticePage() {
         title="입찰공고 삭제 확인"
       />
 
-      <Snackbar autoHideDuration={2500} message={snackMessage} onClose={() => setSnackMessage("")} open={Boolean(snackMessage)} />
     </Box>
   );
 }

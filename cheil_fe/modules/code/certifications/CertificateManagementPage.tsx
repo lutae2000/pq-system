@@ -6,7 +6,6 @@ import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -20,7 +19,6 @@ import {
   FormControlLabel,
   InputAdornment,
   MenuItem,
-  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -36,6 +34,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
 import { createCertification, deleteCertification, listCertifications, updateCertification } from "./api";
 import type { CertificationRecord, CertificationUpsertRequest } from "./certificates.types";
@@ -151,7 +150,7 @@ export function CertificateManagementPage() {
   const [draft, setDraft] = useState<CertificationUpsertRequest>(emptyDraft());
   const [submitted, setSubmitted] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CertificationRecord | null>(null);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: "success" | "error" | "info" } | null>(null);
+  const { showError, showSuccess } = useAppSnackbar();
 
   const filteredRecords = useMemo(() => {
     const keyword = appliedFilters.keyword.trim().toLowerCase();
@@ -244,13 +243,10 @@ export function CertificateManagementPage() {
       setIsCreating(false);
       setDraft(toDraft(saved));
       setSubmitted(false);
-      setSnackbar({ message: "자격증 정보가 저장되었습니다.", severity: "success" });
+      showSuccess("자격증 정보가 저장되었습니다.");
     },
     onError: (error) => {
-      setSnackbar({
-        message: error instanceof Error ? error.message : "저장에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
     },
   });
 
@@ -263,13 +259,10 @@ export function CertificateManagementPage() {
       setDraft(nextRecord ? toDraft(nextRecord) : emptyDraft());
       setIsCreating(false);
       setDeleteTarget(null);
-      setSnackbar({ message: "자격증이 삭제되었습니다.", severity: "success" });
+      showSuccess("자격증이 삭제되었습니다.");
     },
     onError: (error) => {
-      setSnackbar({
-        message: error instanceof Error ? error.message : "삭제에 실패했습니다.",
-        severity: "error",
-      });
+      showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     },
   });
 
@@ -311,7 +304,7 @@ export function CertificateManagementPage() {
     deleteMutation.mutate(deleteTarget.certCode);
   };
 
-  const showError = (key: keyof FieldErrorState) => submitted && Boolean(errors[key]);
+  const showFieldError = (key: keyof FieldErrorState) => submitted && Boolean(errors[key]);
 
   const columns: GridColDef<CertificationRecord>[] = [
     { field: "certCode", headerName: "자격증 코드", width: 120 },
@@ -505,8 +498,8 @@ export function CertificateManagementPage() {
               <TextField
                 fullWidth
                 disabled={!isCreating}
-                error={showError("certCode")}
-                helperText={showError("certCode") ? errors.certCode : `${normalizeText(detailDraft.certCode).length}/${MAX_CERT_CODE}`}
+                error={showFieldError("certCode")}
+                helperText={showFieldError("certCode") ? errors.certCode : `${normalizeText(detailDraft.certCode).length}/${MAX_CERT_CODE}`}
                 label="자격증 코드"
                 onChange={(event) => setDraft((current) => ({ ...current, certCode: event.target.value }))}
                 size="small"
@@ -533,8 +526,8 @@ export function CertificateManagementPage() {
               <TextField
                 fullWidth
                 disabled={detailDisabled}
-                error={showError("certName")}
-                helperText={showError("certName") ? errors.certName : `${normalizeText(detailDraft.certName).length}/${MAX_CERT_NAME}`}
+                error={showFieldError("certName")}
+                helperText={showFieldError("certName") ? errors.certName : `${normalizeText(detailDraft.certName).length}/${MAX_CERT_NAME}`}
                 label="자격증명"
                 onChange={(event) => setDraft((current) => ({ ...current, certName: event.target.value }))}
                 size="small"
@@ -545,8 +538,8 @@ export function CertificateManagementPage() {
               <TextField
                 fullWidth
                 disabled={detailDisabled}
-                error={showError("satisCode")}
-                helperText={showError("satisCode") ? errors.satisCode : `${normalizeText(detailDraft.satisCode).length}/${MAX_SATIS_CODE}`}
+                error={showFieldError("satisCode")}
+                helperText={showFieldError("satisCode") ? errors.satisCode : `${normalizeText(detailDraft.satisCode).length}/${MAX_SATIS_CODE}`}
                 label="SATIS 코드"
                 onChange={(event) => setDraft((current) => ({ ...current, satisCode: event.target.value }))}
                 size="small"
@@ -557,8 +550,8 @@ export function CertificateManagementPage() {
               <TextField
                 fullWidth
                 disabled={detailDisabled}
-                error={showError("satisName")}
-                helperText={showError("satisName") ? errors.satisName : `${normalizeText(detailDraft.satisName).length}/${MAX_SATIS_NAME}`}
+                error={showFieldError("satisName")}
+                helperText={showFieldError("satisName") ? errors.satisName : `${normalizeText(detailDraft.satisName).length}/${MAX_SATIS_NAME}`}
                 label="SATIS명"
                 onChange={(event) => setDraft((current) => ({ ...current, satisName: event.target.value }))}
                 size="small"
@@ -613,11 +606,6 @@ export function CertificateManagementPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar autoHideDuration={2500} onClose={() => setSnackbar(null)} open={Boolean(snackbar)}>
-        <Alert severity={snackbar?.severity ?? "info"} sx={{ width: "100%" }} variant="filled">
-          {snackbar?.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

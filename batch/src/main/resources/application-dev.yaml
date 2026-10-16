@@ -19,7 +19,7 @@ batch:
     bid-notice:
       enabled: true
       run-on-startup: false
-      cron: "0 */10 8-23 * * *"
+      cron: "0 */10 8-22 * * *"
       zone: Asia/Seoul
       page-size: 999
       lookback-minutes: 1440
