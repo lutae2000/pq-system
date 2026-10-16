@@ -138,7 +138,8 @@ ON CONFLICT (role_code, menu_code) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS engineer_contacts (
     engr_id VARCHAR(20) PRIMARY KEY,
-    phone_no VARCHAR(50) NOT NULL,
+    -- AES-GCM 암호문은 IV, 인증 태그, Base64 인코딩으로 평문보다 길어지므로 충분한 길이를 확보한다.
+    phone_no TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

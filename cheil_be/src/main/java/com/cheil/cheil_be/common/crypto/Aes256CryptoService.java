@@ -20,6 +20,7 @@ public class Aes256CryptoService {
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
     private static final int TAG_LENGTH = 128;
+    private static final int MIN_ENCRYPTED_PAYLOAD_LENGTH = IV_LENGTH + (TAG_LENGTH / Byte.SIZE);
 
     private final SecretKeySpec key;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -63,6 +64,10 @@ public class Aes256CryptoService {
 
         try {
             byte[] payload = Base64.getDecoder().decode(value.substring(PREFIX.length()));
+            if (payload.length < MIN_ENCRYPTED_PAYLOAD_LENGTH) {
+                throw new IllegalArgumentException("Encrypted payload is too short.");
+            }
+
             byte[] iv = new byte[IV_LENGTH];
             byte[] encrypted = new byte[payload.length - IV_LENGTH];
             System.arraycopy(payload, 0, iv, 0, IV_LENGTH);

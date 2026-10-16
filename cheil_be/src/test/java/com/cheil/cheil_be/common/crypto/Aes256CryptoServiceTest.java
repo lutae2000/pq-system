@@ -38,4 +38,11 @@ class Aes256CryptoServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("AES-256 decryption failed");
     }
+
+    @Test
+    void rejectsTruncatedEncryptedPayload() {
+        assertThatThrownBy(() -> cryptoService.decrypt("v1:YWJj"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AES-256 decryption failed");
+    }
 }

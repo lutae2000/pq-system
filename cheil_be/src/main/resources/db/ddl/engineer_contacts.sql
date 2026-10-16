@@ -1,4 +1,5 @@
 -- education_reminder_phone_numbers -> engineer_contacts
+-- 전화번호는 Java AES-256-GCM 암호문으로 저장되므로 TEXT 타입을 사용한다.
 DO $$
 BEGIN
     IF to_regclass('education_reminder_phone_numbers') IS NOT NULL
@@ -8,6 +9,9 @@ BEGIN
     END IF;
 END
 $$;
+
+ALTER TABLE IF EXISTS engineer_contacts
+    ALTER COLUMN phone_no TYPE TEXT;
 
 ALTER TABLE IF EXISTS engineer_contacts
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
