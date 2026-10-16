@@ -32,9 +32,6 @@ public class EducationReminderTemplateEntity extends AuditEntity {
     @Column(name = "channel", nullable = false, length = 10)
     private String channel;
 
-    @Column(name = "title", nullable = false, length = 300)
-    private String title;
-
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
@@ -54,7 +51,6 @@ public class EducationReminderTemplateEntity extends AuditEntity {
     public void update(EducationReminderTemplateRequest request) {
         name = request.name();
         channel = request.channel();
-        title = request.title();
         description = request.description();
         homepageUrl = request.homepageUrl();
         content = request.content();
@@ -66,7 +62,6 @@ public class EducationReminderTemplateEntity extends AuditEntity {
                 id,
                 name,
                 channel,
-                title,
                 description,
                 homepageUrl,
                 content,

@@ -38,6 +38,9 @@ public class EducationReminderBasicInfoEntity extends AuditEntity {
     @Column(name = "active", nullable = false)
     private boolean active;
 
+    @Column(name = "template_id")
+    private Long templateId;
+
     public EducationReminderBasicInfoEntity(EducationReminderBasicInfoRequest request) {
         update(request);
     }
@@ -49,6 +52,7 @@ public class EducationReminderBasicInfoEntity extends AuditEntity {
         cycleUnit = request.cycleUnit();
         cycleValue = request.cycleValue();
         active = Boolean.TRUE.equals(request.active());
+        templateId = request.templateId();
     }
 
     public EducationReminderBasicInfoResponse toResponse() {
@@ -59,6 +63,7 @@ public class EducationReminderBasicInfoEntity extends AuditEntity {
                 cycleUnit,
                 cycleValue,
                 active,
+                templateId,
                 createdAt == null ? null : createdAt.toString(),
                 createdId,
                 lastChangedAt == null ? null : lastChangedAt.toString(),
