@@ -304,7 +304,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
       slotProps={{
         paper: {
           sx: {
-            maxHeight: "92vh",
+            maxHeight: "95vh",
             width: { xs: "calc(100vw - 24px)", lg: "calc(100vw - 96px)" },
             maxWidth: "1800px",
           },

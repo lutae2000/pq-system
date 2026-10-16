@@ -3,13 +3,13 @@
 import { Box, CircularProgress, Toolbar, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TabFrameOutlet } from "@/components/layout/TabFrameOutlet";
 import { TopHeader, TOP_HEADER_HEIGHT } from "@/components/layout/TopHeader";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
-import { ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
+import { getAuthSessionStorageSnapshot, ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, subscribeAuthSession, type AuthSession } from "@/lib/auth/authSession";
 import { frontendIdleTimeoutMs } from "@/lib/config/timeouts";
 import { NoticeLayerDialog } from "@/modules/system/notices/NoticeLayerDialog";
 import { NotificationCenterDialog } from "@/modules/system/notices/NotificationCenterDialog";
@@ -88,14 +88,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [systemNoticeOpen, setSystemNoticeOpen] = useState(false);
   const [notificationRetentionStart] = useState(() => Date.now() - notificationRetentionMs);
-  const [readNoticeIds, setReadNoticeIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") {
-      return new Set();
-    }
-    const session = readAuthSession();
-    const userKey = session?.employeeNo ?? session?.userName ?? "anonymous";
-    return readStoredIds(`${noticeReadKey}:${userKey}`);
-  });
+  const [readNoticeVersion, setReadNoticeVersion] = useState(0);
+  const authSessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
   const [authState, dispatchAuthState] = useReducer(
     (_state: "checking" | "allowed" | "blocked", nextState: "checking" | "allowed" | "blocked") => nextState,
     ROUTE_GUARD_ENABLED && !isPublicRoute ? "checking" : "allowed",
@@ -112,11 +106,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
 
   const currentSession = mounted ? readAuthSession() : null;
+  const notificationUserKey = currentSession?.employeeNo ?? currentSession?.userName ?? "anonymous";
+  const readNoticeIds = useMemo(() => {
+    void readNoticeVersion;
+    return authSessionSnapshot || mounted
+      ? readStoredIds(`${noticeReadKey}:${notificationUserKey}`)
+      : new Set<string>();
+  }, [authSessionSnapshot, mounted, notificationUserKey, readNoticeVersion]);
   const sessionEnabled = mounted && !isPublicRoute && authState === "allowed" && Boolean(currentSession);
   const { remainingMs } = useIdleLogout({
     enabled: sessionEnabled,
     timeoutMs: frontendIdleTimeoutMs,
   });
+
   const effectiveDrawerWidth = isSidebarOpen ? drawerWidth : 0;
 
   const businessNotifications = useMemo(() => {
@@ -142,12 +144,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   const markNoticeRead = (noticeId: string) => {
-    const userKey = readAuthSession()?.employeeNo ?? readAuthSession()?.userName ?? "anonymous";
-    const key = `${noticeReadKey}:${userKey}`;
+    const key = `${noticeReadKey}:${notificationUserKey}`;
     const current = readStoredIds(key);
     current.add(noticeId);
     window.localStorage.setItem(key, JSON.stringify([...current]));
-    setReadNoticeIds(current);
+    setReadNoticeVersion((version) => version + 1);
   };
 
   useEffect(() => {
