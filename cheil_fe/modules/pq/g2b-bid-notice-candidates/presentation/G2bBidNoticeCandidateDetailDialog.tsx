@@ -328,7 +328,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
               <Typography sx={{ color: "warning.dark", fontSize: 13, fontWeight: 800, mb: 0.75 }}>변경사항</Typography>
               <Stack spacing={0.75}>
                 {historyChanges.map((change) => (
-                  <Box key={change.label} sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { md: "130px minmax(0, 1fr) minmax(0, 1fr)", xs: "1fr" } }}>
+                  <Box key={change.label} sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { md: "160px minmax(0, 1fr) minmax(0, 1fr)", xs: "1fr" } }}>
                     <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{change.label}</Typography>
                     <Typography sx={{ bgcolor: "rgba(244, 67, 54, 0.08)", color: "error.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>이전: {change.previous}</Typography>
                     <Typography sx={{ bgcolor: "rgba(33, 150, 243, 0.08)", color: "info.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>현재: {change.current}</Typography>
