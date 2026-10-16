@@ -51,7 +51,7 @@ public class QualificationCriteriaService {
         String normalizedKeyword = keyword(keyword);
         return agencyRepository.findByOrderByAgencyCodeAsc().stream()
                 .filter(entity -> useYn == null || entity.isUseYn() == useYn)
-                .filter(entity -> matches(normalizedKeyword, entity.getAgencyCode(), entity.getAgencyName(), entity.getRemark()))
+                .filter(entity -> matches(normalizedKeyword, entity.getAgencyCode(), entity.getAgencyName()))
                 .map(QualificationReviewAgencyResponse::from)
                 .toList();
     }
@@ -197,7 +197,6 @@ public class QualificationCriteriaService {
         return new QualificationReviewAgencyRequest(
                 requiredText(request.agencyCode(), AGENCY_CODE_MAX_LENGTH, "agencyCode"),
                 requiredText(request.agencyName(), AGENCY_NAME_MAX_LENGTH, "agencyName"),
-                limitedText(request.remark(), LONG_TEXT_MAX_LENGTH, "remark"),
                 request.useYn()
         );
     }

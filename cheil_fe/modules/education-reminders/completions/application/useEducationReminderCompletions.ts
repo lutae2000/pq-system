@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { listEducationReminderBasicInfos } from "@/modules/education-reminders/basic-infos/api";
-import { listEducationReminderCompletions, listEducationReminderNotificationTargets } from "@/modules/education-reminders/completions/api";
+import { listEducationReminderCompletions } from "@/modules/education-reminders/completions/api";
 import { educationReminderCompletionQueryKeys } from "@/modules/education-reminders/completions/application/queryKeys";
 import { listEducationReminderTemplates } from "@/modules/education-reminders/templates/api";
 import type { EducationReminderCompletionSearchParams } from "@/modules/education-reminders/types";
@@ -24,16 +24,11 @@ export function useEducationReminderCompletions({ completionSearchParams, tabQue
     queryFn: listEducationReminderTemplates,
     enabled: tabQueryEnabled,
   });
-  const notificationTargetQuery = useQuery({
-    queryKey: educationReminderCompletionQueryKeys.notificationTargets,
-    queryFn: () => listEducationReminderNotificationTargets(),
-    enabled: tabQueryEnabled,
-  });
   const completionQuery = useQuery({
     queryKey: educationReminderCompletionQueryKeys.completions(completionSearchParams),
     queryFn: () => listEducationReminderCompletions(completionSearchParams),
     enabled: tabQueryEnabled,
   });
 
-  return { basicInfosQuery, completionQuery, notificationTargetQuery, templatesQuery };
+  return { basicInfosQuery, completionQuery, templatesQuery };
 }

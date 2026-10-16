@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 @Component
+/** 모든 배치 Job의 실행 횟수, 결과, 처리 건수와 소요 시간을 Micrometer로 기록합니다. */
 public class BatchMetrics {
 
     private final MeterRegistry meterRegistry;
@@ -19,6 +20,7 @@ public class BatchMetrics {
     }
 
     public void initializeJob(String jobName) {
+        // Counter와 Timer를 미리 등록해 실행 전에도 메트릭 이름이 노출되도록 합니다.
         counter("batch.job.runs", jobName, "run");
         counter("batch.job.success", jobName, "success");
         counter("batch.job.failure", jobName, "failure");
@@ -57,6 +59,7 @@ public class BatchMetrics {
     }
 
     public void recordRecords(String jobName, String recordType, long count) {
+        // 음수 건수는 기록하지 않아 삭제·조회 결과의 잘못된 값이 메트릭에 반영되지 않게 합니다.
         Counter records = counter("batch.job.records", jobName, recordType);
         if (count > 0) {
             records.increment(count);

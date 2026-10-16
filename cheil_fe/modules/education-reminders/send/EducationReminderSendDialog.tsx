@@ -1,17 +1,18 @@
 ﻿"use client";
 
 import {
+  Alert,
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
   Stack,
   Switch,
   TextField,
   Typography,
+  Chip,
 } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
@@ -53,6 +54,15 @@ const targetColumns: GridColDef<EducationReminderSendDialogTarget>[] = [
   { field: "name", flex: 0.55, headerName: "이름", minWidth: 70 },
   { field: "grade", flex: 0.55, headerName: "직위", minWidth: 70 },
   {
+    field: "templateName",
+    flex: 1,
+    headerName: "발송 템플릿",
+    minWidth: 150,
+    renderCell: ({ row }) => row.templateStatus === "ASSIGNED"
+      ? row.templateName
+      : <Chip color={row.templateStatus === "MIXED" ? "error" : "warning"} label={row.templateStatus === "MIXED" ? "교육별 템플릿 상이" : "미지정"} size="small" variant="outlined" />,
+  },
+  {
     field: "phoneNo",
     flex: 0.9,
     headerName: "전화번호",
@@ -70,6 +80,7 @@ const renderPreviewMessage = (templateContent: string, target: EducationReminder
     .replaceAll("{수령자명}", target.name || "")
     .replaceAll("{이름}", target.name || "")
     .replaceAll("{부서명}", target.department || "")
+    .replaceAll("{직위}", target.grade || "")
     .replaceAll("{교육명}", educationName)
     .replaceAll("{교육이름}", educationName)
     .replaceAll("{마감일}", target.deadline || getClosestEducationDeadline([target.scheduledEducation1, target.scheduledEducation2]))
@@ -85,8 +96,6 @@ export function EducationReminderSendDialog({
   onClose,
   onSend,
 }: EducationReminderSendDialogProps) {
-  const firstTemplateId = templates.find((template) => template.active)?.id ?? templates[0]?.id ?? 0;
-  const [templateId, setTemplateId] = useState<number>(firstTemplateId);
   const [manualMode, setManualMode] = useState(false);
   const [manualContent, setManualContent] = useState("");
   const [testPhoneNo, setTestPhoneNo] = useState("");
@@ -94,12 +103,27 @@ export function EducationReminderSendDialog({
   const selectedTarget = targets.find((target) => target.rowKey === selectedTargetRowKey) ?? targets[0];
   const defaultTestPhoneNo = formatPhoneNo(selectedTarget?.phoneNo ?? "");
   const isTestPhoneNo = Boolean(testPhoneNo && testPhoneNo !== defaultTestPhoneNo);
-  const canTestSend = Boolean(testPhoneNo.replace(/\D/g, ""));
+  const canTestSend = Boolean(selectedTargetRowKey) && isTestPhoneNo && Boolean(testPhoneNo.replace(/\D/g, ""));
 
   const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === templateId) ?? templates[0] ?? null,
-    [templateId, templates],
+    () => selectedTarget?.templateId == null ? null : templates.find((template) => template.id === selectedTarget.templateId) ?? null,
+    [selectedTarget, templates],
   );
+  const hasSingleAssignedTemplate = targets.length > 0
+    && targets.every((target) => target.templateStatus === "ASSIGNED" && target.templateId === selectedTemplate?.id);
+  const hasTemplateMismatch = targets.length > 0
+    && new Set(targets.map((target) => target.templateId).filter((templateId): templateId is number => templateId !== null)).size > 1;
+  const hasUnassignedTemplate = targets.some((target) => target.templateStatus === "UNASSIGNED");
+  const hasMixedTemplate = targets.some((target) => target.templateStatus === "MIXED");
+  const templateWarning = hasMixedTemplate || hasTemplateMismatch
+    ? "한 대상자에게 서로 다른 교육 템플릿이 선택되었습니다. 같은 템플릿의 교육만 선택해 주세요."
+    : hasUnassignedTemplate
+      ? "선택한 교육에 발송 템플릿이 지정되지 않았습니다. 기초 정보 관리에서 템플릿을 지정해 주세요."
+      : selectedTemplate && !selectedTemplate.active
+        ? "선택한 발송 템플릿이 미사용 상태입니다. 템플릿 관리에서 사용 상태를 확인해 주세요."
+        : templates.length > 0 && !selectedTemplate && targets.some((target) => target.templateStatus === "ASSIGNED")
+          ? "연결된 발송 템플릿을 찾을 수 없습니다. 템플릿 연결 상태를 확인해 주세요."
+          : null;
   const previewTarget = selectedTarget ?? null;
   const previewMessage = useMemo(() => {
     const content = manualMode ? manualContent : selectedTemplate?.content ?? "";
@@ -107,15 +131,20 @@ export function EducationReminderSendDialog({
   }, [manualContent, manualMode, previewTarget, selectedTemplate]);
   const previewByteLength = useMemo(() => getSmsByteLength(previewMessage), [previewMessage]);
   const selectedChannel = previewByteLength > SMS_MAX_BYTES ? "LMS" : manualMode ? "SMS" : selectedTemplate?.channel ?? "-";
-  const canSend = targets.length > 0 && (manualMode ? Boolean(manualContent.trim()) : Boolean(selectedTemplate));
+  const canSend = targets.length > 0 && (manualMode ? Boolean(manualContent.trim()) : Boolean(selectedTemplate?.active) && hasSingleAssignedTemplate);
 
   const handleSend = async (testSend: boolean) => {
+    const normalizedTestPhoneNo = testPhoneNo.replace(/\D/g, "");
+    if (testSend && (!selectedTargetRowKey || !normalizedTestPhoneNo)) {
+      return;
+    }
+
     await onSend({
       manualChannel: manualMode ? selectedChannel as "LMS" | "SMS" : undefined,
       manualContent: manualMode ? manualContent : undefined,
-      targetRowKeys: testSend && selectedTarget ? [selectedTarget.rowKey] : undefined,
-      templateId: manualMode ? undefined : selectedTemplate?.id ?? templateId,
-      testPhoneNo: testSend ? testPhoneNo.replace(/\D/g, "") : undefined,
+      targetRowKeys: testSend ? [selectedTargetRowKey!] : undefined,
+      templateId: manualMode ? undefined : selectedTemplate?.id,
+      testPhoneNo: testSend ? normalizedTestPhoneNo : undefined,
       testSend,
     });
   };
@@ -142,6 +171,7 @@ export function EducationReminderSendDialog({
               ? "수신 전화번호가 변경되어 테스트 전화번호로 1건만 발송합니다."
               : `선택한 ${targets.length}건에 대해 발송합니다. 수신 전화번호를 변경하면 테스트 발송으로 전환됩니다.`}
           </Typography>
+          {!manualMode && templateWarning && <Alert severity="warning">{templateWarning}</Alert>}
 
           <Box sx={{ alignItems: "center", display: "flex", gap: 0.75, width: "fit-content" }}>
             <Switch
@@ -195,26 +225,10 @@ export function EducationReminderSendDialog({
                 sx={{
                   display: "grid",
                   gap: 1.5,
-                  gridTemplateColumns: manualMode ? "minmax(88px, 0.4fr) minmax(0, 1fr)" : "minmax(300px, 1.8fr) minmax(0, 1fr)",
+                  gridTemplateColumns: manualMode ? "minmax(88px, 0.4fr) minmax(0, 1fr)" : "1fr",
                 }}
               >
-                {manualMode ? (
-                  <TextField disabled label="발송 채널" size="small" value={selectedChannel} />
-                ) : (
-                  <TextField
-                    select
-                    label="발송 템플릿"
-                    onChange={(event) => setTemplateId(Number(event.target.value))}
-                    size="small"
-                    value={templateId}
-                  >
-                    {templates.map((template) => (
-                      <MenuItem key={template.id} value={template.id}>
-                        {template.name} {template.channel ? `(${template.channel})` : ""}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
+                {manualMode && <TextField disabled label="발송 채널" size="small" value={selectedChannel} />}
                 <TextField
                   label={isTestPhoneNo ? "테스트 전화번호" : "수신 전화번호"}
                   onChange={(event) => setTestPhoneNo(formatPhoneNo(event.target.value))}
@@ -292,7 +306,7 @@ export function EducationReminderSendDialog({
           테스트 발송
         </Button>
         <Button
-          disabled={loading || !canSend}
+          disabled={loading || !canSend || isTestPhoneNo}
           onClick={() => void handleSend(false)}
           sx={{ ml: 1 }}
           variant="contained"

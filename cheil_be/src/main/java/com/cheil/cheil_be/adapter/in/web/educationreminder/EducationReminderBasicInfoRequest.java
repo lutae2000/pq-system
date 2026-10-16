@@ -6,6 +6,7 @@ public record EducationReminderBasicInfoRequest(
         String description,
         String cycleUnit,
         Integer cycleValue,
-        Boolean active
+        Boolean active,
+        Long templateId
 ) {
 }

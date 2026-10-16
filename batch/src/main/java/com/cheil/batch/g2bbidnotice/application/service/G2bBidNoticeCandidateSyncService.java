@@ -22,6 +22,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+/** 나라장터 API 결과를 페이지 단위로 조회하고 후보를 병합·저장합니다. */
 public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandidatesUseCase {
 
     private static final DateTimeFormatter API_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
@@ -31,6 +32,7 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
 
     @Override
     public G2bBidNoticeSyncResult sync(G2bBidNoticeSyncCommand command) {
+        // 지역별 조회 결과는 동일 공고가 중복될 수 있으므로 공고 번호와 차수로 합칩니다.
         Map<String, G2bBidNotice> noticeByKey = new LinkedHashMap<>();
         int baseTotalCount = 0;
 
@@ -50,6 +52,7 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
             mergeNotices(noticeByKey, regionNotices);
         }
 
+        // 지역별 결과를 합친 뒤 최종 건수와 함께 Batch Step으로 반환합니다.
         List<G2bBidNotice> notices = new ArrayList<>(noticeByKey.values());
         log.info("나라장터 동기화 유스케이스 완료: 조회={}, 저장={}", baseTotalCount, notices.size());
         return new G2bBidNoticeSyncResult(baseTotalCount, notices.size());
@@ -83,6 +86,7 @@ public class G2bBidNoticeCandidateSyncService implements SyncG2bBidNoticeCandida
         int pageNumber = 1;
         int totalCount = 0;
         do {
+            // 페이지가 비거나 API가 알려준 전체 건수에 도달하면 추가 호출을 중단합니다.
             G2bBidNoticePage result = fetchG2bBidNoticesUseCase.fetch(new G2bBidNoticeQuery(
                     command.from(), command.to(), regionCodes, pageNumber, command.pageSize()
             ));

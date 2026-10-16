@@ -69,6 +69,9 @@ export type EducationReminderSendDialogTarget = Pick<
   EducationReminderNotificationTargetRecord,
   "department" | "engineerId" | "grade" | "highlightTone" | "name" | "phoneNo" | "rowKey" | "targetEducationNames" | "deadline"
 > & {
+  templateId: number | null;
+  templateName: string;
+  templateStatus: "ASSIGNED" | "MIXED" | "UNASSIGNED";
   scheduledEducation1: string;
   scheduledEducation2: string;
 };

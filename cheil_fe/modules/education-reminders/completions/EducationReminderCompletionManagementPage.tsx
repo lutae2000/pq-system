@@ -315,7 +315,6 @@ function EducationReminderCompletionManagementContent() {
   const {
     basicInfosQuery,
     completionQuery,
-    notificationTargetQuery,
     templatesQuery,
   } = useEducationReminderCompletions({
     completionSearchParams,
@@ -337,7 +336,6 @@ function EducationReminderCompletionManagementContent() {
 
   const selectedSendTargets = useMemo<EducationReminderSendDialogTarget[]>(
     () => {
-      const notificationTargetsByEngineerId = new Map((notificationTargetQuery.data ?? []).map((target) => [target.engineerId, target]));
       const rowsByEngineerId = new Map<string, EducationReminderCompletionRecord[]>();
 
       for (const row of selectedCompletionRows) {
@@ -347,28 +345,46 @@ function EducationReminderCompletionManagementContent() {
       }
 
       return Array.from(rowsByEngineerId.entries()).flatMap(([engineerId, rows]) => {
-        const firstRow = rows[0];
-        const notificationTarget = notificationTargetsByEngineerId.get(engineerId);
         const educationNames = Array.from(new Set(rows.map((row) => row.educationName).filter(Boolean))).join(", ");
         const scheduledEducation1 = Array.from(new Set(rows.map((row) => row.scheduledEducation1).filter(Boolean))).join(", ");
         const scheduledEducation2 = Array.from(new Set(rows.map((row) => row.scheduledEducation2).filter(Boolean))).join(", ");
+        const highlightTone = rows.some((row) => getCompletionHighlightTone(row) === "OVERDUE")
+          ? "OVERDUE"
+          : rows.some((row) => getCompletionHighlightTone(row) === "UPCOMING")
+            ? "UPCOMING"
+            : "NONE";
+        const firstRow = rows[0];
+        const templateIds = Array.from(new Set(rows.map((row) => basicInfosQuery.data?.find((basicInfo) => basicInfo.code === row.educationCode)?.templateId ?? null)));
+        const assignedTemplateIds = templateIds.filter((templateId): templateId is number => templateId !== null);
+        const templateStatus = templateIds.length > 1
+          ? "MIXED"
+          : assignedTemplateIds.length === 1
+            ? "ASSIGNED"
+            : "UNASSIGNED";
+        const templateId = templateStatus === "ASSIGNED" ? assignedTemplateIds[0] : null;
+        const templateName = templateId == null
+          ? ""
+          : templatesQuery.data?.find((template) => template.id === templateId)?.name ?? "";
 
         return [{
-          department: notificationTarget?.department ?? firstRow.department,
-          deadline: notificationTarget?.deadline ?? getClosestEducationDeadline([scheduledEducation1, scheduledEducation2]),
+          department: firstRow.department,
+          deadline: getClosestEducationDeadline([scheduledEducation1, scheduledEducation2]),
           engineerId,
-          grade: notificationTarget?.grade ?? firstRow.grade,
-          highlightTone: notificationTarget?.highlightTone ?? getCompletionHighlightTone(firstRow),
-          name: notificationTarget?.name ?? firstRow.name,
-          phoneNo: notificationTarget?.phoneNo ?? firstRow.phoneNo,
-          rowKey: notificationTarget?.rowKey ?? engineerId,
+          grade: firstRow.grade,
+          highlightTone,
+          name: firstRow.name,
+          phoneNo: firstRow.phoneNo,
+          rowKey: engineerId,
           scheduledEducation1,
           scheduledEducation2,
-          targetEducationNames: educationNames || notificationTarget?.targetEducationNames || "",
+          templateId,
+          templateName,
+          templateStatus,
+          targetEducationNames: educationNames,
         }];
       });
     },
-    [notificationTargetQuery.data, selectedCompletionRows],
+    [basicInfosQuery.data, selectedCompletionRows, templatesQuery.data],
   );
 
   const completionSummary = useMemo(() => {
@@ -643,7 +659,7 @@ function EducationReminderCompletionManagementContent() {
         searchLabel="조회"
         actions={
           <Button
-            disabled={!canCreate || activeLoading || selectedCompletionRows.length === 0}
+            disabled={!canCreate || activeLoading || selectedSendTargets.length === 0}
             onClick={() => setSendDialogOpen(true)}
             startIcon={<SendIcon />}
             variant="outlined"
@@ -784,7 +800,7 @@ function EducationReminderCompletionManagementContent() {
       </Card>
 
       <EducationReminderSendDialog
-        loading={sendMutation.isPending || notificationTargetQuery.isLoading}
+        loading={sendMutation.isPending}
         onClose={() => setSendDialogOpen(false)}
           onSend={(request) =>
           sendMutation.mutateAsync({

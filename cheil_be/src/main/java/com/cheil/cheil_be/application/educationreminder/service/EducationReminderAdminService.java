@@ -26,7 +26,6 @@ public class EducationReminderAdminService {
     private static final int NAME_MAX_LENGTH = 300;
     private static final int DESCRIPTION_MAX_LENGTH = 4000;
     private static final int CHANNEL_MAX_LENGTH = 10;
-    private static final int TITLE_MAX_LENGTH = 300;
     private static final int HOMEPAGE_URL_MAX_LENGTH = 500;
     private static final int CONTENT_MAX_LENGTH = 8000;
 
@@ -118,13 +117,17 @@ public class EducationReminderAdminService {
         StringValues.validateMaxLength(code, CODE_MAX_LENGTH, "code");
         StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
         StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
+        if (request.templateId() != null && !templateRepository.existsById(request.templateId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택한 교육 알림 템플릿을 찾을 수 없습니다.");
+        }
         return new EducationReminderBasicInfoRequest(
                 code,
                 name,
                 request.description(),
                 cycleUnit,
                 cycleValue,
-                request.active() == null ? Boolean.TRUE : request.active()
+                request.active() == null ? Boolean.TRUE : request.active(),
+                request.templateId()
         );
     }
 
@@ -135,11 +138,9 @@ public class EducationReminderAdminService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "channel must be SMS or LMS.");
         }
         channel = channel.toUpperCase();
-        String title = StringValues.required(request.title(), "title");
         String content = StringValues.required(request.content(), "content");
         StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
         StringValues.validateMaxLength(channel, CHANNEL_MAX_LENGTH, "channel");
-        StringValues.validateMaxLength(title, TITLE_MAX_LENGTH, "title");
         StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
         String homepageUrl = request.homepageUrl() == null ? "" : request.homepageUrl().trim();
         StringValues.validateMaxLength(homepageUrl, HOMEPAGE_URL_MAX_LENGTH, "homepageUrl");
@@ -148,7 +149,6 @@ public class EducationReminderAdminService {
                 request.id(),
                 name,
                 channel,
-                title,
                 request.description(),
                 homepageUrl,
                 content,

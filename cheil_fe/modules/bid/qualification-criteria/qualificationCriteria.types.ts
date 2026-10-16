@@ -4,7 +4,6 @@ export type QualificationReviewAgencyRecord = {
   id: number;
   agencyCode: string;
   agencyName: string;
-  remark: string | null;
   useYn: boolean;
   createdAt: string | null;
   createdId: string | null;
@@ -60,7 +59,6 @@ export type QualificationScoreBandRecord = {
 export type QualificationReviewAgencyUpsertRequest = {
   agencyCode: string;
   agencyName: string;
-  remark: string | null;
   useYn: boolean;
 };
 

@@ -25,6 +25,7 @@ import tools.jackson.databind.JsonNode;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+/** 나라장터 외부 API를 호출하고 응답을 도메인 모델로 변환하는 출력 어댑터입니다. */
 public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
 
     private static final String OPERATION_PATH = "/getBidPblancListInfoServcPPSSrch";
@@ -37,6 +38,7 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
 
     @Override
     public G2bBidNoticePage load(G2bBidNoticeQuery query) {
+        // 로그에는 인증 키가 노출되지 않도록 마스킹한 URI만 기록합니다.
         URI requestUri = null;
         try {
             log.info("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
@@ -65,6 +67,7 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
     }
 
     private G2bBidNoticePage mapResponse(G2bBidNoticeApiResponse apiResponse) {
+        // 통신 성공과 API 업무 응답 성공을 구분해 모두 검증합니다.
         if (apiResponse == null || apiResponse.response() == null || apiResponse.response().header() == null) {
             throw new G2bBidNoticeCommunicationException("나라장터 API 응답 형식이 올바르지 않습니다.");
         }
@@ -128,6 +131,7 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
     }
 
     private List<G2bBidNoticeSpecFile> specificationFiles(JsonNode item) {
+        // 나라장터가 제공하는 최대 10개의 첨부 명세 파일만 도메인 객체로 보존합니다.
         return IntStream.rangeClosed(1, 10)
                 .mapToObj(sequence -> new G2bBidNoticeSpecFile(
                         sequence,

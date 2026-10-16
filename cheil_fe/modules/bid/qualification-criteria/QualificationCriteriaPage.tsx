@@ -19,12 +19,13 @@ import {
 import {
   GridActionsCellItem,
   GridRowModes,
+  GridRowEditStopReasons,
   type GridColDef,
   type GridRowId,
   type GridRowModesModel,
   type GridRowParams,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -76,6 +77,9 @@ const qualificationCriteriaQueryKeys = {
   scoreBands: (criterionId: number | null) => ["qualification-criteria", "score-bands", criterionId] as const,
 };
 
+// 기준 관리 데이터는 자주 바뀌지 않으므로 탭 재진입과 검색 조건 변경 시 불필요한 대기를 줄입니다.
+const QUALIFICATION_CRITERIA_STALE_TIME = 5 * 60 * 1000;
+
 const useYnFilterToBoolean = (value: UseYnFilter) => {
   if (value === "Y") {
     return true;
@@ -103,6 +107,9 @@ const formatRatio = (value: number | null | undefined) =>
 
 const makeDraftId = () => -Date.now();
 
+const shouldRemoveDraft = (row: { isNew?: boolean }, reason?: GridRowEditStopReasons) =>
+  row.isNew === true && (reason === GridRowEditStopReasons.rowFocusOut || reason === GridRowEditStopReasons.escapeKeyDown);
+
 const emptyToNull = (value: string | null | undefined) => {
   const normalized = value?.trim() ?? "";
   return normalized ? normalized : null;
@@ -111,7 +118,6 @@ const emptyToNull = (value: string | null | undefined) => {
 const toAgencyRequest = (row: ReviewAgencyRow): QualificationReviewAgencyUpsertRequest => ({
   agencyCode: row.agencyCode.trim(),
   agencyName: row.agencyName.trim(),
-  remark: emptyToNull(row.remark),
   useYn: row.useYn,
 });
 
@@ -172,8 +178,10 @@ export function QualificationCriteriaPage() {
 
   const agenciesQuery = useQuery({
     enabled: tabQueryEnabled,
+    placeholderData: keepPreviousData,
     queryFn: () => listQualificationReviewAgencies({ keyword: appliedKeyword || undefined, useYn: useYnParam }),
     queryKey: qualificationCriteriaQueryKeys.agencies(appliedKeyword, useYnParam),
+    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
   });
 
   const agencyRows = useMemo<ReviewAgencyRow[]>(
@@ -187,9 +195,11 @@ export function QualificationCriteriaPage() {
 
   const enabledCriteriaQuery = useQuery({
     enabled: tabQueryEnabled && effectiveSelectedAgencyId !== null && effectiveSelectedAgencyId > 0,
+    placeholderData: keepPreviousData,
     queryFn: () =>
       listQualificationReviewCriteria(effectiveSelectedAgencyId as number, { keyword: appliedKeyword || undefined, useYn: useYnParam }),
     queryKey: qualificationCriteriaQueryKeys.criteria(effectiveSelectedAgencyId, appliedKeyword, useYnParam),
+    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
   });
 
   const criterionRows = useMemo<ReviewCriterionRow[]>(
@@ -203,8 +213,10 @@ export function QualificationCriteriaPage() {
 
   const enabledScoreBandsQuery = useQuery({
     enabled: tabQueryEnabled && effectiveSelectedCriterionId !== null && effectiveSelectedCriterionId > 0,
+    placeholderData: keepPreviousData,
     queryFn: () => listQualificationScoreBands(effectiveSelectedCriterionId as number),
     queryKey: qualificationCriteriaQueryKeys.scoreBands(effectiveSelectedCriterionId),
+    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
   });
 
   const scoreBandRows = useMemo<ScoreBandRow[]>(
@@ -310,6 +322,66 @@ export function QualificationCriteriaPage() {
     setter((current) => ({ ...current, [id]: { mode: GridRowModes.View, ignoreModifications: true } }));
   };
 
+  const removeDraftAgency = useCallback((id: GridRowId) => {
+    setDraftAgencyRows((current) => current.filter((row) => row.id !== id));
+    setAgencyRowModes((current) => {
+      const next = { ...current };
+      delete next[String(id)];
+      return next;
+    });
+  }, []);
+
+  const removeDraftCriterion = useCallback((id: GridRowId) => {
+    setDraftCriterionRows((current) => current.filter((row) => row.id !== id));
+    setCriterionRowModes((current) => {
+      const next = { ...current };
+      delete next[String(id)];
+      return next;
+    });
+  }, []);
+
+  const removeDraftScoreBand = useCallback((id: GridRowId) => {
+    setDraftScoreBandRows((current) => current.filter((row) => row.id !== id));
+    setScoreBandRowModes((current) => {
+      const next = { ...current };
+      delete next[String(id)];
+      return next;
+    });
+  }, []);
+
+  const handleNewAgencyEditCancel = useCallback(
+    (row: ReviewAgencyRow, params: { reason?: GridRowEditStopReasons }) => {
+      if (!shouldRemoveDraft(row, params.reason)) {
+        return;
+      }
+      removeDraftAgency(row.id);
+      return true;
+    },
+    [removeDraftAgency],
+  );
+
+  const handleNewCriterionEditCancel = useCallback(
+    (row: ReviewCriterionRow, params: { reason?: GridRowEditStopReasons }) => {
+      if (!shouldRemoveDraft(row, params.reason)) {
+        return;
+      }
+      removeDraftCriterion(row.id);
+      return true;
+    },
+    [removeDraftCriterion],
+  );
+
+  const handleNewScoreBandEditCancel = useCallback(
+    (row: ScoreBandRow, params: { reason?: GridRowEditStopReasons }) => {
+      if (!shouldRemoveDraft(row, params.reason)) {
+        return;
+      }
+      removeDraftScoreBand(row.id);
+      return true;
+    },
+    [removeDraftScoreBand],
+  );
+
   const handleAddAgency = () => {
     if (!canCreate) {
       return;
@@ -319,7 +391,6 @@ export function QualificationCriteriaPage() {
       id: makeDraftId(),
       agencyCode: "",
       agencyName: "",
-      remark: "",
       useYn: true,
       createdAt: null,
       createdId: null,
@@ -435,6 +506,7 @@ export function QualificationCriteriaPage() {
       rowModes: GridRowModesModel,
       setRowModes: (updater: (current: GridRowModesModel) => GridRowModesModel) => void,
       getDeleteTarget: (row: Row) => DeleteTarget,
+      onCancelDraft: (id: GridRowId) => void,
     ): GridColDef<Row> => ({
       field: "actions",
       type: "actions",
@@ -455,7 +527,13 @@ export function QualificationCriteriaPage() {
               icon={<CancelOutlinedIcon />}
               key="cancel"
               label="취소"
-              onClick={() => cancelEdit(setRowModes, id)}
+              onClick={() => {
+                if ((row as Row & { isNew?: boolean }).isNew) {
+                  onCancelDraft(id);
+                  return;
+                }
+                cancelEdit(setRowModes, id);
+              }}
             />,
           ];
         }
@@ -486,14 +564,13 @@ export function QualificationCriteriaPage() {
     () => [
       { field: "agencyCode", headerName: "기관코드", width: 96, editable: true },
       { field: "agencyName", headerName: "기관명", minWidth: 170, flex: 1, editable: true },
-      { field: "remark", headerName: "비고", minWidth: 160, flex: 0.7, editable: true },
       actionColumn(agencyRowModes, setAgencyRowModes, (row) => ({
         id: row.id,
         kind: "agency",
         label: `${row.agencyCode || "-"} / ${row.agencyName || "-"}`,
-      })),
+      }), removeDraftAgency),
     ],
-    [actionColumn, agencyRowModes],
+    [actionColumn, agencyRowModes, removeDraftAgency],
   );
 
   const criterionColumns = useMemo<GridColDef<ReviewCriterionRow>[]>(
@@ -540,9 +617,9 @@ export function QualificationCriteriaPage() {
         id: row.id,
         kind: "criterion",
         label: `${row.ruleCode || "-"} / ${row.revisionNo || "-"}`,
-      })),
+      }), removeDraftCriterion),
     ],
-    [actionColumn, criterionRowModes],
+    [actionColumn, criterionRowModes, removeDraftCriterion],
   );
 
   const scoreBandColumns = useMemo<GridColDef<ScoreBandRow>[]>(
@@ -633,9 +710,9 @@ export function QualificationCriteriaPage() {
         id: row.id,
         kind: "scoreBand",
         label: `${row.sortOrder}. ${row.priceText || "가격구간"}`,
-      })),
+      }), removeDraftScoreBand),
     ],
-    [actionColumn, scoreBandRowModes],
+    [actionColumn, removeDraftScoreBand, scoreBandRowModes],
   );
 
   const handleSearch = (nextKeyword: string) => {
@@ -651,13 +728,13 @@ export function QualificationCriteriaPage() {
   return (
     <Box>
       <PageHeader
-        title="적격심사기준"
+        title="적격심사 기준관리"
       />
 
       <SearchPanel
         keyword={keyword}
         keywordLabel="통합검색"
-        keywordPlaceholder="기관명, 관련근거, 낙찰자 결정방법"
+        keywordPlaceholder="기관명"
         onKeywordChange={setKeyword}
         onReset={handleReset}
         onSearch={handleSearch}
@@ -679,7 +756,7 @@ export function QualificationCriteriaPage() {
 
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: "360px minmax(0, 1fr)" } }}>
         <Card sx={{ minWidth: 0 }}>
-          <CardContent sx={{ p: 2 }}>
+          <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
             <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
               <Typography sx={{ fontWeight: 800 }} variant="h6">
                 기관
@@ -701,9 +778,11 @@ export function QualificationCriteriaPage() {
               })}
               editMode="row"
               getRowId={(row) => row.id}
+              isNewRow={(row) => row.isNew === true}
               isCellEditable={(params) => (params.row.isNew ? canCreate : canUpdate)}
               loading={agenciesQuery.isFetching || saveAgencyMutation.isPending}
               onProcessRowUpdateError={handleSaveError}
+              onNewRowEditCancel={handleNewAgencyEditCancel}
               onRowClick={(params: GridRowParams<ReviewAgencyRow>) => setSelectedAgencyId(params.row.id)}
               onRowModesModelChange={setAgencyRowModes}
               processRowUpdate={async (updatedRow) => {
@@ -714,7 +793,7 @@ export function QualificationCriteriaPage() {
               rowSelectionModel={{ ids: new Set(effectiveSelectedAgencyId !== null ? [effectiveSelectedAgencyId] : []), type: "include" }}
               rows={agencyRows}
               showToolbar={false}
-              wrapperMinHeight={520}
+              wrapperMinHeight={548}
               sx={{ "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
             />
           </CardContent>
@@ -748,9 +827,11 @@ export function QualificationCriteriaPage() {
               })}
               editMode="row"
               getRowId={(row) => row.id}
+              isNewRow={(row) => row.isNew === true}
               isCellEditable={(params) => (params.row.isNew ? canCreate : canUpdate)}
               loading={enabledCriteriaQuery.isFetching || saveCriterionMutation.isPending}
               onProcessRowUpdateError={handleSaveError}
+              onNewRowEditCancel={handleNewCriterionEditCancel}
               onRowClick={(params: GridRowParams<ReviewCriterionRow>) => setSelectedCriterionId(params.row.id)}
               onRowModesModelChange={setCriterionRowModes}
               processRowUpdate={async (updatedRow) => {
@@ -796,9 +877,11 @@ export function QualificationCriteriaPage() {
             })}
             editMode="row"
             getRowId={(row) => row.id}
+            isNewRow={(row) => row.isNew === true}
             isCellEditable={(params) => (params.row.isNew ? canCreate : canUpdate)}
             loading={enabledScoreBandsQuery.isFetching || saveScoreBandMutation.isPending}
             onProcessRowUpdateError={handleSaveError}
+            onNewRowEditCancel={handleNewScoreBandEditCancel}
             onRowModesModelChange={setScoreBandRowModes}
             processRowUpdate={async (updatedRow) => {
               const saved = await saveScoreBandMutation.mutateAsync(updatedRow);

@@ -183,18 +183,47 @@ public class EducationReminderCompletionService {
             return List.of();
         }
 
+        return aggregateNotificationTargets(completions, Set.of(), true);
+    }
+
+    /** 선택된 교육 이수 행의 기술인 ID를 기준으로 발송 대상을 구성합니다. */
+    @Transactional(readOnly = true)
+    public List<EducationReminderNotificationTargetResponse> findNotificationTargetsByEngineerIds(Collection<String> engineerIds) {
+        Set<String> normalizedEngineerIds = engineerIds == null
+                ? Set.of()
+                : engineerIds.stream().filter(StringUtils::hasText).map(String::trim).collect(java.util.stream.Collectors.toSet());
+        if (normalizedEngineerIds.isEmpty()) {
+            return List.of();
+        }
+
+        return aggregateNotificationTargets(
+                findCompletions(null, null, null, null, null, null, null, null),
+                normalizedEngineerIds,
+                false
+        );
+    }
+
+    private List<EducationReminderNotificationTargetResponse> aggregateNotificationTargets(
+            List<EducationReminderCompletionResponse> completions,
+            Set<String> engineerIds,
+            boolean currentYearOnly
+    ) {
+        List<EducationReminderCompletionResponse> filteredCompletions = completions.stream()
+                .filter(row -> engineerIds.isEmpty() || engineerIds.contains(row.engineerId()))
+                .filter(row -> !currentYearOnly || isNotificationTarget(row))
+                .toList();
+        if (filteredCompletions.isEmpty()) {
+            return List.of();
+        }
+
         Map<String, String> phoneNumbersByEngineerId = findPhoneNumbersByEngineerIds(
-                completions.stream()
+                filteredCompletions.stream()
                         .map(EducationReminderCompletionResponse::engineerId)
                         .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new))
         );
 
         Map<String, NotificationTargetAggregate> aggregates = new LinkedHashMap<>();
-        for (EducationReminderCompletionResponse row : completions) {
-            if (!isNotificationTarget(row)) {
-                continue;
-            }
-
+        for (EducationReminderCompletionResponse row : filteredCompletions) {
             NotificationTargetAggregate aggregate = aggregates.computeIfAbsent(
                     row.engineerId(),
                     engineerId -> new NotificationTargetAggregate(row, phoneNumbersByEngineerId.getOrDefault(engineerId, ""))

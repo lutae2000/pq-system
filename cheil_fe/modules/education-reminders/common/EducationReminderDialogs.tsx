@@ -178,14 +178,6 @@ export function EducationReminderTemplateDialog({ audit, open, record, onClose, 
               <MenuItem value="SMS">SMS</MenuItem>
             </TextField>
             <TextField
-              label="제목"
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              required
-              size="small"
-              sx={{ ...standardFieldSx, gridColumn: "1 / -1" }}
-              value={form.title}
-            />
-            <TextField
               label="설명"
               multiline
               minRows={3}
@@ -233,7 +225,6 @@ export function EducationReminderTemplateDialog({ audit, open, record, onClose, 
               content: form.content.trim(),
               description: form.description?.trim() || "",
               name: form.name.trim(),
-              title: form.title.trim(),
             })
           }
           startIcon={<SaveOutlinedIcon />}

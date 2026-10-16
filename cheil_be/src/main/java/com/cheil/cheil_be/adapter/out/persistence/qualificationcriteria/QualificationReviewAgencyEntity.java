@@ -31,9 +31,6 @@ public class QualificationReviewAgencyEntity extends AuditEntity {
     @Column(name = "agency_name", nullable = false, length = 200)
     private String agencyName;
 
-    @Column(name = "remark", length = 500)
-    private String remark;
-
     @Column(name = "use_yn", nullable = false)
     private boolean useYn;
 
@@ -44,7 +41,6 @@ public class QualificationReviewAgencyEntity extends AuditEntity {
     public void update(QualificationReviewAgencyRequest request) {
         agencyCode = request.agencyCode();
         agencyName = request.agencyName();
-        remark = request.remark();
         useYn = request.useYn() == null || request.useYn();
     }
 }

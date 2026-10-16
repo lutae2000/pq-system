@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS pq_qualification_review_agencies (
     id BIGSERIAL PRIMARY KEY,
     agency_code VARCHAR(20) NOT NULL,
     agency_name VARCHAR(200) NOT NULL,
-    remark VARCHAR(500),
     use_yn BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     created_id VARCHAR(100),
@@ -15,7 +14,6 @@ COMMENT ON TABLE pq_qualification_review_agencies IS '적격심사 기관';
 COMMENT ON COLUMN pq_qualification_review_agencies.id IS '기관 ID';
 COMMENT ON COLUMN pq_qualification_review_agencies.agency_code IS '기관 코드';
 COMMENT ON COLUMN pq_qualification_review_agencies.agency_name IS '기관 명';
-COMMENT ON COLUMN pq_qualification_review_agencies.remark IS '비고';
 COMMENT ON COLUMN pq_qualification_review_agencies.use_yn IS '사용 여부';
 COMMENT ON COLUMN pq_qualification_review_agencies.created_at IS '생성 시각';
 COMMENT ON COLUMN pq_qualification_review_agencies.created_id IS '생성자 ID';

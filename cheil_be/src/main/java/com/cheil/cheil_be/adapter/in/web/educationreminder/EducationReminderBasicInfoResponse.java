@@ -7,6 +7,7 @@ public record EducationReminderBasicInfoResponse(
         String cycleUnit,
         Integer cycleValue,
         boolean active,
+        Long templateId,
         String createdAt,
         String createdId,
         String lastChangedAt,

@@ -9,6 +9,7 @@ export type EducationReminderBasicInfoRecord = {
   cycleUnit: EducationReminderCycleUnit;
   cycleValue: number;
   description: string | null;
+  templateId: number | null;
   lastChangedAt: string;
   lastChangedId: string | null;
   name: string;
@@ -110,7 +111,6 @@ export type EducationReminderTemplateRecord = {
   lastChangedId: string | null;
   name: string;
   homepageUrl: string | null;
-  title: string;
 };
 
 export type EducationReminderBasicInfoRequest = {
@@ -120,6 +120,7 @@ export type EducationReminderBasicInfoRequest = {
   cycleValue: number;
   description: string | null;
   name: string;
+  templateId: number | null;
 };
 
 export type EducationReminderBasicInfoEngineerAssignRequest = {
@@ -134,7 +135,6 @@ export type EducationReminderTemplateRequest = {
   homepageUrl: string;
   id?: number | null;
   name: string;
-  title: string;
 };
 
 export const cycleUnitLabel: Record<EducationReminderCycleUnit, string> = {
@@ -154,6 +154,7 @@ export const emptyBasicInfo = (): EducationReminderBasicInfoRequest => ({
   cycleValue: 1,
   description: "",
   name: "",
+  templateId: null,
 });
 
 export const emptyTemplate = (): EducationReminderTemplateRequest => ({
@@ -164,7 +165,6 @@ export const emptyTemplate = (): EducationReminderTemplateRequest => ({
   homepageUrl: "",
   id: null,
   name: "",
-  title: "",
 });
 
 export const formatDateTime = (value: string | null | undefined) => (value?.trim() ? value : "-");

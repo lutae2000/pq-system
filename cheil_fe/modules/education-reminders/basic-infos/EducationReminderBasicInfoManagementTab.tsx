@@ -35,6 +35,7 @@ import {
   listEducationReminderBasicInfos,
   updateEducationReminderBasicInfo,
 } from "./api";
+import { listEducationReminderTemplates } from "../templates/api";
 import { EducationReminderBasicInfoEngineerSelectDialog } from "./EducationReminderBasicInfoEngineerSelectDialog";
 import { EducationReminderBasicInfoRightPanel } from "./EducationReminderBasicInfoRightPanel";
 import {
@@ -109,6 +110,11 @@ export function EducationReminderBasicInfoManagementTab() {
     queryFn: listEducationReminderBasicInfos,
     enabled: tabQueryEnabled,
   });
+  const templatesQuery = useQuery({
+    queryKey: ["education-reminders", "templates"],
+    queryFn: listEducationReminderTemplates,
+    enabled: tabQueryEnabled,
+  });
 
   const basicInfos = useMemo(() => basicInfosQuery.data ?? [], [basicInfosQuery.data]);
 
@@ -156,6 +162,7 @@ export function EducationReminderBasicInfoManagementTab() {
             cycleValue: selectedRecord.cycleValue,
             description: selectedRecord.description ?? "",
             name: selectedRecord.name,
+            templateId: selectedRecord.templateId,
           },
     [creatingNew, selectedRecord],
   );
@@ -270,6 +277,7 @@ export function EducationReminderBasicInfoManagementTab() {
         cycleValue: saved.cycleValue,
         description: saved.description ?? "",
         name: saved.name,
+        templateId: saved.templateId,
       });
       setSelectedId(saved.code);
       await queryClient.invalidateQueries({ queryKey: ["education-reminders", "basic-infos"] });
@@ -432,6 +440,7 @@ export function EducationReminderBasicInfoManagementTab() {
           canDelete={canDelete}
           canEdit={canEdit}
           editingRecord={editingRecord}
+          templates={templatesQuery.data ?? []}
           onAddAssignments={() => setAssignDialogOpen(true)}
           onAssignmentSelectionModelChange={(model) => setAssignmentSelection(model as AssignmentSelectionState)}
           onDeleteAssignments={() => setPendingAssignmentDeleteIds(selectedAssignmentIds)}

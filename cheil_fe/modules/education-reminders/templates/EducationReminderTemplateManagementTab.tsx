@@ -56,46 +56,30 @@ const matchesKeyword = (row: EducationReminderTemplateRecord, keyword: string) =
     return true;
   }
 
-  return [row.name, row.title, row.description ?? "", row.channel, row.content, row.lastChangedAt]
+  return [row.name, row.description ?? "", row.channel, row.content, row.lastChangedAt]
     .some((value) => value.toLowerCase().includes(normalized));
 };
-
-function SummaryCard({ color = "text.primary", label, value }: { color?: string; label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent sx={{ p: 1.5 }}>
-        <Typography color="text.secondary" variant="body2">
-          {label}
-        </Typography>
-        <Typography color={color} sx={{ fontWeight: 800, mt: 0.5 }} variant="h5">
-          {value}
-        </Typography>
-      </CardContent>
-    </Card>
-  );
-}
 
 function normalizeEditingRecord(record: EducationReminderTemplateRequest): EducationReminderTemplateRequest {
   return {
     ...record,
+    channel: "LMS",
     content: record.content.trim(),
     description: record.description?.trim() || "",
     homepageUrl: record.homepageUrl.trim(),
     name: record.name.trim(),
-    title: record.title.trim(),
   };
 }
 
 function toTemplateRequest(record: EducationReminderTemplateRecord): EducationReminderTemplateRequest {
   return {
     active: record.active,
-    channel: record.channel,
+    channel: "LMS",
     content: record.content,
     description: record.description ?? "",
     homepageUrl: record.homepageUrl ?? "",
     id: record.id,
     name: record.name,
-    title: record.title,
   };
 }
 
@@ -169,19 +153,10 @@ export function EducationReminderTemplateManagementTab() {
     }
   }, [filteredRows, isCreating, selectedId]);
 
-  const summary = useMemo(() => {
-    const active = templates.filter((row) => row.active).length;
-    const inactive = templates.filter((row) => !row.active).length;
-    const lms = templates.filter((row) => row.channel === "LMS").length;
-    const sms = templates.filter((row) => row.channel === "SMS").length;
-    return { active, inactive, lms, sms };
-  }, [templates]);
-
   const columns = useMemo<GridColDef<EducationReminderTemplateRecord>[]>(
     () => [
       { field: "name", headerName: "템플릿명", minWidth: 220, flex: 1.1 },
       { field: "channel", headerName: "채널", width: 90, valueGetter: (_value, row) => channelLabel[row.channel] },
-      { field: "title", headerName: "제목", minWidth: 200, flex: 1 },
       { field: "description", headerName: "설명", minWidth: 220, flex: 1 },
       {
         field: "active",
@@ -208,17 +183,10 @@ export function EducationReminderTemplateManagementTab() {
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(5, minmax(0, 1fr))" } }}>
-        <SummaryCard label="사용" value={`${summary.active}건`} />
-        <SummaryCard color="text.secondary" label="미사용" value={`${summary.inactive}건`} />
-        <SummaryCard color="success.main" label="LMS" value={`${summary.lms}건`} />
-        <SummaryCard color="warning.main" label="SMS" value={`${summary.sms}건`} />
-      </Box>
-
       <SearchPanel
         keyword={filters.keyword}
         keywordLabel="통합검색"
-        keywordPlaceholder="템플릿명, 제목, 설명, 본문"
+        keywordPlaceholder="템플릿명, 설명, 본문"
         keywordSx={{ flex: "1 1 360px", maxWidth: 560, minWidth: 260 }}
         onKeywordChange={(keyword) => setFilters((current) => ({ ...current, keyword }))}
         onReset={() => {
@@ -299,8 +267,8 @@ export function EducationReminderTemplateManagementTab() {
                 </Button>
                 <Button
                   onClick={() => {
-                    if (!editingRecord.name.trim() || !editingRecord.title.trim() || !editingRecord.content.trim()) {
-                      showError("템플릿명, 제목, 본문을 입력해 주세요.");
+                    if (!editingRecord.name.trim() || !editingRecord.content.trim()) {
+                      showError("템플릿명과 본문을 입력해 주세요.");
                       return;
                     }
                     saveMutation.mutate({
@@ -363,36 +331,59 @@ export function EducationReminderTemplateManagementTab() {
                         value={editingRecord.name}
                       />
                       <TextField
+                        disabled
                         label="채널"
-                        disabled={!canEdit}
-                        onChange={(event) => setEditingRecord((current) => ({ ...current, channel: event.target.value as EducationReminderTemplateRequest["channel"] }))}
-                        select
                         size="small"
                         sx={{ minWidth: 0 }}
-                        value={editingRecord.channel}
-                      >
-                        <MenuItem value="LMS">LMS</MenuItem>
-                        <MenuItem value="SMS">SMS</MenuItem>
-                      </TextField>
-                      <TextField
-                        label="제목"
-                        disabled={!canEdit}
-                        onChange={(event) => setEditingRecord((current) => ({ ...current, title: event.target.value }))}
-                        required
-                        size="small"
-                        sx={{ gridColumn: "1 / -1", minWidth: 0 }}
-                        value={editingRecord.title}
+                        value="LMS"
                       />
-                      <TextField
-                        label="바로가기 홈페이지 URL"
-                        disabled={!canEdit}
-                        onChange={(event) => setEditingRecord((current) => ({ ...current, homepageUrl: event.target.value }))}
-                        placeholder="https://"
-                        size="small"
-                        sx={{ gridColumn: "1 / -1", minWidth: 0 }}
-                        type="url"
-                        value={editingRecord.homepageUrl}
-                      />
+                      <Box sx={{ alignItems: "center", display: "flex", gap: 1, minHeight: 40 }}>
+                        <Switch
+                          checked={editingRecord.active}
+                          disabled={!canEdit}
+                          onChange={(_event, checked) => setEditingRecord((current) => ({ ...current, active: checked }))}
+                        />
+                        <Typography variant="body2">사용</Typography>
+                      </Box>
+                      <Alert severity="info" sx={{ alignItems: "flex-start", gridColumn: "1 / -1", py: 0.5 }}>
+                        <Typography sx={{ fontWeight: 700 }} variant="body2">
+                          본문 자동 치환 안내
+                        </Typography>
+                        <Box
+                          sx={{
+                            bgcolor: "rgba(255, 255, 255, 0.5)",
+                            border: 1,
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            display: "grid",
+                            gridTemplateColumns: "minmax(100px, 0.35fr) minmax(160px, 1fr)",
+                            mt: 0.75,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <Typography sx={{ borderBottom: 1, borderColor: "divider", fontWeight: 700, px: 1, py: 0.5 }} variant="caption">
+                            문자열
+                          </Typography>
+                          <Typography sx={{ borderBottom: 1, borderColor: "divider", fontWeight: 700, px: 1, py: 0.5 }} variant="caption">
+                            자동 매핑 값
+                          </Typography>
+                          {[
+                            ["{이름}", "이름"],
+                            ["{직위}", "직위"],
+                            ["{교육명}", "교육명"],
+                            ["{마감일}", "교육 예정일"],
+                          ].map(([token, label]) => (
+                            <Box key={token} sx={{ display: "contents" }}>
+                              <Typography sx={{ borderBottom: 1, borderColor: "divider", fontFamily: "monospace", px: 1, py: 0.5 }} variant="caption">
+                                {token}
+                              </Typography>
+                              <Typography sx={{ borderBottom: 1, borderColor: "divider", px: 1, py: 0.5 }} variant="caption">
+                                {label}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Alert>
                       <TextField
                         label="본문"
                         disabled={!canEdit}
@@ -414,22 +405,6 @@ export function EducationReminderTemplateManagementTab() {
                           sx={{ gridColumn: "1 / -1", minWidth: 0 }}
                           value={editingRecord.description ?? ""}
                       />
-                    </Box>
-                    <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
-                      <Switch
-                        checked={editingRecord.active}
-                        disabled={!canEdit}
-                        onChange={(_event, checked) => setEditingRecord((current) => ({ ...current, active: checked }))}
-                      />
-                      <Typography variant="body2">사용</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                      <Button
-                        onClick={() => setEditingRecord(selectedRecord ? toTemplateRequest(selectedRecord) : emptyTemplate())}
-                        variant="outlined"
-                      >
-                        초기화
-                      </Button>
                     </Box>
                     <AuditFields
                       createdAt={selectedRecord?.createdAt}

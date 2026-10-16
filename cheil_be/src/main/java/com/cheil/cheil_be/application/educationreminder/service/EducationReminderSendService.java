@@ -195,10 +195,12 @@ public class EducationReminderSendService {
             messageSource = template.getContent();
         }
 
-        List<EducationReminderNotificationTargetResponse> selectedTargets = completionService.findNotificationTargets(null, null, null)
-                .stream()
-                .filter(row -> targetRowKeys.contains(row.rowKey()))
+        List<String> selectedEngineerIds = targetRowKeys.stream()
+                .map(targetRowKey -> targetRowKey.split("::", 2)[0])
+                .distinct()
                 .toList();
+        List<EducationReminderNotificationTargetResponse> selectedTargets =
+                completionService.findNotificationTargetsByEngineerIds(selectedEngineerIds);
         if (selectedTargets.isEmpty()) {
             log.warn("교육 알림 발송 대상 매칭 실패: 요청 대상 키 개수={}, 대상 키={}", targetRowKeys.size(), targetRowKeys);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Selected send targets were not found.");
@@ -765,6 +767,7 @@ public class EducationReminderSendService {
 
     private String renderMessage(String templateContent, EducationReminderNotificationTargetResponse target) {
         String content = StringUtils.hasText(templateContent) ? templateContent : "";
+        content = content.replace("{직위}", nullToEmpty(target.grade()));
         return content
                 .replace("{대상자명}", nullToEmpty(target.name()))
                 .replace("{이름}", nullToEmpty(target.name()))

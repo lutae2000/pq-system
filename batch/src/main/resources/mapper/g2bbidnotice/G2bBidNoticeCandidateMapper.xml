@@ -139,12 +139,18 @@
         SELECT
             'G2B-CANDIDATE-' || current_candidate.id,
             '나라장터 공고 변경 알림',
-            current_candidate.bid_ntce_no || ' 공고가 ' ||
-                REPLACE(COALESCE(NULLIF(current_candidate.ntce_kind_nm, ''), '변경공고'), '공고', '') ||
+            LEFT(COALESCE(NULLIF(current_candidate.bid_ntce_nm, ''), '공고명'), 30) ||
+                CASE WHEN CHAR_LENGTH(COALESCE(current_candidate.bid_ntce_nm, '')) > 30 THEN '...' ELSE '' END ||
+                ' 공고가 ' ||
+                CASE
+                    WHEN COALESCE(NULLIF(current_candidate.ntce_kind_nm, ''), '변경공고') IN ('변경공고', '취소공고')
+                        THEN REPLACE(COALESCE(NULLIF(current_candidate.ntce_kind_nm, ''), '변경공고'), '공고', '')
+                    ELSE COALESCE(NULLIF(current_candidate.ntce_kind_nm, ''), '변경공고')
+                END ||
                 '되었습니다.',
             '/pq/g2b-bid-notice-candidates?bidNtceNo=' || current_candidate.bid_ntce_no,
             CURRENT_TIMESTAMP,
-            CURRENT_TIMESTAMP + INTERVAL '14 days',
+            CURRENT_TIMESTAMP + INTERVAL '7 days',
             CURRENT_TIMESTAMP,
             FALSE,
             TRUE,

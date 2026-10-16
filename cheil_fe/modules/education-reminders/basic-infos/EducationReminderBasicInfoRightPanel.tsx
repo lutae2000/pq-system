@@ -8,7 +8,7 @@ import type { GridColDef, GridRowSelectionModel } from "@mui/x-data-grid";
 
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import type { EducationReminderBasicInfoEngineerRecord, EducationReminderBasicInfoRecord, EducationReminderBasicInfoRequest } from "../types";
+import type { EducationReminderBasicInfoEngineerRecord, EducationReminderBasicInfoRecord, EducationReminderBasicInfoRequest, EducationReminderTemplateRecord } from "../types";
 
 type EducationReminderBasicInfoRightPanelProps = {
   assignmentColumns: GridColDef<EducationReminderBasicInfoEngineerRecord>[];
@@ -29,6 +29,7 @@ type EducationReminderBasicInfoRightPanelProps = {
   selectedAssignmentCount: number;
   selectedRecord: EducationReminderBasicInfoRecord | null;
   showAssignmentPanel: boolean;
+  templates: EducationReminderTemplateRecord[];
 };
 
 export function EducationReminderBasicInfoRightPanel({
@@ -50,6 +51,7 @@ export function EducationReminderBasicInfoRightPanel({
   selectedAssignmentCount,
   selectedRecord,
   showAssignmentPanel,
+  templates,
 }: EducationReminderBasicInfoRightPanelProps) {
   return (
     <Card sx={{ height: "100%", minWidth: 0, position: "relative", overflow: "hidden" }} variant="outlined">
@@ -117,6 +119,21 @@ export function EducationReminderBasicInfoRightPanel({
               >
                 <MenuItem value="YEAR">년</MenuItem>
                 <MenuItem value="MONTH">개월</MenuItem>
+              </TextField>
+              <TextField
+                disabled={!canEdit}
+                label="자동 발송 템플릿"
+                onChange={(event) => onPatchChange({ templateId: event.target.value ? Number(event.target.value) : null })}
+                select
+                size="small"
+                value={editingRecord.templateId ?? ""}
+              >
+                <MenuItem value="">미지정</MenuItem>
+                {templates.map((template) => (
+                  <MenuItem key={template.id} value={template.id}>
+                    {template.name} ({template.channel}){template.active ? "" : " · 미사용"}
+                  </MenuItem>
+                ))}
               </TextField>
               <TextField
                 disabled={!canEdit}

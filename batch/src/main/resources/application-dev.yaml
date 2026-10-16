@@ -21,6 +21,7 @@ batch:
       run-on-startup: false
       cron: "0 */10 8-22 * * *"
       zone: Asia/Seoul
+    lock-ttl: 1m
       page-size: 999
       lookback-minutes: 1440
       region-codes: "00,11"

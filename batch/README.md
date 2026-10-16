@@ -14,6 +14,7 @@
 - 정기 실행 여부: `BATCH_G2B_BID_NOTICE_ENABLED` (기본값 `false`, 서비스 키 권한 확인 후 `true`)
 - 기동 시 1회 실행 여부: `BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP`
 - 실행 주기: `BATCH_G2B_BID_NOTICE_CRON`
+- 수동 실행과 정기 실행의 중복 방지 락 TTL: `BATCH_G2B_BID_NOTICE_LOCK_TTL` (기본값 `30m`)
 - 조회 시간 범위: 배치 cron의 분 간격을 자동으로 사용
 - 페이지 크기: `BATCH_G2B_BID_NOTICE_PAGE_SIZE`
 - 서비스 키: `G2B_SERVICE_KEY`
