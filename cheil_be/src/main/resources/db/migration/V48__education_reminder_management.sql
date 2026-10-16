@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS education_reminder_basic_infos (
     description TEXT,
     cycle_unit VARCHAR(20) NOT NULL,
     cycle_value INTEGER NOT NULL,
+    template_id BIGINT,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
@@ -62,7 +63,6 @@ CREATE TABLE IF NOT EXISTS education_reminder_templates (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(300) NOT NULL,
     channel VARCHAR(10) NOT NULL,
-    title VARCHAR(300) NOT NULL,
     description TEXT,
     content TEXT NOT NULL,
     homepage_url VARCHAR(500),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS education_reminder_templates (
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
-    CONSTRAINT ck_education_reminder_templates_channel CHECK (channel IN ('LMS', 'SMS', 'KAKAO'))
+    CONSTRAINT ck_education_reminder_templates_channel CHECK (channel IN ('LMS', 'SMS'))
 );
 
 CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_name
@@ -81,10 +81,16 @@ CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_channel
 CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_active
     ON education_reminder_templates (active);
 
+ALTER TABLE education_reminder_basic_infos
+    ADD CONSTRAINT fk_education_reminder_basic_infos_template
+        FOREIGN KEY (template_id) REFERENCES education_reminder_templates (id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS ix_education_reminder_basic_infos_template
+    ON education_reminder_basic_infos (template_id);
+
 COMMENT ON TABLE education_reminder_templates IS '교육 알림 템플릿';
 COMMENT ON COLUMN education_reminder_templates.name IS '템플릿명';
 COMMENT ON COLUMN education_reminder_templates.channel IS '발송 채널';
-COMMENT ON COLUMN education_reminder_templates.title IS '제목';
 COMMENT ON COLUMN education_reminder_templates.description IS '설명';
 COMMENT ON COLUMN education_reminder_templates.content IS '본문';
 COMMENT ON COLUMN education_reminder_templates.active IS '사용 여부';
@@ -99,12 +105,12 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO education_reminder_templates (
-    name, channel, title, description, content, active, created_at, created_id, last_changed_at, last_changed_id
+    name, channel, description, content, active, created_at, created_id, last_changed_at, last_changed_id
 )
 VALUES
-    ('건설사업관리 계속교육 안내', 'LMS', '건설사업관리 계속교육 안내', '기본 안내 템플릿', '[안내] {이름}님, {교육명} 마감일이 {마감일}입니다.', TRUE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration'),
-    ('설계시공 계속교육 임박 안내', 'LMS', '설계시공 계속교육 임박 안내', '임박 알림 템플릿', '[안내] {이름}님, {교육명} 마감까지 {남은일수}일 남았습니다.', TRUE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration'),
-    ('기한초과 즉시 안내', 'SMS', '기한초과 즉시 안내', '기한초과 알림', '{이름}님 {교육명} 마감일이 지났습니다.', FALSE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration')
+    ('건설사업관리 계속교육 안내', 'LMS', '기본 안내 템플릿', '[안내] {이름}님, {교육명} 마감일이 {마감일}입니다.', TRUE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration'),
+    ('설계시공 계속교육 임박 안내', 'LMS', '임박 알림 템플릿', '[안내] {이름}님, {교육명} 마감까지 {남은일수}일 남았습니다.', TRUE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration'),
+    ('기한초과 즉시 안내', 'SMS', '기한초과 알림', '{이름}님 {교육명} 마감일이 지났습니다.', FALSE, CURRENT_TIMESTAMP, 'migration', CURRENT_TIMESTAMP, 'migration')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO system_menus (
