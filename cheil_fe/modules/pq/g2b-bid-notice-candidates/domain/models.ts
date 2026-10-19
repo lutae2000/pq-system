@@ -55,6 +55,7 @@ export type G2bBidNoticeCandidateRow = {
   bidNtceDate: string;
   bidBeginDt: string;
   bidQlfctRgstDt: string;
+  bidWgrnteeRcptClseDt: string;
   bidClseDt: string;
   opengDt: string;
   bidNtceUrl: string;
@@ -106,6 +107,7 @@ export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecor
   bidNtceDate: record.bidNtceDate ?? "",
   bidBeginDt: record.bidBeginDt ?? "",
   bidQlfctRgstDt: record.bidQlfctRgstDt ?? "",
+  bidWgrnteeRcptClseDt: record.bidWgrnteeRcptClseDt ?? "",
   bidClseDt: record.bidClseDt ?? "",
   opengDt: record.opengDt ?? "",
   bidNtceUrl: record.bidNtceUrl ?? "",

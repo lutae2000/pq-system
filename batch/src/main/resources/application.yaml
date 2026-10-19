@@ -43,7 +43,7 @@ batch:
       run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
       cron: ${BATCH_G2B_BID_NOTICE_CRON:0 */10 8-22 * * *}
       zone: ${BATCH_G2B_BID_NOTICE_ZONE:Asia/Seoul}
-    lock-ttl: ${BATCH_G2B_BID_NOTICE_LOCK_TTL:1m}
+      lock-ttl: ${BATCH_G2B_BID_NOTICE_LOCK_TTL:1m}
       # 나라장터 API의 페이지당 조회 건수입니다.
       page-size: ${BATCH_G2B_BID_NOTICE_PAGE_SIZE:999}
       # 10분 주기로 실행하더라도 최근 1일 범위를 조회합니다.

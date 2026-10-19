@@ -34,6 +34,7 @@ export type G2bBidNoticeCandidateApiRecord = {
   bidNtceDate: string | null;
   bidBeginDt: string | null;
   bidQlfctRgstDt: string | null;
+  bidWgrnteeRcptClseDt: string | null;
   bidClseDt: string | null;
   opengDt: string | null;
   bidNtceUrl: string | null;

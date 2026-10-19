@@ -75,7 +75,7 @@ function ScheduleTable({ record }: { record: G2bBidNoticeCandidateRow }) {
     { name: "공고게시", start: record.bidNtceDate },
     { name: "입찰참가자격등록", end: record.bidQlfctRgstDt },
     { name: "공동수급협정서제출", method: record.cmmnSpldmdAgrmntRcptdocMethd, end: record.pqSubmitDate },
-    { name: "입찰보증서접수" },
+    { name: "입찰보증서접수", end: record.bidWgrnteeRcptClseDt },
     { name: "PQ심사신청기한", method: record.pqApplDocRcptMthdNm, end: record.pqApplDocRcptDt },
     { name: "현장(제안요청, 과업)설명회" },
     { name: "입찰서제출", method: record.bidMethdNm, start: record.bidBeginDt, end: record.bidClseDt || record.bidSubmissionDate },
@@ -185,6 +185,7 @@ const historyComparisonFields = [
   ["bidNtceDate", "입찰공고일시"],
   ["bidBeginDt", "입찰서 제출 시작일시"],
   ["bidQlfctRgstDt", "입찰참가자격 등록마감일시"],
+  ["bidWgrnteeRcptClseDt", "입찰보증서접수 종료일시"],
   ["pqApplDocRcptDt", "PQ심사신청기한 종료일시"],
   ["bidSubmissionDate", "입찰서 제출일시"],
   ["bidClseDt", "입찰마감일시"],
@@ -193,7 +194,7 @@ const historyComparisonFields = [
 ] as const;
 function comparisonDisplayValue(field: string, value: string) {
   if (!value) return "-";
-  if (["bidNtceDate", "bidBeginDt", "bidQlfctRgstDt", "pqApplDocRcptDt", "bidSubmissionDate", "bidClseDt", "pqSubmitDate", "opengDt"].includes(field)) return dateTimeText(value);
+  if (["bidNtceDate", "bidBeginDt", "bidQlfctRgstDt", "bidWgrnteeRcptClseDt", "pqApplDocRcptDt", "bidSubmissionDate", "bidClseDt", "pqSubmitDate", "opengDt"].includes(field)) return dateTimeText(value);
   if (field === "asignBdgtAmt") return formatMoney(Number(value.replaceAll(",", "")) || 0);
   return value;
 }
