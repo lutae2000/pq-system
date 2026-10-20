@@ -1,5 +1,7 @@
 package com.cheil.batch.apicalllogcleanup.batch;
 
+import com.cheil.batch.common.batch.BatchMetrics;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.BatchStatus;
@@ -19,6 +21,7 @@ public class ApiCallLogCleanupScheduler {
 
     private final Job apiCallLogCleanupJob;
     private final JobOperator jobOperator;
+    private final BatchMetrics batchMetrics;
 
     @Value("${batch.cleanup.api-call-logs.enabled:true}")
     private boolean enabled;
@@ -30,15 +33,23 @@ public class ApiCallLogCleanupScheduler {
             return;
         }
 
+        Timer.Sample timer = batchMetrics.startTimer();
+        batchMetrics.recordRun(ApiCallLogCleanupBatchConfig.JOB_NAME);
         try {
             JobExecution execution = jobOperator.start(apiCallLogCleanupJob, new JobParametersBuilder()
                     .addLong("scheduledAt", System.currentTimeMillis())
                     .toJobParameters());
             if (execution.getStatus() != BatchStatus.COMPLETED) {
                 log.error("{} failed: executionId={}, status={}", apiCallLogCleanupJob.getName(), execution.getId(), execution.getStatus());
+                batchMetrics.recordFailure(ApiCallLogCleanupBatchConfig.JOB_NAME);
+            } else {
+                batchMetrics.recordSuccess(ApiCallLogCleanupBatchConfig.JOB_NAME);
             }
         } catch (Exception exception) {
             log.error("{} failed", apiCallLogCleanupJob.getName(), exception);
+            batchMetrics.recordFailure(ApiCallLogCleanupBatchConfig.JOB_NAME);
+        } finally {
+            batchMetrics.recordDuration(ApiCallLogCleanupBatchConfig.JOB_NAME, timer);
         }
     }
 }
