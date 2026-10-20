@@ -15,7 +15,7 @@ export type FileAttachmentRecord = {
   createdId?: string | null;
   downloadUrl: string;
   fileId: string;
-  fileSize: number;
+  fileSize: number | null;
   originalFilename: string;
   displayOrder?: number | null;
   ownerId: string;

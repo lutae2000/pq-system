@@ -76,8 +76,8 @@ $env:G2B_SERVICE_KEY='발급받은 서비스 키'
 
 ```text
 G2bBidNoticeBatchLauncher
-  -> BatchJobRunner
-  -> g2bBidNoticeCandidateSyncJob
+  -> JobOperator
+  -> g2bBidNoticeCandidateSyncJob / g2bBidNoticeCandidateSyncStep
   -> FetchG2bBidNoticesUseCase
   -> G2bBidNoticeService
   -> LoadG2bBidNoticesPort
@@ -92,7 +92,7 @@ G2bBidNoticeBatchLauncher
 - `adapter/out`: HTTP, DB 같은 실제 인프라 통신을 구현합니다.
 - `domain`: 외부 프레임워크와 무관한 업무 데이터를 정의합니다.
 
-새로운 배치를 추가할 때는 기존 업무 패키지와 섞지 않고 별도 패키지를 만듭니다. 기동 시 1회 실행이 필요한 작업은 `StartupBatchJob`을 구현하면 공통 `BatchStartupRunner`가 자동으로 실행합니다.
+새로운 배치는 업무 패키지 안에 Spring Batch `Job`과 `Step`, 실행 주기를 담당하는 Scheduler를 둡니다. 기동 시 1회 실행이 필요하면 해당 Scheduler가 `ApplicationRunner`를 구현하고 설정값을 확인해 같은 Job을 실행합니다.
 
 ## Job과 Step 이해하기
 
@@ -100,11 +100,11 @@ G2bBidNoticeBatchLauncher
 - Step은 Job 안에서 순서대로 실행되는 처리 단계입니다.
 - Tasklet은 한 번에 끝나는 작업에 적합합니다. 현재 API 통신 확인과 로그 삭제 작업이 해당합니다.
 - Chunk 방식은 많은 데이터를 읽고 가공하고 저장할 때 사용합니다. 나라장터 공고를 DB에 저장하는 단계에서는 `ItemReader`, `ItemProcessor`, `ItemWriter` 구조를 검토합니다.
-- JobParameter가 다르면 Spring Batch는 새로운 실행으로 기록합니다. `BatchJobRunner`는 실행 시각을 파라미터로 넣어 매 실행을 구분합니다.
+- JobParameter가 다르면 Spring Batch는 새로운 실행으로 기록합니다. 각 Scheduler는 실행 시각을 파라미터로 넣어 매 실행을 구분합니다.
 - 실행 이력은 Spring Batch 메타 테이블에 기록됩니다. 실패 원인은 로그와 `BATCH_JOB_EXECUTION`, `BATCH_STEP_EXECUTION` 상태로 확인할 수 있습니다.
 
 ## K8S 실행 설정
 
-서비스 키는 이미지에 새로 넣지 않고 K8S Secret을 `G2B_SERVICE_KEY` 환경변수로 주입하는 방식을 권장합니다. 동일 스케줄이 중복 실행되지 않도록 현재 배치 Deployment의 replica는 1개로 유지합니다. 여러 replica가 필요해지면 분산 락을 추가해야 합니다.
+서비스 키는 이미지에 새로 넣지 않고 K8S Secret을 `G2B_SERVICE_KEY` 환경변수로 주입하는 방식을 권장합니다. 나라장터 배치는 Valkey 분산 락으로 스케줄 실행과 수동 실행의 중복을 방지합니다.
 
 DB 접속 정보는 `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` 환경변수로 설정합니다.

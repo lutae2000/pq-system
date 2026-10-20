@@ -54,11 +54,11 @@ type BidNoticeDetailDialogProps = {
 };
 
 const attachmentLabels: Record<AttachmentKey, string> = {
-  announcement: "공고문",
-  evaluation: "평가기준",
-  guide: "작성안내서",
-  specification: "과업지시서",
-  submission: "제출자료",
+  announcement: "공고문(gfile_name)",
+  evaluation: "평가기준(pfile_name)",
+  guide: "작성안내서(mfile_name)",
+  specification: "과업지시서(jfile_name)",
+  submission: "제출자료(rfile_name)",
 };
 
 const attachmentOrder: AttachmentKey[] = ["announcement", "evaluation", "guide", "specification", "submission"];

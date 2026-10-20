@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.cheil.cheil_be.application.servicetype.exception.ServiceTypeApplicationException;
 import com.cheil.cheil_be.application.servicetype.port.in.ServiceTypeUpsertCommand;
 import com.cheil.cheil_be.application.servicetype.port.out.ServiceTypeRepository;

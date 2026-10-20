@@ -78,6 +78,31 @@ class FileStorageServiceTest {
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
+    @Test
+    void downloadAllowsFileWithoutStoredSizeWhenFileExists() throws Exception {
+        AppFileAttachmentJpaRepository attachmentRepository = mock(AppFileAttachmentJpaRepository.class);
+        AppFileAttachmentEntity attachment = AppFileAttachmentEntity.createUpload(
+                "legacy-file",
+                "legacy.jpg",
+                "2010",
+                "legacy.jpg",
+                "image/jpeg",
+                null,
+                "/files/legacy-file"
+        );
+        when(attachmentRepository.findByFileId("legacy-file")).thenReturn(Optional.of(attachment));
+
+        Path filePath = tempDir.resolve("2010").resolve("legacy.jpg");
+        Files.createDirectories(filePath.getParent());
+        Files.write(filePath, "legacy-content".getBytes(StandardCharsets.UTF_8));
+
+        FileStorageService service = new FileStorageService(fileProperties(null), attachmentRepository);
+        FileDownloadResult result = service.download("legacy-file");
+
+        assertThat(result.size()).isEqualTo("legacy-content".length());
+        assertThat(result.resource().exists()).isTrue();
+    }
+
     private AppFileProperties fileProperties(String publicBaseUrl) {
         return new AppFileProperties(
                 tempDir,

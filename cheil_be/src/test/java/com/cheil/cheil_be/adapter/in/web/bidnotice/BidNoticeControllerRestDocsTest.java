@@ -68,7 +68,7 @@ class BidNoticeControllerRestDocsTest {
         BidNotice bidNotice = new BidNotice(
                 20261072L, "100906", "Sample project", "CLIENT", BigDecimal.valueOf(1000000),
                 "T2A", "ZA", LocalDate.of(2026, 6, 18), LocalDateTime.of(2026, 6, 18, 9, 0),
-                LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", LocalDateTime.of(2026, 7, 1, 10, 0),
+                LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", LocalDateTime.of(2026, 7, 1, 10, 0), LocalDate.of(2026, 7, 2),
                 "Y", "150801", LocalDate.of(2026, 6, 19), "150801", "Y", "CA",
                 LocalDateTime.of(2026, 6, 20, 10, 0), "A", LocalDateTime.of(2026, 6, 30, 18, 0),
                 "DA", "T2A", null, null, null, "Y", "Prime contractor", "Remark", "Y",
@@ -136,7 +136,7 @@ class BidNoticeControllerRestDocsTest {
     private static BidNoticeResponse response() {
         return new BidNoticeResponse(20261072L, "100906", "Sample project", "CLIENT", BigDecimal.valueOf(1000000),
                 "T2A", "ZA", LocalDate.of(2026, 6, 18), LocalDateTime.of(2026, 6, 18, 9, 0),
-                LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", "Ordering", LocalDateTime.of(2026, 7, 1, 10, 0),
+                LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", "Ordering", LocalDateTime.of(2026, 7, 1, 10, 0), LocalDate.of(2026, 7, 2),
                 "Y", "Success", "150801", LocalDate.of(2026, 6, 19), "150801", "Y", "Yes", "CA", "Construction",
                 LocalDateTime.of(2026, 6, 20, 10, 0), "A", LocalDateTime.of(2026, 6, 30, 18, 0), "DA", "Road",
                 "T2A", "Construction management", null, null, null, "Y", "Prime contractor", "Remark", "Y",

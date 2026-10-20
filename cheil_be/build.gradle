@@ -28,7 +28,7 @@ ext {
     set('gsonVersion', '2.13.1')
     set('jakartaAnnotationVersion', '3.0.0')
     set('jakartaPersistenceVersion', '3.2.0')
-    set('junitPlatformVersion', '1.13.4')
+    set('junitPlatformVersion', '6.0.3')
     set('lombokVersion', '1.18.46')
     set('micrometerVersion', '1.17.0')
     set('pdfboxVersion', '2.0.31')
@@ -75,6 +75,7 @@ dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-webmvc-test:${springBootVersion}"
     testImplementation "org.springframework.restdocs:spring-restdocs-mockmvc:${restDocsVersion}"
     testImplementation "com.google.code.gson:gson:${gsonVersion}"
+    testImplementation "org.apache.poi:poi-ooxml:5.4.1"
     testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:${junitPlatformVersion}"
     testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"

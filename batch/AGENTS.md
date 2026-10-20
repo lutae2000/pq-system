@@ -160,7 +160,7 @@ BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP=true
 BATCH_SQL_LOG_LEVEL=DEBUG
 ```
 
-`run-on-startup`은 `StartupBatchJob`을 통해 실행되는 작업에만 적용된다. 스케줄러의 `run()` 메서드에 breakpoint를 걸어 실행 시점과 Job 실행 파라미터를 확인하고, 외부 API 호출 전에는 조회 기간과 대상 지역을 확인한다.
+`run-on-startup`은 해당 배치 Launcher의 `ApplicationRunner` 실행에만 적용된다. 스케줄러의 실행 메서드에 breakpoint를 걸어 실행 시점과 Job 실행 파라미터를 확인하고, 외부 API 호출 전에는 조회 기간과 대상 지역을 확인한다.
 
 ## 변경 전 점검 목록
 
@@ -173,4 +173,3 @@ BATCH_SQL_LOG_LEVEL=DEBUG
 - SQL 로그에 인증키나 원본 개인정보가 포함되지 않는가?
 - 현재 DB에 필요한 migration이 적용되어 있는가?
 - `./gradlew compileJava test --no-daemon`이 통과하는가?
-

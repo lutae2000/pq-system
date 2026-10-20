@@ -48,7 +48,7 @@ public class AppFileAttachmentEntity extends AuditEntity {
     @Column(name = "content_type")
     private String contentType;
 
-    @Column(name = "file_size", nullable = false)
+    @Column(name = "file_size")
     private Long fileSize;
 
     @Column(name = "download_url", nullable = false)

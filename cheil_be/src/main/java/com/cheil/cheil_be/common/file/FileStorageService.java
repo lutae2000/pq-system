@@ -110,9 +110,11 @@ public class FileStorageService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다.");
         }
 
+        long actualSize;
         try {
-            long actualSize = Files.size(contentPath);
-            if (actualSize <= 0 || actualSize != metadata.getFileSize()) {
+            actualSize = Files.size(contentPath);
+            Long expectedSize = metadata.getFileSize();
+            if (actualSize <= 0 || (expectedSize != null && expectedSize > 0 && actualSize != expectedSize)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "저장된 파일이 손상되었거나 메타데이터와 일치하지 않습니다.");
             }
         } catch (IOException exception) {
@@ -125,7 +127,7 @@ public class FileStorageService {
                 resource,
                 metadata.getOriginalFilename(),
                 resolveMediaType(metadata.getContentType()),
-                metadata.getFileSize()
+                actualSize
         );
     }
 

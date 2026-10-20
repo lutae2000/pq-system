@@ -142,7 +142,7 @@ export function FileActionCard({
             fileId: attachment.fileId,
             fileName: attachment.originalFilename,
             displayOrder: attachment.displayOrder,
-            size: attachment.fileSize,
+            size: attachment.fileSize ?? undefined,
           })),
       );
     }, 0);
@@ -169,7 +169,7 @@ export function FileActionCard({
         fileId: attachment.fileId,
         fileName: attachment.originalFilename,
         displayOrder: attachment.displayOrder,
-        size: attachment.fileSize,
+        size: attachment.fileSize ?? undefined,
       };
       setLocalFiles((current) => [nextFile, ...current]);
       if (attachmentQueryKey) {
