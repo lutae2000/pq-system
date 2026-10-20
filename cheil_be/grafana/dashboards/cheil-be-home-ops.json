@@ -128,7 +128,7 @@
                       "datasourceUid": "loki",
                       "datasourceName": "Loki",
                       "query": {
-                        "expr": "{app=\"cheil-be\"} |= \"api_error\" |= \"method=${__data.fields.Method}\" |= \"uri_pattern=${__value.raw}\"",
+                        "expr": "{app=\"cheil-be\"} |= \"api_error\" |= \"uri_pattern=${__value.raw}\"",
                         "queryType": "range",
                         "refId": "A"
                       }

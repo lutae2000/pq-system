@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -269,10 +270,14 @@ class BidNoticeEntity {
             return null;
         }
         String normalized = value.trim();
-        if (normalized.chars().allMatch(Character::isDigit) && normalized.length() >= 8) {
-            return LocalDate.parse(normalized.substring(0, 8), DATE_FORMAT);
+        try {
+            if (normalized.chars().allMatch(Character::isDigit) && normalized.length() >= 8) {
+                return LocalDate.parse(normalized.substring(0, 8), DATE_FORMAT);
+            }
+            return LocalDate.parse(normalized);
+        } catch (DateTimeParseException exception) {
+            return null;
         }
-        return LocalDate.parse(normalized);
     }
 
     private static LocalDateTime parseDateTime(String value) {
@@ -281,15 +286,19 @@ class BidNoticeEntity {
         }
 
         String normalized = value.trim().replace('T', ' ');
-        if (normalized.chars().allMatch(Character::isDigit) && normalized.length() >= 12) {
-            return LocalDateTime.parse(normalized.substring(0, 12), DATETIME_FORMAT);
+        try {
+            if (normalized.chars().allMatch(Character::isDigit) && normalized.length() >= 12) {
+                return LocalDateTime.parse(normalized.substring(0, 12), DATETIME_FORMAT);
+            }
+            if (normalized.length() == 16) {
+                return LocalDateTime.parse(normalized, HUMAN_DATETIME_FORMAT);
+            }
+            if (normalized.length() >= 19) {
+                return LocalDateTime.parse(normalized.substring(0, 19), HUMAN_DATETIME_SECONDS_FORMAT);
+            }
+            return LocalDateTime.parse(normalized);
+        } catch (DateTimeParseException exception) {
+            return null;
         }
-        if (normalized.length() == 16) {
-            return LocalDateTime.parse(normalized, HUMAN_DATETIME_FORMAT);
-        }
-        if (normalized.length() >= 19) {
-            return LocalDateTime.parse(normalized.substring(0, 19), HUMAN_DATETIME_SECONDS_FORMAT);
-        }
-        return LocalDateTime.parse(normalized);
     }
 }
