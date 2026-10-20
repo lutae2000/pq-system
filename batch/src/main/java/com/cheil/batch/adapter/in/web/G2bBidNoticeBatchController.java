@@ -1,7 +1,7 @@
 package com.cheil.batch.adapter.in.web;
 
-import com.cheil.batch.common.batch.BatchJobRunStatus;
 import com.cheil.batch.config.BatchInternalProperties;
+import com.cheil.batch.g2bbidnotice.application.model.BatchRunStatus;
 import com.cheil.batch.g2bbidnotice.application.port.in.RunG2bBidNoticeBatchUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,7 +34,7 @@ public class G2bBidNoticeBatchController {
         }
 
         // 스케줄 실행과 같은 UseCase를 호출하므로 분산 락과 중복 실행 방지가 동일하게 적용됩니다.
-        BatchJobRunStatus status = runUseCase.runOnDemand();
+        BatchRunStatus status = runUseCase.runOnDemand();
         HttpStatus httpStatus = switch (status) {
             case COMPLETED -> HttpStatus.OK;
             case SKIPPED -> HttpStatus.CONFLICT;
@@ -43,7 +43,7 @@ public class G2bBidNoticeBatchController {
         return ResponseEntity.status(httpStatus).body(new BatchRunResponse(status.name(), message(status)));
     }
 
-    private String message(BatchJobRunStatus status) {
+    private String message(BatchRunStatus status) {
         return switch (status) {
             case COMPLETED -> "나라장터 용역 API 조회가 완료되었습니다.";
             case SKIPPED -> "다른 사용자가 나라장터 용역 API를 조회 중입니다.";

@@ -1,12 +1,9 @@
 package com.cheil.batch.g2bbidnotice.adapter.out.api;
 
+import com.cheil.batch.common.util.QueryStringBuilder;
 import com.cheil.batch.g2bbidnotice.application.model.G2bBidNoticeQuery;
-import com.cheil.batch.common.web.QueryStringBuilder;
 import com.cheil.batch.g2bbidnotice.application.port.out.LoadG2bBidNoticesPort;
-import com.cheil.batch.g2bbidnotice.domain.G2bBidNotice;
 import com.cheil.batch.g2bbidnotice.domain.G2bBidNoticePage;
-import com.cheil.batch.g2bbidnotice.domain.G2bBidNoticeSpecFile;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -17,34 +14,39 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
-import tools.jackson.databind.JsonNode;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
-/** 나라장터 외부 API를 호출하고 응답을 도메인 모델로 변환하는 출력 어댑터입니다. */
+/** 나라장터 외부 API를 호출하고 응답 형식을 검증하는 출력 어댑터입니다. */
 public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
 
     private static final String OPERATION_PATH = "/getBidPblancListInfoServcPPSSrch";
     private static final DateTimeFormatter QUERY_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
     private static final String SUCCESS_CODE = "00";
 
-    @Qualifier("g2bRestClient")
     private final RestClient restClient;
     private final G2bBidNoticeApiProperties properties;
+    private final G2bBidNoticeApiMapper mapper;
+
+    public G2bBidNoticeApiAdapter(
+            @Qualifier("g2bRestClient") RestClient restClient,
+            G2bBidNoticeApiProperties properties,
+            G2bBidNoticeApiMapper mapper
+    ) {
+        this.restClient = restClient;
+        this.properties = properties;
+        this.mapper = mapper;
+    }
 
     @Override
     public G2bBidNoticePage load(G2bBidNoticeQuery query) {
-        // 로그에는 인증 키가 노출되지 않도록 마스킹한 URI만 기록합니다.
         URI requestUri = null;
         try {
             log.info("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
                     query.from(), query.to(), query.participationRegionCodes(), query.pageNumber(), query.pageSize());
             requestUri = buildRequestUri(query);
-            log.info("나라장터 API 요청 URI: {}", maskServiceKey(requestUri));
+            log.info("나라장터 API 요청 URI: {}", requestUri);
             G2bBidNoticeApiResponse apiResponse = restClient.get()
                     .uri(requestUri)
                     .retrieve()
@@ -59,7 +61,7 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
                     "나라장터 API 통신 실패: errorType={}, message={}, uri={}",
                     exception.getClass().getSimpleName(),
                     exception.getMessage(),
-                    requestUri == null ? "-" : maskServiceKey(requestUri),
+                    requestUri == null ? "-" : requestUri,
                     exception
             );
             throw new G2bBidNoticeCommunicationException("나라장터 용역 입찰공고 API 통신에 실패했습니다.", exception);
@@ -85,77 +87,9 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
             return new G2bBidNoticePage(1, 0, 0, List.of());
         }
 
-        List<G2bBidNotice> notices = body.items() == null || !body.items().isArray()
-                ? List.of()
-                : toDomains(body.items());
+        var notices = mapper.toDomains(body.items());
 
         return new G2bBidNoticePage(body.pageNo(), body.numOfRows(), body.totalCount(), notices);
-    }
-
-    private List<G2bBidNotice> toDomains(JsonNode items) {
-        List<G2bBidNotice> notices = new ArrayList<>();
-        items.forEach(item -> notices.add(toDomain(item)));
-        return List.copyOf(notices);
-    }
-
-    private G2bBidNotice toDomain(JsonNode item) {
-        return new G2bBidNotice(
-                text(item, "bidNtceNo"),
-                text(item, "bidNtceOrd"),
-                text(item, "befBidBbancNo"),
-                text(item, "ntceKindNm"),
-                text(item, "bidNtceNm"),
-                text(item, "ntceInsttNm"),
-                text(item, "dminsttNm"),
-                text(item, "dminsttCd"),
-                text(item, "cntrctCnclsMthdNm"),
-                text(item, "srvceDivNm"),
-                text(item, "prtcptLmtRgnCd"),
-                text(item, "cmmnSpldmdMethdNm"),
-                text(item, "sucsfbidMthdNm"),
-                text(item, "indstrytyLmtYn"),
-                text(item, "pubPrcrmntMidClsfcNm"),
-                text(item, "pubPrcrmntClsfcNm"),
-                text(item, "sucsfbidMthdAppStd"),
-                text(item, "asignBdgtAmt"),
-                text(item, "bidClseDt"),
-                text(item, "opengDt"),
-                text(item, "cmmnSpldmdAgrmntClseDt"),
-                firstText(item, "bidNtceDate", "bidNtceDt"),
-                text(item, "bidClseDt"),
-                text(item, "opengDt"),
-                firstText(item, "bidNtceUrl", "bidNtceDtlUrl"),
-                specificationFiles(item),
-                item.toString()
-        );
-    }
-
-    private List<G2bBidNoticeSpecFile> specificationFiles(JsonNode item) {
-        // 나라장터가 제공하는 최대 10개의 첨부 명세 파일만 도메인 객체로 보존합니다.
-        return IntStream.rangeClosed(1, 10)
-                .mapToObj(sequence -> new G2bBidNoticeSpecFile(
-                        sequence,
-                        text(item, "ntceSpecFileNm" + sequence),
-                        text(item, "ntceSpecDocUrl" + sequence)
-                ))
-                .filter(file -> (file.fileName() != null && !file.fileName().isBlank())
-                        || (file.documentUrl() != null && !file.documentUrl().isBlank()))
-                .toList();
-    }
-
-    private String firstText(JsonNode item, String... names) {
-        for (String name : names) {
-            String value = text(item, name);
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        return null;
-    }
-
-    private String text(JsonNode item, String name) {
-        JsonNode value = item.get(name);
-        return value == null || value.isNull() ? null : value.asText();
     }
 
     /**
@@ -193,11 +127,4 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
         return decodedKey;
     }
 
-    private String maskServiceKey(URI requestUri) {
-        String query = requestUri.getRawQuery();
-        if (query == null || query.isBlank()) {
-            return requestUri.toString();
-        }
-        return requestUri.getRawPath() + "?" + query.replaceFirst("(^|&)serviceKey=[^&]*", "$1serviceKey=***");
-    }
 }

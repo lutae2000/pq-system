@@ -31,7 +31,8 @@ class G2bBidNoticeApiLiveTest {
                 Duration.ofSeconds(30)
         );
         G2bBidNoticeApiConfig config = new G2bBidNoticeApiConfig();
-        G2bBidNoticeApiAdapter adapter = new G2bBidNoticeApiAdapter(config.g2bRestClient(properties), properties);
+        G2bBidNoticeApiAdapter adapter = new G2bBidNoticeApiAdapter(
+                config.g2bRestClient(properties), properties, new G2bBidNoticeApiMapper());
 
         ZonedDateTime to = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
         G2bBidNoticePage result = adapter.load(new G2bBidNoticeQuery(to.minusHours(2), to, List.of("11"), 1, 10));

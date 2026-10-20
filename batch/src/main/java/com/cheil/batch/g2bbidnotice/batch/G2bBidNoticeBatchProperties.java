@@ -16,7 +16,6 @@ import java.util.Optional;
 public record G2bBidNoticeBatchProperties(
         boolean enabled,
         boolean runOnStartup,
-        String cron,
         String zone,
         Duration lockTtl,
         int pageSize,

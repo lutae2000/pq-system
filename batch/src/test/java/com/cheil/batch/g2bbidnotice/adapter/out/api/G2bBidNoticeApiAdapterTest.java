@@ -79,7 +79,8 @@ class G2bBidNoticeApiAdapterTest {
                 Duration.ofSeconds(3)
         );
         G2bBidNoticeApiConfig config = new G2bBidNoticeApiConfig();
-        G2bBidNoticeApiAdapter adapter = new G2bBidNoticeApiAdapter(config.g2bRestClient(properties), properties);
+        G2bBidNoticeApiAdapter adapter = new G2bBidNoticeApiAdapter(
+                config.g2bRestClient(properties), properties, new G2bBidNoticeApiMapper());
 
         ZoneId zoneId = ZoneId.of("Asia/Seoul");
         G2bBidNoticePage result = adapter.load(new G2bBidNoticeQuery(

@@ -60,7 +60,7 @@ batch:
 external-api:
   g2b:
     base-url: ${G2B_API_BASE_URL:https://apis.data.go.kr/1230000/ad/BidPublicInfoService}
-    service-key: "${G2B_SERVICE_KEY:WJjerl6nOnfiDDnkxpc4soMRt9oWkeU6xNkASBMTd1tuVak8N6o2%2FHDnevq4vBRmyUEUN%2BvYEBGQbnXtmB%2FxlA%3D%3D}"
+    service-key: "WJjerl6nOnfiDDnkxpc4soMRt9oWkeU6xNkASBMTd1tuVak8N6o2%2FHDnevq4vBRmyUEUN%2BvYEBGQbnXtmB%2FxlA%3D%3D"
     connect-timeout: ${G2B_API_CONNECT_TIMEOUT:5s}
     read-timeout: ${G2B_API_READ_TIMEOUT:30s}
 

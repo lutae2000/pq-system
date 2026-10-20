@@ -1,4 +1,4 @@
-package com.cheil.batch.common.web;
+package com.cheil.batch.common.util;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

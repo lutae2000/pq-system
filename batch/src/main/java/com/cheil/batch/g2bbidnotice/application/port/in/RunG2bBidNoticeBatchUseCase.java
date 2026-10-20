@@ -1,8 +1,8 @@
 package com.cheil.batch.g2bbidnotice.application.port.in;
 
-import com.cheil.batch.common.batch.BatchJobRunStatus;
+import com.cheil.batch.g2bbidnotice.application.model.BatchRunStatus;
 
 public interface RunG2bBidNoticeBatchUseCase {
 
-    BatchJobRunStatus runOnDemand();
+    BatchRunStatus runOnDemand();
 }

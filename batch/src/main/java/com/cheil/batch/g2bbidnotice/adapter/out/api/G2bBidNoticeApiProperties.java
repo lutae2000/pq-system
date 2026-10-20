@@ -24,5 +24,11 @@ public record G2bBidNoticeApiProperties(
         }
         connectTimeout = connectTimeout == null ? Duration.ofSeconds(5) : connectTimeout;
         readTimeout = readTimeout == null ? Duration.ofSeconds(30) : readTimeout;
+        if (connectTimeout.isZero() || connectTimeout.isNegative()) {
+            throw new IllegalArgumentException("external-api.g2b.connect-timeout은 0보다 커야 합니다.");
+        }
+        if (readTimeout.isZero() || readTimeout.isNegative()) {
+            throw new IllegalArgumentException("external-api.g2b.read-timeout은 0보다 커야 합니다.");
+        }
     }
 }

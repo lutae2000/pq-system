@@ -1,11 +1,14 @@
 package com.cheil.batch.g2bbidnotice.domain;
 
+import lombok.Builder;
+
 import java.util.List;
 
 /**
  * 나라장터 기술용역 조달요청 중 애플리케이션에서 사용하는 핵심 응답값입니다.
  * 외부 API 응답 DTO가 애플리케이션 계층으로 노출되지 않도록 분리합니다.
  */
+@Builder
 public record G2bBidNotice(
         /** 나라장터 공고번호입니다. */
         String bidNoticeNumber,
