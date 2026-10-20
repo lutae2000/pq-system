@@ -22,6 +22,15 @@ export type PeriodRangeFieldProps<TValue extends string> = {
   sx?: SxProps<Theme>;
 };
 
+export const toCompactDate = (value: string) => value.replace(/-/g, "");
+
+export const toDateInputValue = (value: string) => {
+  if (/^\d{8}$/.test(value)) {
+    return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
+  }
+  return value;
+};
+
 export function PeriodRangeField<TValue extends string>({
   endValue,
   label,
@@ -60,22 +69,22 @@ export function PeriodRangeField<TValue extends string>({
         </TextField>
         <TextField
           fullWidth
-          onChange={(event) => onStartChange(event.target.value)}
+          onChange={(event) => onStartChange(toCompactDate(event.target.value))}
           size="small"
           sx={standardFieldSx}
           type="date"
-          value={startValue}
+          value={toDateInputValue(startValue)}
         />
         <Typography color="text.secondary" sx={{ fontSize: 18, lineHeight: 1 }}>
           ~
         </Typography>
         <TextField
           fullWidth
-          onChange={(event) => onEndChange(event.target.value)}
+          onChange={(event) => onEndChange(toCompactDate(event.target.value))}
           size="small"
           sx={standardFieldSx}
           type="date"
-          value={endValue}
+          value={toDateInputValue(endValue)}
         />
       </Box>
     </Box>

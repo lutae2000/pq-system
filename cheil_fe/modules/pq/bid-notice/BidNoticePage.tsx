@@ -17,7 +17,7 @@ import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { compactFieldSx } from "@/components/common/FormControls";
-import { PeriodRangeField } from "@/components/common/PeriodRangeField";
+import { PeriodRangeField, toCompactDate } from "@/components/common/PeriodRangeField";
 import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text, ynToBool } from "@/modules/common/formatters";
 import { openBidNoticePrintWindow } from "@/modules/pq/bid-notice/bidNoticePrint";
 import {
@@ -125,8 +125,8 @@ const buildDefaultFilters = (): BidNoticeFilters => {
     keyword: "",
     businessType: "",
     periodType: "NOTICE",
-    periodStartDate: dayjs().subtract(1, "year").format("YYYY-MM-DD"),
-    periodEndDate: dayjs().add(1, "month").format("YYYY-MM-DD"),
+    periodStartDate: dayjs().subtract(1, "year").format("YYYYMMDD"),
+    periodEndDate: dayjs().add(1, "month").format("YYYYMMDD"),
     bidSuccessYn: "",
     participationStatuses: [],
   };
@@ -378,8 +378,9 @@ export function BidNoticePage() {
       const matchesStatus = filters.participationStatuses.length === 0 || filters.participationStatuses.includes(record.finalParticipationStatus);
       const periodDate =
         filters.periodType === "NOTICE" ? apiDate(record.noticeDate) : filters.periodType === "BID" ? apiDate(record.bidDate) : apiDate(record.pqSubmissionDate);
-      const matchesPeriodStart = !filters.periodStartDate || periodDate >= filters.periodStartDate;
-      const matchesPeriodEnd = !filters.periodEndDate || periodDate <= filters.periodEndDate;
+      const periodDateKey = toCompactDate(periodDate);
+      const matchesPeriodStart = !filters.periodStartDate || periodDateKey >= filters.periodStartDate;
+      const matchesPeriodEnd = !filters.periodEndDate || periodDateKey <= filters.periodEndDate;
       const matchesBidSuccess = !filters.bidSuccessYn || record.bidSuccessYn === filters.bidSuccessYn;
 
       return (

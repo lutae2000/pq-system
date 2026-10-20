@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.bidnotice;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,8 @@ import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 @RequiredArgsConstructor
 public class BidNoticeController {
 
+    private static final DateTimeFormatter COMPACT_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+
     private final BidNoticeAdminUseCase bidNoticeAdminUseCase;
     private final BidNoticeResponseMapper bidNoticeResponseMapper;
 
@@ -39,12 +42,12 @@ public class BidNoticeController {
             @RequestParam(required = false) String businessType,
             @RequestParam(required = false) String fieldOfWorkCode,
             @RequestParam(required = false) String scopeOfWorkCode,
-            @RequestParam(required = false) LocalDate bidClosingDateFrom,
-            @RequestParam(required = false) LocalDate bidClosingDateTo,
-            @RequestParam(required = false) LocalDate bidDateFrom,
-            @RequestParam(required = false) LocalDate bidDateTo,
-            @RequestParam(required = false) LocalDate pqSubmitDateFrom,
-            @RequestParam(required = false) LocalDate pqSubmitDateTo,
+            @RequestParam(required = false) String bidClosingDateFrom,
+            @RequestParam(required = false) String bidClosingDateTo,
+            @RequestParam(required = false) String bidDateFrom,
+            @RequestParam(required = false) String bidDateTo,
+            @RequestParam(required = false) String pqSubmitDateFrom,
+            @RequestParam(required = false) String pqSubmitDateTo,
             @RequestParam(required = false) String bidSuccessYn,
             @RequestParam(required = false, defaultValue = "0") Integer page,
             @RequestParam(required = false) Integer size
@@ -59,17 +62,27 @@ public class BidNoticeController {
                         businessType,
                         fieldOfWorkCode,
                         scopeOfWorkCode,
-                        bidClosingDateFrom,
-                        bidClosingDateTo,
-                        bidDateFrom,
-                        bidDateTo,
-                        pqSubmitDateFrom,
-                        pqSubmitDateTo,
+                        parseDate(bidClosingDateFrom),
+                        parseDate(bidClosingDateTo),
+                        parseDate(bidDateFrom),
+                        parseDate(bidDateTo),
+                        parseDate(pqSubmitDateFrom),
+                        parseDate(pqSubmitDateTo),
                         bidSuccessYn
                 ),
                 PageRequests.of(page, size)
         );
         return ResponseEntity.ok(PageResponse.from(result, bidNotice -> bidNoticeResponseMapper.toResponse(bidNotice, lookup)));
+    }
+
+    private LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.matches("\\d{8}")
+                ? LocalDate.parse(normalized, COMPACT_DATE_FORMAT)
+                : LocalDate.parse(normalized);
     }
 
     /**

@@ -1,4 +1,5 @@
 import { dateOnly, dateTimeText, formatMoney } from "@/modules/common/formatters";
+import { toDateInputValue } from "@/components/common/PeriodRangeField";
 import type { BidNoticeFilters, BidNoticePeriodType, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 
 const periodOptions: { label: string; value: BidNoticePeriodType }[] = [
@@ -53,7 +54,7 @@ export const buildBidNoticePrintHtml = (
   labelMaps: BidNoticePrintLabelMaps = {},
 ) => {
   const periodLabel = periodOptions.find((option) => option.value === filters.periodType)?.label ?? "기간";
-  const periodText = `${filters.periodStartDate || "전체"} ~ ${filters.periodEndDate || "전체"}`;
+  const periodText = `${filters.periodStartDate ? toDateInputValue(filters.periodStartDate) : "전체"} ~ ${filters.periodEndDate ? toDateInputValue(filters.periodEndDate) : "전체"}`;
   const rowHtmlItems = records.length
     ? records
         .map(
