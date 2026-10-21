@@ -632,7 +632,7 @@ export function BidNoticeDetailDialog({
             <SectionCard title="기본 정보">
               <Stack spacing={1}>
                 <Stack spacing={1}>
-                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "110px minmax(0, 1fr)" } }}>
+                  <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "120px minmax(0, 1fr)" } }}>
                     <TextInputField
                       label="관리번호"
                       onChange={(value) => onFieldChange("bidNo", value)}

@@ -49,12 +49,15 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     @Transactional
     public BidNotice create(BidNoticeUpsertCommand command) {
         NormalizedBidNotice normalized = normalize(command, null);
-        if (normalized.bidSeq() != null && bidNoticeRepository.existsByBidSeq(normalized.bidSeq())) {
+        Long bidSeq = normalized.bidSeq();
+        if (bidSeq == null) {
+            bidSeq = bidNoticeRepository.allocateBidSeq(LocalDate.now(clock).getYear());
+        } else if (bidNoticeRepository.existsByBidSeq(bidSeq)) {
             throw failure(Type.CONFLICT, "이미 등록된 공고문 번호입니다.");
         }
 
         Instant now = Instant.now(clock);
-        return bidNoticeRepository.save(toDomain(normalized, now, normalized.createdId(), now, normalized.lastChangedId()));
+        return bidNoticeRepository.saveNew(toDomain(normalized, bidSeq, now, normalized.createdId(), now, normalized.lastChangedId()));
     }
 
     @Transactional
@@ -66,7 +69,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         }
 
         Instant now = Instant.now(clock);
-        return bidNoticeRepository.save(toDomain(normalized, existing.createdAt(), existing.createdId(), now, normalized.lastChangedId()));
+        return bidNoticeRepository.save(toDomain(normalized, bidSeq, existing.createdAt(), existing.createdId(), now, normalized.lastChangedId()));
     }
 
     @Transactional
@@ -162,9 +165,9 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         validateMaxLength(value.lastChangedId(), AUDIT_ID_MAX_LENGTH, "lastChangedId");
     }
 
-    private BidNotice toDomain(NormalizedBidNotice normalized, Instant createdAt, String createdId, Instant lastChangedAt, String lastChangedId) {
+    private BidNotice toDomain(NormalizedBidNotice normalized, Long bidSeq, Instant createdAt, String createdId, Instant lastChangedAt, String lastChangedId) {
         return new BidNotice(
-                normalized.bidSeq(),
+                bidSeq,
                 normalized.departmentCode(),
                 normalized.projectName(),
                 normalized.orderClient(),

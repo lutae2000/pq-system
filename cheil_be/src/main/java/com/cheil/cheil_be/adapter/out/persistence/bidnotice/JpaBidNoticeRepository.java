@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import jakarta.persistence.EntityManager;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
     private static final DateTimeFormatter DATE_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final BidNoticeJpaRepository bidNoticeJpaRepository;
+    private final EntityManager entityManager;
     private final JPAQueryFactory queryFactory;
 
     @Override
@@ -92,6 +95,35 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
     @Override
     public boolean existsByBidSeq(Long bidSeq) {
         return bidNoticeJpaRepository.existsById(bidSeq);
+    }
+
+    @Override
+    public Long allocateBidSeq(int year) {
+        long prefix = Math.multiplyExact(year, 100_000L);
+        long firstBidSeq = prefix + 1;
+        long lastBidSeq = prefix + 99_999;
+
+        entityManager.createNativeQuery("select pg_advisory_xact_lock(:lock_key)")
+                .setParameter("lock_key", (long) year)
+                .getSingleResult();
+
+        Long lastAllocatedBidSeq = queryFactory
+                .select(bidNoticeEntity.bidSeq.max())
+                .from(bidNoticeEntity)
+                .where(bidNoticeEntity.bidSeq.between(firstBidSeq, lastBidSeq))
+                .fetchOne();
+        long nextBidSeq = lastAllocatedBidSeq == null ? firstBidSeq : lastAllocatedBidSeq + 1;
+        if (nextBidSeq > lastBidSeq) {
+            throw new IllegalStateException("해당 연도의 공고번호가 모두 사용되었습니다.");
+        }
+        return nextBidSeq;
+    }
+
+    @Override
+    public BidNotice saveNew(BidNotice bidNotice) {
+        BidNoticeEntity entity = BidNoticeEntity.from(bidNotice);
+        entityManager.persist(entity);
+        return entity.toDomain();
     }
 
     @Override

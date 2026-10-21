@@ -9,8 +9,6 @@ import java.time.format.DateTimeParseException;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -36,7 +34,6 @@ class BidNoticeEntity {
     private static final DateTimeFormatter HUMAN_DATETIME_SECONDS_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "bid_seq")
     private Long bidSeq;
 

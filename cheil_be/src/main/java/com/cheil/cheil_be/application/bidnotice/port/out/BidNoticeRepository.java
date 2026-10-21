@@ -20,6 +20,10 @@ public interface BidNoticeRepository {
 
     boolean existsByBidSeq(Long bidSeq);
 
+    Long allocateBidSeq(int year);
+
+    BidNotice saveNew(BidNotice bidNotice);
+
     BidNotice save(BidNotice bidNotice);
 
     void deleteByBidSeq(Long bidSeq);
