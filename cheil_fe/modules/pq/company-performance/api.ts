@@ -102,6 +102,7 @@ export type CompanyPerformanceEngineerRequest = Omit<CompanyPerformanceEngineerR
 export type CompanyPerformanceEngineerCandidate = {
   engineerId: string;
   name: string | null;
+  birthDate: string | null;
   department: string | null;
   position: string | null;
   dutyPart: string | null;

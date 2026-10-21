@@ -31,6 +31,7 @@ public class CompanyPerformanceEngineerQueryService {
                 new CompanyPerformanceEngineerCandidateResponse(
                     e.engineerId(),
                     e.name(),
+                    e.birthDate(),
                     e.department(),
                     e.position(),
                     e.dutyPart(),

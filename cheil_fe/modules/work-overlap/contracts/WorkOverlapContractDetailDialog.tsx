@@ -154,18 +154,24 @@ const historyColumns: GridColDef<WorkOverlapContractEngineerHistoryRecord>[] = [
   {
     field: "changedAt",
     headerName: "변경일",
+    align: "center",
+    headerAlign: "center",
     width: 112,
     valueGetter: (_value, row) => formatDisplayDate(row.changedAt),
   },
   {
     field: "beforeEngineerName",
     headerName: "변경전 기술인",
+    align: "center",
+    headerAlign: "center",
     width: 124,
     valueGetter: (_value, row) => toText(row.beforeEngineerName) || "-",
   },
   {
     field: "afterEngineerName",
     headerName: "변경후 기술인",
+    align: "center",
+    headerAlign: "center",
     width: 124,
     valueGetter: (_value, row) => toText(row.afterEngineerName) || "-",
   },
@@ -176,21 +182,33 @@ const periodHistoryColumns: GridColDef<WorkOverlapContractPeriodHistoryRecord>[]
   {
     field: "changedAt",
     headerName: "변경일",
+    align: "center",
+    headerAlign: "center",
     width: 112,
     valueGetter: (_value, row) => formatDisplayDate(row.changedAt),
   },
-  { field: "periodName", headerName: "항목", width: 132 },
+  {
+    field: "periodName",
+    headerName: "항목",
+    align: "center",
+    headerAlign: "center",
+    width: 132,
+  },
   {
     field: "beforeValue",
     headerName: "변경전",
+    align: "center",
     flex: 0.95,
+    headerAlign: "center",
     minWidth: 120,
     valueGetter: (_value, row) => formatDisplayDate(row.beforeValue) || "-",
   },
   {
     field: "afterValue",
     headerName: "변경후",
+    align: "center",
     flex: 0.95,
+    headerAlign: "center",
     minWidth: 120,
     valueGetter: (_value, row) => formatDisplayDate(row.afterValue) || "-",
   },
@@ -876,8 +894,10 @@ export function WorkOverlapContractDetailDialog({
       {
         field: "engineerId",
         headerName: "이름",
+        align: "center",
         editable: true,
         flex: 0.65,
+        headerAlign: "center",
         minWidth: 96,
         valueGetter: (_value, row) =>
           toText(row.name) || toText(row.engineerId),
@@ -896,22 +916,28 @@ export function WorkOverlapContractDetailDialog({
       {
         field: "birthDate",
         headerName: "생년월일",
+        align: "center",
+        headerAlign: "center",
         width: 104,
         valueGetter: (_value, row) => formatDisplayDate(row.birthDate),
       },
       {
         field: "participationDate",
         headerName: "참여날짜",
+        align: "center",
         editable: true,
         renderEditCell: (params) => <YmdEditCell {...params} />,
+        headerAlign: "center",
         width: 110,
         valueGetter: (_value, row) => formatDisplayDate(row.participationDate),
       },
       {
         field: "field",
         headerName: "분야",
+        align: "center",
         editable: true,
         flex: 0.8,
+        headerAlign: "center",
         minWidth: 100,
         valueGetter: (_value, row) => formatFieldLabel(row.field),
         renderCell: (params) => formatFieldLabel(params.row.field),
@@ -922,7 +948,9 @@ export function WorkOverlapContractDetailDialog({
       {
         field: "participationType",
         headerName: "참여구분",
+        align: "center",
         editable: true,
+        headerAlign: "center",
         width: 112,
       },
       {
@@ -1252,7 +1280,7 @@ export function WorkOverlapContractDetailDialog({
                               size="small"
                             />
                           }
-                          label="공개계약 여부"
+                          label="공개 계약 여부"
                           sx={{ m: 0, width: "100%" }}
                         />
                       </Box>
@@ -1637,7 +1665,7 @@ export function WorkOverlapContractDetailDialog({
                 <Section title="참여 기술인">
                   <Stack spacing={1.5} sx={{ minWidth: 0 }}>
                       <SubHeader
-                        title="참여 기술인"
+                        title=""
                         action={
                         <Box
                           sx={{

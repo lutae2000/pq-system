@@ -116,7 +116,7 @@ function ScheduleTable({ record }: { record: G2bBidNoticeCandidateRow }) {
 }
 
 const participationLimitRegionNames: Record<string, string> = {
-  "00": "전국",
+  "00": "공고서참조",
   "11": "서울",
 };
 

@@ -34,6 +34,7 @@ public interface EngineerMasterJpaRepository extends JpaRepository<EngineerMaste
             select new com.cheil.cheil_be.application.engineer.EngineerCandidate(
                 e.engrId,
                 e.nameKor,
+                e.birthday,
                 e.deptName,
                 e.grade,
                 e.dutyPart,

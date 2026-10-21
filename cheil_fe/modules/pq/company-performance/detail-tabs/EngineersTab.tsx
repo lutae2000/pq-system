@@ -86,6 +86,12 @@ const hasEngineerChanges = (
   originalRow: CompanyPerformanceEngineerRecord,
 ) => JSON.stringify(toEngineerRequest(updatedRow)) !== JSON.stringify(toEngineerRequest(originalRow));
 
+type EngineerAutocompleteOption = CodeOption & {
+  birthDate: string | null;
+  detail: string;
+  name: string;
+};
+
 function EngineerAutocompleteEditCell({
   loading,
   onCancel,
@@ -98,15 +104,20 @@ function EngineerAutocompleteEditCell({
   onCancel: () => void;
   onSearch: (keyword: string) => void;
   onSelectEngineer: (engineerId: string) => void;
-  options: CodeOption[];
+  options: EngineerAutocompleteOption[];
   params: GridRenderEditCellParams<CompanyPerformanceEngineerRecord, string | null>;
 }) {
   const [popupOpen, setPopupOpen] = useState(false);
-  const value =
-    options.find((option) => String(option.value) === text(params.value)) ??
+  const [inputValue, setInputValue] = useState(() => displayBlank(params.row.name));
+  const selectedOption = options.find((option) => String(option.value) === text(params.value));
+  const selectedName = selectedOption?.name ?? (displayBlank(params.row.name) || text(params.value));
+  const value = selectedOption ??
     (text(params.value)
       ? {
-          label: displayBlank(params.row.name) || text(params.value),
+          birthDate: null,
+          detail: "",
+          label: selectedName,
+          name: selectedName,
           value: text(params.value),
         }
       : null);
@@ -116,15 +127,18 @@ function EngineerAutocompleteEditCell({
       autoHighlight
       disablePortal
       fullWidth
-      getOptionLabel={(option) => option.label}
+      getOptionKey={(option) => String(option.value)}
+      getOptionLabel={(option) => option.name}
       isOptionEqualToValue={(option, currentValue) => String(option.value) === String(currentValue.value)}
       loading={loading}
       onChange={(event, nextValue) => {
         const engineerId = String(nextValue?.value ?? "");
+        setInputValue(nextValue?.name ?? "");
         void params.api.setEditCellValue({ id: params.id, field: params.field, value: engineerId }, event);
         onSelectEngineer(engineerId);
       }}
       onInputChange={(_event, nextInputValue, reason) => {
+        setInputValue(nextInputValue);
         if (reason === "input") {
           onSearch(nextInputValue);
         }
@@ -143,7 +157,19 @@ function EngineerAutocompleteEditCell({
       onClose={() => setPopupOpen(false)}
       onOpen={() => setPopupOpen(true)}
       options={options}
+      renderOption={(props, option) => (
+        <li {...props} key={String(option.value)}>
+          {option.label}
+        </li>
+      )}
       renderInput={(inputParams) => <TextField {...inputParams} autoFocus size="small" sx={standardFieldSx} />}
+      slotProps={{
+        popper: {
+          sx: { minWidth: 360 },
+        },
+      }}
+      sx={{ minWidth: 0, width: "100%" }}
+      inputValue={text(params.value) ? selectedName : inputValue}
       value={value}
     />
   );
@@ -208,12 +234,17 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   const categoryReferences = useCommonCodeLevel2Options("CA", { useYn: "Y" });
   const participationGradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" });
 
-  const engineerOptions = useMemo<CodeOption[]>(
+  const engineerOptions = useMemo<EngineerAutocompleteOption[]>(
     () =>
       (engineerProfilesQuery.data ?? []).map((engineer) => {
-        const detail = [engineer.department, engineer.position].filter(Boolean).join(" / ");
+        const detail = [engineer.position, engineer.department].filter(Boolean).join(" / ");
+        const name = text(engineer.name);
+        const birthDate = formatEngineerDate(engineer.birthDate);
         return {
-          label: detail ? `${engineer.name ?? ""} (${engineer.engineerId}) - ${detail}` : `${engineer.name ?? ""} (${engineer.engineerId})`,
+          birthDate: engineer.birthDate,
+          detail,
+          label: `${name} (${birthDate || "-"})${detail ? ` / ${detail}` : ""}`,
+          name,
           value: engineer.engineerId,
         };
       }),
@@ -254,6 +285,13 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
 
   const rows = useMemo(
     () => [...newRows, ...(engineersQuery.data ?? [])].sort((left, right) => {
+      if (left.isNew !== right.isNew) {
+        return left.isNew ? -1 : 1;
+      }
+      if (left.isNew && right.isNew) {
+        return 0;
+      }
+
       const leftOrder = participationFieldPositionOrder.get(text(left.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
       const rightOrder = participationFieldPositionOrder.get(text(right.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
       return leftOrder - rightOrder || left.id - right.id;
@@ -431,14 +469,25 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       {
         field: "engineerId",
         headerName: "성명",
-        width: 190,
+        width: 150,
         editable: true,
         getApplyQuickFilterFn: (filterValue) => {
           const keyword = text(filterValue).trim().toLocaleLowerCase();
           if (!keyword) return null;
           return (_value, row) => [text(row.name), text(row.engineerId)].join(" ").toLocaleLowerCase().includes(keyword);
         },
-        renderCell: (params) => engineerNameById.get(text(params.row.engineerId)) ?? displayBlank(params.row.name),
+        renderCell: (params) => {
+          const engineerName = engineerNameById.get(text(params.row.engineerId)) ?? displayBlank(params.row.name);
+          return (
+            <Box
+              component="span"
+              sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+              title={engineerName}
+            >
+              {engineerName}
+            </Box>
+          );
+        },
         renderEditCell: (params) => (
           <EngineerAutocompleteEditCell
             loading={engineerProfilesQuery.isFetching}
@@ -489,7 +538,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       {
         field: "participationFieldPosition",
         headerName: "참여분야직위",
-        width: 140,
+        width: 120,
         editable: true,
         type: "singleSelect",
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
@@ -502,7 +551,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       {
         field: "actualParticipationYn",
         headerName: "실제참여",
-        width: 90,
+        width: 80,
         align: "center",
         editable: true,
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
@@ -526,7 +575,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       {
         field: "participationGrade",
         headerName: "참여등급",
-        width: 100,
+        width: 80,
         align: "center",
         editable: true,
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
@@ -540,11 +589,11 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       { field: "companyAtParticipation", headerName: "참여당시회사", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.companyAtParticipation) },
       { field: "departmentAtParticipation", headerName: "참여당시 부서", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.departmentAtParticipation) },
       { field: "positionAtParticipation", headerName: "참여당시 직위", width: 120, editable: true, valueGetter: (_value, row) => displayBlank(row.positionAtParticipation) },
-      { field: "duty", headerName: "담당업무", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.duty) },
+      { field: "duty", headerName: "담당업무", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.duty) },
       {
         field: "jobField",
         headerName: "직무분야",
-        width: 130,
+        width: 90,
         editable: true,
         renderCell: (params) => formatReferenceLabel(jobFieldLabelByCode, params.row.jobField) || displayBlank(params.row.jobField),
         valueGetter: (_value, row) => displayBlank(row.jobField),
@@ -708,6 +757,11 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         sx={{
           border: 0,
           "& .MuiDataGrid-columnHeaders": { bgcolor: "rgba(15, 23, 42, 0.02)" },
+          "& .MuiDataGrid-cell--editing[data-field='engineerId']": {
+            overflow: "visible",
+            position: "relative",
+            zIndex: 2,
+          },
         }}
       />
     </Box>
