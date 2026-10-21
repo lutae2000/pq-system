@@ -83,6 +83,10 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         }
 
         String projectName = required(command.projectName(), "projectName");
+        String participateYn = normalize(command.participateYn());
+        if (participateYn.isEmpty()) {
+            throw failure(Type.BAD_REQUEST, "최종 참여 여부는 필수입니다.");
+        }
         String createdId = optional(command.createdId(), existing == null ? "admin" : existing.createdId());
         String lastChangedId = optional(command.lastChangedId(), createdId);
         Long bidSeq = existing == null ? command.bidSeq() : existing.bidSeq();
@@ -105,7 +109,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
                 normalize(command.pqDecideEmpno()),
                 command.pqDecideDate(),
                 normalize(command.superDecideEmpno()),
-                normalizeYn(command.participateYn()),
+                participateYn,
                 normalize(command.businessType()),
                 command.bidSubmissionDate(),
                 normalize(command.processTag()),

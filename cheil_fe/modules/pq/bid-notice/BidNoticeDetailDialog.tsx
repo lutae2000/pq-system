@@ -34,6 +34,8 @@ import { useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type BidNoticeDetailDialogProps = {
   attachments?: BidNoticeAttachmentState;
+  attachmentOwnerId?: number;
+  changeSummary?: ReadonlyArray<{ current: string; label: string; previous: string }>;
   clientSearchHint?: string;
   g2bBidNoticeNumber?: string;
   g2bBidNoticeUrl?: string;
@@ -519,6 +521,8 @@ function CategoryBlock({ children, title }: { children: ReactNode; title: string
 
 export function BidNoticeDetailDialog({
   attachments,
+  attachmentOwnerId,
+  changeSummary = [],
   clientSearchHint = "",
   g2bBidNoticeNumber = "",
   g2bBidNoticeUrl = "",
@@ -600,12 +604,28 @@ export function BidNoticeDetailDialog({
       </DialogTitle>
 
       <DialogContent dividers sx={{ bgcolor: "background.default", p: 1.5 }}>
+        {changeSummary.length > 0 ? (
+          <Card sx={{ mb: 1.25, border: 1, borderColor: "warning.light", bgcolor: "rgba(255, 152, 0, 0.06)" }} variant="outlined">
+            <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
+              <Typography sx={{ color: "warning.dark", fontSize: 13, fontWeight: 800, mb: 0.75 }}>변경사항</Typography>
+              <Stack spacing={0.75}>
+              {changeSummary.map((change) => (
+                <Box key={change.label} sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { md: "160px minmax(0, 1fr) minmax(0, 1fr)", xs: "1fr" } }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700 }}>{change.label}</Typography>
+                  <Typography sx={{ bgcolor: "rgba(244, 67, 54, 0.08)", color: "error.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>이전: {change.previous || "-"}</Typography>
+                  <Typography sx={{ bgcolor: "rgba(33, 150, 243, 0.08)", color: "info.dark", fontSize: 12, p: 0.5, whiteSpace: "pre-line", wordBreak: "break-word" }}>현재: {change.current || "-"}</Typography>
+                </Box>
+              ))}
+              </Stack>
+            </CardContent>
+          </Card>
+        ) : null}
         <Stack spacing={1.25}>
           <Box
             sx={{
               display: "grid",
               gap: 1.25,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.8fr) minmax(300px, 0.72fr) minmax(280px, 0.68fr)" },
+              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.8fr) minmax(260px, 0.62fr) minmax(360px, 0.9fr)" },
               alignItems: "start",
             }}
           >
@@ -866,7 +886,7 @@ export function BidNoticeDetailDialog({
                       keyName={key}
                       onDelete={onAttachmentDeleteRequest ? (fileName) => onAttachmentDeleteRequest(key, fileName) : undefined}
                       onUpload={onAttachmentUpload ? (file) => onAttachmentUpload(key, file) : undefined}
-                      ownerId={record.seqNo || undefined}
+                      ownerId={(attachmentOwnerId ?? record.seqNo) || undefined}
                       disabled={readOnly || !record.seqNo}
                     />
                   ))}
@@ -897,7 +917,7 @@ export function BidNoticeDetailDialog({
               target="_blank"
               variant="outlined"
             >
-              나라장터 공고문 바로가기
+              나라장터 공고 바로가기
             </Button>
           ) : null}
           <Button disabled={saveDisabled} onClick={handleSave} startIcon={<SaveOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="contained">

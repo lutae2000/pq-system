@@ -16,13 +16,14 @@ import { readAuthSession } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
-import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, text } from "@/modules/common/formatters";
+import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text } from "@/modules/common/formatters";
 import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeDetailOptions, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
   G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
   deleteG2bBidNoticeCandidates,
   getG2bBidNoticeCandidateSyncStatus,
+  getImportedG2bBidNoticeCandidate,
   getImportedG2bBidNoticeCandidateByNoticeNumber,
   markG2bBidNoticeCandidateImported,
   syncG2bBidNoticeCandidates,
@@ -46,6 +47,29 @@ const BidNoticeDetailDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeDetailDialog").then((module) => module.BidNoticeDetailDialog),
   { ssr: false },
 );
+
+const bidNoticeChangeFields = [
+  ["projectName", "사업명"],
+  ["bidClosingDate", "PQ심사 신청 마감일"],
+  ["bidDate", "입찰서 마감일"],
+  ["bidSubmissionDate", "투찰 마감일"],
+  ["estimateAmount", "설계금액"],
+  ["noticeDate", "공고일자"],
+  ["pqSubmissionDate", "PQ 제출일자"],
+] as const satisfies ReadonlyArray<[keyof BidNoticeRecord, string]>;
+
+const changeValue = (field: keyof BidNoticeRecord, value: BidNoticeRecord[keyof BidNoticeRecord]) =>
+  field === "estimateAmount" ? formatMoney(Number(value ?? 0)) : String(value ?? "");
+
+const comparableChangeValue = (field: keyof BidNoticeRecord, value: BidNoticeRecord[keyof BidNoticeRecord]) =>
+  field === "estimateAmount"
+    ? String(Number(value ?? 0))
+    : String(value ?? "").replace(/\s+/g, " ").trim();
+
+const attachmentNames = (attachments: ReadonlyArray<{ fileName?: string | null; originalFilename?: string | null }>) =>
+  [...new Set(attachments.map((attachment) => (attachment.fileName ?? attachment.originalFilename ?? "").trim()).filter(Boolean))]
+    .sort()
+    .join("\n");
 
 const emptyBidNoticeDraft = (): BidNoticeRecord => ({
   active: true,
@@ -180,9 +204,9 @@ const toCandidateBidNoticeDraft = (record: ReturnType<typeof toG2bBidNoticeCandi
   return {
     ...emptyBidNoticeDraft(),
     bidDate: dateTimeText(record.bidDate),
-    bidClosingDate: dateTimeText(record.bidQlfctRgstDt),
+    bidClosingDate: dateTimeText(record.pqApplDocRcptDt),
     bidSubmissionDate: dateTimeText(record.bidSubmissionDate),
-    bidStyle: record.ntceKindNm,
+    bidStyle: record.sucsfbidMthdNm,
     estimateAmount: amount,
     designAmt: amount,
     noticeDate: dateOnly(record.bidNtceDate),
@@ -237,6 +261,8 @@ export function G2bBidNoticeCandidatePage() {
   const [detailRecord, setDetailRecord] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);
   const [inputCandidateId, setInputCandidateId] = useState<number | null>(null);
+  const [inputAttachmentOwnerId, setInputAttachmentOwnerId] = useState<number | null>(null);
+  const [inputChangeSummary, setInputChangeSummary] = useState<ReadonlyArray<{ current: string; label: string; previous: string }>>([]);
   const [inputSourceAttachments, setInputSourceAttachments] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow>["attachments"]>([]);
   const [inputClientSearchHint, setInputClientSearchHint] = useState("");
   const [inputMappingSource, setInputMappingSource] = useState({
@@ -351,6 +377,7 @@ export function G2bBidNoticeCandidatePage() {
     },
     onSuccess: (saved) => {
       setInputDraft(toEditableBidNoticeRecord(saved));
+      setInputAttachmentOwnerId(saved.bidSeq ?? null);
       queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
       queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates"] });
       queryClient.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(saved.bidSeq)] });
@@ -447,6 +474,7 @@ export function G2bBidNoticeCandidatePage() {
     }
     setInputSourceAttachments(detailRecord.attachments);
     setInputCandidateId(detailRecord.id);
+    setInputAttachmentOwnerId(detailRecord.importedBidSeq);
     setInputClientSearchHint(detailRecord.dminsttNm);
     setInputMappingSource({
       bidMethod: detailRecord.bidMethdNm,
@@ -457,7 +485,12 @@ export function G2bBidNoticeCandidatePage() {
     });
     const session = readAuthSession();
     const candidateDraft = toCandidateBidNoticeDraft(detailRecord);
-    const existingRecord = detailRecord.importedBidSeq ? await getBidNotice(detailRecord.importedBidSeq) : null;
+    const [existingRecord, existingAttachments] = await Promise.all([
+      detailRecord.importedBidSeq ? getBidNotice(detailRecord.importedBidSeq) : Promise.resolve(null),
+      detailRecord.importedBidSeq
+        ? getImportedG2bBidNoticeCandidate(detailRecord.importedBidSeq).catch(() => null)
+        : Promise.resolve(null),
+    ]);
     const baseDraft = existingRecord ? toEditableBidNoticeRecord(existingRecord) : emptyBidNoticeDraft();
     const mergedDraft = existingRecord ? {
       ...baseDraft,
@@ -471,6 +504,23 @@ export function G2bBidNoticeCandidatePage() {
       pqSubmissionDate: candidateDraft.pqSubmissionDate || baseDraft.pqSubmissionDate,
       projectName: candidateDraft.projectName || baseDraft.projectName,
     } : candidateDraft;
+    const fieldChanges = existingRecord
+      ? bidNoticeChangeFields
+        .map(([field, label]) => ({
+          field,
+          current: changeValue(field, mergedDraft[field]),
+          label,
+          previous: changeValue(field, baseDraft[field]),
+        }))
+        .filter((change) => comparableChangeValue(change.field, mergedDraft[change.field]) !== comparableChangeValue(change.field, baseDraft[change.field]))
+        .map(({ current, label, previous }) => ({ current, label, previous }))
+      : [];
+    const previousAttachmentNames = attachmentNames(existingAttachments?.attachments ?? []);
+    const currentAttachmentNames = attachmentNames(detailRecord.attachments);
+    const attachmentChanges = existingRecord && previousAttachmentNames !== currentAttachmentNames
+      ? [{ current: currentAttachmentNames, label: "첨부파일", previous: previousAttachmentNames }]
+      : [];
+    setInputChangeSummary([...fieldChanges, ...attachmentChanges]);
     setInputDraft({
       ...mergedDraft,
       seqNo: existingRecord?.bidSeq ?? 0,
@@ -488,6 +538,8 @@ export function G2bBidNoticeCandidatePage() {
     if (!inputSaveMutation.isPending) {
       setInputDraft(null);
       setInputCandidateId(null);
+      setInputAttachmentOwnerId(null);
+      setInputChangeSummary([]);
       setInputSourceAttachments([]);
       setInputClientSearchHint("");
       setInputMappingSource({ bidMethod: "", businessScope: "", businessType: "", businessField: "", orderMethod: "" });
@@ -571,7 +623,9 @@ export function G2bBidNoticeCandidatePage() {
       ) : null}
       {inputDraft ? (
         <BidNoticeDetailDialog
+          attachmentOwnerId={inputAttachmentOwnerId ?? undefined}
           attachments={{ announcement: [], evaluation: [], guide: [], specification: [], submission: [] }}
+          changeSummary={inputChangeSummary}
           clientSearchHint={inputClientSearchHint}
           onClose={closeInput}
           onDeleteRequest={closeInput}
