@@ -766,6 +766,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   const [selectedCellKeys, setSelectedCellKeys] = useState<Set<string>>(() => new Set());
   const [pendingRowUpdate, setPendingRowUpdate] = useState<PendingRowUpdate<Row> | null>(null);
   const [rowUpdateConfirmLoading, setRowUpdateConfirmLoading] = useState(false);
+  const [stableServerRowCount, setStableServerRowCount] = useState(0);
 
   const getRowClassName = (params: Parameters<NonNullable<DataGridProps<Row>["getRowClassName"]>>[0]) => {
     const classes = [params.indexRelativeToCurrentPage % 2 === 0 ? "enterprise-row-even" : "enterprise-row-odd"];
@@ -797,7 +798,23 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     pageStyle: ".MuiDataGrid-root .MuiDataGrid-main { color: rgba(0, 0, 0, 0.87); }",
   };
   const resolvedRowHeight = restProps.rowHeight ?? 35;
-  const resolvedRowCount = userPaginationMode === "server" ? userRowCount ?? 0 : undefined;
+  const serverLoading = Boolean(restProps.loading);
+  useEffect(() => {
+    if (userPaginationMode !== "server" || userRowCount === undefined || (userRowCount === 0 && serverLoading)) {
+      return;
+    }
+
+    if (stableServerRowCount !== userRowCount) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      setStableServerRowCount(userRowCount);
+    }
+  }, [serverLoading, stableServerRowCount, userPaginationMode, userRowCount]);
+  const resolvedRowCount =
+    userPaginationMode === "server"
+      ? userRowCount === undefined || (userRowCount === 0 && serverLoading)
+        ? stableServerRowCount
+        : userRowCount
+      : undefined;
   const gridStateCacheId = useMemo(() => {
     if (stateCacheKey === false) {
       return null;
