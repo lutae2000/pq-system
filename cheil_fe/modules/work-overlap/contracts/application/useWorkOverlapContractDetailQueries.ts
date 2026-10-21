@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
+  getWorkOverlapContract,
   listWorkOverlapContractEngineerCandidates,
   listWorkOverlapContractEngineerHistories,
   listWorkOverlapContractEngineers,
@@ -24,6 +25,12 @@ export function useWorkOverlapContractDetailQueries({
     queryFn: () => listWorkOverlapContractEngineers(contractNo),
     enabled: enabled && canRead && Boolean(contractNo),
   });
+  const contractQuery = useQuery({
+    queryKey: workOverlapContractQueryKeys.detail(contractNo),
+    queryFn: () => getWorkOverlapContract(contractNo),
+    enabled: enabled && canRead && Boolean(contractNo),
+    refetchOnMount: "always",
+  });
   const historiesQuery = useQuery({
     queryKey: workOverlapContractQueryKeys.engineerHistories(contractNo),
     queryFn: () => listWorkOverlapContractEngineerHistories(contractNo),
@@ -42,6 +49,7 @@ export function useWorkOverlapContractDetailQueries({
   });
 
   return {
+    contractQuery,
     engineerCandidatesQuery,
     engineersQuery,
     historiesQuery,

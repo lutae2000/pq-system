@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
-import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
+import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import type { CareerDetailRecord } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import { historyGridSx } from "@/modules/pq/engineers/history-tabs/historyTabCommon";
 

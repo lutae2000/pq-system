@@ -35,6 +35,7 @@ import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { NoticeLayerDialog } from "./NoticeLayerDialog";
+import { getNotice } from "./api";
 import { useNoticeMutations } from "./application/useNoticeMutations";
 import { useNoticeQueries } from "./application/useNoticeQueries";
 import type { NoticeRecord } from "./notice.types";
@@ -97,7 +98,6 @@ export function NotificationManagementPage() {
 
   const records = useMemo(() => noticesQuery.data ?? EMPTY_NOTICES, [noticesQuery.data]);
   const effectiveSelectedId = selectedId || records[0]?.id || "";
-  const selectedRecord = useMemo(() => records.find((record) => record.id === effectiveSelectedId) ?? null, [effectiveSelectedId, records]);
   const rowSelectionModel = useMemo<GridRowSelectionModel>(
     () => ({ ids: new Set<GridRowId>(effectiveSelectedId ? [effectiveSelectedId] : []), type: "include" }),
     [effectiveSelectedId],
@@ -137,9 +137,14 @@ export function NotificationManagementPage() {
     setSelectedId(nextDraft.id);
   };
 
-  const handleEdit = (record: NoticeRecord) => {
-    setDraft({ ...record });
-    setSelectedId(record.id);
+  const handleEdit = async (record: NoticeRecord) => {
+    try {
+      const latestRecord = await getNotice(record.id);
+      setDraft(latestRecord);
+      setSelectedId(latestRecord.id);
+    } catch (error) {
+      handleMutationError(error, "공지사항을 불러오지 못했습니다.");
+    }
   };
 
   const buildNextRecord = (): NoticeRecord | null => {

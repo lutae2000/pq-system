@@ -586,6 +586,7 @@ export function WorkOverlapContractDetailDialog({
   }, [engineerKeyword]);
 
   const {
+    contractQuery,
     engineerCandidatesQuery,
     engineersQuery,
     historiesQuery,
@@ -596,6 +597,19 @@ export function WorkOverlapContractDetailDialog({
     enabled: open,
     engineerKeyword: debouncedEngineerKeyword,
   });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const latestRecord = contractQuery.data ?? record;
+    if (latestRecord) {
+      // 팝업을 다시 열 때 그리드 행의 오래된 값 대신 상세 조회 결과를 반영한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft(latestRecord);
+    }
+  }, [contractQuery.data, open, record]);
 
   const engineerCandidates = useMemo(() => {
     const candidateMap = new Map<

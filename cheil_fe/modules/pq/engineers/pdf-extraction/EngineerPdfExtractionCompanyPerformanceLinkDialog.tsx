@@ -10,7 +10,7 @@ import { findCompanyPerformanceMatchCandidates, listCompanyPerformances, type Co
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 
 const CompanyPerformanceDetailPopup = dynamic(
-  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailPopup").then((module) => module.CompanyPerformanceDetailPopup),
+  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailDialog").then((module) => module.CompanyPerformanceDetailPopup),
   { ssr: false },
 );
 

@@ -132,6 +132,7 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
     queryKey: ["bid-notice-detail-popup", bidSeq],
     queryFn: () => getBidNotice(bidSeq ?? 0),
     enabled: open && Boolean(bidSeq),
+    refetchOnMount: "always",
   });
 
   const bidMethodOptions = useCommonCodeLevel2Options("ZA", undefined, { enabled: open });

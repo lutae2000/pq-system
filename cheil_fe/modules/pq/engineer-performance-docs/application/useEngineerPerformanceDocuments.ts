@@ -2,17 +2,20 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { getEngineerProfile } from "@/modules/pq/engineers/api";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
 import {
   createEngineerProjectHistoryReviewResults,
   deleteEngineerProjectHistoryReviewResult,
+  listEngineerProjectHistoryReviewResults,
   saveEngineerDocumentValueSetting,
   syncEngineerProjectHistoryReviewResults,
   updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
 import { engineerPerformanceDocumentsQueryKeys } from "@/modules/pq/engineer-performance-docs/application/queryKeys";
+import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer-performance-docs/engineerPerformanceDocumentsExcel";
 
 type InlineDocumentValueChange = {
   educationId: number | null;
@@ -26,6 +29,7 @@ type UseEngineerPerformanceDocumentsParams = {
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
+  engLevelLabelByCode: Record<string, string>;
   getSortedReviewRows: () => EngineerProjectHistoryReviewRecord[];
   onActiveEngineerDeleted: () => void;
   onReviewSelectionCleared: () => void;
@@ -35,6 +39,7 @@ type UseEngineerPerformanceDocumentsParams = {
   pendingBulkDeleteEngineerIds: string[] | null;
   pendingBulkDeleteReviewIds: string[] | null;
   profiles: Array<{ summary: { id: string } }>;
+  projectName: string;
   selectedHistoryRows: Array<EngineerProjectHistoryReviewRecord & { id?: string | number | null }>;
   reviewRowById: Map<string, EngineerProjectHistoryReviewRecord & { reviewId?: number | null }>;
   reviewRows: EngineerProjectHistoryReviewRecord[];
@@ -62,6 +67,7 @@ export function useEngineerPerformanceDocuments({
   canCreate,
   canDelete,
   canUpdate,
+  engLevelLabelByCode,
   getSortedReviewRows,
   onActiveEngineerDeleted,
   onReviewSelectionCleared,
@@ -71,6 +77,7 @@ export function useEngineerPerformanceDocuments({
   pendingBulkDeleteEngineerIds,
   pendingBulkDeleteReviewIds,
   profiles,
+  projectName,
   selectedHistoryRows,
   reviewRowById,
   reviewRows,
@@ -89,6 +96,31 @@ export function useEngineerPerformanceDocuments({
       showSuccess("?좏깮 ?숇젰쨌?먭꺽????λ릺?덉뒿?덈떎.");
     },
     onError: (error) => showError(error instanceof Error ? error.message : "?좏깮 ?숇젰쨌?먭꺽????ν븯吏 紐삵뻽?듬땲??"),
+  });
+
+  const downloadReviewWorkbookMutation = useMutation({
+    mutationFn: async () => {
+      if (!bidSeq || profiles.length === 0) {
+        throw new Error("엑셀로 내보낼 기술인 정보가 없습니다.");
+      }
+
+      const reviewResultsByEngineer = await Promise.all(
+        profiles.map(async (profile) => {
+          const engineerId = profile.summary.id;
+          const results = await listEngineerProjectHistoryReviewResults({ bidSeq, engineerId });
+          return { engineerId, results };
+        }),
+      );
+      const detailedProfiles = await Promise.all(profiles.map((profile) => getEngineerProfile(profile.summary.id)));
+
+      return downloadEngineerPerformanceReviewWorkbook({
+        profiles: detailedProfiles,
+        projectName,
+        reviewResultsByEngineer,
+        engLevelLabelByCode,
+      });
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀 다운로드에 실패했습니다."),
   });
 
   const syncReviewResults = async (conditions: RelatedProjectHistoryCondition[]) => {
@@ -162,6 +194,7 @@ export function useEngineerPerformanceDocuments({
 
   return {
     saveInlineDocumentValueMutation,
+    downloadReviewWorkbookMutation,
     addReviewMutation,
     deleteReviewMutation,
     renumberReviewMutation,

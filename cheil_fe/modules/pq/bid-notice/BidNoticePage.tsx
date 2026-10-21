@@ -4,7 +4,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Autocomplete, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
-import { useGridApiRef, type GridColDef, type GridRowParams } from "@mui/x-data-grid";
+import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRowParams } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import dynamic from "next/dynamic";
@@ -30,9 +30,9 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 import {
-  BID_NOTICE_PAGE_SIZE,
   createBidNotice,
   deleteBidNotice,
+  getBidNotice,
   listBidNotices,
   updateBidNotice,
   type BidNoticeDetailOptions,
@@ -240,7 +240,7 @@ const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => (
   lastChangedId: "admin",
 });
 
-const toSearchParams = (filters: BidNoticeFilters): BidNoticeSearchParams => ({
+const toSearchParams = (filters: BidNoticeFilters, paginationModel: GridPaginationModel): BidNoticeSearchParams => ({
   keyword: filters.keyword,
   departmentCode: filters.department,
   superDecideEmpno: filters.superDecideEmpno,
@@ -253,8 +253,8 @@ const toSearchParams = (filters: BidNoticeFilters): BidNoticeSearchParams => ({
   pqSubmitDateFrom: filters.periodType === "PQ" ? filters.periodStartDate : "",
   pqSubmitDateTo: filters.periodType === "PQ" ? filters.periodEndDate : "",
   bidSuccessYn: filters.bidSuccessYn,
-  page: 0,
-  size: BID_NOTICE_PAGE_SIZE,
+  page: paginationModel.page,
+  size: paginationModel.pageSize,
 });
 
 export function BidNoticePage() {
@@ -267,6 +267,7 @@ export function BidNoticePage() {
   const [searchDraft, setSearchDraft] = useState<BidNoticeFilters>(() => buildDefaultFilters());
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 20 });
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
@@ -274,10 +275,11 @@ export function BidNoticePage() {
     queryKey: ["g2b-bid-notice-candidate-imported-attachments", draft.seqNo],
     queryFn: () => getImportedG2bBidNoticeCandidate(draft.seqNo),
     enabled: open && draft.seqNo > 0,
-    staleTime: 5 * 60 * 1000,
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
-  const searchParams = useMemo(() => toSearchParams(filters), [filters]);
+  const searchParams = useMemo(() => toSearchParams(filters, paginationModel), [filters, paginationModel]);
   const bidNoticesQuery = useQuery({
     queryKey: ["bid-notices", searchParams, searchRevision],
     queryFn: () => listBidNotices(searchParams),
@@ -426,13 +428,26 @@ export function BidNoticePage() {
     },
   });
 
-  const openEditor = (record: BidNoticeRecord) => {
+  const openEditor = async (record: BidNoticeRecord) => {
     if (!canRead) {
       showError("조회 권한이 없습니다.");
       return;
     }
-    setDraft({ ...record });
-    setOpen(true);
+
+    if (!record.seqNo) {
+      setDraft({ ...record });
+      setOpen(true);
+      return;
+    }
+
+    try {
+      const latestRecord = await getBidNotice(record.seqNo);
+      setDraft(toBidNoticeRecord(latestRecord));
+      setOpen(true);
+      void queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "공고문 상세를 불러오지 못했습니다.");
+    }
   };
 
   const openNew = () => {
@@ -497,6 +512,7 @@ export function BidNoticePage() {
       return;
     }
     setFilters({ ...searchDraft });
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setSearchRevision((current) => current + 1);
   };
 
@@ -763,6 +779,7 @@ export function BidNoticePage() {
                   const defaultFilters = buildDefaultFilters();
                   setSearchDraft(defaultFilters);
                   setFilters(defaultFilters);
+                  setPaginationModel((current) => ({ ...current, page: 0 }));
                   setSearchRevision((current) => current + 1);
                 }}
                 disabled={!canRead}
@@ -792,15 +809,19 @@ export function BidNoticePage() {
           <EnterpriseDataGrid<BidNoticeRecord>
             apiRef={gridApiRef}
             columns={columns}
+            loading={bidNoticesQuery.isLoading || bidNoticesQuery.isFetching}
             onExportPrint={handleExportPrint}
+            onPaginationModelChange={setPaginationModel}
+            paginationMode="server"
+            paginationModel={paginationModel}
             showXlsxExportButton
             showPrintButton
             showPageNumbers
             pageSizeOptions={[20, 40, 80, 120]}
             getRowId={(row) => row.id}
             onRowDoubleClick={(params: GridRowParams<BidNoticeRecord>) => openEditor(params.row)}
-            initialState={{ pagination: { paginationModel: { page: 0, pageSize: 20 } } }}
-            rows={filteredRecords}
+            rowCount={bidNoticesQuery.data?.totalElements ?? 0}
+            rows={records}
             wrapperMinHeight={bidNoticeGridHeight}
             sx={{
               height: bidNoticeGridHeight,

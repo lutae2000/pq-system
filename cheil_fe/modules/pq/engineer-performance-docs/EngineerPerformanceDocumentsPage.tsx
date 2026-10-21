@@ -45,12 +45,7 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
-import { downloadEngineerPerformanceReviewWorkbook } from "@/modules/pq/engineer-performance-docs/engineerPerformanceDocumentsExcel";
-import {
-  listEngineerProjectHistoryReviewResults,
-  type EngineerProjectHistoryReviewRecord,
-} from "@/modules/pq/engineer-performance-docs/api";
-import { getEngineerProfile } from "@/modules/pq/engineers/api";
+import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
 import { useEngineerPerformanceDocuments } from "@/modules/pq/engineer-performance-docs/application/useEngineerPerformanceDocuments";
@@ -65,7 +60,7 @@ const BidNoticeDetailPopup = dynamic(
   { ssr: false },
 );
 const CompanyPerformanceDetailPopup = dynamic(
-  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailPopup").then((module) => module.CompanyPerformanceDetailPopup),
+  () => import("@/modules/pq/company-performance/CompanyPerformanceDetailDialog").then((module) => module.CompanyPerformanceDetailPopup),
   { ssr: false },
 );
 const HwpxTemplateGenerationPanel = dynamic(
@@ -188,7 +183,6 @@ export function EngineerPerformanceDocumentsPage() {
   const [renumberReviewDialogOpen, setRenumberReviewDialogOpen] = useState(false);
   const [pendingBulkDeleteReviewIds, setPendingBulkDeleteReviewIds] = useState<string[] | null>(null);
   const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
-  const [isExcelDownloading, setIsExcelDownloading] = useState(false);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [selectorPanelCollapsed, setSelectorPanelCollapsed] = useState(false);
   const reviewGridApiRef = useGridApiRef();
@@ -362,12 +356,17 @@ export function EngineerPerformanceDocumentsPage() {
     },
     [reviewRowIds, reviewSelectionAnchorId],
   );
+  const labelByJobField = jobFieldReferences.labelByValue;
+  const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
+  const labelByEngLevel = engLevelReferences.labelByValue;
+
   const documentActions = useEngineerPerformanceDocuments({
     activeEngineerId,
     bidSeq: selectedBidSeq,
     canCreate,
     canDelete,
     canUpdate,
+    engLevelLabelByCode: labelByEngLevel,
     getSortedReviewRows: () => (reviewGridApiRef.current?.getSortedRows() ?? []) as EngineerProjectHistoryReviewRecord[],
     onActiveEngineerDeleted: () => setActiveEngineerId(""),
     onReviewSelectionCleared: () => setSelectedHistoryIds([]),
@@ -380,16 +379,13 @@ export function EngineerPerformanceDocumentsPage() {
     pendingBulkDeleteEngineerIds,
     pendingBulkDeleteReviewIds,
     profiles,
+    projectName: text(selectedBidNotice?.projectName),
     selectedHistoryRows,
     reviewRowById,
     reviewRows,
     showError,
     showSuccess,
   });
-
-  const labelByJobField = jobFieldReferences.labelByValue;
-  const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
-  const labelByEngLevel = engLevelReferences.labelByValue;
 
   const engineerColumns = useMemo<GridColDef<EngineerDocumentRow>[]>(
     () => [
@@ -725,41 +721,6 @@ export function EngineerPerformanceDocumentsPage() {
     setRelatedProjectHistoryConditions([]);
   };
 
-  const handleExcelDownload = useCallback(async () => {
-    if (!canRead || !selectedBidNotice?.bidSeq || profiles.length === 0 || isExcelDownloading) {
-      return;
-    }
-
-    const bidSeq = selectedBidNotice.bidSeq;
-    setIsExcelDownloading(true);
-
-    try {
-      const reviewResultsByEngineer = await Promise.all(
-        profiles.map(async (profile) => {
-          const engineerId = profile.summary.id;
-          const results = await listEngineerProjectHistoryReviewResults({
-            bidSeq,
-            engineerId,
-          });
-
-          return { engineerId, results };
-        }),
-      );
-
-      const detailedProfiles = await Promise.all(profiles.map((profile) => getEngineerProfile(profile.summary.id)));
-      await downloadEngineerPerformanceReviewWorkbook({
-        profiles: detailedProfiles,
-        projectName: text(selectedBidNotice.projectName),
-        reviewResultsByEngineer,
-        engLevelLabelByCode: labelByEngLevel,
-      });
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀을 다운로드하지 못했습니다.");
-    } finally {
-      setIsExcelDownloading(false);
-    }
-  }, [canRead, isExcelDownloading, labelByEngLevel, profiles, selectedBidNotice, showError]);
-
   function openBulkDeleteConfirm() {
     if (selectedReviewIds.length === 0) {
       return;
@@ -923,10 +884,10 @@ export function EngineerPerformanceDocumentsPage() {
                     </IconButton>
                     <IconButton
                       aria-label="기술인별 검토결과 엑셀로 내보내기"
-                      disabled={!selectedBidNotice || profiles.length === 0 || engineersQuery.isFetching || isExcelDownloading}
-                      onClick={() => void handleExcelDownload()}
+                      disabled={!selectedBidNotice || profiles.length === 0 || engineersQuery.isFetching || documentActions.downloadReviewWorkbookMutation.isPending}
+                      onClick={() => void documentActions.downloadReviewWorkbookMutation.mutateAsync()}
                       size="small"
-                      title={isExcelDownloading ? "엑셀 생성 중" : "기술인별 검토결과 엑셀로 내보내기"}
+                      title={documentActions.downloadReviewWorkbookMutation.isPending ? "엑셀 생성 중" : "기술인별 검토결과 엑셀로 내보내기"}
                     >
                       <FileDownloadOutlinedIcon fontSize="small" />
                     </IconButton>

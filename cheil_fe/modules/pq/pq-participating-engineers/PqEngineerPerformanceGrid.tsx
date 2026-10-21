@@ -5,7 +5,7 @@ import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
-import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailPopup";
+import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 
 type Props = { columns: GridColDef<EngineerProjectHistoryReviewRecord>[]; defaultPageSize: number; loading: boolean; rows: EngineerProjectHistoryReviewRecord[]; gridHeight: number };

@@ -233,6 +233,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
     queryKey: ["g2b-bid-notice-candidate-history", record?.id, record?.bidNtceNo, record?.befBidBbancNo],
     queryFn: () => (record ? loadBidNoticeHistory(record) : Promise.resolve([])),
     enabled: open && Boolean(record),
+    refetchOnMount: "always",
     staleTime: 60 * 1000,
   });
 
