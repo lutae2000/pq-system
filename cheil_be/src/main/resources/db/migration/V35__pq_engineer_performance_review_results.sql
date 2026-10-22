@@ -17,12 +17,12 @@ CREATE INDEX IF NOT EXISTS ix_pq_engineer_project_history_review_results_source_
     ON pq_engineer_project_history_review_results (engr_id, source_seq);
 COMMENT ON COLUMN pq_engineer_project_history_review_results.display_order IS '표시 순서';
 
-COMMENT ON TABLE pq_engineer_project_history_review_results IS 'Engineer project history review results';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.review_id IS 'Review result id';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.bid_seq IS 'Bid notice seq';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.engr_id IS 'Engineer id';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.source_seq IS 'Source project history seq';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.created_at IS 'Created at';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.created_id IS 'Created by';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.last_changed_at IS 'Last changed at';
-COMMENT ON COLUMN pq_engineer_project_history_review_results.last_changed_id IS 'Last changed by';
+COMMENT ON TABLE pq_engineer_project_history_review_results IS '기술인 프로젝트 이력 평가 결과';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.review_id IS '평가 결과 식별자';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.bid_seq IS '공고문 식별자';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.engr_id IS '기술인 식별자';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.source_seq IS '원본 프로젝트 이력 식별자';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.created_at IS '생성 시각';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.created_id IS '생성자';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN pq_engineer_project_history_review_results.last_changed_id IS '최종 변경자';

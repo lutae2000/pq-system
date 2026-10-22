@@ -37,7 +37,7 @@ export function CompanyPerformanceDetailTabs({ readOnly = false, record }: Detai
   }
 
   return (
-    <Box sx={{ alignItems: "start", display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 320px" }, mt: 1.5 }}>
+    <Box sx={{ alignItems: "start", display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 400px" }, mt: 1.5 }}>
       {confirmationDialog}
       <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0, overflow: "hidden" }}>
         <Tabs

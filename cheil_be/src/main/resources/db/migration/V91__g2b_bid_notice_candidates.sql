@@ -140,6 +140,6 @@ COMMENT ON COLUMN g2b_bid_notice_candidates.first_seen_at IS '나라장터 공�
 COMMENT ON COLUMN g2b_bid_notice_candidates.last_seen_at IS '나라장터 공고 최종 확인일시';
 COMMENT ON COLUMN g2b_bid_notice_candidates.api_request_date_from IS 'API 조회 시작일시';
 COMMENT ON COLUMN g2b_bid_notice_candidates.api_request_date_to IS 'API 조회 종료일시';
-COMMENT ON COLUMN g2b_bid_notice_candidates.imported_at IS 'bid_notices 반영일시';
-COMMENT ON COLUMN g2b_bid_notice_candidates.imported_by IS 'bid_notices 반영 담당자';
-COMMENT ON COLUMN g2b_bid_notice_candidates.imported_bid_seq IS 'bid_notices에 반영된 공고 식별자';
+COMMENT ON COLUMN g2b_bid_notice_candidates.imported_at IS '공고문 반영일시';
+COMMENT ON COLUMN g2b_bid_notice_candidates.imported_by IS '공고문 반영 담당자';
+COMMENT ON COLUMN g2b_bid_notice_candidates.imported_bid_seq IS '공고문에 반영된 공고 식별자';

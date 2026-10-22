@@ -226,7 +226,7 @@ const relatedMajorOptions = [
 ];
 
 const DEFAULT_SUMMARY_PANEL_WIDTH = 420;
-const DEFAULT_SUMMARY_PANEL_HEIGHT = 1150;
+const DEFAULT_SUMMARY_PANEL_HEIGHT = 1080;
 const SUMMARY_PANEL_MIN_WIDTH = 320;
 const SUMMARY_PANEL_MAX_WIDTH = 620;
 const SUMMARY_PANEL_MIN_HEIGHT = 820;
@@ -594,27 +594,9 @@ export function EngineerPersonalInfoPage() {
   });
   const [summaryPanelWidth, setSummaryPanelWidth] = useState(DEFAULT_SUMMARY_PANEL_WIDTH);
   const summaryPanelHeight = DEFAULT_SUMMARY_PANEL_HEIGHT;
-  const historyCardRef = useRef<HTMLDivElement | null>(null);
-  const [historyCardHeight, setHistoryCardHeight] = useState(0);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const historyCard = historyCardRef.current;
-    if (!historyCard) {
-      return;
-    }
-
-    const updateHistoryCardHeight = () => {
-      setHistoryCardHeight(Math.ceil(historyCard.getBoundingClientRect().height));
-    };
-
-    updateHistoryCardHeight();
-    const resizeObserver = new ResizeObserver(updateHistoryCardHeight);
-    resizeObserver.observe(historyCard);
-    return () => resizeObserver.disconnect();
-  }, []);
   const searchSpecialtyFieldOptions = useMemo<CodeOption[]>(
     () => {
       const options = [...specialtyFieldOptions];
@@ -2199,7 +2181,7 @@ export function EngineerPersonalInfoPage() {
             alignSelf: "stretch",
             height: {
               xs: summaryPanelHeight,
-              lg: historyCardHeight || summaryPanelHeight,
+              lg: summaryPanelHeight,
             },
             minHeight: { xs: SUMMARY_PANEL_MIN_HEIGHT, lg: 0 },
           }}
@@ -2242,7 +2224,7 @@ export function EngineerPersonalInfoPage() {
         </ResizableCard>
 
         <Box sx={{ minWidth: 0 }}>
-          <Stack ref={historyCardRef} spacing={2}>
+          <Stack spacing={2}>
             <Card>
               <CardContent>
                 <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>

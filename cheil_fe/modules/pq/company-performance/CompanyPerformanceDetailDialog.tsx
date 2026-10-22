@@ -220,7 +220,20 @@ export function CompanyPerformanceDetailDialog({
   const serviceTypeReferences = useCommonCodeLevel2Options("ST", { useYn: "Y" }, { enabled: open });
 
   return (
-    <Dialog fullWidth maxWidth="xl" onClose={onClose} open={open}>
+    <Dialog
+      fullWidth
+      maxWidth={false}
+      onClose={onClose}
+      open={open}
+      slotProps={{
+        paper: {
+          sx: {
+            maxWidth: "min(1800px, calc(100vw - 48px))",
+            width: "min(1800px, calc(100vw - 48px))",
+          },
+        },
+      }}
+    >
       <DialogTitle sx={{ alignItems: "center", display: "flex", gap: 2, justifyContent: "space-between", px: 2, py: 1.25 }}>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: 18, fontWeight: 800 }}>회사 실적 상세</Typography>

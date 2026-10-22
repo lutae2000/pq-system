@@ -36,7 +36,9 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
   const technicalGradeLabelByCode = technicalGradeOptionsQuery.labelByValue;
 
   const columns = useMemo<GridColDef<CareerDetailRecord>[]>(
-    () => [
+    () => {
+      const leftAlignedFields = new Set(["jobName", "compName", "method", "remark"]);
+      const columns: GridColDef<CareerDetailRecord>[] = [
       { field: "seq", headerName: "이력 ID", minWidth: 80, flex: 1 },
       { field: "jobName", headerName: "이력명", minWidth: 240, flex: 1 },
       {
@@ -75,7 +77,14 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
       { field: "proPart", headerName: "전문분야", width: 130 },
       { field: "method", headerName: "수행방식", width: 110 },
       { field: "remark", headerName: "비고", minWidth: 160, flex: 0.7 },
-    ],
+      ];
+
+      return columns.map((column) =>
+        leftAlignedFields.has(column.field)
+          ? column
+          : { ...column, align: "center", headerAlign: "center" },
+      );
+    },
     [jobClassLabelByCode, technicalGradeLabelByCode],
   );
 

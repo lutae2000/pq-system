@@ -34,8 +34,8 @@ COMMENT ON COLUMN company_performance_outlines.cate_name IS '공사 종류 이�
 COMMENT ON COLUMN company_performance_outlines.subcate_name IS '공사 상세 이름';
 COMMENT ON COLUMN company_performance_outlines.subcate_unit IS '측량기준';
 COMMENT ON COLUMN company_performance_outlines.otln_cont IS '측량수치';
-COMMENT ON COLUMN company_performance_outlines.ddlb_yn IS 'DDLB_YN';
-COMMENT ON COLUMN company_performance_outlines.ddlbgroup_code IS 'DDLBGROUP_CODE';
+COMMENT ON COLUMN company_performance_outlines.ddlb_yn IS 'DDLB 여부';
+COMMENT ON COLUMN company_performance_outlines.ddlbgroup_code IS 'DDLB 그룹 코드';
 COMMENT ON COLUMN company_performance_outlines.sort_seq IS '정렬 순서';
 
 INSERT INTO company_performance_outlines (seq, otln_gseq, otln_lseq, cate_code, subcate_code, cate_name, subcate_name, subcate_unit, otln_cont, ddlb_yn, ddlbgroup_code, sort_seq) VALUES

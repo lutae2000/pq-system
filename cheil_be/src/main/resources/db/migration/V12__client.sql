@@ -43,7 +43,7 @@ COMMENT ON COLUMN clients.addr2 IS '주소2';
 COMMENT ON COLUMN clients.remark IS '비고';
 COMMENT ON COLUMN clients.company_type IS '상위기관';
 COMMENT ON COLUMN clients.homeurl IS '홈페이지 url';
-COMMENT ON COLUMN clients.otype IS 'OTYPE';
+COMMENT ON COLUMN clients.otype IS '발주처 유형';
 COMMENT ON COLUMN clients.created_at IS '등록일시';
 COMMENT ON COLUMN clients.created_id IS '등록자';
 COMMENT ON COLUMN clients.last_changed_at IS '최종변경일시';
