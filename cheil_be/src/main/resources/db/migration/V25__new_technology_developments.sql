@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS new_technology_developments (
     id BIGSERIAL PRIMARY KEY,
-    sequence_label VARCHAR(50),
     title VARCHAR(500) NOT NULL,
     technology_type VARCHAR(20),
     applicant_count NUMERIC(10, 2),
@@ -39,10 +38,11 @@ CREATE INDEX IF NOT EXISTS ix_new_technology_developments_target_field
     ON new_technology_developments (target_field);
 CREATE INDEX IF NOT EXISTS ix_new_technology_developments_registration_no
     ON new_technology_developments (registration_no);
+COMMENT ON COLUMN new_technology_developments.use_yn IS '사용 여부';
+COMMENT ON COLUMN new_technology_developments.calculated_score IS '산정 점수';
 
 COMMENT ON TABLE new_technology_developments IS '신기술 개발실적';
 COMMENT ON COLUMN new_technology_developments.id IS '신기술 개발실적 ID';
-COMMENT ON COLUMN new_technology_developments.sequence_label IS '엑셀 연번';
 COMMENT ON COLUMN new_technology_developments.title IS '출원명';
 COMMENT ON COLUMN new_technology_developments.technology_type IS '구분';
 COMMENT ON COLUMN new_technology_developments.applicant_count IS '출원인수';

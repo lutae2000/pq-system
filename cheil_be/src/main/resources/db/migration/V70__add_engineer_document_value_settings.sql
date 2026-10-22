@@ -22,3 +22,5 @@ COMMENT ON COLUMN pq_engineer_document_value_settings.selected_license_id IS '�
 
 CREATE INDEX idx_pq_document_value_settings_engineer
     ON pq_engineer_document_value_settings (engr_id);
+COMMENT ON COLUMN pq_engineer_document_value_settings.created_at IS '생성 시각';
+COMMENT ON COLUMN pq_engineer_document_value_settings.last_changed_at IS '최종 변경 시각';

@@ -19,6 +19,8 @@ CREATE INDEX IF NOT EXISTS ix_company_performance_construction_kinds_seq
     ON company_performance_construction_kinds (seq);
 CREATE INDEX IF NOT EXISTS ix_company_performance_construction_kinds_codes
     ON company_performance_construction_kinds (level1_code, level2_code, level3_code);
+COMMENT ON COLUMN company_performance_construction_kinds.created_at IS '생성 시각';
+COMMENT ON COLUMN company_performance_construction_kinds.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE company_performance_construction_kinds IS '회사실적 공사종류';
 COMMENT ON COLUMN company_performance_construction_kinds.id IS '공사종류 ID';

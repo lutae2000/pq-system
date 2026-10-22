@@ -42,6 +42,21 @@ CREATE INDEX IF NOT EXISTS ix_pq_new_employment_employees_02
 
 COMMENT ON TABLE pq_new_employment_monthly_counts IS '신규 고용률 월별 고용인원';
 COMMENT ON TABLE pq_new_employment_employees IS '신규 고용률 신규 고용자';
+COMMENT ON COLUMN pq_new_employment_monthly_counts.created_at IS '생성 시각';
+COMMENT ON COLUMN pq_new_employment_monthly_counts.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN pq_new_employment_employees.created_at IS '생성 시각';
+COMMENT ON COLUMN pq_new_employment_employees.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN pq_new_employment_monthly_counts.base_year_month IS '기준 연월';
+COMMENT ON COLUMN pq_new_employment_monthly_counts.department_code IS '부서 코드';
+COMMENT ON COLUMN pq_new_employment_monthly_counts.employee_count IS '재직자 수';
+COMMENT ON COLUMN pq_new_employment_employees.base_year_month IS '기준 연월';
+COMMENT ON COLUMN pq_new_employment_employees.employee_no IS '사원 번호';
+COMMENT ON COLUMN pq_new_employment_employees.employee_name IS '사원명';
+COMMENT ON COLUMN pq_new_employment_employees.birth_date IS '생년월일';
+COMMENT ON COLUMN pq_new_employment_employees.hire_date IS '입사일';
+COMMENT ON COLUMN pq_new_employment_employees.department_code IS '부서 코드';
+COMMENT ON COLUMN pq_new_employment_employees.job_category IS '직종';
+COMMENT ON COLUMN pq_new_employment_employees.remark IS '비고';
 
 INSERT INTO system_menus (
     menu_code, menu_name, parent_menu_code, menu_path, menu_type, sort_seq, use_yn, visible_yn, description

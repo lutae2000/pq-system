@@ -22,8 +22,11 @@ CREATE INDEX IF NOT EXISTS ix_new_employment_employees_01
 
 CREATE INDEX IF NOT EXISTS ix_new_employment_employees_02
     ON new_employment_employees (hire_date DESC);
+COMMENT ON COLUMN new_employment_employees.remark IS '비고';
 
 COMMENT ON TABLE new_employment_employees IS '신규 고용자';
+COMMENT ON COLUMN new_employment_employees.created_at IS '생성 시각';
+COMMENT ON COLUMN new_employment_employees.last_changed_at IS '최종 변경 시각';
 
 INSERT INTO new_employment_employees (
     to_char(to_date(hire_date, 'YYYYMMDD'), 'YYYY-MM') AS base_year_month,

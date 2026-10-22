@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS work_overlap_contracts (
     performance_certification bool,
     participate_list_document bool,
     cems_confirm VARCHAR(30),
+    joint_contract_ratio VARCHAR(100),
     supervising_department_code VARCHAR(20),
     public_contract_yn BOOLEAN NOT NULL DEFAULT TRUE,
     remark TEXT,
@@ -29,10 +30,13 @@ CREATE INDEX IF NOT EXISTS ix_work_overlap_contracts_client_name
     ON work_overlap_contracts (client_name);
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contracts_start_date
     ON work_overlap_contracts (construction_start_date);
+COMMENT ON COLUMN work_overlap_contracts.joint_contract_ratio IS '공동도급 지분율';
 
 
 
 COMMENT ON TABLE work_overlap_contracts IS '업무중복도 계약관리';
+COMMENT ON COLUMN work_overlap_contracts.created_at IS '생성 시각';
+COMMENT ON COLUMN work_overlap_contracts.last_changed_at IS '최종 변경 시각';
 COMMENT ON COLUMN work_overlap_contracts.contract_no IS '계약번호';
 COMMENT ON COLUMN work_overlap_contracts.service_type IS '용역구분';
 COMMENT ON COLUMN work_overlap_contracts.client_name IS '발주처';

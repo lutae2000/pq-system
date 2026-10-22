@@ -15,6 +15,7 @@ CREATE INDEX IF NOT EXISTS ix_pq_engineer_project_history_review_results_bid_eng
     ON pq_engineer_project_history_review_results (bid_seq, engr_id);
 CREATE INDEX IF NOT EXISTS ix_pq_engineer_project_history_review_results_source_seq
     ON pq_engineer_project_history_review_results (engr_id, source_seq);
+COMMENT ON COLUMN pq_engineer_project_history_review_results.display_order IS '표시 순서';
 
 COMMENT ON TABLE pq_engineer_project_history_review_results IS 'Engineer project history review results';
 COMMENT ON COLUMN pq_engineer_project_history_review_results.review_id IS 'Review result id';

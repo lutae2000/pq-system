@@ -24,21 +24,3 @@ COMMENT ON COLUMN g2b_bid_notice_sync_items.first_seen_at IS '해당 공고를 A
 COMMENT ON COLUMN g2b_bid_notice_sync_items.last_seen_at IS '해당 공고를 API에서 마지막 확인한 시각';
 COMMENT ON COLUMN g2b_bid_notice_sync_items.last_api_request_date_from IS '마지막 API 조회 시작 시각';
 COMMENT ON COLUMN g2b_bid_notice_sync_items.last_api_request_date_to IS '마지막 API 조회 종료 시각';
-
-INSERT INTO g2b_bid_notice_sync_items (
-    bid_ntce_no,
-    bid_ntce_ord,
-    bef_bid_bbanc_no,
-    raw_payload,
-    first_seen_at,
-    last_seen_at
-)
-SELECT
-    bid_ntce_no,
-    bid_ntce_ord,
-    bef_bid_bbanc_no,
-    raw_payload,
-    COALESCE(first_seen_at, CURRENT_TIMESTAMP),
-    COALESCE(last_seen_at, CURRENT_TIMESTAMP)
-FROM g2b_bid_notice_candidates
-ON CONFLICT (bid_ntce_no, bid_ntce_ord) DO NOTHING;

@@ -37,6 +37,8 @@ CREATE INDEX IF NOT EXISTS ix_company_performances_client_kind
     ON company_performances (client_kind);
 CREATE INDEX IF NOT EXISTS ix_company_performances_status_flags
     ON company_performances (job_own_yn, general_management, job_finish_yn, oversee_yn);
+COMMENT ON COLUMN company_performances.created_at IS '생성 시각';
+COMMENT ON COLUMN company_performances.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE company_performances IS '회사실적 관리';
 COMMENT ON COLUMN company_performances.seq IS '회사실적 SEQ';

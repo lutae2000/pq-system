@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS work_overlap_document_engineers (
 
 CREATE INDEX IF NOT EXISTS ix_work_overlap_document_engineers_work_duty_bid
     ON work_overlap_document_engineers (work_duty_id, bid_seq);
+COMMENT ON COLUMN work_overlap_document_engineers.created_at IS '생성 시각';
+COMMENT ON COLUMN work_overlap_document_engineers.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE work_overlap_document_engineers IS '업무중복도 문서 생성 대상 기술인 목록';
 COMMENT ON COLUMN work_overlap_document_engineers.target_id IS '업무중복도 문서 대상 기술인 식별자';

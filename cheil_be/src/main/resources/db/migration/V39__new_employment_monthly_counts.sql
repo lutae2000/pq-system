@@ -15,8 +15,12 @@ CREATE TABLE IF NOT EXISTS new_employment_monthly_counts (
 
 CREATE INDEX IF NOT EXISTS ix_new_employment_monthly_counts_01
     ON new_employment_monthly_counts (base_year_month, department_code);
+COMMENT ON COLUMN new_employment_monthly_counts.employee_count IS '재직자 수';
+COMMENT ON COLUMN new_employment_monthly_counts.new_hire_count IS '신규 입사자 수';
 
 COMMENT ON TABLE new_employment_monthly_counts IS '신규 고용률 월별 고용인원';
+COMMENT ON COLUMN new_employment_monthly_counts.created_at IS '생성 시각';
+COMMENT ON COLUMN new_employment_monthly_counts.last_changed_at IS '최종 변경 시각';
 
 INSERT INTO new_employment_monthly_counts (
     base_year_month,

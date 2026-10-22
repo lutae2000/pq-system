@@ -31,6 +31,7 @@ COMMENT ON COLUMN pq_engineer_master.grade IS '직급';
 COMMENT ON COLUMN pq_engineer_master.retireyn IS '퇴직 여부';
 COMMENT ON COLUMN pq_engineer_master.dutypart IS '담당 분야';
 COMMENT ON COLUMN pq_engineer_master.propart IS '전문 분야';
+COMMENT ON COLUMN pq_engineer_master.education_exception IS '교육 이수 예외 여부';
 COMMENT ON COLUMN pq_engineer_master.created_at IS '생성 시각';
 COMMENT ON COLUMN pq_engineer_master.created_id IS '생성자';
 COMMENT ON COLUMN pq_engineer_master.last_changed_at IS '최종 변경 시각';
@@ -164,7 +165,6 @@ CREATE TABLE pq_engineer_project_history (
     startdt VARCHAR(8),
     enddt VARCHAR(8),
     jobclass VARCHAR(50),
-    method VARCHAR(50),
     jobtag VARCHAR(50),
     jobpart VARCHAR(100),
     propart VARCHAR(100),
@@ -191,7 +191,6 @@ COMMENT ON COLUMN pq_engineer_project_history.seq IS '순번';
 COMMENT ON COLUMN pq_engineer_project_history.startdt IS '시작일';
 COMMENT ON COLUMN pq_engineer_project_history.enddt IS '종료일';
 COMMENT ON COLUMN pq_engineer_project_history.jobclass IS '직종';
-COMMENT ON COLUMN pq_engineer_project_history.method IS '수행방식';
 COMMENT ON COLUMN pq_engineer_project_history.jobtag IS '직무 태그';
 COMMENT ON COLUMN pq_engineer_project_history.jobpart IS '직무 분야';
 COMMENT ON COLUMN pq_engineer_project_history.propart IS '전문 분야';

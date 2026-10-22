@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS company_performance_outlines (
 
 CREATE INDEX IF NOT EXISTS ix_company_performance_outlines_seq ON company_performance_outlines (seq);
 CREATE INDEX IF NOT EXISTS ix_company_performance_outlines_sort ON company_performance_outlines (seq, sort_seq, otln_gseq, otln_lseq, id);
+COMMENT ON COLUMN company_performance_outlines.created_at IS '생성 시각';
+COMMENT ON COLUMN company_performance_outlines.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE company_performance_outlines IS '회사실적 공사개요';
 COMMENT ON COLUMN company_performance_outlines.id IS '공사개요 ID';

@@ -3,7 +3,7 @@ INSERT INTO notification_topics (
 ) VALUES (
     'G2B_BID_NOTICE_CHANGE',
     '나라장터 공고 변경 알림',
-    '등록된 공고가 변경, 취소 또는 재공고되면 알림을 받습니다.',
+    '등록된 공고가 변경되면 알림을 받습니다.',
     '/pq/g2b-bid-notice-candidates',
     30,
     TRUE

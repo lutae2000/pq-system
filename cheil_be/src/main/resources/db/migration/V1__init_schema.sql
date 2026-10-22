@@ -130,6 +130,7 @@ CREATE TABLE system_notices (
     publish_at TIMESTAMP NOT NULL,
     important BOOLEAN NOT NULL DEFAULT FALSE,
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    target_path VARCHAR(500),
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -266,3 +267,61 @@ SELECT
     TRUE
 FROM system_menus
 ON CONFLICT (role_code, menu_code) DO NOTHING;
+
+COMMENT ON COLUMN api_call_logs.occurred_at IS 'API 호출 발생 시각';
+COMMENT ON COLUMN api_call_logs.request_uri IS '요청 URI';
+COMMENT ON COLUMN api_call_logs.query_string IS '요청 쿼리 문자열';
+COMMENT ON COLUMN api_call_logs.handler IS '처리 핸들러';
+COMMENT ON COLUMN api_call_logs.request_payload IS '요청 본문';
+COMMENT ON COLUMN api_call_logs.response_payload IS '응답 본문';
+COMMENT ON COLUMN api_call_logs.status_code IS 'HTTP 상태 코드';
+COMMENT ON COLUMN api_call_logs.success IS '성공 여부';
+COMMENT ON COLUMN api_call_logs.error_message IS '오류 메시지';
+COMMENT ON COLUMN api_call_logs.duration_millis IS '처리 시간(밀리초)';
+COMMENT ON COLUMN api_call_logs.login_id IS '로그인 ID';
+COMMENT ON COLUMN api_call_logs.program_code IS '프로그램 코드';
+COMMENT ON COLUMN api_call_logs.trace_id IS '추적 ID';
+COMMENT ON COLUMN auth_users.use_yn IS '사용 여부';
+COMMENT ON COLUMN auth_users.login_dt IS '최근 로그인 일시';
+COMMENT ON COLUMN auth_users.password_reset IS '비밀번호 초기화 여부';
+COMMENT ON COLUMN auth_users.pic_yn IS '담당자 여부';
+COMMENT ON COLUMN auth_users.wrong_password_count IS '비밀번호 오류 횟수';
+COMMENT ON COLUMN department.use_yn IS '사용 여부';
+COMMENT ON COLUMN department.terminate_date IS '종료일';
+COMMENT ON COLUMN department.input_date IS '입력일';
+COMMENT ON COLUMN department.chg_date IS '변경일';
+COMMENT ON COLUMN department.mh_yn IS '본사 여부';
+COMMENT ON COLUMN auth_roles.use_yn IS '사용 여부';
+COMMENT ON COLUMN auth_roles.sort_seq IS '정렬 순서';
+COMMENT ON COLUMN system_menus.sort_seq IS '정렬 순서';
+COMMENT ON COLUMN system_menus.use_yn IS '사용 여부';
+COMMENT ON COLUMN system_menus.visible_yn IS '노출 여부';
+COMMENT ON COLUMN system_notices.content IS '공지 내용';
+COMMENT ON COLUMN system_notices.exposure_start_at IS '노출 시작 시각';
+COMMENT ON COLUMN system_notices.exposure_end_at IS '노출 종료 시각';
+COMMENT ON COLUMN system_notices.publish_at IS '게시 시각';
+COMMENT ON COLUMN system_notices.important IS '중요 공지 여부';
+COMMENT ON COLUMN system_notices.active IS '활성 여부';
+COMMENT ON COLUMN system_notices.target_path IS '공지 클릭 이동 경로';
+COMMENT ON COLUMN system_policies.sort_seq IS '정렬 순서';
+COMMENT ON COLUMN system_policies.use_yn IS '사용 여부';
+COMMENT ON COLUMN role_permissions.read_yn IS '조회 권한';
+COMMENT ON COLUMN role_permissions.create_yn IS '생성 권한';
+COMMENT ON COLUMN role_permissions.update_yn IS '수정 권한';
+COMMENT ON COLUMN role_permissions.delete_yn IS '삭제 권한';
+COMMENT ON COLUMN user_menu_permissions.read_yn IS '조회 권한';
+COMMENT ON COLUMN user_menu_permissions.create_yn IS '생성 권한';
+COMMENT ON COLUMN user_menu_permissions.update_yn IS '수정 권한';
+COMMENT ON COLUMN user_menu_permissions.delete_yn IS '삭제 권한';
+COMMENT ON COLUMN auth_users.created_at IS '생성 시각';
+COMMENT ON COLUMN auth_users.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN auth_roles.created_at IS '생성 시각';
+COMMENT ON COLUMN auth_roles.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN system_menus.created_at IS '생성 시각';
+COMMENT ON COLUMN system_menus.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN system_notices.created_at IS '생성 시각';
+COMMENT ON COLUMN system_notices.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN system_policies.created_at IS '생성 시각';
+COMMENT ON COLUMN system_policies.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN role_permissions.created_at IS '생성 시각';
+COMMENT ON COLUMN role_permissions.last_changed_at IS '최종 변경 시각';

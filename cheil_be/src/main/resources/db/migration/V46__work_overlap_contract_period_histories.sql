@@ -20,8 +20,11 @@ CREATE INDEX IF NOT EXISTS ix_work_overlap_contract_period_histories_contract_no
 
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contract_period_histories_created_at
     ON work_overlap_contract_period_histories (created_at DESC, id DESC);
+COMMENT ON COLUMN work_overlap_contract_period_histories.change_reason IS '변경 사유';
 
 COMMENT ON TABLE work_overlap_contract_period_histories IS 'Work overlap contract period change history';
+COMMENT ON COLUMN work_overlap_contract_period_histories.created_at IS '생성 시각';
+COMMENT ON COLUMN work_overlap_contract_period_histories.last_changed_at IS '최종 변경 시각';
 COMMENT ON COLUMN work_overlap_contract_period_histories.contract_no IS 'Contract number';
 COMMENT ON COLUMN work_overlap_contract_period_histories.period_name IS 'Period field name';
 COMMENT ON COLUMN work_overlap_contract_period_histories.before_value IS 'Before value';

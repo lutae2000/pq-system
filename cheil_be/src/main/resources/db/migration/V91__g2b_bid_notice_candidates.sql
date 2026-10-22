@@ -1,18 +1,5 @@
 -- PostgreSQL의 BIGINT는 int8과 동일한 8바이트 정수 타입입니다.
 -- 기존 bid_seq가 이미 BIGINT인 환경에서도 스키마를 명시적으로 보정합니다.
-ALTER TABLE bid_notices
-    ALTER COLUMN bid_seq TYPE BIGINT USING bid_seq::BIGINT;
-
-ALTER TABLE bid_notices
-    ADD COLUMN IF NOT EXISTS g2b_bid_ntce_no VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS g2b_bid_ntce_ord VARCHAR(20),
-    ADD COLUMN IF NOT EXISTS g2b_ntce_kind_nm VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS g2b_bid_ntce_url VARCHAR(1000),
-    ADD COLUMN IF NOT EXISTS g2b_cancelled_yn VARCHAR(1) DEFAULT 'N';
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_bid_notices_g2b_notice
-    ON bid_notices (g2b_bid_ntce_no, g2b_bid_ntce_ord);
-
 COMMENT ON COLUMN bid_notices.g2b_bid_ntce_no IS '나라장터 입찰공고번호';
 COMMENT ON COLUMN bid_notices.g2b_bid_ntce_ord IS '나라장터 입찰공고 차수';
 COMMENT ON COLUMN bid_notices.g2b_ntce_kind_nm IS '나라장터 공고구분';
@@ -31,7 +18,15 @@ CREATE TABLE IF NOT EXISTS g2b_bid_notice_candidates (
     ntce_kind_nm VARCHAR(100),
     cntrct_cncls_mthd_nm VARCHAR(200),
     srvce_div_nm VARCHAR(200),
-    prtcpt_lmt_rgn_cds VARCHAR(50),
+    prtcpt_lmt_rgn_cd VARCHAR(100),
+    cmmn_spldmd_methd_nm VARCHAR(200),
+    sucsfbid_mthd_nm VARCHAR(200),
+    indstryty_lmt_yn VARCHAR(1),
+    pub_prcrmnt_mid_clsfc_nm VARCHAR(200),
+    pub_prcrmnt_clsfc_nm VARCHAR(200),
+    sucsfbid_mthd_app_std VARCHAR(500),
+    dminstt_nm VARCHAR(300),
+    dminstt_cd VARCHAR(100),
     asign_bdgt_amt VARCHAR(100),
     bid_date VARCHAR(30),
     bid_submission_date VARCHAR(30),
@@ -83,33 +78,6 @@ CREATE TABLE IF NOT EXISTS g2b_bid_notice_candidates (
 );
 
 -- 기존에 후보 테이블이 먼저 생성된 개발 DB에도 상세 필드를 보완합니다.
-ALTER TABLE g2b_bid_notice_candidates
-    ADD COLUMN IF NOT EXISTS bef_bid_bbanc_no VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS asign_bdgt_amt VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS bid_date VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS bid_submission_date VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS pq_submit_date VARCHAR(30),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm1 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm2 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm3 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm4 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm5 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm6 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm7 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm8 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm9 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_file_nm10 VARCHAR(500),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url1 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url2 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url3 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url4 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url5 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url6 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url7 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url8 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url9 VARCHAR(2000),
-    ADD COLUMN IF NOT EXISTS ntce_spec_doc_url10 VARCHAR(2000);
-
 CREATE INDEX IF NOT EXISTS ix_g2b_candidates_last_seen
     ON g2b_bid_notice_candidates (last_seen_at DESC);
 
@@ -118,9 +86,9 @@ CREATE INDEX IF NOT EXISTS ix_g2b_candidates_notice_kind
 
 CREATE INDEX IF NOT EXISTS ix_g2b_candidates_bef_bid_bbanc_no
     ON g2b_bid_notice_candidates (bef_bid_bbanc_no);
+COMMENT ON COLUMN g2b_bid_notice_candidates.dminstt_nm IS '수요기관명';
+COMMENT ON COLUMN g2b_bid_notice_candidates.dminstt_cd IS '수요기관코드';
 
-CREATE INDEX IF NOT EXISTS ix_g2b_candidates_region_codes
-    ON g2b_bid_notice_candidates (prtcpt_lmt_rgn_cds);
 
 COMMENT ON TABLE g2b_bid_notice_candidates IS '나라장터 입찰공고 원본 수집 및 관리자 선택 대기 목록';
 COMMENT ON COLUMN g2b_bid_notice_candidates.id IS '임시 공고 식별자';
@@ -130,7 +98,13 @@ COMMENT ON COLUMN g2b_bid_notice_candidates.bef_bid_bbanc_no IS '재공고의 �
 COMMENT ON COLUMN g2b_bid_notice_candidates.ntce_kind_nm IS '나라장터 공고구분';
 COMMENT ON COLUMN g2b_bid_notice_candidates.cntrct_cncls_mthd_nm IS '나라장터 계약구분';
 COMMENT ON COLUMN g2b_bid_notice_candidates.srvce_div_nm IS '나라장터 용역구분';
-COMMENT ON COLUMN g2b_bid_notice_candidates.prtcpt_lmt_rgn_cds IS '조회에 매칭된 참가제한지역코드 목록. 예: 00,11';
+COMMENT ON COLUMN g2b_bid_notice_candidates.prtcpt_lmt_rgn_cd IS '나라장터 참가제한지역코드';
+COMMENT ON COLUMN g2b_bid_notice_candidates.cmmn_spldmd_methd_nm IS '나라장터 공동수급방식명';
+COMMENT ON COLUMN g2b_bid_notice_candidates.sucsfbid_mthd_nm IS '나라장터 낙찰방법명';
+COMMENT ON COLUMN g2b_bid_notice_candidates.indstryty_lmt_yn IS '나라장터 업종제한여부';
+COMMENT ON COLUMN g2b_bid_notice_candidates.pub_prcrmnt_mid_clsfc_nm IS '나라장터 공공조달 중분류명';
+COMMENT ON COLUMN g2b_bid_notice_candidates.pub_prcrmnt_clsfc_nm IS '나라장터 공공조달 분류명';
+COMMENT ON COLUMN g2b_bid_notice_candidates.sucsfbid_mthd_app_std IS '나라장터 낙찰방법 적용기준';
 COMMENT ON COLUMN g2b_bid_notice_candidates.asign_bdgt_amt IS '나라장터 배정예산금액. bid_notices.design_amt 매핑 대상';
 COMMENT ON COLUMN g2b_bid_notice_candidates.bid_date IS '나라장터 입찰일자. bidClseDt 매핑값';
 COMMENT ON COLUMN g2b_bid_notice_candidates.bid_submission_date IS '나라장터 투찰 마감일. opengDt 매핑값';

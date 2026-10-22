@@ -1,3 +1,25 @@
+CREATE TABLE IF NOT EXISTS education_reminder_templates (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(300) NOT NULL,
+    channel VARCHAR(10) NOT NULL,
+    description TEXT,
+    content TEXT NOT NULL,
+    homepage_url VARCHAR(500),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_id VARCHAR(100),
+    last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_changed_id VARCHAR(100),
+    CONSTRAINT ck_education_reminder_templates_channel CHECK (channel IN ('LMS', 'SMS'))
+);
+
+CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_name
+    ON education_reminder_templates (name);
+CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_channel
+    ON education_reminder_templates (channel);
+CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_active
+    ON education_reminder_templates (active);
+
 CREATE TABLE IF NOT EXISTS education_reminder_basic_infos (
     code VARCHAR(50) PRIMARY KEY,
     name VARCHAR(300) NOT NULL,
@@ -11,7 +33,9 @@ CREATE TABLE IF NOT EXISTS education_reminder_basic_infos (
     last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
     CONSTRAINT ck_education_reminder_basic_infos_cycle_unit CHECK (cycle_unit IN ('MONTH', 'YEAR')),
-    CONSTRAINT ck_education_reminder_basic_infos_cycle_value CHECK (cycle_value > 0)
+    CONSTRAINT ck_education_reminder_basic_infos_cycle_value CHECK (cycle_value > 0),
+    CONSTRAINT fk_education_reminder_basic_infos_template
+        FOREIGN KEY (template_id) REFERENCES education_reminder_templates (id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS ix_education_reminder_basic_infos_name
@@ -58,32 +82,6 @@ COMMENT ON COLUMN education_reminder_basic_infos.description IS '설명';
 COMMENT ON COLUMN education_reminder_basic_infos.cycle_unit IS '주기 단위';
 COMMENT ON COLUMN education_reminder_basic_infos.cycle_value IS '주기 값';
 COMMENT ON COLUMN education_reminder_basic_infos.active IS '사용 여부';
-
-CREATE TABLE IF NOT EXISTS education_reminder_templates (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(300) NOT NULL,
-    channel VARCHAR(10) NOT NULL,
-    description TEXT,
-    content TEXT NOT NULL,
-    homepage_url VARCHAR(500),
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_id VARCHAR(100),
-    last_changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_changed_id VARCHAR(100),
-    CONSTRAINT ck_education_reminder_templates_channel CHECK (channel IN ('LMS', 'SMS'))
-);
-
-CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_name
-    ON education_reminder_templates (name);
-CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_channel
-    ON education_reminder_templates (channel);
-CREATE INDEX IF NOT EXISTS ix_education_reminder_templates_active
-    ON education_reminder_templates (active);
-
-ALTER TABLE education_reminder_basic_infos
-    ADD CONSTRAINT fk_education_reminder_basic_infos_template
-        FOREIGN KEY (template_id) REFERENCES education_reminder_templates (id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS ix_education_reminder_basic_infos_template
     ON education_reminder_basic_infos (template_id);
@@ -135,6 +133,23 @@ SELECT role_code, 'education-reminder-management', TRUE, TRUE, TRUE, TRUE
 FROM auth_roles
 WHERE role_code = 'ADMIN'
 ON CONFLICT (role_code, menu_code) DO NOTHING;
+
+COMMENT ON COLUMN education_reminder_templates.homepage_url IS '홈페이지 URL';
+COMMENT ON COLUMN education_reminder_basic_infos.template_id IS '기본 알림에 연결된 템플릿 ID';
+COMMENT ON COLUMN education_reminder_send_batches.requested_at IS '발송 요청 시각';
+COMMENT ON COLUMN education_reminder_send_batches.is_test_send IS '테스트 발송 여부';
+COMMENT ON COLUMN education_reminder_send_batches.target_count IS '발송 대상 수';
+COMMENT ON COLUMN education_reminder_send_batches.success_count IS '발송 성공 수';
+COMMENT ON COLUMN education_reminder_send_batches.fail_count IS '발송 실패 수';
+COMMENT ON COLUMN education_reminder_send_batches.preview_message IS '미리보기 메시지';
+COMMENT ON COLUMN education_reminder_send_batches.completed_at IS '완료 시각';
+COMMENT ON COLUMN education_reminder_send_logs.message_content IS '발송 메시지 내용';
+COMMENT ON COLUMN education_reminder_send_logs.is_test_send IS '테스트 발송 여부';
+COMMENT ON COLUMN education_reminder_send_logs.failure_reason IS '실패 사유';
+COMMENT ON COLUMN education_reminder_send_logs.request_payload IS '요청 본문';
+COMMENT ON COLUMN education_reminder_send_logs.response_payload IS '응답 본문';
+COMMENT ON COLUMN education_reminder_send_logs.requested_at IS '발송 요청 시각';
+COMMENT ON COLUMN education_reminder_send_logs.sent_at IS '실제 발송 시각';
 
 CREATE TABLE IF NOT EXISTS engineer_contacts (
     engr_id VARCHAR(20) PRIMARY KEY,
@@ -234,6 +249,18 @@ CREATE INDEX IF NOT EXISTS ix_education_reminder_send_logs_requested_at
     ON education_reminder_send_logs (requested_at DESC);
 CREATE INDEX IF NOT EXISTS ix_education_reminder_send_logs_status
     ON education_reminder_send_logs (status);
+COMMENT ON COLUMN education_reminder_templates.created_at IS '생성 시각';
+COMMENT ON COLUMN education_reminder_templates.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN education_reminder_basic_infos.created_at IS '생성 시각';
+COMMENT ON COLUMN education_reminder_basic_infos.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN education_management.created_at IS '생성 시각';
+COMMENT ON COLUMN education_management.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN education_reminder_basic_info_engineers.created_at IS '생성 시각';
+COMMENT ON COLUMN education_reminder_basic_info_engineers.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN education_reminder_send_batches.created_at IS '생성 시각';
+COMMENT ON COLUMN education_reminder_send_batches.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN education_reminder_send_logs.created_at IS '생성 시각';
+COMMENT ON COLUMN education_reminder_send_logs.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE education_reminder_send_batches IS '교육 알림 발송 배치';
 COMMENT ON TABLE education_reminder_send_logs IS '교육 알림 발송 이력';

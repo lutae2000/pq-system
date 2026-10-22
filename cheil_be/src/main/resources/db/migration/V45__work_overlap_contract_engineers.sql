@@ -21,6 +21,8 @@ CREATE INDEX IF NOT EXISTS ix_work_overlap_contract_engineers_contract_no
     ON work_overlap_contract_engineers (contract_no);
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contract_engineers_engr_id
     ON work_overlap_contract_engineers (engr_id);
+COMMENT ON COLUMN work_overlap_contract_engineers.created_at IS '생성 시각';
+COMMENT ON COLUMN work_overlap_contract_engineers.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE work_overlap_contract_engineers IS '업무중복도 계약 참여기술자';
 COMMENT ON COLUMN work_overlap_contract_engineers.contract_no IS '계약번호';
@@ -48,6 +50,8 @@ CREATE TABLE IF NOT EXISTS work_overlap_contract_engineer_histories (
 
 CREATE INDEX IF NOT EXISTS ix_work_overlap_contract_engineer_histories_contract_no
     ON work_overlap_contract_engineer_histories (contract_no);
+COMMENT ON COLUMN work_overlap_contract_engineer_histories.created_at IS '생성 시각';
+COMMENT ON COLUMN work_overlap_contract_engineer_histories.last_changed_at IS '최종 변경 시각';
 
 COMMENT ON TABLE work_overlap_contract_engineer_histories IS '업무중복도 계약 참여기술자 변경이력';
 COMMENT ON COLUMN work_overlap_contract_engineer_histories.contract_no IS '계약번호';

@@ -6,11 +6,15 @@ CREATE TABLE IF NOT EXISTS pq_company_performance_document_targets (
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_changed_id VARCHAR(100),
+    display_order INTEGER,
     CONSTRAINT uq_pq_company_performance_document_targets UNIQUE (bid_seq, company_performance_seq)
 );
 
 CREATE INDEX IF NOT EXISTS ix_pq_company_performance_document_targets_bid
     ON pq_company_performance_document_targets (bid_seq);
+CREATE INDEX IF NOT EXISTS ix_pq_company_performance_document_targets_bid_display_order
+    ON pq_company_performance_document_targets (bid_seq, display_order, target_id);
+COMMENT ON COLUMN pq_company_performance_document_targets.display_order IS '표시 순서';
 
 COMMENT ON TABLE pq_company_performance_document_targets IS '회사실적 문서 생성 대상';
 COMMENT ON COLUMN pq_company_performance_document_targets.target_id IS '회사실적 문서 생성 대상 식별자';

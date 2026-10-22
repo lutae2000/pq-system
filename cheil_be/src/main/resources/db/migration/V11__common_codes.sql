@@ -33,6 +33,8 @@ CREATE INDEX IF NOT EXISTS idx_common_codes_level_path ON common_codes (code_lev
 CREATE INDEX IF NOT EXISTS idx_common_codes_code_name ON common_codes (code_name);
 CREATE INDEX IF NOT EXISTS idx_common_codes_parent_lookup
     ON common_codes (level1_code, level2_code, code_level, use_yn);
+COMMENT ON COLUMN common_codes.created_at IS '생성 시각';
+COMMENT ON COLUMN common_codes.last_changed_at IS '최종 변경 시각';
 
 UPDATE system_menus
 SET menu_name = '?? ???? ??',

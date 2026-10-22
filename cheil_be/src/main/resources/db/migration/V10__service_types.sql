@@ -14,6 +14,8 @@ COMMENT ON COLUMN service_types.service_type_name IS '용역 이름';
 COMMENT ON COLUMN service_types.use_yn IS '사용여부';
 
 CREATE INDEX IF NOT EXISTS idx_service_types_name ON service_types (service_type_name);
+COMMENT ON COLUMN service_types.created_at IS '생성 시각';
+COMMENT ON COLUMN service_types.last_changed_at IS '최종 변경 시각';
 
 INSERT INTO service_types (
     service_type_code,

@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS ix_shinindo_managements_applied_yn
     ON shinindo_managements (applied_yn);
 CREATE INDEX IF NOT EXISTS ix_shinindo_managements_valid_until
     ON shinindo_managements (valid_until);
+COMMENT ON COLUMN shinindo_managements.score IS '신인도 점수';
 
 COMMENT ON TABLE shinindo_managements IS '신인도 관리';
 COMMENT ON COLUMN shinindo_managements.id IS '신인도 관리 ID';

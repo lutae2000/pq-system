@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS company_attachments (
 CREATE INDEX IF NOT EXISTS idx_company_profile_hist_profile ON company_profile_hist(profile_id, changed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_company_financial_year ON company_financial_statuses(profile_id, fiscal_year DESC);
 CREATE INDEX IF NOT EXISTS idx_company_attachments_type ON company_attachments(profile_id, attachment_type, created_at DESC);
+COMMENT ON COLUMN company_profiles.created_at IS '생성 시각';
+COMMENT ON COLUMN company_profiles.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN company_financial_statuses.created_at IS '생성 시각';
+COMMENT ON COLUMN company_financial_statuses.last_changed_at IS '최종 변경 시각';
+COMMENT ON COLUMN company_attachments.created_at IS '생성 시각';
+COMMENT ON COLUMN company_attachments.last_changed_at IS '최종 변경 시각';
 
 INSERT INTO company_profiles (
     profile_id,
@@ -128,3 +134,17 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Menu seed for headquarters-profile is defined in V1__init_schema.sql.
+
+COMMENT ON COLUMN company_profiles.established_on IS '설립일';
+COMMENT ON COLUMN company_profiles.memo IS '메모';
+COMMENT ON COLUMN company_profile_hist.changed_at IS '변경 시각';
+COMMENT ON COLUMN company_profile_hist.snapshot_json IS '변경 당시 데이터 스냅샷';
+COMMENT ON COLUMN company_financial_statuses.fiscal_year IS '회계연도';
+COMMENT ON COLUMN company_financial_statuses.capital_amount_million IS '자본금(백만원)';
+COMMENT ON COLUMN company_financial_statuses.sales_amount_million IS '매출액(백만원)';
+COMMENT ON COLUMN company_financial_statuses.debt_ratio IS '부채비율';
+COMMENT ON COLUMN company_financial_statuses.current_ratio IS '유동비율';
+COMMENT ON COLUMN company_financial_statuses.registered_on IS '등록일';
+COMMENT ON COLUMN company_attachments.fiscal_year IS '회계연도';
+COMMENT ON COLUMN company_attachments.issued_on IS '발급일';
+COMMENT ON COLUMN company_attachments.valid_until IS '유효기간';
