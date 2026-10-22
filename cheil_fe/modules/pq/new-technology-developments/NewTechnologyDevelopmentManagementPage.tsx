@@ -22,7 +22,6 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   NEW_TECHNOLOGY_ATTACHMENT_OWNER_TYPE,
   NEW_TECHNOLOGY_ATTACHMENT_TYPE,
-  NEW_TECHNOLOGY_DEVELOPMENT_PAGE_SIZE,
   type NewTechnologyDevelopmentPageResponse,
   type NewTechnologyDevelopmentRecord,
   type NewTechnologyDevelopmentSearchParams,
@@ -68,7 +67,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const [applicationDateTo, setApplicationDateTo] = useState("");
   const [scoreReferenceDate, setScoreReferenceDate] = useState(today);
   const [page, setPage] = useState(0);
-  const pageSize = NEW_TECHNOLOGY_DEVELOPMENT_PAGE_SIZE;
+  const [pageSize, setPageSize] = useState(100);
   const [draft, setDraft] = useState<NewTechnologyDevelopmentRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyDevelopmentRecord | null>(null);
   const { showSnackbar } = useAppSnackbar();
@@ -303,13 +302,13 @@ export function NewTechnologyDevelopmentManagementPage() {
         <Stack spacing={2}>
           <Box
             sx={{
-              alignItems: "start",
+              alignItems: "stretch",
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.35fr) minmax(380px, 0.65fr)" },
+              gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.35fr) minmax(380px, 0.65fr)" },
             }}
           >
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -325,22 +324,23 @@ export function NewTechnologyDevelopmentManagementPage() {
                   loading={developmentsQuery.isLoading || developmentsQuery.isFetching}
                   onPaginationModelChange={(model) => {
                     setPage((currentPage) => (currentPage === model.page ? currentPage : model.page));
+                    setPageSize((currentPageSize) => (currentPageSize === model.pageSize ? currentPageSize : model.pageSize));
                   }}
                   onRowClick={(params: GridRowParams<NewTechnologyDevelopmentRecord>) => setDraft(params.row)}
                   paginationMode="server"
                   paginationModel={paginationModel}
                   rowCount={pageData.totalElements}
                   rows={pageData.content ?? EMPTY_ROWS}
-                  pageSizeOptions={[pageSize]}
+                  pageSizeOptions={[25, 50, 100]}
                   showXlsxExportButton
                   showPageNumbers
-                  wrapperMinHeight={620}
-                  sx={{ height: 620, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
+                  wrapperMinHeight={{ xs: 760, lg: "clamp(900px, calc(100vh - 120px), 1300px)" }}
+                  sx={{ height: { xs: 760, lg: "clamp(900px, calc(100vh - 120px), 1300px)" }, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
                 />
               </CardContent>
             </Card>
 
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">

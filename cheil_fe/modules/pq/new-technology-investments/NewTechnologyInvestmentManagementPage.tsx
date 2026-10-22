@@ -19,7 +19,6 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  NEW_TECHNOLOGY_INVESTMENT_PAGE_SIZE,
   type NewTechnologyInvestmentPageResponse,
   type NewTechnologyInvestmentRecord,
   type NewTechnologyInvestmentRequest,
@@ -103,7 +102,7 @@ export function NewTechnologyInvestmentManagementPage() {
   const [yearFrom, setYearFrom] = useState("");
   const [yearTo, setYearTo] = useState("");
   const [page, setPage] = useState(0);
-  const pageSize = NEW_TECHNOLOGY_INVESTMENT_PAGE_SIZE;
+  const [pageSize, setPageSize] = useState(100);
   const [draft, setDraft] = useState<NewTechnologyInvestmentRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyInvestmentRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
@@ -277,13 +276,13 @@ export function NewTechnologyInvestmentManagementPage() {
 
           <Box
             sx={{
-              alignItems: "start",
+              alignItems: "stretch",
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.25fr) minmax(430px, 0.75fr)" },
+              gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.25fr) minmax(430px, 0.75fr)" },
             }}
           >
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -300,22 +299,23 @@ export function NewTechnologyInvestmentManagementPage() {
                   loading={investmentsQuery.isLoading || investmentsQuery.isFetching}
                   onPaginationModelChange={(model) => {
                     setPage((currentPage) => (currentPage === model.page ? currentPage : model.page));
+                    setPageSize((currentPageSize) => (currentPageSize === model.pageSize ? currentPageSize : model.pageSize));
                   }}
                   onRowClick={(params: GridRowParams<NewTechnologyInvestmentRecord>) => setDraft(params.row)}
                   paginationModel={paginationModel}
                   rows={pageData.content ?? EMPTY_ROWS}
                   paginationMode="server"
                   rowCount={pageData.totalElements}
-                  pageSizeOptions={[pageSize]}
+                  pageSizeOptions={[25, 50, 100]}
                   showXlsxExportButton
                   showPageNumbers
-                  sx={{ height: 640, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
-                  wrapperMinHeight={640}
+                  sx={{ height: { xs: 560, lg: "clamp(640px, calc(100vh - 300px), 900px)" }, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
+                  wrapperMinHeight={{ xs: 560, lg: "clamp(640px, calc(100vh - 300px), 900px)" }}
                 />
               </CardContent>
             </Card>
 
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">

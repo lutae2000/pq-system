@@ -22,7 +22,6 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   NEW_TECHNOLOGY_USAGE_ATTACHMENT_OWNER_TYPE,
   NEW_TECHNOLOGY_USAGE_ATTACHMENT_TYPE,
-  NEW_TECHNOLOGY_USAGE_PAGE_SIZE,
   type NewTechnologyUsagePageResponse,
   type NewTechnologyUsageRecord,
   type NewTechnologyUsageRequest,
@@ -117,7 +116,7 @@ export function NewTechnologyUsageManagementPage() {
   const [client, setClient] = useState("");
   const [appliedClient, setAppliedClient] = useState("");
   const [page, setPage] = useState(0);
-  const pageSize = NEW_TECHNOLOGY_USAGE_PAGE_SIZE;
+  const [pageSize, setPageSize] = useState(100);
   const [draft, setDraft] = useState<NewTechnologyUsageRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyUsageRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
@@ -290,13 +289,13 @@ export function NewTechnologyUsageManagementPage() {
 
           <Box
             sx={{
-              alignItems: "start",
+              alignItems: "stretch",
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.25fr) minmax(460px, 0.75fr)" },
+              gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.25fr) minmax(460px, 0.75fr)" },
             }}
           >
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
@@ -310,22 +309,23 @@ export function NewTechnologyUsageManagementPage() {
                   loading={usagesQuery.isLoading || usagesQuery.isFetching}
                   onPaginationModelChange={(model) => {
                     setPage((currentPage) => (currentPage === model.page ? currentPage : model.page));
+                    setPageSize((currentPageSize) => (currentPageSize === model.pageSize ? currentPageSize : model.pageSize));
                   }}
                   onRowClick={(params: GridRowParams<NewTechnologyUsageRecord>) => setDraft(params.row)}
                   paginationMode="server"
                   paginationModel={paginationModel}
                   rowCount={pageData.totalElements}
                   rows={pageData.content ?? EMPTY_ROWS}
-                  pageSizeOptions={[pageSize]}
+                  pageSizeOptions={[25, 50, 100]}
                   showXlsxExportButton
                   showPageNumbers
-                  wrapperMinHeight={620}
-                  sx={{ height: 620, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
+                  wrapperMinHeight={{ xs: 760, lg: "clamp(900px, calc(100vh - 120px), 1300px)" }}
+                  sx={{ height: { xs: 760, lg: "clamp(900px, calc(100vh - 120px), 1300px)" }, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
                 />
               </CardContent>
             </Card>
 
-            <Card>
+            <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
