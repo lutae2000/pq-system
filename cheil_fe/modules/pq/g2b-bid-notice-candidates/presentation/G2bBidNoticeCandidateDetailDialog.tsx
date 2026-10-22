@@ -70,7 +70,7 @@ type ScheduleRow = {
   end?: string;
 };
 
-function ScheduleTable({ record }: { record: G2bBidNoticeCandidateRow }) {
+export function ScheduleTable({ record }: { record: G2bBidNoticeCandidateRow }) {
   const allRows: Array<Omit<ScheduleRow, "id">> = [
     { name: "공고게시", start: record.bidNtceDate },
     { name: "입찰참가자격등록", end: record.bidQlfctRgstDt },
@@ -120,7 +120,7 @@ const participationLimitRegionNames: Record<string, string> = {
   "11": "서울",
 };
 
-function participationLimitRegionText(code: string | null | undefined) {
+export function participationLimitRegionText(code: string | null | undefined) {
   const normalizedCode = code?.trim() ?? "";
   return (participationLimitRegionNames[normalizedCode] ?? normalizedCode) || "-";
 }

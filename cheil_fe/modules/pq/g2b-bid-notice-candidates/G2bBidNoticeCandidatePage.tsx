@@ -262,6 +262,7 @@ export function G2bBidNoticeCandidatePage() {
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);
   const [inputCandidateId, setInputCandidateId] = useState<number | null>(null);
   const [inputAttachmentOwnerId, setInputAttachmentOwnerId] = useState<number | null>(null);
+  const [inputSourceNotice, setInputSourceNotice] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
   const [inputChangeSummary, setInputChangeSummary] = useState<ReadonlyArray<{ current: string; label: string; previous: string }>>([]);
   const [inputSourceAttachments, setInputSourceAttachments] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow>["attachments"]>([]);
   const [inputClientSearchHint, setInputClientSearchHint] = useState("");
@@ -369,7 +370,10 @@ export function G2bBidNoticeCandidatePage() {
       const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
       const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
       if (isAbsent && !draft.reasonOfAbsenceCode.trim()) throw new Error("불참 사유를 선택해주세요.");
-      const request = toBidNoticeRequest(draft);
+      const draftWithMappedBidMethod = draft.bidMethod.trim() || autoMappedInputFields.bidMethod
+        ? { ...draft, bidMethod: draft.bidMethod.trim() || autoMappedInputFields.bidMethod }
+        : draft;
+      const request = toBidNoticeRequest(draftWithMappedBidMethod);
       const saved = draft.seqNo ? await updateBidNotice(draft.seqNo, request) : await createBidNotice(request);
       if (!saved.bidSeq) throw new Error("저장된 공고 식별자를 확인할 수 없습니다.");
       await markG2bBidNoticeCandidateImported(candidateId, saved.bidSeq);
@@ -473,6 +477,7 @@ export function G2bBidNoticeCandidatePage() {
       return;
     }
     setInputSourceAttachments(detailRecord.attachments);
+    setInputSourceNotice(detailRecord);
     setInputCandidateId(detailRecord.id);
     setInputAttachmentOwnerId(detailRecord.importedBidSeq);
     setInputClientSearchHint(detailRecord.dminsttNm);
@@ -539,6 +544,7 @@ export function G2bBidNoticeCandidatePage() {
       setInputDraft(null);
       setInputCandidateId(null);
       setInputAttachmentOwnerId(null);
+      setInputSourceNotice(null);
       setInputChangeSummary([]);
       setInputSourceAttachments([]);
       setInputClientSearchHint("");
@@ -639,6 +645,7 @@ export function G2bBidNoticeCandidatePage() {
           deleteDisabled
           deferChanges
           sourceAttachments={inputSourceAttachments}
+          sourceNotice={inputSourceNotice ?? undefined}
         />
       ) : null}
     </Box>

@@ -116,6 +116,9 @@ CREATE INDEX IF NOT EXISTS ix_g2b_candidates_last_seen
 CREATE INDEX IF NOT EXISTS ix_g2b_candidates_notice_kind
     ON g2b_bid_notice_candidates (ntce_kind_nm);
 
+CREATE INDEX IF NOT EXISTS ix_g2b_candidates_bef_bid_bbanc_no
+    ON g2b_bid_notice_candidates (bef_bid_bbanc_no);
+
 CREATE INDEX IF NOT EXISTS ix_g2b_candidates_region_codes
     ON g2b_bid_notice_candidates (prtcpt_lmt_rgn_cds);
 

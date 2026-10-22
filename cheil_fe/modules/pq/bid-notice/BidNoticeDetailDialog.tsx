@@ -27,9 +27,12 @@ import { useQuery } from "@tanstack/react-query";
 import { DateTimeInput } from "@/components/common/DateTimeInput";
 import { FileActionCard, type FileActionCardFileItem } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { formatMoney } from "@/modules/common/formatters";
 import { getClientCode, listClientCodes } from "@/modules/code/clients/api";
 import type { BidNoticeAttachmentState, BidNoticeRecord, AttachmentKey } from "@/modules/pq/bid-notice/bidNotice.types";
 import type { BidNoticeDetailOptions, BidNoticeOption } from "@/modules/pq/bid-notice/bidNoticeApi";
+import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
+import { ScheduleTable as G2bScheduleTable } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateDetailDialog";
 import { useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type BidNoticeDetailDialogProps = {
@@ -53,6 +56,7 @@ type BidNoticeDetailDialogProps = {
   saveDisabled?: boolean;
   deleteDisabled?: boolean;
   deferChanges?: boolean;
+  sourceNotice?: G2bBidNoticeCandidateRow;
 };
 
 const attachmentLabels: Record<AttachmentKey, string> = {
@@ -519,6 +523,63 @@ function CategoryBlock({ children, title }: { children: ReactNode; title: string
   );
 }
 
+function SourceNoticeSummary({ notice }: { notice: G2bBidNoticeCandidateRow }) {
+  const items = [
+    ["공고명", notice.bidNtceNm],
+    ["공고구분", notice.ntceKindNm],
+    ["발주기관", notice.ntceInsttNm],
+    ["용역구분", notice.srvceDivNm],
+    ["추정금액", notice.asignBdgtAmt ? formatMoney(Number(notice.asignBdgtAmt.replaceAll(",", ""))) : ""],
+    ["입찰방식", notice.bidMethdNm],
+    ["계약방법", notice.cntrctCnclsMthdNm],
+    ["공동수급방식", notice.cmmnSpldmdMethdNm],
+    ["업종제한여부", notice.indstrytyLmtYn],
+    ["공공조달 중분류", notice.pubPrcrmntMidClsfcNm],
+    ["공공조달 분류", notice.pubPrcrmntClsfcNm],
+    ["낙찰방법", notice.sucsfbidMthdNm],
+    ["낙찰방법 적용기준", notice.sucsfbidMthdAppStd],
+  ] as const;
+
+  return (
+    <Card sx={{ mb: 1.25, border: 1, borderColor: "info.light", bgcolor: "rgba(33, 150, 243, 0.045)" }} variant="outlined">
+      <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
+        <Typography sx={{ color: "info.dark", fontSize: 13, fontWeight: 800, mb: 0.25 }}>나라장터 공고문 상세 확인</Typography>
+        <Box sx={{ alignItems: "start", display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.4fr) minmax(560px, 0.85fr)" } }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ color: "primary.main", fontSize: 12, fontWeight: 800, mb: 0.75 }}>기본 정보</Typography>
+            <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" } }}>
+              {items.map(([label, value]) => (
+                <Box
+                  key={label}
+                  sx={{
+                    bgcolor: "background.paper",
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    gridColumn: { md: label === "공고명" ? "1 / -1" : "auto" },
+                    minWidth: 0,
+                    px: 0.75,
+                    py: 0.5,
+                  }}
+                >
+                  <Typography color="text.secondary" sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, mb: 0.25 }}>{label}</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: label === "공고명" ? 700 : 500, lineHeight: 1.4, minHeight: 18, overflowWrap: "anywhere" }}>{value || "-"}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Box>
+              <Typography sx={{ color: "primary.main", fontSize: 12, fontWeight: 800, mb: 0.75 }}>나라장터 일정 정보</Typography>
+              <G2bScheduleTable record={notice} />
+            </Box>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function BidNoticeDetailDialog({
   attachments,
   attachmentOwnerId,
@@ -540,6 +601,7 @@ export function BidNoticeDetailDialog({
   deleteDisabled = false,
   deferChanges = false,
   sourceAttachments = [],
+  sourceNotice,
 }: BidNoticeDetailDialogProps) {
   const [localRecord, setLocalRecord] = useState(initialRecord);
   const emptyOptions: BidNoticeOption[] = [];
@@ -577,13 +639,15 @@ export function BidNoticeDetailDialog({
   return (
     <Dialog
       fullWidth
-      maxWidth="xl"
+      maxWidth={false}
       onClose={onClose}
       open={open}
       slotProps={{
         paper: {
           sx: {
             maxHeight: "92vh",
+            maxWidth: "min(1680px, calc(100vw - 48px))",
+            width: "min(1680px, calc(100vw - 48px))",
           },
         },
       }}
@@ -604,6 +668,7 @@ export function BidNoticeDetailDialog({
       </DialogTitle>
 
       <DialogContent dividers sx={{ bgcolor: "background.default", p: 1.5 }}>
+        {sourceNotice ? <SourceNoticeSummary notice={sourceNotice} /> : null}
         {changeSummary.length > 0 ? (
           <Card sx={{ mb: 1.25, border: 1, borderColor: "warning.light", bgcolor: "rgba(255, 152, 0, 0.06)" }} variant="outlined">
             <CardContent sx={{ p: 1.25, "&:last-child": { pb: 1.25 } }}>
@@ -625,7 +690,7 @@ export function BidNoticeDetailDialog({
             sx={{
               display: "grid",
               gap: 1.25,
-              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.8fr) minmax(260px, 0.62fr) minmax(360px, 0.9fr)" },
+              gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.5fr) minmax(240px, 0.5fr) minmax(400px, 0.95fr)" },
               alignItems: "start",
             }}
           >
