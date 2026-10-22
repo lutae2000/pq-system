@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 
 import { AuditFields } from "@/components/common/AuditFields";
+import { DetailFormSection } from "@/components/common/DetailFormSection";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { ClientSelect } from "@/components/common/reference-selects";
@@ -83,7 +84,6 @@ export function ServicePerformanceDetailDialog({
         sx={{
           alignItems: "center",
           display: "flex",
-          justifyContent: "space-between",
           gap: 1,
         }}
       >
@@ -95,15 +95,6 @@ export function ServicePerformanceDetailDialog({
             선택한 수행성과를 확인하고 수정합니다.
           </Typography>
         </Box>
-        <Button
-          color="inherit"
-          disabled={isBusy}
-          onClick={onClose}
-          startIcon={<CloseOutlinedIcon />}
-          variant="outlined"
-        >
-          닫기
-        </Button>
       </DialogTitle>
 
       <DialogContent dividers sx={{ p: 2 }}>
@@ -134,25 +125,6 @@ export function ServicePerformanceDetailDialog({
                     기본 정보
                   </Typography>
                 </Box>
-                <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
-                  <Button
-                    disabled={!canSave || isBusy}
-                    onClick={onSave}
-                    startIcon={<SaveOutlinedIcon />}
-                    variant="contained"
-                  >
-                    저장
-                  </Button>
-                  <Button
-                    color="error"
-                    disabled={!canDelete || draft.id === 0 || isBusy}
-                    onClick={onDelete}
-                    startIcon={<DeleteOutlineOutlinedIcon />}
-                    variant="outlined"
-                  >
-                    삭제
-                  </Button>
-                </Box>
               </Box>
 
               <Box
@@ -161,17 +133,28 @@ export function ServicePerformanceDetailDialog({
                   gap: 1.25,
                   gridTemplateColumns: {
                     xs: "1fr",
-                    sm: "repeat(2, minmax(0, 1fr))",
+                    sm: "repeat(12, minmax(0, 1fr))",
                   },
                 }}
               >
+                <TextField
+                  disabled={!isEditable}
+                  label="현장명"
+                  onChange={(event) =>
+                    onDraftChange("siteName", event.target.value)
+                  }
+                  required
+                  size="small"
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 12" } }}
+                  value={text(draft.siteName)}
+                />
                 <ClientSelect
                   disabled={!isEditable}
                   label="발주처"
                   onChange={(value) => onDraftChange("clientCode", value)}
                   params={clientSelectParams}
                   required
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   value={text(draft.clientCode)}
                 />
                 <TextField
@@ -182,19 +165,8 @@ export function ServicePerformanceDetailDialog({
                   }
                   required
                   size="small"
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   value={text(draft.fieldName)}
-                />
-                <TextField
-                  disabled={!isEditable}
-                  label="현장명"
-                  onChange={(event) =>
-                    onDraftChange("siteName", event.target.value)
-                  }
-                  required
-                  size="small"
-                  sx={standardFieldSx}
-                  value={text(draft.siteName)}
                 />
                 <TextField
                   disabled={!isEditable}
@@ -204,7 +176,7 @@ export function ServicePerformanceDetailDialog({
                   }
                   required
                   size="small"
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   type="date"
                   value={dashedDate(draft.evaluationDate)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -221,7 +193,7 @@ export function ServicePerformanceDetailDialog({
                     )
                   }
                   size="small"
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "1 / span 4" } }}
                   type="number"
                   slotProps={{ htmlInput: { min: 0, step: "any" } }}
                   value={numberValue(draft.serviceAmount)}
@@ -238,7 +210,7 @@ export function ServicePerformanceDetailDialog({
                     )
                   }
                   size="small"
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   type="number"
                   slotProps={{ htmlInput: { min: 0, max: 100, step: "any" } }}
                   value={numberValue(draft.evaluationScore)}
@@ -246,7 +218,7 @@ export function ServicePerformanceDetailDialog({
                 <TextField
                   label="금액반영 평가점수(점)"
                   size="small"
-                  sx={standardFieldSx}
+                  sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   type="number"
                   slotProps={{ input: { readOnly: true } }}
                   value={numberValue(amountReflectedEvaluationScore)}
@@ -263,24 +235,15 @@ export function ServicePerformanceDetailDialog({
                   value={text(draft.remark)}
                 />
               </Box>
-
-              <AuditFields
-                createdAt={draft.createdAt}
-                createdBy={draft.createdId}
-                updatedAt={draft.lastChangedAt}
-                updatedBy={draft.lastChangedId}
-              />
             </CardContent>
           </Card>
 
           <Card variant="outlined">
             <CardContent
-              sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 2 }}
+              sx={{ p: 2 }}
             >
-              <Typography sx={{ fontWeight: 800 }} variant="h6">
-                첨부파일
-              </Typography>
-              <FileActionCard
+              <DetailFormSection columns={1} title="첨부파일">
+                <FileActionCard
                 attachmentTarget={
                   fileOwnerId
                     ? {
@@ -300,21 +263,37 @@ export function ServicePerformanceDetailDialog({
                 title="파일"
                 uploadDisabled={isBusy || !fileOwnerId || (!canCreate && !canUpdate)}
                 uploadLabel="파일 업로드"
-              />
+                />
+                <AuditFields
+                  createdAt={draft.createdAt}
+                  createdBy={draft.createdId}
+                  updatedAt={draft.lastChangedAt}
+                  updatedBy={draft.lastChangedId}
+                />
+              </DetailFormSection>
             </CardContent>
           </Card>
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px: 2, py: 1.5 }}>
+      <DialogActions sx={{ alignItems: "center", justifyContent: "space-between", px: 2, py: 1.5 }}>
         <Button
-          disabled={isBusy}
-          onClick={onClose}
-          startIcon={<CloseOutlinedIcon />}
+          color="error"
+          disabled={!canDelete || draft.id === 0 || isBusy}
+          onClick={onDelete}
+          startIcon={<DeleteOutlineOutlinedIcon />}
           variant="outlined"
         >
-          닫기
+          삭제
         </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button disabled={isBusy} onClick={onClose} startIcon={<CloseOutlinedIcon />} variant="outlined">
+            닫기
+          </Button>
+          <Button disabled={!canSave || isBusy} onClick={onSave} startIcon={<SaveOutlinedIcon />} variant="contained">
+            저장
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );

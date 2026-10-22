@@ -29,6 +29,7 @@ import { useNewTechnologyInvestmentMutations } from "@/modules/pq/new-technology
 import { useNewTechnologyInvestmentQueries } from "@/modules/pq/new-technology-investments/application/useNewTechnologyInvestmentQueries";
 
 const EMPTY_ROWS: NewTechnologyInvestmentRecord[] = [];
+const SHOW_YEARLY_INVESTMENT_CHARTS = false;
 
 const emptyDraft = (): NewTechnologyInvestmentRecord => ({
   id: 0,
@@ -63,7 +64,16 @@ const emptyPage = (page: number, size: number): NewTechnologyInvestmentPageRespo
 });
 
 const text = (value: string | null | undefined) => value ?? "";
-const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value));
+const numberValue = (value: number | null | undefined) =>
+  value === null || value === undefined ? "" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+const numericValue = (value: number | string | null | undefined) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number(String(value).replaceAll(",", "").trim());
+  return Number.isFinite(parsed) ? parsed : null;
+};
 const formatAmount = (value: number | null | undefined) =>
   value === null || value === undefined ? "-" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 0 });
 const formatPercent = (value: number | null | undefined) =>
@@ -72,17 +82,17 @@ const formatPercent = (value: number | null | undefined) =>
     : `${Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
 const yearValue = (value: string) => value.replace(/\D/g, "").slice(0, 4);
 const toInvestmentRequest = (draft: NewTechnologyInvestmentRecord): NewTechnologyInvestmentRequest => ({
-  currentAssets: draft.currentAssets,
-  currentLiabilities: draft.currentLiabilities,
-  equityCapital: draft.equityCapital,
-  fixedLiabilities: draft.fixedLiabilities,
+  currentAssets: numericValue(draft.currentAssets),
+  currentLiabilities: numericValue(draft.currentLiabilities),
+  equityCapital: numericValue(draft.equityCapital),
+  fixedLiabilities: numericValue(draft.fixedLiabilities),
   investmentYear: yearValue(draft.investmentYear),
-  netIncome: draft.netIncome,
+  netIncome: numericValue(draft.netIncome),
   remark: text(draft.remark).trim(),
-  revenue: draft.revenue,
-  technologyDevelopmentInvestment: draft.technologyDevelopmentInvestment,
-  totalAssets: draft.totalAssets,
-  totalLiabilities: draft.totalLiabilities,
+  revenue: numericValue(draft.revenue),
+  technologyDevelopmentInvestment: numericValue(draft.technologyDevelopmentInvestment),
+  totalAssets: numericValue(draft.totalAssets),
+  totalLiabilities: numericValue(draft.totalLiabilities),
 });
 
 export function NewTechnologyInvestmentManagementPage() {
@@ -120,10 +130,6 @@ export function NewTechnologyInvestmentManagementPage() {
     pageData.content.length === 0
       ? null
       : pageData.content.reduce((sum, row) => sum + Number(row.technologyDevelopmentInvestment ?? 0), 0) / pageData.content.length;
-  const chartRows = useMemo(
-    () => [...pageData.content].sort((left, right) => left.investmentYear.localeCompare(right.investmentYear)),
-    [pageData.content],
-  );
 
   const { deleteMutation, saveMutation } = useNewTechnologyInvestmentMutations({
     canCreate,
@@ -170,7 +176,9 @@ export function NewTechnologyInvestmentManagementPage() {
   };
 
   const updateNumberDraft = (field: keyof NewTechnologyInvestmentRecord, value: string) => {
-    updateDraft(field, value === "" ? null : Number(value));
+    const normalized = value.replaceAll(",", "").trim();
+    const parsed = normalized === "" ? null : Number(normalized);
+    updateDraft(field, parsed !== null && Number.isFinite(parsed) ? parsed : null);
   };
 
   const handleSearch = (nextYear?: string) => {
@@ -256,7 +264,7 @@ export function NewTechnologyInvestmentManagementPage() {
         <Alert severity="warning">투자실적을 조회할 권한이 없습니다.</Alert>
       ) : (
         <Stack spacing={2}>
-          <YearlyInvestmentCharts rows={chartRows} />
+          {SHOW_YEARLY_INVESTMENT_CHARTS ? <YearlyInvestmentCharts rows={pageData.content} /> : null}
 
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", xl: "repeat(6, minmax(0, 1fr))" } }}>
             <SummaryBox helper="조회 결과 기준" label="평균 기술개발 투자액" value={`${formatAmount(averageInvestment)}원`} />
@@ -342,15 +350,15 @@ export function NewTechnologyInvestmentManagementPage() {
                     sx={standardFieldSx}
                     value={text(draft.investmentYear)}
                   />
-                  <TextField label="매출액" onChange={(event) => updateNumberDraft("revenue", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.revenue)} />
-                  <TextField label="총자산" onChange={(event) => updateNumberDraft("totalAssets", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.totalAssets)} />
-                  <TextField label="자기자본" onChange={(event) => updateNumberDraft("equityCapital", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.equityCapital)} />
-                  <TextField label="유동자산" onChange={(event) => updateNumberDraft("currentAssets", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.currentAssets)} />
-                  <TextField label="유동부채" onChange={(event) => updateNumberDraft("currentLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.currentLiabilities)} />
-                  <TextField label="고정부채" onChange={(event) => updateNumberDraft("fixedLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.fixedLiabilities)} />
-                  <TextField label="부채총계" onChange={(event) => updateNumberDraft("totalLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.totalLiabilities)} />
-                  <TextField label="당기순이익" onChange={(event) => updateNumberDraft("netIncome", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.netIncome)} />
-                  <TextField label="기술개발투자액" onChange={(event) => updateNumberDraft("technologyDevelopmentInvestment", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.technologyDevelopmentInvestment)} />
+                  <TextField inputMode="numeric" label="매출액" onChange={(event) => updateNumberDraft("revenue", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.revenue)} />
+                  <TextField inputMode="numeric" label="총자산" onChange={(event) => updateNumberDraft("totalAssets", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.totalAssets)} />
+                  <TextField inputMode="numeric" label="자기자본" onChange={(event) => updateNumberDraft("equityCapital", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.equityCapital)} />
+                  <TextField inputMode="numeric" label="유동자산" onChange={(event) => updateNumberDraft("currentAssets", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.currentAssets)} />
+                  <TextField inputMode="numeric" label="유동부채" onChange={(event) => updateNumberDraft("currentLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.currentLiabilities)} />
+                  <TextField inputMode="numeric" label="고정부채" onChange={(event) => updateNumberDraft("fixedLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.fixedLiabilities)} />
+                  <TextField inputMode="numeric" label="부채총계" onChange={(event) => updateNumberDraft("totalLiabilities", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.totalLiabilities)} />
+                  <TextField inputMode="numeric" label="당기순이익" onChange={(event) => updateNumberDraft("netIncome", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.netIncome)} />
+                  <TextField inputMode="numeric" label="기술개발투자액" onChange={(event) => updateNumberDraft("technologyDevelopmentInvestment", event.target.value)} size="small" sx={standardFieldSx} type="text" value={numberValue(draft.technologyDevelopmentInvestment)} />
                   <TextField label="비고" minRows={3} multiline onChange={(event) => updateDraft("remark", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.remark)} />
                 </Box>
 
