@@ -1,13 +1,9 @@
 "use client";
 
 import dayjs from "dayjs";
-import dayGridPlugin from "@fullcalendar/react/daygrid";
-import interactionPlugin from "@fullcalendar/react/interaction";
 import koLocale from "@fullcalendar/react/locales/ko";
-import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/react/timegrid";
-import classicThemePlugin from "@fullcalendar/react/themes/classic";
-import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import EventCalendar from "@fullcalendar/mui/monarch/EventCalendar";
+import { Box, Chip, GlobalStyles, LinearProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -32,6 +28,16 @@ type DashboardScheduleCalendarProps = {
   scheduleLabels?: DashboardScheduleLabel[];
 };
 
+const categoryOrder: Record<DashboardScheduleEventType, number> = {
+  PQ_SUBMIT: 0,
+  BID_DATE: 1,
+  INTERVIEW_DATE: 2,
+};
+
+const categoryHeaderSelector = (Object.keys(categoryOrder) as DashboardScheduleEventType[])
+  .map((type) => `.dashboard-calendar-category-popover [role="listitem"][data-schedule-category="${type}"]:not([data-schedule-category="${type}"] ~ [data-schedule-category="${type}"])::before`)
+  .join(", ");
+
 const toDashboardScheduleEvent = (item: Awaited<ReturnType<typeof listDashboardBidNoticeCalendar>>[number]): DashboardScheduleEvent => {
   const label = scheduleLabelByType[item.eventType];
 
@@ -39,9 +45,10 @@ const toDashboardScheduleEvent = (item: Awaited<ReturnType<typeof listDashboardB
     bidSeq: item.bidSeq,
     eventType: item.eventType,
     id: `${item.bidSeq}-${item.eventType}-${item.scheduledAt}`,
-    title: `${item.projectName}${label ? ` / ${label.label}` : ""}`,
+    title: item.projectName,
     start: item.eventType === "INTERVIEW_DATE" ? item.scheduledDate : item.scheduledAt,
     color: label?.color ?? "#2563eb",
+    categoryOrder: categoryOrder[item.eventType],
     description: label?.label ?? item.eventType,
     client: item.orderClient ?? "",
     status: item.eventType,
@@ -76,6 +83,25 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
 
   return (
     <Stack spacing={2}>
+      <GlobalStyles
+        styles={{
+          ".dashboard-calendar-category-popover": {
+            maxHeight: "min(70vh, 560px)",
+            overflowY: "auto",
+          },
+          [categoryHeaderSelector]: {
+            backgroundColor: "color-mix(in srgb, var(--schedule-category-color) 9%, white)",
+            borderLeft: "3px solid var(--schedule-category-color)",
+            color: "var(--schedule-category-color)",
+            content: "attr(data-category-label)",
+            display: "block",
+            fontSize: "0.8rem",
+            fontWeight: 700,
+            margin: "10px 0 5px",
+            padding: "6px 8px",
+          },
+        }}
+      />
       <Box
         sx={{
           alignItems: "flex-start",
@@ -142,40 +168,78 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
       <Box
         sx={{
           "& .dashboard-calendar": {
-            fontFamily: "var(--font-geist-sans), sans-serif",
+            "--mui-palette-secondary-main": "#2563eb",
+            "--mui-palette-secondary-contrastText": "#ffffff",
+            "--mui-palette-secondary-mainChannel": "37 99 235",
           },
-          "& .dashboard-calendar-title": {
-            fontSize: "1rem",
-            fontWeight: 800,
+          "& .dashboard-calendar .MuiToggleButtonGroup-root": {
+            display: "none",
           },
-          "& .dashboard-calendar-button": {
-            borderRadius: 1,
-            boxShadow: "none",
-            fontWeight: 700,
-          },
-          "& .dashboard-calendar-day-header": {
-            color: "text.primary",
-            textDecoration: "none",
+          '& .dashboard-calendar [data-date][aria-current="date"], & .dashboard-calendar [data-date][aria-current="date"] .fc-daygrid-day-frame, & .dashboard-calendar [data-date][aria-current="date"] .fc-timegrid-col-frame': {
+            backgroundColor: "#fff8dc !important",
           },
           "& .dashboard-calendar-event": {
             borderRadius: 1,
             fontSize: "0.75rem",
             fontWeight: 700,
           },
+          "& .dashboard-calendar .dashboard-calendar-month-event": {
+            border: "0 !important",
+            boxShadow: "none !important",
+            outline: "0 !important",
+            "&:focus-visible": {
+              outline: "2px solid #2563eb !important",
+              outlineOffset: "2px",
+            },
+          },
         }}
       >
-        <FullCalendar
+        <EventCalendar
           allDaySlot={false}
-          aspectRatio={1.7}
+          aspectRatio={2}
+          availableViews={["dayGridMonth"]}
           blockEventClass="dashboard-calendar-event"
-          buttonClass="dashboard-calendar-button"
           className="dashboard-calendar"
           dayMaxEventRows={4}
-          dayHeaderClass="dashboard-calendar-day-header"
+          dayHeaderDidMount={(info) => {
+            if (!info.inPopover) return;
+
+            for (const child of info.el.children) {
+              (child as HTMLElement).style.display = "none";
+            }
+
+            const dateLabel = document.createElement("span");
+            dateLabel.textContent = `${info.dayNumberText}일(${info.weekdayText})`;
+            dateLabel.style.fontSize = "1rem";
+            dateLabel.style.fontWeight = "700";
+            dateLabel.style.whiteSpace = "nowrap";
+            info.el.appendChild(dateLabel);
+          }}
           datesSet={(arg) => {
             setYearMonth(dayjs(arg.view.currentStart).format("YYYYMM"));
           }}
           editable={false}
+          eventContrastColor="#111827"
+          eventOrder="categoryOrder,start,title"
+          eventOrderStrict
+          eventDidMount={(info) => {
+            info.el.title = info.event.title;
+
+            if (info.view.type === "dayGridMonth") {
+              info.el.classList.add("dashboard-calendar-month-event");
+            }
+
+            const popover = info.el.closest('[role="dialog"][data-date]');
+            const listItem = info.el.closest('[role="listitem"]') as HTMLElement | null;
+            const type = info.event.extendedProps.eventType as DashboardScheduleEventType | undefined;
+            const category = scheduleLabels.find((item) => item.type === type);
+            if (popover && listItem && category) {
+              popover.classList.add("dashboard-calendar-category-popover");
+              listItem.dataset.scheduleCategory = category.type;
+              listItem.dataset.categoryLabel = category.label;
+              listItem.style.setProperty("--schedule-category-color", category.color);
+            }
+          }}
           eventClick={(info) => {
             if (!onScheduleClick) {
               return;
@@ -200,17 +264,10 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           expandRows
           firstDay={1}
           height="auto"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-          initialView="dayGridMonth"
           locale={koLocale}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, classicThemePlugin]}
+          moreLinkClick="popover"
           selectable={false}
           timeZone="Asia/Seoul"
-          toolbarTitleClass="dashboard-calendar-title"
           weekends
         />
       </Box>

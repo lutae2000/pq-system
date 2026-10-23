@@ -21,19 +21,19 @@ repositories {
 
 ext {
     set('snippetsDir', file("build/generated-snippets"))
-    set('springBootVersion', '4.1.0')
-    set('aspectjVersion', '1.9.25.1')
-    set('datasourceMicrometerVersion', '1.0.2')
+    set('springBootVersion', '4.1.1')
+    set('aspectjVersion', '1.9.26')
+    set('datasourceMicrometerVersion', '2.3.0')
     set('flywayVersion', '12.4.0')
-    set('gsonVersion', '2.13.1')
+    set('gsonVersion', '2.14.0')
     set('jakartaAnnotationVersion', '3.0.0')
     set('jakartaPersistenceVersion', '3.2.0')
     set('junitPlatformVersion', '6.0.3')
-    set('lombokVersion', '1.18.46')
+    set('lombokVersion', '1.18.48')
     set('micrometerVersion', '1.17.0')
-    set('pdfboxVersion', '2.0.31')
+    set('pdfboxVersion', '2.0.37')
     set('p6spyVersion', '3.9.1')
-    set('postgresqlVersion', '42.7.11')
+    set('postgresqlVersion', '42.7.14')
     set('querydslVersion', '5.1.0')
     set('restDocsVersion', '4.0.1')
 }
@@ -76,7 +76,7 @@ dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-webmvc-test:${springBootVersion}"
     testImplementation "org.springframework.restdocs:spring-restdocs-mockmvc:${restDocsVersion}"
     testImplementation "com.google.code.gson:gson:${gsonVersion}"
-    testImplementation "org.apache.poi:poi-ooxml:5.4.1"
+    testImplementation "org.apache.poi:poi-ooxml:5.5.1"
     testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:${junitPlatformVersion}"
     testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"

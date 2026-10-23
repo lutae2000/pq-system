@@ -1,8 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "@fullcalendar/react/skeleton.css";
-import "@fullcalendar/react/themes/classic/theme.css";
-import "@fullcalendar/react/themes/classic/palette.css";
+import "@fullcalendar/mui/monarch/theme.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { AppProviders } from "@/lib/providers/AppProviders";
 import "./globals.css";

@@ -14,6 +14,7 @@ export type DashboardScheduleEvent = {
   start: string;
   end?: string;
   color: string;
+  categoryOrder?: number;
   description: string;
   client: string;
   status: DashboardScheduleEventType;
