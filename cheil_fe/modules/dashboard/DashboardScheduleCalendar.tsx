@@ -175,6 +175,21 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           "& .dashboard-calendar .MuiToggleButtonGroup-root": {
             display: "none",
           },
+          "& .dashboard-calendar > .MuiBox-root:first-child": {
+            position: "relative",
+          },
+          "& .dashboard-calendar > .MuiBox-root:first-child > .MuiBox-root:first-child": {
+            flexWrap: { xs: "wrap", sm: "nowrap" },
+            width: "100%",
+          },
+          "& .dashboard-calendar > .MuiBox-root:first-child > .MuiBox-root:first-child > .MuiTypography-root": {
+            left: { sm: "50%" },
+            order: { xs: -1, sm: 0 },
+            position: { xs: "static", sm: "absolute" },
+            textAlign: "center",
+            transform: { sm: "translateX(-50%)" },
+            width: { xs: "100%", sm: "auto" },
+          },
           '& .dashboard-calendar [data-date][aria-current="date"], & .dashboard-calendar [data-date][aria-current="date"] .fc-daygrid-day-frame, & .dashboard-calendar [data-date][aria-current="date"] .fc-timegrid-col-frame': {
             backgroundColor: "#fff8dc !important",
           },
