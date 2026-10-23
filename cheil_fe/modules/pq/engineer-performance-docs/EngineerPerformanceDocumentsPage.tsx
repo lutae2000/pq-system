@@ -43,6 +43,7 @@ import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
+import { formatLocalizedNumber } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
@@ -128,11 +129,7 @@ const historySelectionKey = (row: PerformanceHistoryRow) => {
 };
 
 const formatMoney = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue.toLocaleString("ko-KR") : String(value);
+  return formatLocalizedNumber(value, { emptyValue: "-" });
 };
 
 const formatDivisionRate = (value: string | number | null | undefined) => {

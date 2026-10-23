@@ -27,6 +27,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
+import { useDepartmentReferenceInvalidation } from "@/modules/code/departments/application/useDepartmentReferenceInvalidation";
 import {
   createDepartment,
   getDepartment,
@@ -222,6 +223,7 @@ const useYnOptions = [
 ];
 
 export function DepartmentManagementPage() {
+  const invalidateDepartmentReferences = useDepartmentReferenceInvalidation();
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const [records, setRecords] = useState<DepartmentRecord[]>([]);
   const [filters, setFilters] = useState<DepartmentFilters>(initialFilters);
@@ -428,6 +430,7 @@ export function DepartmentManagementPage() {
         : await updateDepartment(draft.deptCode, request);
 
       await loadDepartments(appliedFilters, saved.deptCode);
+      await invalidateDepartmentReferences();
       showSuccess("부서 정보가 저장되었습니다.");
     } catch (error) {
       showError(error instanceof Error ? error.message : "부서 정보를 저장하지 못했습니다.");

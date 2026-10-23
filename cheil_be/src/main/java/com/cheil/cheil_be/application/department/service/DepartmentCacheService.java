@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.commondepartment.service;
+package com.cheil.cheil_be.application.department.service;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
 @Service
 @RequiredArgsConstructor

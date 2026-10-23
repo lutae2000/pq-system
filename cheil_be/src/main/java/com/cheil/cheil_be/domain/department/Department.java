@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.domain.commondepartment;
+package com.cheil.cheil_be.domain.department;
 
 import java.time.Instant;
 import java.time.LocalDate;

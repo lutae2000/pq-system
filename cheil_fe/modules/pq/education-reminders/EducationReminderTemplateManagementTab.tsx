@@ -27,6 +27,7 @@ import {
   emptyTarget,
   emptyTemplate,
   fillTemplate,
+  nowText,
   type EducationReminderTarget,
   type MessageTemplate,
 } from "@/modules/pq/education-reminders/educationReminderTypes";
@@ -111,7 +112,7 @@ export function EducationReminderTemplateManagementTab({ onTemplatesChange, temp
     const normalized = {
       ...record,
       id: record.id || Math.max(0, ...templates.map((item) => item.id)) + 1,
-      updatedAt: record.updatedAt || new Date().toISOString().slice(0, 16).replace("T", " "),
+      updatedAt: record.updatedAt || nowText(),
     };
 
     updateTemplates(normalized);

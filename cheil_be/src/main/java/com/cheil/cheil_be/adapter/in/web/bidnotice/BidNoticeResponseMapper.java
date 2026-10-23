@@ -14,12 +14,12 @@ import org.springframework.util.StringUtils;
 import com.cheil.cheil_be.application.client.port.out.ClientRepository;
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
-import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
+import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 import com.cheil.cheil_be.domain.client.Client;
 import com.cheil.cheil_be.domain.commoncode.CommonCode;
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
 @Component
 @RequiredArgsConstructor
@@ -42,14 +42,14 @@ public class BidNoticeResponseMapper {
             FINAL_PARTICIPATION_GROUP
     );
 
-    private final CommonDepartmentRepository commonDepartmentRepository;
+    private final DepartmentRepository departmentRepository;
     private final ClientRepository clientRepository;
     private final CommonCodeRepository commonCodeRepository;
     private final CommonCodeCacheService commonCodeCacheService;
 
     public BidNoticeResponseLookup snapshot() {
         return new BidNoticeResponseLookup(
-                toLabelMap(commonDepartmentRepository.findAll(), Department::deptCode, Department::deptName),
+                toLabelMap(departmentRepository.findAll(), Department::deptCode, Department::deptName),
                 toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderName),
                 BID_NOTICE_CODE_GROUPS.stream()
                         .flatMap(level1Code -> commonCodeCacheService.getOrLoadByLevel1Code(

@@ -21,15 +21,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
 import type { GridColDef, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useEffect, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { listCommonCodes } from "@/modules/code/common-codes/api";
-import { listConstructionTypes, type ConstructionTypeRecord } from "@/modules/code/construction-types/api";
-import { listRelatedProjectHistoryConditionOptions } from "@/modules/pq/pq-participating-engineers/api";
+import type { ConstructionTypeRecord } from "@/modules/code/construction-types/api";
 import type {
   PqParticipatingEngineerProjectHistoryCondition,
   PqParticipatingEngineerProjectHistoryConditionOperator,
@@ -37,6 +34,7 @@ import type {
   PqParticipatingEngineerProjectHistoryConditionValueType,
   RelatedProjectHistoryConditionOption,
 } from "@/modules/pq/pq-participating-engineers/api";
+import { useRelatedProjectHistoryConditionQueries } from "@/modules/pq/pq-participating-engineers/application/usePqEngineerRelatedQueries";
 
 export type RelatedProjectHistoryCondition = PqParticipatingEngineerProjectHistoryCondition & {
   id: string;
@@ -265,35 +263,7 @@ export function RelatedProjectHistoryConditionDialog({
     }
   }, [open, value]);
 
-  const constructionTypesQuery = useQuery({
-    queryKey: ["construction-types", "pq-participating-engineers", "condition-dialog", "useYn=true"],
-    queryFn: () => listConstructionTypes({ useYn: "Y" }),
-    enabled: open,
-  });
-
-  const outlineCodesQuery = useQuery({
-    queryKey: ["common-codes", "PQCT", "outline", "pq-participating-engineers", "condition-dialog"],
-    queryFn: () => listCommonCodes({ level1Code: "PQCT", level2CodePrefix: "Z", useYn: "Y", sort: "level3Code" }),
-    enabled: open,
-  });
-
-  const generalConditionsQuery = useQuery({
-    queryKey: ["common-codes", "PQCT", "C*", "C1", "pq-participating-engineers", "condition-dialog"],
-    queryFn: () =>
-      listCommonCodes({
-        level1Code: "PQCT",
-        level2CodePrefix: "C",
-        level3Code: "C1",
-        sort: "level3Code",
-      }),
-    enabled: open,
-  });
-
-  const conditionOptionsQuery = useQuery({
-    queryKey: ["pq", "related-project-history-conditions", "options"],
-    queryFn: listRelatedProjectHistoryConditionOptions,
-    enabled: open,
-  });
+  const { constructionTypes: constructionTypesQuery, conditionOptions: conditionOptionsQuery, generalConditions: generalConditionsQuery, outlineCodes: outlineCodesQuery } = useRelatedProjectHistoryConditionQueries(open);
 
   const conditionOptionsByCode = useMemo(
     () => new Map((conditionOptionsQuery.data ?? []).map((group) => [group.conditionCode, group.options])),

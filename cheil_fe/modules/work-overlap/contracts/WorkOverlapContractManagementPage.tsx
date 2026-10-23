@@ -18,6 +18,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { todayLocalDate } from "@/modules/common/formatters";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
@@ -53,11 +54,7 @@ type WorkOverlapContractFilters = Omit<WorkOverlapContractSearchParams, "page" |
 const EMPTY_ROWS: WorkOverlapContractRecord[] = [];
 const PAGE_SIZE_OPTIONS = [25, 50, WORK_OVERLAP_CONTRACT_PAGE_SIZE];
 
-const todayInputValue = () => {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-};
+const todayInputValue = todayLocalDate;
 
 const DEFAULT_FILTERS: WorkOverlapContractFilters = {
   clientName: "",

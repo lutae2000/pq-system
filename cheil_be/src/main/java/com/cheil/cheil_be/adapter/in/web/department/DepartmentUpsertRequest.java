@@ -1,10 +1,10 @@
-package com.cheil.cheil_be.adapter.in.web.commondepartment;
+package com.cheil.cheil_be.adapter.in.web.department;
 
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUpsertCommand;
+import com.cheil.cheil_be.application.department.port.in.DepartmentUpsertCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record CommonDepartmentUpsertRequest(
+public record DepartmentUpsertRequest(
         @NotBlank @Size(max = 20) String deptCode,
         @NotBlank @Size(max = 100) String deptName,
         @NotBlank @Size(max = 10) String deptDiv,
@@ -19,8 +19,8 @@ public record CommonDepartmentUpsertRequest(
         @Size(max = 20) String costDept
 ) {
 
-    public CommonDepartmentUpsertCommand toCommand() {
-        return new CommonDepartmentUpsertCommand(
+    public DepartmentUpsertCommand toCommand() {
+        return new DepartmentUpsertCommand(
                 deptCode, deptName, deptDiv, projDiv, useYn, terminateDate,
                 headquarterCode, inputDutyId, chgDutyId, sortSeq, mhYn, costDept
         );

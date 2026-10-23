@@ -114,7 +114,7 @@ type XlsxExportColumn = {
 };
 
 type PageSizeOption = number | { value: number; label: string };
-type XlsxModule = typeof import("xlsx");
+type ExcelWorkbook = import("exceljs-community").Workbook;
 
 type EnterpriseFooterProps = {
   pageSizeOptions?: PageSizeOption[];
@@ -658,11 +658,10 @@ function buildCellKeySet(apiRef: ReturnType<typeof useGridApiRef>, range: CellRa
   return keys;
 }
 
-function buildXlsxWorkbook(apiRef: ReturnType<typeof useGridApiRef>, xlsx: XlsxModule) {
+function buildXlsxWorkbook(apiRef: ReturnType<typeof useGridApiRef>, workbook: ExcelWorkbook) {
   const gridApi = apiRef.current;
   if (!gridApi) {
-    const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, xlsx.utils.aoa_to_sheet([[""]]), "Sheet1");
+    workbook.addWorksheet("Sheet1").addRows([[""]]);
     return workbook;
   }
 
@@ -689,9 +688,7 @@ function buildXlsxWorkbook(apiRef: ReturnType<typeof useGridApiRef>, xlsx: XlsxM
     );
   });
 
-  const worksheet = xlsx.utils.aoa_to_sheet(rows);
-  const workbook = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  workbook.addWorksheet("Sheet1").addRows(rows);
   return workbook;
 }
 
@@ -1208,9 +1205,9 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
   });
 
   const exportAsXlsx = async () => {
-    const xlsx = await import("xlsx");
-    const workbook = buildXlsxWorkbook(apiRef, xlsx);
-    const fileData = xlsx.write(workbook, { bookType: "xlsx", type: "array" });
+    const { Workbook } = await import("exceljs-community/dist/exceljs.min.js");
+    const workbook = buildXlsxWorkbook(apiRef, new Workbook());
+    const fileData = await workbook.xlsx.writeBuffer();
     const blob = new Blob([fileData], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });

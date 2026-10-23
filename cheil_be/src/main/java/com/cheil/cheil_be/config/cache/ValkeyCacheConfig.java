@@ -18,7 +18,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import com.cheil.cheil_be.config.commoncode.AppCommonCodeCacheProperties;
-import com.cheil.cheil_be.config.commondepartment.AppDepartmentCacheProperties;
+import com.cheil.cheil_be.config.department.AppDepartmentCacheProperties;
 import com.cheil.cheil_be.config.systempolicy.AppSystemPolicyCacheProperties;
 
 @Slf4j

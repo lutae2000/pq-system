@@ -1,4 +1,5 @@
 import type { SimilarServicePerformanceRecord, SimilarServicePerformanceRequest } from "@/modules/pq/similar-service-performances/api";
+import { toDateInputValueFromDigits } from "@/modules/common/formatters";
 
 export type { SimilarServicePerformanceRecord };
 
@@ -153,10 +154,7 @@ export const normalizeNumberInputValue = (value: string) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const formatDateInputValue = (value: string | null | undefined) => {
-  const normalized = text(value).replace(/\D/g, "").slice(0, 8);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
-};
+export const formatDateInputValue = toDateInputValueFromDigits;
 
 export const normalizeDateInputValue = (value: string | null | undefined) => {
   const normalized = text(value).trim();

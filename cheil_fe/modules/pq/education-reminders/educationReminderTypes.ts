@@ -1,3 +1,5 @@
+import { localDateTimeText, todayLocalDate } from "@/modules/common/formatters";
+
 export type ReminderStatus = "DRAFT" | "FAILED" | "PAUSED" | "SCHEDULED" | "SENT";
 export type SendChannel = "LMS" | "SMS";
 
@@ -79,8 +81,8 @@ export type EducationRequirementRecord = {
 export const defaultTemplateContent =
   "[제일엔지니어링] {이름}님, {교육명} 이수 마감일이 {마감일}입니다. 기한 내 교육을 이수해 주시기 바랍니다.";
 
-export const today = () => new Date().toISOString().slice(0, 10);
-export const nowText = () => new Date().toISOString().slice(0, 16).replace("T", " ");
+export const today = () => todayLocalDate();
+export const nowText = () => localDateTimeText();
 
 export const text = (value: string | null | undefined) => value ?? "";
 export const display = (value: string | null | undefined) => (value?.trim() ? value : "-");

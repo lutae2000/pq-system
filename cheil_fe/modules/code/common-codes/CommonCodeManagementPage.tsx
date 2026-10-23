@@ -20,7 +20,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { CommonSelectField } from "@/components/common/CommonSelectField";
@@ -32,15 +31,8 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
-import {
-  createCommonCode,
-  deleteCommonCode,
-  listCommonCodes,
-  type CommonCodeLevel,
-  type CommonCodeRecord,
-  type CommonCodeUpsertRequest,
-  updateCommonCode,
-} from "./api";
+import type { CommonCodeLevel, CommonCodeRecord, CommonCodeUpsertRequest } from "./api";
+import { useCommonCodeManagement } from "./application/useCommonCodeManagement";
 
 type CommonCodeDraft = {
   codeId: number | null;
@@ -141,8 +133,7 @@ const selectedRowModel = (codeId: number | null) => ({
 export function CommonCodeManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
+ const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedCodeId, setSelectedCodeId] = useState<number | null>(null);
@@ -153,21 +144,18 @@ export function CommonCodeManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<CommonCodeRecord | null>(null);
   const { showError, showInfo, showSuccess } = useAppSnackbar();
 
-  const commonCodesQuery = useQuery({
-    queryKey: ["common-codes-management", appliedFilters],
-    queryFn: () =>
-      listCommonCodes({
-        codeLevel: appliedFilters.codeLevel,
-        keyword: appliedFilters.keyword,
-        useYn: appliedFilters.useYn,
-        bypassCache: true,
-      }),
-    enabled: tabQueryEnabled,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
+  const commonCodeFilters = {
+    codeLevel: appliedFilters.codeLevel,
+    keyword: appliedFilters.keyword,
+    useYn: appliedFilters.useYn,
+    bypassCache: true,
+  };
+  const { deleteMutation, query: commonCodesQuery, saveMutation } = useCommonCodeManagement({
+    canCreate, canDelete, canRead, canUpdate, enabled: tabQueryEnabled, filters: commonCodeFilters,
+    onDeleted: () => { setSelectedCodeId(null); setIsCreating(false); setDraft(emptyDraft()); setDeleteTarget(null); showSuccess("공통코드를 삭제했습니다."); },
+    onError: (error) => showError(error instanceof Error ? error.message : "공통코드 요청에 실패했습니다."),
+    onSaved: (saved) => { setSelectedCodeId(saved.codeId); setSelectedLevel1Code(displayLevel1Code(saved)); setSelectedLevel2Code(saved.codeLevel >= 2 ? saved.level2Code : ""); setIsCreating(false); setDraft(toDraft(saved)); showSuccess("공통코드를 저장했습니다."); },
   });
-
   const records = useMemo(() => sortCommonCodes(commonCodesQuery.data ?? []), [commonCodesQuery.data]);
   const level1Rows = useMemo(() => records.filter((item) => item.codeLevel === 1), [records]);
   const activeLevel1Code = selectedLevel1Code || (level1Rows[0] ? displayLevel1Code(level1Rows[0]) : "");
@@ -311,62 +299,6 @@ export function CommonCodeManagementPage() {
     return "";
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async (value: CommonCodeDraft) => {
-      const normalized = normalizeDraft(value);
-      const requestBody: CommonCodeUpsertRequest = {
-        codeLevel: normalized.codeLevel,
-        codeName: normalized.codeName,
-        codeDetailName: normalized.codeDetailName || null,
-        createdId: normalized.createdId || null,
-        lastChangedId: normalized.lastChangedId || null,
-        level1Code: normalized.level1Code,
-        level2Code: normalized.codeLevel >= 2 ? normalized.level2Code : null,
-        level3Code: normalized.codeLevel === 3 ? normalized.level3Code : null,
-        refValue1: normalized.refValue1 || null,
-        remark: normalized.remark || null,
-        sortOrder: normalized.sortOrder ? Number(normalized.sortOrder) : null,
-        useYn: normalized.useYn,
-      };
-
-      if (normalized.codeId === null) {
-        return createCommonCode(requestBody);
-      }
-      return updateCommonCode(normalized.codeId, requestBody);
-    },
-    onSuccess: (saved) => {
-      setSelectedCodeId(saved.codeId);
-      setSelectedLevel1Code(displayLevel1Code(saved));
-      setSelectedLevel2Code(saved.codeLevel >= 2 ? saved.level2Code : "");
-      setIsCreating(false);
-      setDraft(toDraft(saved));
-      queryClient.invalidateQueries({ queryKey: ["common-codes"] });
-      queryClient.invalidateQueries({ queryKey: ["common-codes-management"] });
-      queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
-      showSuccess("공통코드를 추가하거나 수정했습니다. 변경된 내용은 현재 화면에 바로 반영되며, 다른 화면에는 잠시 후 반영될 수 있습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "공통코드 저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteCommonCode,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["common-codes"] });
-      queryClient.invalidateQueries({ queryKey: ["common-codes-management"] });
-      queryClient.invalidateQueries({ queryKey: ["references", "common-codes"] });
-      setSelectedCodeId(null);
-      setIsCreating(false);
-      setDraft(emptyDraft());
-      setDeleteTarget(null);
-      showSuccess("공통코드를 삭제했습니다. 현재 화면과 활성화된 reference 캐시는 갱신되며, 다른 화면은 캐시 만료 후 자동으로 변경 내용을 조회합니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "공통코드 삭제에 실패했습니다.");
-    },
-  });
-
   const handleSave = () => {
     if (!canSaveCurrent) {
       showError("저장 권한이 없습니다.");
@@ -379,7 +311,22 @@ export function CommonCodeManagementPage() {
       return;
     }
 
-    saveMutation.mutate(activeDraft);
+    const normalized = normalizeDraft(activeDraft);
+    const request: CommonCodeUpsertRequest = {
+      codeLevel: normalized.codeLevel,
+      codeName: normalized.codeName,
+      codeDetailName: normalized.codeDetailName || null,
+      createdId: normalized.createdId || null,
+      lastChangedId: normalized.lastChangedId || null,
+      level1Code: normalized.level1Code,
+      level2Code: normalized.codeLevel >= 2 ? normalized.level2Code : null,
+      level3Code: normalized.codeLevel === 3 ? normalized.level3Code : null,
+      refValue1: normalized.refValue1 || null,
+      remark: normalized.remark || null,
+      sortOrder: normalized.sortOrder ? Number(normalized.sortOrder) : null,
+      useYn: normalized.useYn,
+    };
+    saveMutation.mutate({ codeId: normalized.codeId, request });
   };
 
   const selectedStatusLabel = activeDraft.useYn ? "사용" : "미사용";

@@ -6,6 +6,7 @@ import { resetUserPassword, saveUser } from "@/modules/system/user-management/ap
 import { saveUserMenuPermissions, type UserMenuPermissionUpsertRequest } from "@/modules/system/user-permission-management/api";
 import type { AuthUserAccount } from "@/types/user";
 import { userManagementQueryKeys } from "@/modules/system/user-management/application/queryKeys";
+import { referenceQueryKeys } from "@/modules/common/reference/queryKeys";
 
 type Params = {
   canCreate: boolean;
@@ -28,6 +29,7 @@ export function useUserManagementCommands({ canCreate, canUpdate, onPasswordRese
     onSuccess: async (user) => {
       onUserSaved(user);
       await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.usersRoot });
+      await queryClient.invalidateQueries({ queryKey: referenceQueryKeys.usersRoot });
       showSuccess("사용자 계정을 저장했습니다.");
     },
     onError: (error) => showError(error instanceof Error ? error.message : "사용자 계정을 저장하지 못했습니다."),

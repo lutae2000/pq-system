@@ -4,7 +4,6 @@ import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
-import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
@@ -12,7 +11,8 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { dateOnly, dateTimeText, formatMoney, text } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
-import { BID_NOTICE_PAGE_SIZE, listBidNotices, type BidNoticeRecord, type BidNoticeSearchParams } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { BID_NOTICE_PAGE_SIZE, type BidNoticeRecord, type BidNoticeSearchParams } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { useBidNoticeList } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 
 type PeriodType = "NOTICE" | "BID" | "PQ";
 
@@ -94,11 +94,7 @@ export function BidNoticeSelectDialog({ open, onClose, onSelect, stateCacheKey, 
   const departmentOptions = useDepartmentOptions({ useYn: true });
   const bidMethodOptions = useCommonCodeLevel2Options("ZA");
 
-  const bidNoticesQuery = useQuery({
-    queryKey: ["bid-notice", "select-dialog", searchParams],
-    queryFn: () => listBidNotices(searchParams),
-    enabled: open,
-  });
+  const bidNoticesQuery = useBidNoticeList(searchParams, 0, open);
 
   const rows = useMemo(() => {
     const content = bidNoticesQuery.data?.content ?? [];

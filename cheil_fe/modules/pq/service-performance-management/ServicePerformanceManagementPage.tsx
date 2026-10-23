@@ -35,6 +35,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ClientSelect } from "@/components/common/reference-selects";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { todayLocalDate } from "@/modules/common/formatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
@@ -65,7 +66,7 @@ const PERIOD_OPTIONS: Array<{
   { label: "전체", value: "ALL" },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayLocalDate;
 
 const defaultSearchFilters = (): SearchFilterState => ({
   clientCode: "",

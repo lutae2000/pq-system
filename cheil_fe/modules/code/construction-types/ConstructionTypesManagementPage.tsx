@@ -20,7 +20,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { CommonSelectField } from "@/components/common/CommonSelectField";
@@ -31,14 +30,8 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import {
-  createConstructionType,
-  deleteConstructionType,
-  listConstructionTypes,
-  type ConstructionTypeLevel,
-  type ConstructionTypeRecord,
-  updateConstructionType,
-} from "@/modules/code/construction-types/api";
+import type { ConstructionTypeLevel, ConstructionTypeRecord, ConstructionTypeUpsertRequest } from "@/modules/code/construction-types/api";
+import { useConstructionTypeManagement } from "@/modules/code/construction-types/application/useConstructionTypeManagement";
 
 type ConstructionTypeDraft = {
   codeId: number | null;
@@ -117,8 +110,7 @@ const sortConstructionTypes = (records: ConstructionTypeRecord[]) =>
 export function ConstructionTypesManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
+ const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedCodeId, setSelectedCodeId] = useState<number | null>(null);
@@ -129,18 +121,13 @@ export function ConstructionTypesManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<ConstructionTypeRecord | null>(null);
   const { showError, showInfo, showSuccess } = useAppSnackbar();
 
-  const constructionTypesQuery = useQuery({
-    queryKey: ["construction-types", appliedFilters],
-    queryFn: () =>
-      listConstructionTypes({
-        codeLevel: appliedFilters.codeLevel,
-        keyword: appliedFilters.keyword,
-        useYn: appliedFilters.useYn,
-      }),
-    enabled: tabQueryEnabled,
-  });
-
-  const records = useMemo(() => sortConstructionTypes(constructionTypesQuery.data ?? []), [constructionTypesQuery.data]);
+  const constructionTypeFilters = { codeLevel: appliedFilters.codeLevel, keyword: appliedFilters.keyword, useYn: appliedFilters.useYn };
+  const { deleteMutation, query: constructionTypesQuery, saveMutation } = useConstructionTypeManagement({
+    canCreate, canDelete, canRead, canUpdate, enabled: tabQueryEnabled, filters: constructionTypeFilters,
+    onDeleted: () => { setSelectedCodeId(null); setIsCreating(false); setDraft(emptyDraft()); setDeleteTarget(null); showSuccess("공사종류를 삭제했습니다."); },
+    onError: (error) => showError(error instanceof Error ? error.message : "공사종류 요청에 실패했습니다."),
+    onSaved: (saved) => { setSelectedCodeId(saved.codeId); setSelectedLevel1Code(saved.level1Code); setSelectedLevel2Code(saved.codeLevel === 1 ? "" : saved.level2Code); setIsCreating(false); setDraft(toDraft(saved)); showSuccess("공사종류를 저장했습니다."); },
+  });  const records = useMemo(() => sortConstructionTypes(constructionTypesQuery.data ?? []), [constructionTypesQuery.data]);
   const level1Rows = useMemo(() => records.filter((item) => item.codeLevel === 1), [records]);
   const activeLevel1Code = selectedLevel1Code || level1Rows[0]?.level1Code || "";
   const level2Rows = useMemo(
@@ -238,9 +225,6 @@ export function ConstructionTypesManagementPage() {
     setSelectedLevel1Code("");
     setSelectedLevel2Code("");
     setIsCreating(false);
-    window.setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ["construction-types"] });
-    }, 0);
   };
 
   const handleResetSearch = () => {
@@ -252,9 +236,6 @@ export function ConstructionTypesManagementPage() {
     setSelectedLevel1Code("");
     setSelectedLevel2Code("");
     setIsCreating(false);
-    window.setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ["construction-types"] });
-    }, 0);
   };
 
   const handleNew = (level: ConstructionTypeLevel) => {
@@ -338,57 +319,19 @@ export function ConstructionTypesManagementPage() {
       return;
     }
 
-    saveMutation.mutate(activeDraft);
+    const normalized = normalizeDraft(activeDraft);
+    const request: ConstructionTypeUpsertRequest = {
+      codeLevel: normalized.codeLevel,
+      codeName: normalized.codeName,
+      createdId: normalized.createdId || null,
+      lastChangedId: normalized.lastChangedId || null,
+      level1Code: normalized.level1Code,
+      level2Code: normalized.level2Code || null,
+      level3Code: normalized.level3Code || null,
+      useYn: normalized.useYn,
+    };
+    saveMutation.mutate({ codeId: normalized.codeId, request });
   };
-
-  const saveMutation = useMutation({
-    mutationFn: async (value: ConstructionTypeDraft) => {
-      const normalized = normalizeDraft(value);
-      const requestBody = {
-        codeLevel: normalized.codeLevel,
-        codeName: normalized.codeName,
-        createdId: normalized.createdId || null,
-        lastChangedId: normalized.lastChangedId || null,
-        level1Code: normalized.level1Code,
-        level2Code: normalized.level2Code || null,
-        level3Code: normalized.level3Code || null,
-        useYn: normalized.useYn,
-      };
-
-      if (normalized.codeId === null) {
-        return createConstructionType(requestBody);
-      }
-
-      return updateConstructionType(normalized.codeId, requestBody);
-    },
-    onSuccess: (saved) => {
-      setSelectedCodeId(saved.codeId);
-      setSelectedLevel1Code(saved.level1Code);
-      setSelectedLevel2Code(saved.codeLevel === 1 ? "" : saved.level2Code);
-      setIsCreating(false);
-      setDraft(toDraft(saved));
-      queryClient.invalidateQueries({ queryKey: ["construction-types"] });
-      showSuccess("공사종류를 저장했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "공사종류 저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteConstructionType,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["construction-types"] });
-      setSelectedCodeId(null);
-      setIsCreating(false);
-      setDraft(emptyDraft());
-      setDeleteTarget(null);
-      showSuccess("공사종류를 삭제했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "공사종류 삭제에 실패했습니다.");
-    },
-  });
 
   const selectedStatusLabel = activeDraft.useYn ? "사용" : "미사용";
   const selectedLevelLabel = levelLabel(activeDraft.codeLevel);

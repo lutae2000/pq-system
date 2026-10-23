@@ -1,6 +1,7 @@
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 import { formatPaddedLevel2CodeLabel } from "@/modules/common/reference/referenceFormat";
+import { formatLocalizedNumber } from "@/modules/common/formatters";
 
 type ReviewResultsByEngineer = {
   engineerId: string;
@@ -27,15 +28,6 @@ const reviewHeaders = [
 ];
 
 const text = (value: string | number | null | undefined) => String(value ?? "").trim();
-
-const formatMoney = (value: string | number | null | undefined) => {
-  if (value === null || value === undefined || value === "") {
-    return "-";
-  }
-
-  const numericValue = Number(value);
-  return Number.isFinite(numericValue) ? numericValue.toLocaleString("ko-KR") : String(value);
-};
 
 const formatDateYmd = (value: string | number | null | undefined) => {
   const raw = text(value);
@@ -69,8 +61,8 @@ const toReviewExportRow = (row: EngineerProjectHistoryReviewRecord, engLevelLabe
   formatPaddedLevel2CodeLabel(engLevelLabelByCode, row.engLevel),
   text(row.grade),
   text(row.orderClient),
-  formatMoney(row.contractAmt),
-  formatMoney(row.ownAmt),
+  formatLocalizedNumber(row.contractAmt, { emptyValue: "-" }),
+  formatLocalizedNumber(row.ownAmt, { emptyValue: "-" }),
   row.divisionRate ?? "",
   formatDateYmd(row.contractFromDate),
   formatDateYmd(row.contractToDate),
@@ -92,19 +84,18 @@ export async function downloadEngineerPerformanceReviewWorkbook({
   reviewResultsByEngineer: ReviewResultsByEngineer[];
   engLevelLabelByCode: Record<string, string>;
 }) {
-  const xlsx = await import("xlsx");
-  const workbook = xlsx.utils.book_new();
+  const { Workbook } = await import("exceljs-community/dist/exceljs.min.js");
+  const workbook = new Workbook();
   const usedSheetNames = new Set<string>();
 
   for (const profile of profiles) {
     const results = reviewResultsByEngineer.find((item) => item.engineerId === profile.summary.id)?.results ?? [];
-    const worksheetRows = [reviewHeaders, ...results.map((row) => toReviewExportRow(row, engLevelLabelByCode))];
-    const worksheet = xlsx.utils.aoa_to_sheet(worksheetRows);
     const sheetName = createUniqueSheetName(profile.summary.name, usedSheetNames);
-    xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
+    const worksheet = workbook.addWorksheet(sheetName);
+    worksheet.addRows([reviewHeaders, ...results.map((row) => toReviewExportRow(row, engLevelLabelByCode))]);
   }
 
-  const fileData = xlsx.write(workbook, { bookType: "xlsx", type: "array" });
+  const fileData = await workbook.xlsx.writeBuffer();
   const blob = new Blob([fileData], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

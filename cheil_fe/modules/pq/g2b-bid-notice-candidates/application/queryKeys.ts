@@ -5,4 +5,5 @@ const root = ["g2b-bid-notice-candidates"] as const;
 export const g2bBidNoticeCandidateQueryKeys = {
   all: root,
   list: (params: G2bBidNoticeCandidateSearchParams) => [...root, "list", params] as const,
+  syncStatus: () => [...root, "sync-status"] as const,
 } as const;

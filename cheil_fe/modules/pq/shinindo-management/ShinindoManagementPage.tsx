@@ -22,6 +22,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
+import { todayLocalDate } from "@/modules/common/formatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
   SHININDO_MANAGEMENT_ATTACHMENT_OWNER_TYPE,
@@ -232,7 +233,7 @@ export function ShinindoManagementPage() {
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [clientCode, setClientCode] = useState("");
-  const [referenceDate, setReferenceDate] = useState(dashedDate(new Date().toISOString()));
+  const [referenceDate, setReferenceDate] = useState(() => todayLocalDate());
   const [page, setPage] = useState(0);
   const [draft, setDraft] = useState<ShinindoManagementRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<ShinindoManagementRecord | null>(null);
@@ -358,7 +359,7 @@ export function ShinindoManagementPage() {
   };
 
   const handleReset = () => {
-    const nextReferenceDate = dashedDate(new Date().toISOString());
+    const nextReferenceDate = todayLocalDate();
     const shouldRefetch = keyword === "" && appliedKeyword === "" && clientCode === "" && referenceDate === nextReferenceDate && page === 0;
 
     setKeyword("");

@@ -1,4 +1,5 @@
 import type { WorkOverlapContractRecord, WorkOverlapContractRequest } from "@/modules/work-overlap/contracts/api";
+import { toDateInputValueFromDigits } from "@/modules/common/formatters";
 
 const text = (value: string | null | undefined) => value ?? "";
 
@@ -45,10 +46,7 @@ export const normalizeNumberInputValue = (value: string) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const formatDateInputValue = (value: string | null | undefined) => {
-  const normalized = text(value).replace(/\D/g, "").slice(0, 8);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
-};
+export const formatDateInputValue = toDateInputValueFromDigits;
 
 export const normalizeDateInputValue = (value: string | null | undefined) => {
   const normalized = text(value).replace(/\D/g, "").slice(0, 8);

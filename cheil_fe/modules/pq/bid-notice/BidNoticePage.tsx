@@ -5,7 +5,6 @@ import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Autocomplete, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
@@ -17,8 +16,8 @@ import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { compactFieldSx } from "@/components/common/FormControls";
-import { PeriodRangeField, toCompactDate } from "@/components/common/PeriodRangeField";
-import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text, ynToBool } from "@/modules/common/formatters";
+import { PeriodRangeField } from "@/components/common/PeriodRangeField";
+import { dateOnly, formatMoney } from "@/modules/common/formatters";
 import { openBidNoticePrintWindow } from "@/modules/pq/bid-notice/bidNoticePrint";
 import {
   formatBidSuccessForXlsx,
@@ -29,18 +28,11 @@ import {
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
-import {
-  createBidNotice,
-  deleteBidNotice,
-  getBidNotice,
-  listBidNotices,
-  updateBidNotice,
-  type BidNoticeDetailOptions,
-  type BidNoticeApiRecord,
-  type BidNoticeSearchParams,
-  type BidNoticeUpsertRequest,
-} from "@/modules/pq/bid-notice/bidNoticeApi";
-import { getImportedG2bBidNoticeCandidate } from "@/modules/pq/g2b-bid-notice-candidates/api";
+import type { BidNoticeDetailOptions } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { useBidNoticeCommands } from "@/modules/pq/bid-notice/application/useBidNoticeCommands";
+import { useBidNoticeList, useImportedBidNoticeAttachments } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
+import { toBidNoticeRecord, toSearchParams } from "@/modules/pq/bid-notice/application/mapper";
+import { emptyDraft, filterBidNoticeRecords } from "@/modules/pq/bid-notice/domain/rules";
 import type {
   BidNoticeFilters,
   BidNoticeRecord,
@@ -61,61 +53,6 @@ const bidSuccessOptions = [
   { label: "낙찰", value: "Y" },
   { label: "미낙찰", value: "N" },
 ] as const;
-
-const emptyDraft = (): BidNoticeRecord => ({
-  active: true,
-  baseAmount: 0,
-  bidDate: "",
-  interviewDate: "",
-  bidStyle: "",
-  bidMethod: "",
-  bidNo: "",
-  bidClosingDate: "",
-  bidType: "",
-  bidTypeLabel: "",
-  bidMethodLabel: "",
-  businessField: "",
-  fieldOfWorkLabel: "",
-  businessScope: "",
-  scopeOfWorkLabel: "",
-  businessType: "",
-  businessTypeLabel: "",
-  category: "공고",
-  client: "",
-  orderClientName: "",
-  content: "",
-  department: "",
-  departmentName: "",
-  draftNote: "",
-  electronicVendor: "",
-  endDate: "",
-  estimateAmount: 0,
-  designAmt: 0,
-  id: "",
-  managerConfirmed: false,
-  noticeDate: "",
-  onSiteMeetingDate: "",
-  participationStatus: "",
-  finalParticipationStatus: "",
-  pqRegistrationDate: "",
-  pqSubmissionDate: "",
-  pqDecideEmpno: "",
-  projectName: "",
-  procurementMethod: "",
-  reasonOfAbsenceCode: "",
-  orderMethodLabel: "",
-  representativeVendor: "",
-  bidSubmissionDate: "",
-  writerName: "",
-  seqNo: 0,
-  sortOrder: 1,
-  startDate: "",
-  tpSubmissionDate: "",
-  bidSuccessYn: "",
-  bidSuccessYnLabel: "",
-  visible: true,
-});
-
 
 const buildDefaultFilters = (): BidNoticeFilters => {
   return {
@@ -150,117 +87,9 @@ type BidNoticeGridColDef = GridColDef<BidNoticeRecord> & {
   excludeFromXlsxExport?: boolean;
 };
 
-const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
-  active: true,
-  baseAmount: 0,
-  bidDate: dateTimeText(item.bidDate),
-  interviewDate: dateOnly(item.interviewDate),
-  bidStyle: text(item.processTag),
-  bidMethod: text(item.bidMethod),
-  bidMethodLabel: text(item.bidMethodLabel),
-  bidNo: item.bidSeq ? String(item.bidSeq) : "",
-  bidClosingDate: dateTimeText(item.bidClosingDate),
-  bidType: text(item.bidType),
-  bidTypeLabel: text(item.bidTypeLabel),
-  businessField: text(item.fieldOfWorkCode) as BidNoticeRecord["businessField"],
-  fieldOfWorkLabel: text(item.fieldOfWorkLabel),
-  businessScope: text(item.scopeOfWorkCode) as BidNoticeRecord["businessScope"],
-  scopeOfWorkLabel: text(item.scopeOfWorkLabel),
-  businessType: text(item.businessType),
-  businessTypeLabel: text(item.businessTypeLabel),
-  category: "공고",
-  client: text(item.orderClient),
-  orderClientName: text(item.orderClientName),
-  content: "",
-  department: text(item.departmentCode) as BidNoticeRecord["department"],
-  departmentName: text(item.departmentName),
-  draftNote: text(item.remark),
-  electronicVendor: "",
-  endDate: dateOnly(item.bidClosingDate),
-  designAmt: Number(item.designAmt ?? 0),
-  estimateAmount: Number(item.designAmt ?? 0),
-  id: item.bidSeq ? String(item.bidSeq) : "",
-  managerConfirmed: ynToBool(item.bidSuccessYn),
-  noticeDate: dateOnly(item.announceDate),
-  onSiteMeetingDate: dateTimeText(item.siteBriefingDate),
-  participationStatus: text(item.participateYnLabel) || text(item.participateYn),
-  finalParticipationStatus: text(item.participateYn),
-  pqRegistrationDate: dateTimeText(item.pqRegistDate),
-  pqSubmissionDate: dateTimeText(item.pqSubmitDate),
-  pqDecideEmpno: text(item.pqDecideEmpno),
-  projectName: item.projectName,
-  procurementMethod: text(item.orderMethod),
-  reasonOfAbsenceCode: text(item.reasonOfAbsenceCode),
-  orderMethodLabel: text(item.orderMethodLabel),
-  representativeVendor: text(item.primeContractor),
-  bidSubmissionDate: dateTimeText(item.bidSubmissionDate),
-  writerName: text(item.superDecideEmpno),
-  seqNo: item.bidSeq ?? 0,
-  sortOrder: item.bidSeq ?? 0,
-  startDate: dateOnly(item.announceDate),
-  tpSubmissionDate: dateTimeText(item.tpSubmitDate),
-  bidSuccessYn: text(item.bidSuccessYn),
-  bidSuccessYnLabel: item.bidSuccessYn === "Y" ? "낙찰" : "미낙찰",
-  visible: true,
-});
-
-const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => ({
-  bidSeq: draft.seqNo || null,
-  departmentCode: draft.department.trim(),
-  projectName: draft.projectName.trim(),
-  orderClient: draft.client.trim(),
-  designAmt: draft.estimateAmount || null,
-  bidType: draft.bidType.trim(),
-  bidMethod: draft.bidMethod.trim(),
-  announceDate: apiDate(draft.noticeDate) || null,
-  pqRegistDate: apiDateTime(draft.pqRegistrationDate),
-  pqSubmitDate: apiDateTime(draft.pqSubmissionDate),
-  orderMethod: draft.procurementMethod.trim() || draft.bidMethod.trim(),
-  bidDate: apiDateTime(draft.bidDate),
-  interviewDate: apiDate(draft.interviewDate) || null,
-  bidSuccessYn: draft.bidSuccessYn.trim() || boolToYn(draft.managerConfirmed),
-  participateYn: draft.finalParticipationStatus.trim(),
-  pqDecideEmpno: "",
-  pqDecideDate: null,
-  superDecideEmpno: draft.writerName.trim(),
-  businessType: draft.businessType.trim(),
-  bidSubmissionDate: apiDateTime(draft.bidSubmissionDate),
-  processTag: draft.bidStyle.trim(),
-  bidClosingDate: apiDateTime(draft.bidClosingDate),
-  fieldOfWorkCode: draft.businessField.trim(),
-  scopeOfWorkCode: draft.businessScope.trim(),
-  reasonOfAbsenceCode: draft.reasonOfAbsenceCode.trim(),
-  siteBriefingDate: apiDateTime(draft.onSiteMeetingDate),
-  tpSubmitDate: apiDateTime(draft.tpSubmissionDate),
-  tpPassYn: "",
-  primeContractor: draft.representativeVendor.trim(),
-  remark: draft.draftNote.trim(),
-  refmatYn: "",
-  createdId: "admin",
-  lastChangedId: "admin",
-});
-
-const toSearchParams = (filters: BidNoticeFilters, paginationModel: GridPaginationModel): BidNoticeSearchParams => ({
-  keyword: filters.keyword,
-  departmentCode: filters.department,
-  superDecideEmpno: filters.superDecideEmpno,
-  bidType: "",
-  businessType: "",
-  bidClosingDateFrom: filters.periodType === "NOTICE" ? filters.periodStartDate : "",
-  bidClosingDateTo: filters.periodType === "NOTICE" ? filters.periodEndDate : "",
-  bidDateFrom: filters.periodType === "BID" ? filters.periodStartDate : "",
-  bidDateTo: filters.periodType === "BID" ? filters.periodEndDate : "",
-  pqSubmitDateFrom: filters.periodType === "PQ" ? filters.periodStartDate : "",
-  pqSubmitDateTo: filters.periodType === "PQ" ? filters.periodEndDate : "",
-  bidSuccessYn: filters.bidSuccessYn,
-  page: paginationModel.page,
-  size: paginationModel.pageSize,
-});
-
 export function BidNoticePage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
   const gridApiRef = useGridApiRef();
   const [draft, setDraft] = useState<BidNoticeRecord>(emptyDraft());
   const [filters, setFilters] = useState<BidNoticeFilters>(() => buildDefaultFilters());
@@ -271,20 +100,9 @@ export function BidNoticePage() {
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
-  const sourceAttachmentsQuery = useQuery({
-    queryKey: ["g2b-bid-notice-candidate-imported-attachments", draft.seqNo],
-    queryFn: () => getImportedG2bBidNoticeCandidate(draft.seqNo),
-    enabled: open && draft.seqNo > 0,
-    refetchOnMount: "always",
-    staleTime: 0,
-  });
-
+  const sourceAttachmentsQuery = useImportedBidNoticeAttachments(draft.seqNo, open);
   const searchParams = useMemo(() => toSearchParams(filters, paginationModel), [filters, paginationModel]);
-  const bidNoticesQuery = useQuery({
-    queryKey: ["bid-notices", searchParams, searchRevision],
-    queryFn: () => listBidNotices(searchParams),
-    enabled: tabQueryEnabled,
-  });
+  const bidNoticesQuery = useBidNoticeList(searchParams, searchRevision, tabQueryEnabled);
   const bidMethodOptions = useCommonCodeLevel2Options("ZA");
   const businessFieldOptions = useCommonCodeLevel2Options("DA");
   const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, undefined, "level2Code");
@@ -353,79 +171,25 @@ export function BidNoticePage() {
     ],
   );
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
-      const keyword = filters.keyword.trim();
-      const matchesKeyword =
-        !keyword ||
-        [
-          record.projectName,
-          record.client,
-          record.orderClientName,
-          record.bidNo,
-          record.representativeVendor,
-          record.departmentName,
-          record.businessTypeLabel,
-          record.orderMethodLabel,
-          record.participationStatus,
-          record.finalParticipationStatus,
-          record.bidSuccessYnLabel,
-          record.pqDecideEmpno,
-          record.writerName,
-        ].some((value) => value.includes(keyword));
-      const matchesBidMethod = !filters.bidMethod || record.bidMethod === filters.bidMethod;
-      const matchesBusinessType = !filters.businessType || record.businessTypeLabel.includes(filters.businessType);
-      const matchesDepartment = !filters.department || record.department === filters.department;
-      const matchesRegistrant = !filters.superDecideEmpno || record.writerName === filters.superDecideEmpno;
-      const matchesStatus = filters.participationStatuses.length === 0 || filters.participationStatuses.includes(record.finalParticipationStatus);
-      const periodDate =
-        filters.periodType === "NOTICE" ? apiDate(record.noticeDate) : filters.periodType === "BID" ? apiDate(record.bidDate) : apiDate(record.pqSubmissionDate);
-      const periodDateKey = toCompactDate(periodDate);
-      const matchesPeriodStart = !filters.periodStartDate || periodDateKey >= filters.periodStartDate;
-      const matchesPeriodEnd = !filters.periodEndDate || periodDateKey <= filters.periodEndDate;
-      const matchesBidSuccess = !filters.bidSuccessYn || record.bidSuccessYn === filters.bidSuccessYn;
+  const filteredRecords = useMemo(() => filterBidNoticeRecords(records, filters), [filters, records]);
 
-      return (
-        matchesKeyword &&
-        matchesBidMethod &&
-        matchesBusinessType &&
-        matchesDepartment &&
-        matchesRegistrant &&
-        matchesStatus &&
-        matchesPeriodStart &&
-        matchesPeriodEnd &&
-        matchesBidSuccess
-      );
-    });
-  }, [filters, records]);
-
-  const saveMutation = useMutation({
-    mutationFn: (requestBody: BidNoticeUpsertRequest) =>
-      draft.seqNo ? updateBidNotice(draft.seqNo, requestBody) : createBidNotice({ ...requestBody, bidSeq: null }),
-    onSuccess: (saved) => {
-      const nextRecord = toBidNoticeRecord(saved);
-      setDraft(nextRecord);
-      queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
+  const { deleteMutation, loadDetail, saveMutation } = useBidNoticeCommands({
+    canCreate,
+    canDelete,
+    canRead,
+    canUpdate,
+    participationOptions: finalParticipationOptions.options,
+    onSaved: (saved) => {
+      setDraft(saved);
       showSuccess("저장되었습니다.");
       setOpen(false);
     },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteBidNotice,
-    onSuccess: (_data, deletedBidSeq) => {
-      queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
-      queryClient.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(deletedBidSeq)] });
+    onDeleted: () => {
       showSuccess("삭제되었습니다.");
       setDeleteConfirmOpen(false);
       setOpen(false);
     },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
-    },
+    onError: (error, fallback) => showError(error instanceof Error ? error.message : fallback),
   });
 
   const openEditor = async (record: BidNoticeRecord) => {
@@ -441,10 +205,8 @@ export function BidNoticePage() {
     }
 
     try {
-      const latestRecord = await getBidNotice(record.seqNo);
-      setDraft(toBidNoticeRecord(latestRecord));
+      setDraft(await loadDetail(record.seqNo));
       setOpen(true);
-      void queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
     } catch (error) {
       showError(error instanceof Error ? error.message : "공고문 상세를 불러오지 못했습니다.");
     }
@@ -469,23 +231,7 @@ export function BidNoticePage() {
   };
 
   const saveRecord = () => {
-    const canSaveCurrent = draft.seqNo ? canUpdate : canCreate;
-    if (!canSaveCurrent) {
-      showError(draft.seqNo ? "수정 권한이 없습니다." : "등록 권한이 없습니다.");
-      return;
-    }
-    if (!draft.projectName.trim()) {
-      showError("사업명을 입력하세요.");
-      return;
-    }
-    const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
-    const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
-    if (isAbsent && !draft.reasonOfAbsenceCode.trim()) {
-      showError("불참 사유를 선택하세요.");
-      return;
-    }
-
-    saveMutation.mutate(toBidNoticeRequest(draft));
+    saveMutation.mutate(draft);
   };
 
   const requestDeleteRecord = () => {

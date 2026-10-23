@@ -7,12 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
+import com.cheil.cheil_be.domain.department.Department;
 
 @Repository
 @RequiredArgsConstructor
-public class DepartmentJpaRepository implements CommonDepartmentRepository {
+public class DepartmentJpaRepository implements DepartmentRepository {
 
     private final JpaDepartmentRepository jpaDepartmentRepository;
 

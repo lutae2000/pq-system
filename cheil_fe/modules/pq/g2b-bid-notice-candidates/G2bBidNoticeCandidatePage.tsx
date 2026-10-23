@@ -3,7 +3,6 @@
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { Alert, Box, Button, Card, CardContent, Stack, Typography } from "@mui/material";
 import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -21,15 +20,13 @@ import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
   G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
-  deleteG2bBidNoticeCandidates,
-  getG2bBidNoticeCandidateSyncStatus,
   getImportedG2bBidNoticeCandidate,
   getImportedG2bBidNoticeCandidateByNoticeNumber,
   markG2bBidNoticeCandidateImported,
-  syncG2bBidNoticeCandidates,
   type G2bBidNoticeCandidateSearchParams,
 } from "@/modules/pq/g2b-bid-notice-candidates/api";
-import { useG2bBidNoticeCandidateQueries } from "@/modules/pq/g2b-bid-notice-candidates/application/useG2bBidNoticeCandidateQueries";
+import { useG2bBidNoticeCandidateQueries, useG2bBidNoticeCandidateSyncStatus } from "@/modules/pq/g2b-bid-notice-candidates/application/useG2bBidNoticeCandidateQueries";
+import { useG2bBidNoticeCandidateMutations } from "@/modules/pq/g2b-bid-notice-candidates/application/useG2bBidNoticeCandidateMutations";
 import {
   emptyG2bBidNoticeCandidateSearchFilters,
   toG2bBidNoticeCandidateRow,
@@ -243,7 +240,6 @@ const findAutoMappedOptionValue = (
 export function G2bBidNoticeCandidatePage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const { showError, showSuccess } = useAppSnackbar();
-  const queryClient = useQueryClient();
   const queryEnabled = useTabQueryEnabled(canRead);
   const routeSearchParams = useSearchParams();
   const notificationBidNtceNo = routeSearchParams.get("bidNtceNo")?.trim() ?? "";
@@ -365,61 +361,30 @@ export function G2bBidNoticeCandidatePage() {
     });
   }, [autoMappedInputFields, inputDraft]);
 
-  const inputSaveMutation = useMutation({
-    mutationFn: async ({ candidateId, draft }: { candidateId: number; draft: BidNoticeRecord }) => {
-      const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
-      const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
-      if (isAbsent && !draft.reasonOfAbsenceCode.trim()) throw new Error("불참 사유를 선택해주세요.");
-      const draftWithMappedBidMethod = draft.bidMethod.trim() || autoMappedInputFields.bidMethod
-        ? { ...draft, bidMethod: draft.bidMethod.trim() || autoMappedInputFields.bidMethod }
-        : draft;
-      const request = toBidNoticeRequest(draftWithMappedBidMethod);
-      const saved = draft.seqNo ? await updateBidNotice(draft.seqNo, request) : await createBidNotice(request);
-      if (!saved.bidSeq) throw new Error("저장된 공고 식별자를 확인할 수 없습니다.");
-      await markG2bBidNoticeCandidateImported(candidateId, saved.bidSeq);
-      return saved;
-    },
-    onSuccess: (saved) => {
-      setInputDraft(toEditableBidNoticeRecord(saved));
-      setInputAttachmentOwnerId(saved.bidSeq ?? null);
-      queryClient.invalidateQueries({ queryKey: ["bid-notices"] });
-      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates"] });
-      queryClient.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(saved.bidSeq)] });
-      showSuccess("공고문이 저장되었습니다. 첨부파일을 추가할 수 있습니다.");
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "공고문 저장에 실패했습니다."),
+  const saveInput = async ({ candidateId, draft }: { candidateId: number; draft: BidNoticeRecord }): Promise<BidNoticeApiRecord> => {
+    const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
+    const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
+    if (isAbsent && !draft.reasonOfAbsenceCode.trim()) throw new Error("불참 사유를 선택해주세요.");
+    const draftWithMappedBidMethod = draft.bidMethod.trim() || autoMappedInputFields.bidMethod ? { ...draft, bidMethod: draft.bidMethod.trim() || autoMappedInputFields.bidMethod } : draft;
+    const request = toBidNoticeRequest(draftWithMappedBidMethod);
+    const saved = draft.seqNo ? await updateBidNotice(draft.seqNo, request) : await createBidNotice(request);
+    if (!saved.bidSeq) throw new Error("저장된 공고 식별자를 확인할 수 없습니다.");
+    await markG2bBidNoticeCandidateImported(candidateId, saved.bidSeq);
+    return saved;
+  };
+  const { deleteMutation, inputSaveMutation, syncMutation } = useG2bBidNoticeCandidateMutations({
+    saveInput,
+    onInputSaved: (saved) => { setInputDraft(toEditableBidNoticeRecord(saved)); setInputAttachmentOwnerId(saved.bidSeq ?? null); showSuccess("공고문이 저장되었습니다. 첨부파일을 추가할 수 있습니다."); },
+    onDeleted: () => { setRowSelectionModel({ ids: new Set(), type: "include" }); showSuccess("선택한 나라장터 공고를 삭제했습니다."); },
+    onSyncCompleted: (result) => showSuccess(result.message || "나라장터 입찰공고 조회가 완료되었습니다."),
+    onError: (error) => showError(error instanceof Error ? error.message : "나라장터 공고 요청에 실패했습니다."),
   });
-
-  const deleteMutation = useMutation({
-    mutationFn: (ids: number[]) => deleteG2bBidNoticeCandidates(ids),
-    onSuccess: () => {
-      setRowSelectionModel({ ids: new Set(), type: "include" });
-      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates"] });
-      showSuccess("선택한 나라장터 공고가 삭제되었습니다.");
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "나라장터 공고 삭제에 실패했습니다."),
-  });
-
-  const syncMutation = useMutation({
-    mutationFn: syncG2bBidNoticeCandidates,
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates"] });
-      queryClient.invalidateQueries({ queryKey: ["g2b-bid-notice-candidates", "sync-status"] });
-      showSuccess(result.message || "나라장터 용역 API 조회가 완료되었습니다.");
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "나라장터 용역 API 조회에 실패했습니다."),
-  });
-
   const searchParams = useMemo<G2bBidNoticeCandidateSearchParams>(
     () => ({ ...appliedFilters, page: paginationModel.page, size: paginationModel.pageSize }),
     [appliedFilters, paginationModel.page, paginationModel.pageSize],
   );
   const candidatesQuery = useG2bBidNoticeCandidateQueries({ enabled: queryEnabled, searchParams });
-  const syncStatusQuery = useQuery({
-    queryKey: ["g2b-bid-notice-candidates", "sync-status"],
-    queryFn: getG2bBidNoticeCandidateSyncStatus,
-    enabled: queryEnabled,
-  });
+  const syncStatusQuery = useG2bBidNoticeCandidateSyncStatus(queryEnabled);
   const rows = useMemo(
     () => (candidatesQuery.data?.content ?? []).map(toG2bBidNoticeCandidateRow),
     [candidatesQuery.data?.content],

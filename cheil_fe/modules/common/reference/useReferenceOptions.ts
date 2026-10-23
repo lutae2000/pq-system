@@ -4,6 +4,7 @@ import { useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-q
 
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useReferenceQueryCacheHydrated } from "@/modules/common/reference/ReferenceQueryCacheProvider";
+import { referenceQueryKeys } from "@/modules/common/reference/queryKeys";
 import {
   getClientReferences,
   getCommonCodeGroupReferences,
@@ -22,7 +23,7 @@ import {
   type UserReferenceSearchParams,
 } from "@/modules/common/reference/referenceApi";
 import type { CommonCodeRecord, CommonCodeSearchParams } from "@/modules/code/common-codes/api";
-import type { ClientCodeRecord } from "@/modules/code/clients/api";
+import { getClientCode, type ClientCodeRecord } from "@/modules/code/clients/api";
 import type { ConstructionTypeRecord, ConstructionTypeSearchParams } from "@/modules/code/construction-types/api";
 import type { DepartmentRecord, DepartmentSearchParams } from "@/modules/code/departments/api";
 import type { SystemRoleRecord, SystemRoleSearchParams } from "@/modules/system/roles/api";
@@ -68,26 +69,36 @@ function useReferenceQuery<TItem>(
 }
 
 export function useRoleOptions(params: SystemRoleSearchParams = { useYn: true }, options?: ReferenceQueryOptions<SystemRoleRecord>) {
-  return useReferenceQuery(["references", "roles", params], () => getRoleReferences(params), options);
+  return useReferenceQuery(referenceQueryKeys.roles(params), () => getRoleReferences(params), options);
 }
 
 export function useUserOptions(params: UserReferenceSearchParams = {}, options?: ReferenceQueryOptions<AuthUserAccount>) {
-  return useReferenceQuery(["references", "users", params], () => getUserReferences(params), options);
+  return useReferenceQuery(referenceQueryKeys.users(params), () => getUserReferences(params), options);
 }
 
 export function useClientOptions(params: ClientReferenceSearchParams = {}, options?: ReferenceQueryOptions<ClientCodeRecord>) {
-  return useReferenceQuery(["references", "clients", params], () => getClientReferences(params), options);
+  return useReferenceQuery(referenceQueryKeys.clients(params), () => getClientReferences(params), options);
+}
+
+export function useClientByCode(clientCode: string) {
+  const enabled = useTabQueryEnabled(Boolean(clientCode));
+  return useQuery({
+    queryKey: referenceQueryKeys.clientByCode(clientCode),
+    queryFn: () => getClientCode(clientCode),
+    enabled,
+    staleTime: REFERENCE_STALE_TIME,
+  });
 }
 
 export function useDepartmentOptions(params: DepartmentSearchParams = { useYn: true }, options?: ReferenceQueryOptions<DepartmentRecord>) {
-  return useReferenceQuery(["references", "departments", params], () => getDepartmentReferences(params), options);
+  return useReferenceQuery(referenceQueryKeys.departments(params), () => getDepartmentReferences(params), options);
 }
 
 export function useConstructionTypeOptions(
   params: ConstructionTypeSearchParams = { useYn: "Y" },
   options?: ReferenceQueryOptions<ConstructionTypeRecord>,
 ) {
-  return useReferenceQuery(["references", "construction-types", params], () => getConstructionTypeReferences(params), options);
+  return useReferenceQuery(referenceQueryKeys.constructionTypes(params), () => getConstructionTypeReferences(params), options);
 }
 
 export function useCommonCodeLevel1Options(

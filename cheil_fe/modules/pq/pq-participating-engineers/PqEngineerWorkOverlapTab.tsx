@@ -6,29 +6,24 @@ import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
 import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
 import { Typography, Box } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import { listWorkOverlapEngineerContracts, type WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
+import { todayLocalDate } from "@/modules/common/formatters";
+import type { WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
 import { buildWorkOverlapContractColumns } from "@/modules/work-overlap/engineers/workOverlapContractColumns";
+import { usePqEngineerWorkOverlapQuery } from "@/modules/pq/pq-participating-engineers/application/usePqEngineerRelatedQueries";
 
 const ContractDetailDialog = dynamic(() => import("@/modules/work-overlap/contracts/WorkOverlapContractDetailDialog").then((module) => module.WorkOverlapContractDetailDialog), { ssr: false });
 
 type Props = { canRead: boolean; engineerId: string; referenceDate: string; remainingDays: string; taskPeriodUnit: "일" | "개월"; taskPeriodValue: string; gridHeight: number };
-const today = () => { const value = new Date(); return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; };
 export function PqEngineerWorkOverlapTab({ canRead, engineerId, referenceDate, remainingDays, taskPeriodUnit, taskPeriodValue, gridHeight }: Props) {
   const [pagination, setPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
   const [detailRecord, setDetailRecord] = useState<WorkOverlapEngineerContractRecord | null>(null);
   const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
   const [deselectedContractIds, setDeselectedContractIds] = useState<string[]>([]);
   const taskPeriodDays = Math.max(0, Number(taskPeriodValue) * (taskPeriodUnit === "개월" ? 30 : 1));
-  const query = useQuery({
-    queryKey: ["pq-engineer-work-overlap", engineerId, pagination, referenceDate, remainingDays],
-    queryFn: () => listWorkOverlapEngineerContracts(engineerId, { page: pagination.page, size: pagination.pageSize, referenceDate: referenceDate || today(), remainingDays: Number(remainingDays) || 0 }),
-    enabled: canRead,
-    placeholderData: keepPreviousData,
-  });
+  const query = usePqEngineerWorkOverlapQuery({ canRead, engineerId, page: pagination.page, size: pagination.pageSize, referenceDate: referenceDate || todayLocalDate(), remainingDays: Number(remainingDays) || 0 });
   const columns = useMemo<GridColDef<WorkOverlapEngineerContractRecord>[]>(() => buildWorkOverlapContractColumns(referenceDate, taskPeriodDays), [referenceDate, taskPeriodDays]);
   const contractRows = query.data?.content ?? [];
   const defaultSelectedIds = contractRows.filter((row) => row.checkYn).map((row) => row.contractNo);

@@ -17,7 +17,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -29,12 +28,9 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
+import { useClientCodeManagement } from "@/modules/code/clients/application/useClientCodeManagement";
 import {
   CLIENT_CODE_PAGE_SIZE,
-  createClientCode,
-  deleteClientCode,
-  listClientCodes,
-  updateClientCode,
   type ClientCodeRecord,
   type ClientCodeSearchParams,
   type ClientCodeUpsertRequest,
@@ -104,7 +100,6 @@ const toRequest = (draft: ClientCodeRecord): ClientCodeUpsertRequest => ({
 export function ClientCodesManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
   const initialSelectionApplied = useRef(false);
   const [businessName, setBusinessName] = useState("");
   const [appliedBusinessName, setAppliedBusinessName] = useState("");
@@ -133,12 +128,12 @@ export function ClientCodesManagementPage() {
     [appliedBusinessName, companyTypeFilter, orderClassFilter, page],
   );
 
-  const clientCodesQuery = useQuery({
-    queryKey: ["client-codes", searchParams, searchTick],
-    queryFn: () => listClientCodes(searchParams),
-    enabled: tabQueryEnabled,
+  const { deleteMutation, query: clientCodesQuery, saveMutation } = useClientCodeManagement({
+    canCreate, canDelete, canRead, canUpdate, enabled: tabQueryEnabled, params: searchParams, revision: searchTick,
+    onDeleted: () => { setDeleteTarget(null); setSelectedClientCode(""); setDraft(emptyDraft()); showSuccess("거래처 정보를 삭제했습니다."); },
+    onError: (error) => showError(error instanceof Error ? error.message : "거래처 요청에 실패했습니다."),
+    onSaved: (saved) => { setSelectedClientCode(saved.clientCode); setDraft(saved); showSuccess("거래처 정보를 저장했습니다."); },
   });
-
   const clientCodesPage = clientCodesQuery.data ?? {
     content: EMPTY_ROWS,
     page,
@@ -209,34 +204,6 @@ export function ClientCodesManagementPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [clientCodesQuery.isFetching, clientCodesQuery.isLoading, rows, selectedClientCode]);
 
-  const saveMutation = useMutation({
-    mutationFn: (requestBody: ClientCodeUpsertRequest) =>
-      selectedClientCode ? updateClientCode(selectedClientCode, requestBody) : createClientCode(requestBody),
-    onSuccess: (saved) => {
-      setSelectedClientCode(saved.clientCode);
-      setDraft(saved);
-      queryClient.invalidateQueries({ queryKey: ["client-codes"] });
-      showSuccess("거래처 정보를 저장했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "거래처 저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteClientCode,
-    onSuccess: () => {
-      setDeleteTarget(null);
-      setSelectedClientCode("");
-      setDraft(emptyDraft());
-      queryClient.invalidateQueries({ queryKey: ["client-codes"] });
-      showSuccess("거래처 정보를 삭제했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "거래처 삭제에 실패했습니다.");
-    },
-  });
-
   const updateDraft = <K extends keyof ClientCodeRecord>(field: K, value: ClientCodeRecord[K]) => {
     setDraft((current) => ({ ...current, [field]: value }));
   };
@@ -276,7 +243,7 @@ export function ClientCodesManagementPage() {
       showError("거래처 코드와 거래처명은 필수입니다.");
       return;
     }
-    saveMutation.mutate(toRequest(draft));
+    saveMutation.mutate({ clientCode: selectedClientCode, request: toRequest(draft) });
   };
 
   const handleDelete = () => {

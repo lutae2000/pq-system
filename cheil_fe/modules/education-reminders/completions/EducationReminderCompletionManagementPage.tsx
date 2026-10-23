@@ -20,7 +20,6 @@ import {
   type GridColDef,
   type GridRenderEditCellParams,
 } from "@mui/x-data-grid";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
@@ -34,13 +33,10 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel, toSelectOptions } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 
-import { saveEducationReminderCompletion, saveEducationReminderNotificationPhone } from "./api";
-import { createEducationReminderSend } from "../send/api";
-
 import { EducationReminderSendDialog } from "../send/EducationReminderSendDialog";
 import { getClosestEducationDeadline, type EducationReminderSendDialogTarget } from "../send/types";
 import { useEducationReminderCompletions } from "./application/useEducationReminderCompletions";
-import { educationReminderCompletionQueryKeys } from "./application/queryKeys";
+import { useEducationReminderCompletionCommands } from "./application/useEducationReminderCompletionCommands";
 import {
   formatDateText,
   type EducationReminderCompletionRecord,
@@ -282,7 +278,6 @@ function EducationReminderCompletionManagementContent() {
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showSuccess } = useAppSnackbar();
-  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterState>(() => emptyFilterState());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilterState());
   const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
@@ -421,36 +416,16 @@ function EducationReminderCompletionManagementContent() {
     };
   }, [completionRows]);
 
-  const saveMutation = useMutation({
-    mutationFn: saveEducationReminderCompletion,
-    onSuccess: async () => {
-      showSuccess("교육 알림 이수 정보가 저장되었습니다.");
-      await queryClient.invalidateQueries({ queryKey: educationReminderCompletionQueryKeys.completionsRoot });
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "교육 알림 이수 정보 저장에 실패했습니다."),
-  });
-
-  const savePhoneMutation = useMutation({
-    mutationFn: ({ engrId, phoneNo }: { engrId: string; phoneNo: string }) =>
-      saveEducationReminderNotificationPhone(engrId, { phoneNo }),
-    onSuccess: async () => {
-      showSuccess("전화번호가 저장되었습니다.");
-      await queryClient.invalidateQueries({ queryKey: educationReminderCompletionQueryKeys.completionsRoot });
-    },
-    onError: (error) => showError(error instanceof Error ? error.message : "전화번호 저장에 실패했습니다."),
-  });
-
-  const sendMutation = useMutation({
-    mutationFn: createEducationReminderSend,
-    onSuccess: (result) => {
-      showSuccess(`${result.targetCount}명에게 교육알림 발송을 요청했습니다.`);
+  const { saveMutation, savePhoneMutation, sendMutation } = useEducationReminderCompletionCommands({
+    onError: (error, operation) => showError(error instanceof Error ? error.message : operation === "phone" ? "전화번호 저장에 실패했습니다." : operation === "send" ? "교육 알림 발송에 실패했습니다." : "교육 알림 이수 정보를 저장하지 못했습니다."),
+    onPhoneSaved: () => showSuccess("전화번호가 저장되었습니다."),
+    onSaved: () => showSuccess("교육 알림 이수 정보가 저장되었습니다."),
+    onSendCompleted: (result) => {
+      showSuccess(`${result.targetCount}명에게 교육 알림 발송을 요청했습니다.`);
       setSendDialogOpen(false);
       setRowSelectionModel({ ids: new Set(), type: "include" });
     },
-    onError: (error) => showError(error instanceof Error ? error.message : "교육알림 발송에 실패했습니다."),
   });
-
-
   const processCompletionRowUpdate = useCallback(
     async (updatedRow: EducationReminderCompletionRecord, originalRow: EducationReminderCompletionRecord) => {
       const normalizedRow = normalizeCompletionRow(updatedRow, originalRow);

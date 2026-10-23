@@ -23,6 +23,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, type ReactNode } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
+import { MoneyInputField } from "@/components/common/MoneyInputField";
+import { toDateInputValue } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { CompanyPerformanceContractPeriodsGrid } from "@/modules/pq/company-performance/CompanyPerformanceContractPeriodsGrid";
 import { CompanyPerformanceDetailTabs } from "@/modules/pq/company-performance/detail-tabs/CompanyPerformanceDetailTabs";
@@ -69,17 +71,6 @@ const toDivisionRateValue = (value: string) => {
   }
 
   return Math.min(Number(normalized), 100);
-};
-
-const toMoneyText = (value: number | null | undefined) =>
-  value === null || value === undefined ? "" : new Intl.NumberFormat("ko-KR").format(value);
-
-const toDateInputValue = (value: string | null | undefined) => {
-  const normalized = text(value).trim();
-  if (normalized.length === 8) {
-    return `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}`;
-  }
-  return normalized;
 };
 
 const toContractDateValue = (value: string) => {
@@ -156,27 +147,6 @@ function CodeSelect({
         </MenuItem>
       ))}
     </TextField>
-  );
-}
-
-function MoneyField({
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  onChange: (value: number | null) => void;
-  readOnly?: boolean;
-  value: number | null | undefined;
-}) {
-  return (
-    <TextField
-      disabled={readOnly}
-      onChange={(event) => onChange(toNullableNumber(event.target.value))}
-      size="small"
-      slotProps={{ input: { endAdornment: <InputAdornment position="end">원</InputAdornment> } }}
-      sx={standardFieldSx}
-      value={toMoneyText(value)}
-    />
   );
 }
 
@@ -364,10 +334,10 @@ export function CompanyPerformanceDetailDialog({
               <Group title="금액">
                 <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
                   <Field label="총계약금액">
-                    <MoneyField onChange={(value) => onFieldChange("contractAmt", value)} readOnly={readOnly} value={record.contractAmt} />
+                    <MoneyInputField disabled={readOnly} endAdornment="원" onChange={(value) => onFieldChange("contractAmt", value)} value={record.contractAmt} />
                   </Field>
                   <Field label="당사금액">
-                    <MoneyField onChange={(value) => onFieldChange("ownAmt", value)} readOnly={readOnly} value={record.ownAmt} />
+                    <MoneyInputField disabled={readOnly} endAdornment="원" onChange={(value) => onFieldChange("ownAmt", value)} value={record.ownAmt} />
                   </Field>
                 </Box>
 

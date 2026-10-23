@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
+import { localDateTimeText } from "@/modules/common/formatters";
 
 import type { NoticeRecord } from "./notice.types";
 
@@ -25,17 +26,16 @@ export async function saveNotificationPreference(menuPath: string, receiveYn: bo
 
 export async function createTechnologyNotice(params: { title: string; content: string; targetPath: string }): Promise<NoticeRecord> {
   const now = new Date();
-  const format = (date: Date) => date.toISOString().slice(0, 16).replace("T", " ");
   const end = new Date(now);
   end.setFullYear(end.getFullYear() + 1);
   return createNotice({
     active: true,
     content: params.content,
-    exposureEndAt: format(end),
-    exposureStartAt: format(now),
+    exposureEndAt: localDateTimeText(end),
+    exposureStartAt: localDateTimeText(now),
     id: "",
     important: false,
-    publishAt: format(now),
+    publishAt: localDateTimeText(now),
     targetPath: params.targetPath,
     title: params.title,
   });

@@ -4,10 +4,11 @@ import { Close as CloseIcon, DeleteOutlineOutlined as DeleteOutlineOutlinedIcon,
 import { Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { dateTimeText, formatMoney } from "@/modules/common/formatters";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { DetailSectionCard } from "@/components/common/DetailSectionCard";
 import { listG2bBidNoticeCandidates } from "@/modules/pq/g2b-bid-notice-candidates/api";
 import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 import { toG2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
@@ -22,18 +23,6 @@ type Props = {
   onDeleteCandidate?: () => void;
   bidNoticeInputLabel?: string;
 };
-
-function SectionCard({ children, title, action }: { children: ReactNode; title: string; action?: ReactNode }) {
-  return (
-    <Card variant="outlined" sx={{ bgcolor: "background.paper", borderColor: "divider", borderRadius: 1, boxShadow: "0 1px 1px rgba(15, 23, 42, 0.04)", overflow: "hidden" }}>
-      <Box sx={{ alignItems: "center", bgcolor: "rgba(15, 23, 42, 0.04)", borderBottom: 1, borderColor: "divider", display: "flex", justifyContent: "space-between", minHeight: 36, px: 1.25 }}>
-        <Typography sx={{ fontSize: 14, fontWeight: 800 }} variant="subtitle1">{title}</Typography>
-        {action}
-      </Box>
-      <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>{children}</CardContent>
-    </Card>
-  );
-}
 
 function CategoryDivider({ title }: { title: string }) {
   return (
@@ -341,7 +330,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
           </Card>
         ) : null}
         <Box sx={{ alignItems: "start", display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.5fr) minmax(360px, 0.8fr)" } }}>
-          <SectionCard title="기본 정보">
+          <DetailSectionCard title="기본 정보">
             <Stack spacing={1}>
               {/*<CategoryDivider title="공고정보" />*/}
               <Grid container spacing={1}>
@@ -385,15 +374,15 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
                 />
               </Box>
             </Stack>
-          </SectionCard>
+          </DetailSectionCard>
 
           <Stack spacing={1.25}>
-            <SectionCard title="일정 정보">
+            <DetailSectionCard title="일정 정보">
               <Stack spacing={0.75}>
                 <ScheduleTable record={record} />
               </Stack>
-            </SectionCard>
-            <SectionCard title="첨부 자료" action={<Chip label={`${record.attachments.length}개`} size="small" />}>
+            </DetailSectionCard>
+            <DetailSectionCard title="첨부 자료" action={<Chip label={`${record.attachments.length}개`} size="small" />}>
               {record.attachments.length === 0 ? <Typography color="text.secondary" variant="body2">등록된 첨부파일이 없습니다.</Typography> : (
                 <Stack spacing={1}>
                   {record.attachments.map((attachment, index) => (
@@ -420,7 +409,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
                   ))}
                 </Stack>
               )}
-            </SectionCard>
+            </DetailSectionCard>
           </Stack>
         </Box>
       </DialogContent>

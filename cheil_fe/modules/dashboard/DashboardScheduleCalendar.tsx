@@ -1,11 +1,12 @@
 "use client";
 
 import dayjs from "dayjs";
-import koLocale from "@fullcalendar/core/locales/ko";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import dayGridPlugin from "@fullcalendar/react/daygrid";
+import interactionPlugin from "@fullcalendar/react/interaction";
+import koLocale from "@fullcalendar/react/locales/ko";
 import FullCalendar from "@fullcalendar/react";
-import timeGridPlugin from "@fullcalendar/timegrid";
+import timeGridPlugin from "@fullcalendar/react/timegrid";
+import classicThemePlugin from "@fullcalendar/react/themes/classic";
 import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -140,27 +141,23 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
 
       <Box
         sx={{
-          "& .fc": {
+          "& .dashboard-calendar": {
             fontFamily: "var(--font-geist-sans), sans-serif",
           },
-          "& .fc .fc-toolbar-title": {
+          "& .dashboard-calendar-title": {
             fontSize: "1rem",
             fontWeight: 800,
           },
-          "& .fc .fc-button": {
+          "& .dashboard-calendar-button": {
             borderRadius: 1,
             boxShadow: "none",
             fontWeight: 700,
           },
-          "& .fc .fc-button-primary:not(:disabled).fc-button-active, & .fc .fc-button-primary:not(:disabled):active": {
-            backgroundColor: "primary.main",
-            borderColor: "primary.main",
-          },
-          "& .fc .fc-daygrid-day-number, & .fc .fc-col-header-cell-cushion": {
+          "& .dashboard-calendar-day-header": {
             color: "text.primary",
             textDecoration: "none",
           },
-          "& .fc .fc-daygrid-event": {
+          "& .dashboard-calendar-event": {
             borderRadius: 1,
             fontSize: "0.75rem",
             fontWeight: 700,
@@ -170,7 +167,11 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
         <FullCalendar
           allDaySlot={false}
           aspectRatio={1.7}
+          blockEventClass="dashboard-calendar-event"
+          buttonClass="dashboard-calendar-button"
+          className="dashboard-calendar"
           dayMaxEventRows={4}
+          dayHeaderClass="dashboard-calendar-day-header"
           datesSet={(arg) => {
             setYearMonth(dayjs(arg.view.currentStart).format("YYYYMM"));
           }}
@@ -188,7 +189,7 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
               title: info.event.title,
               start: info.event.startStr,
               end: info.event.endStr || undefined,
-              color: event.color ?? info.event.backgroundColor ?? info.event.borderColor ?? "#2563eb",
+              color: event.color ?? "#2563eb",
               description: event.description ?? "",
               client: event.client ?? "",
               status: event.status ?? "PQ_SUBMIT",
@@ -206,9 +207,10 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           }}
           initialView="dayGridMonth"
           locale={koLocale}
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, classicThemePlugin]}
           selectable={false}
           timeZone="Asia/Seoul"
+          toolbarTitleClass="dashboard-calendar-title"
           weekends
         />
       </Box>

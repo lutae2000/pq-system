@@ -25,7 +25,6 @@ import {
   type GridRowModesModel,
   type GridRowParams,
 } from "@mui/x-data-grid";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
@@ -44,9 +43,6 @@ import {
   deleteQualificationReviewAgency,
   deleteQualificationReviewCriterion,
   deleteQualificationScoreBand,
-  listQualificationReviewAgencies,
-  listQualificationReviewCriteria,
-  listQualificationScoreBands,
   updateQualificationReviewAgency,
   updateQualificationReviewCriterion,
   updateQualificationScoreBand,
@@ -60,6 +56,8 @@ import type {
   QualificationScoreBandUpsertRequest,
   UseYnFilter,
 } from "./qualificationCriteria.types";
+import { useQualificationCriteriaAgencyQuery, useQualificationCriteriaListQuery, useQualificationScoreBandsQuery } from "./application/useQualificationCriteriaQueries";
+import { useQualificationCriteriaMutations } from "./application/useQualificationCriteriaMutations";
 
 type ReviewAgencyRow = QualificationReviewAgencyRecord & { isNew?: boolean };
 type ReviewCriterionRow = QualificationReviewCriterionRecord & { isNew?: boolean };
@@ -70,15 +68,7 @@ type DeleteTarget =
   | { id: number; kind: "criterion"; label: string }
   | { id: number; kind: "scoreBand"; label: string };
 
-const qualificationCriteriaQueryKeys = {
-  agencies: (keyword: string, useYn: boolean | undefined) => ["qualification-criteria", "agencies", keyword, useYn] as const,
-  criteria: (agencyId: number | null, keyword: string, useYn: boolean | undefined) =>
-    ["qualification-criteria", "criteria", agencyId, keyword, useYn] as const,
-  scoreBands: (criterionId: number | null) => ["qualification-criteria", "score-bands", criterionId] as const,
-};
-
 // 기준 관리 데이터는 자주 바뀌지 않으므로 탭 재진입과 검색 조건 변경 시 불필요한 대기를 줄입니다.
-const QUALIFICATION_CRITERIA_STALE_TIME = 5 * 60 * 1000;
 
 const useYnFilterToBoolean = (value: UseYnFilter) => {
   if (value === "Y") {
@@ -159,7 +149,6 @@ const toScoreBandRequest = (row: ScoreBandRow): QualificationScoreBandUpsertRequ
 export function QualificationCriteriaPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [useYnFilter, setUseYnFilter] = useState<UseYnFilter>("All");
@@ -176,13 +165,7 @@ export function QualificationCriteriaPage() {
 
   const useYnParam = useYnFilterToBoolean(useYnFilter);
 
-  const agenciesQuery = useQuery({
-    enabled: tabQueryEnabled,
-    placeholderData: keepPreviousData,
-    queryFn: () => listQualificationReviewAgencies({ keyword: appliedKeyword || undefined, useYn: useYnParam }),
-    queryKey: qualificationCriteriaQueryKeys.agencies(appliedKeyword, useYnParam),
-    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
-  });
+  const agenciesQuery = useQualificationCriteriaAgencyQuery(tabQueryEnabled, appliedKeyword, useYnParam);
 
   const agencyRows = useMemo<ReviewAgencyRow[]>(
     () => [...draftAgencyRows, ...(agenciesQuery.data ?? [])],
@@ -193,14 +176,7 @@ export function QualificationCriteriaPage() {
       ? selectedAgencyId
       : agencyRows[0]?.id ?? null;
 
-  const enabledCriteriaQuery = useQuery({
-    enabled: tabQueryEnabled && effectiveSelectedAgencyId !== null && effectiveSelectedAgencyId > 0,
-    placeholderData: keepPreviousData,
-    queryFn: () =>
-      listQualificationReviewCriteria(effectiveSelectedAgencyId as number, { keyword: appliedKeyword || undefined, useYn: useYnParam }),
-    queryKey: qualificationCriteriaQueryKeys.criteria(effectiveSelectedAgencyId, appliedKeyword, useYnParam),
-    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
-  });
+  const enabledCriteriaQuery = useQualificationCriteriaListQuery(tabQueryEnabled, effectiveSelectedAgencyId, appliedKeyword, useYnParam);
 
   const criterionRows = useMemo<ReviewCriterionRow[]>(
     () => [...draftCriterionRows, ...(enabledCriteriaQuery.data ?? [])],
@@ -211,13 +187,7 @@ export function QualificationCriteriaPage() {
       ? selectedCriterionId
       : criterionRows[0]?.id ?? null;
 
-  const enabledScoreBandsQuery = useQuery({
-    enabled: tabQueryEnabled && effectiveSelectedCriterionId !== null && effectiveSelectedCriterionId > 0,
-    placeholderData: keepPreviousData,
-    queryFn: () => listQualificationScoreBands(effectiveSelectedCriterionId as number),
-    queryKey: qualificationCriteriaQueryKeys.scoreBands(effectiveSelectedCriterionId),
-    staleTime: QUALIFICATION_CRITERIA_STALE_TIME,
-  });
+  const enabledScoreBandsQuery = useQualificationScoreBandsQuery(tabQueryEnabled, effectiveSelectedCriterionId);
 
   const scoreBandRows = useMemo<ScoreBandRow[]>(
     () => [...draftScoreBandRows, ...(enabledScoreBandsQuery.data ?? [])],
@@ -227,86 +197,27 @@ export function QualificationCriteriaPage() {
   const selectedAgency = agencyRows.find((agency) => agency.id === effectiveSelectedAgencyId) ?? null;
   const selectedCriterion = criterionRows.find((criterion) => criterion.id === effectiveSelectedCriterionId) ?? null;
 
-  const invalidateAgencies = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["qualification-criteria", "agencies"] }),
-    [queryClient],
-  );
-
-  const invalidateCriteria = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["qualification-criteria", "criteria"] }),
-    [queryClient],
-  );
-
-  const invalidateScoreBands = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["qualification-criteria", "score-bands"] }),
-    [queryClient],
-  );
-
-  const saveAgencyMutation = useMutation({
-    mutationFn: async (row: ReviewAgencyRow) => (row.isNew ? createQualificationReviewAgency(toAgencyRequest(row)) : updateQualificationReviewAgency(row.id, toAgencyRequest(row))),
-    onSuccess: async (saved, row) => {
-      setDraftAgencyRows((current) => current.filter((item) => item.id !== row.id));
-      setSelectedAgencyId(saved.id);
-      await invalidateAgencies();
-      showSuccess("기관 정보를 저장했습니다.");
-    },
-  });
-
-  const saveCriterionMutation = useMutation({
-    mutationFn: async (row: ReviewCriterionRow) =>
-      row.isNew ? createQualificationReviewCriterion(toCriterionRequest(row)) : updateQualificationReviewCriterion(row.id, toCriterionRequest(row)),
-    onSuccess: async (saved, row) => {
-      setDraftCriterionRows((current) => current.filter((item) => item.id !== row.id));
-      setSelectedCriterionId(saved.id);
-      await invalidateCriteria();
-      showSuccess("시행기준을 저장했습니다.");
-    },
-  });
-
-  const saveScoreBandMutation = useMutation({
-    mutationFn: async (row: ScoreBandRow) =>
-      row.isNew ? createQualificationScoreBand(toScoreBandRequest(row)) : updateQualificationScoreBand(row.id, toScoreBandRequest(row)),
-    onSuccess: async (_saved, row) => {
-      setDraftScoreBandRows((current) => current.filter((item) => item.id !== row.id));
-      await invalidateScoreBands();
-      showSuccess("가격구간을 저장했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (target: DeleteTarget) => {
-      if (target.kind === "agency") {
-        await deleteQualificationReviewAgency(target.id);
-      }
-      if (target.kind === "criterion") {
-        await deleteQualificationReviewCriterion(target.id);
-      }
-      if (target.kind === "scoreBand") {
-        await deleteQualificationScoreBand(target.id);
-      }
+  const { deleteMutation, saveAgencyMutation, saveCriterionMutation, saveScoreBandMutation } = useQualificationCriteriaMutations({
+    saveAgency: (row: ReviewAgencyRow) => row.isNew ? createQualificationReviewAgency(toAgencyRequest(row)) : updateQualificationReviewAgency(row.id, toAgencyRequest(row)),
+    saveCriterion: (row: ReviewCriterionRow) => row.isNew ? createQualificationReviewCriterion(toCriterionRequest(row)) : updateQualificationReviewCriterion(row.id, toCriterionRequest(row)),
+    saveScoreBand: (row: ScoreBandRow) => row.isNew ? createQualificationScoreBand(toScoreBandRequest(row)) : updateQualificationScoreBand(row.id, toScoreBandRequest(row)),
+    deleteTarget: async (target: DeleteTarget) => {
+      if (target.kind === "agency") await deleteQualificationReviewAgency(target.id);
+      if (target.kind === "criterion") await deleteQualificationReviewCriterion(target.id);
+      if (target.kind === "scoreBand") await deleteQualificationScoreBand(target.id);
       return target;
     },
-    onSuccess: async (target) => {
-      if (target.kind === "agency") {
-        setSelectedAgencyId(null);
-        setSelectedCriterionId(null);
-        await Promise.all([invalidateAgencies(), invalidateCriteria(), invalidateScoreBands()]);
-      }
-      if (target.kind === "criterion") {
-        setSelectedCriterionId(null);
-        await Promise.all([invalidateCriteria(), invalidateScoreBands()]);
-      }
-      if (target.kind === "scoreBand") {
-        await invalidateScoreBands();
-      }
+    onAgencySaved: (saved, row) => { setDraftAgencyRows((current) => current.filter((item) => item.id !== row.id)); setSelectedAgencyId(saved.id); showSuccess("평가기관 정보를 저장했습니다."); },
+    onCriterionSaved: (saved, row) => { setDraftCriterionRows((current) => current.filter((item) => item.id !== row.id)); setSelectedCriterionId(saved.id); showSuccess("심사기준을 저장했습니다."); },
+    onScoreBandSaved: (_saved, row) => { setDraftScoreBandRows((current) => current.filter((item) => item.id !== row.id)); showSuccess("가격구간을 저장했습니다."); },
+    onDeleted: (target) => {
+      if (target.kind === "agency") { setSelectedAgencyId(null); setSelectedCriterionId(null); }
+      if (target.kind === "criterion") setSelectedCriterionId(null);
       setDeleteTarget(null);
       showSuccess("선택한 항목을 삭제했습니다.");
     },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "삭제하지 못했습니다.");
-    },
+    onError: (error) => showError(error instanceof Error ? error.message : "요청에 실패했습니다."),
   });
-
   const updateRowMode = (
     setter: (updater: (current: GridRowModesModel) => GridRowModesModel) => void,
     id: GridRowId,

@@ -12,7 +12,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
-import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -24,7 +23,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
-import { listCertifications } from "@/modules/code/certifications/api";
+import { useCertificationsQuery } from "@/modules/code/certifications/application/useCertificationManagement";
 import { toSelectOptions, type SelectOption } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
@@ -196,11 +195,7 @@ export function PqParticipatingEngineersPage() {
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: tabQueryEnabled });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
 
-  const certificationsQuery = useQuery({
-    queryKey: ["code-certifications"],
-    queryFn: listCertifications,
-    enabled: tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq),
-  });
+  const certificationsQuery = useCertificationsQuery(tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq));
 
   const { candidates, candidatesPage, candidatesQuery, selectedEngineersQuery } = usePqParticipatingEngineerQueries({
     appliedFilters,

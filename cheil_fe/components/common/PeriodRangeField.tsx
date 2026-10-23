@@ -4,6 +4,7 @@ import { Box, MenuItem, TextField, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 import { standardFieldSx } from "@/components/common/FormControls";
+import { toCompactDate, toDateInputValue } from "@/modules/common/formatters";
 
 export type PeriodRangeOption<TValue extends string> = {
   label: string;
@@ -22,14 +23,7 @@ export type PeriodRangeFieldProps<TValue extends string> = {
   sx?: SxProps<Theme>;
 };
 
-export const toCompactDate = (value: string) => value.replace(/-/g, "");
-
-export const toDateInputValue = (value: string) => {
-  if (/^\d{8}$/.test(value)) {
-    return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-  }
-  return value;
-};
+export { toCompactDate, toDateInputValue };
 
 export function PeriodRangeField<TValue extends string>({
   endValue,

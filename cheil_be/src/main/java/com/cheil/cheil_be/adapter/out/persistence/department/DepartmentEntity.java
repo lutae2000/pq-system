@@ -14,7 +14,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
 /**
  * Entity mapping for the department table.

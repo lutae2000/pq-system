@@ -1,11 +1,11 @@
-package com.cheil.cheil_be.application.commondepartment.port.out;
+package com.cheil.cheil_be.application.department.port.out;
 
 import java.util.List;
 import java.util.Optional;
 
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
-public interface CommonDepartmentRepository {
+public interface DepartmentRepository {
 
     List<Department> findAll();
 

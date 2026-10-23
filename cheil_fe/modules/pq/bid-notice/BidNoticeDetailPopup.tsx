@@ -2,14 +2,12 @@
 
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import { Alert, Box, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Typography } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
-import { dateOnly, dateTimeText, text, ynToBool } from "@/modules/common/formatters";
 import { BidNoticeDetailDialog } from "@/modules/pq/bid-notice/BidNoticeDetailDialog";
-import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
-import { getBidNotice, type BidNoticeDetailOptions, type BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import type { BidNoticeDetailOptions } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { useBidNoticeDetail } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 
 type BidNoticeDetailPopupProps = {
   bidSeq: number | null;
@@ -18,122 +16,8 @@ type BidNoticeDetailPopupProps = {
   readOnly?: boolean;
 };
 
-const emptyBidNoticeRecord = (): BidNoticeRecord => ({
-  active: true,
-  baseAmount: 0,
-  bidDate: "",
-  interviewDate: "",
-  bidStyle: "",
-  bidMethod: "",
-  bidNo: "",
-  bidClosingDate: "",
-  bidType: "",
-  bidTypeLabel: "",
-  bidMethodLabel: "",
-  businessField: "",
-  fieldOfWorkLabel: "",
-  businessScope: "",
-  scopeOfWorkLabel: "",
-  businessType: "",
-  businessTypeLabel: "",
-  category: "공고",
-  client: "",
-  orderClientName: "",
-  content: "",
-  department: "",
-  departmentName: "",
-  draftNote: "",
-  electronicVendor: "",
-  endDate: "",
-  estimateAmount: 0,
-  designAmt: 0,
-  id: "",
-  managerConfirmed: false,
-  noticeDate: "",
-  onSiteMeetingDate: "",
-  participationStatus: "",
-  finalParticipationStatus: "",
-  reasonOfAbsenceCode: "",
-  pqRegistrationDate: "",
-  pqSubmissionDate: "",
-  pqDecideEmpno: "",
-  projectName: "",
-  procurementMethod: "",
-  orderMethodLabel: "",
-  representativeVendor: "",
-  bidSubmissionDate: "",
-  writerName: "",
-  seqNo: 0,
-  sortOrder: 0,
-  startDate: "",
-  tpSubmissionDate: "",
-  bidSuccessYn: "",
-  bidSuccessYnLabel: "",
-  visible: true,
-});
-
-const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
-  ...emptyBidNoticeRecord(),
-  active: true,
-  baseAmount: 0,
-  bidDate: dateTimeText(item.bidDate),
-  interviewDate: dateOnly(item.interviewDate),
-  bidStyle: text(item.processTag),
-  bidMethod: text(item.bidMethod),
-  bidMethodLabel: text(item.bidMethodLabel),
-  bidNo: item.bidSeq ? String(item.bidSeq) : "",
-  bidClosingDate: dateTimeText(item.bidClosingDate),
-  bidType: text(item.bidType),
-  bidTypeLabel: text(item.bidTypeLabel),
-  businessField: text(item.fieldOfWorkCode) as BidNoticeRecord["businessField"],
-  fieldOfWorkLabel: text(item.fieldOfWorkLabel),
-  businessScope: text(item.scopeOfWorkCode) as BidNoticeRecord["businessScope"],
-  scopeOfWorkLabel: text(item.scopeOfWorkLabel),
-  businessType: text(item.businessType),
-  businessTypeLabel: text(item.businessTypeLabel),
-  category: "공고",
-  client: text(item.orderClient),
-  orderClientName: text(item.orderClientName),
-  content: "",
-  department: text(item.departmentCode) as BidNoticeRecord["department"],
-  departmentName: text(item.departmentName),
-  draftNote: text(item.remark),
-  electronicVendor: "",
-  endDate: dateOnly(item.bidClosingDate),
-  designAmt: Number(item.designAmt ?? 0),
-  estimateAmount: Number(item.designAmt ?? 0),
-  id: item.bidSeq ? String(item.bidSeq) : "",
-  managerConfirmed: ynToBool(item.bidSuccessYn),
-  noticeDate: dateOnly(item.announceDate),
-  onSiteMeetingDate: dateTimeText(item.siteBriefingDate),
-  participationStatus: text(item.participateYnLabel) || text(item.participateYn),
-  finalParticipationStatus: text(item.participateYn),
-  reasonOfAbsenceCode: text(item.reasonOfAbsenceCode),
-  pqRegistrationDate: dateTimeText(item.pqRegistDate),
-  pqSubmissionDate: dateTimeText(item.pqSubmitDate),
-  pqDecideEmpno: text(item.pqDecideEmpno),
-  projectName: text(item.projectName),
-  procurementMethod: text(item.orderMethod),
-  orderMethodLabel: text(item.orderMethodLabel),
-  representativeVendor: text(item.primeContractor),
-  bidSubmissionDate: dateTimeText(item.bidSubmissionDate),
-  writerName: text(item.superDecideEmpno),
-  seqNo: item.bidSeq ?? 0,
-  sortOrder: item.bidSeq ?? 0,
-  startDate: dateOnly(item.announceDate),
-  tpSubmissionDate: dateTimeText(item.tpSubmitDate),
-  bidSuccessYn: text(item.bidSuccessYn),
-  bidSuccessYnLabel: item.bidSuccessYnLabel ?? (item.bidSuccessYn === "Y" ? "낙찰" : "미낙찰"),
-  visible: true,
-});
-
 export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }: BidNoticeDetailPopupProps) {
-  const detailQuery = useQuery({
-    queryKey: ["bid-notice-detail-popup", bidSeq],
-    queryFn: () => getBidNotice(bidSeq ?? 0),
-    enabled: open && Boolean(bidSeq),
-    refetchOnMount: "always",
-  });
+  const detailQuery = useBidNoticeDetail(bidSeq, open);
 
   const bidMethodOptions = useCommonCodeLevel2Options("ZA", undefined, { enabled: open });
   const businessFieldOptions = useCommonCodeLevel2Options("DA", undefined, { enabled: open });
@@ -185,7 +69,7 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
         options={detailOptions}
         open={open}
         readOnly={readOnly}
-        record={toBidNoticeRecord(detailQuery.data)}
+        record={detailQuery.data}
         saveDisabled
         deleteDisabled
       />

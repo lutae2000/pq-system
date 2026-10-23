@@ -23,17 +23,18 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { DateTimeInput } from "@/components/common/DateTimeInput";
+import { DetailSectionCard } from "@/components/common/DetailSectionCard";
 import { FileActionCard, type FileActionCardFileItem } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { formatMoney } from "@/modules/common/formatters";
-import { getClientCode, listClientCodes } from "@/modules/code/clients/api";
+import { MoneyInputField } from "@/components/common/MoneyInputField";
+import { formatMoney, toCompactDate, toDateInputValue } from "@/modules/common/formatters";
+import { CLIENT_CODE_PAGE_SIZE } from "@/modules/code/clients/api";
 import type { BidNoticeAttachmentState, BidNoticeRecord, AttachmentKey } from "@/modules/pq/bid-notice/bidNotice.types";
 import type { BidNoticeDetailOptions, BidNoticeOption } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 import { ScheduleTable as G2bScheduleTable } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateDetailDialog";
-import { useUserOptions } from "@/modules/common/reference/useReferenceOptions";
+import { useClientByCode, useClientOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type BidNoticeDetailDialogProps = {
   attachments?: BidNoticeAttachmentState;
@@ -68,53 +69,6 @@ const attachmentLabels: Record<AttachmentKey, string> = {
 };
 
 const attachmentOrder: AttachmentKey[] = ["announcement", "evaluation", "guide", "specification", "submission"];
-
-function SectionCard({
-  children,
-  description,
-  title,
-}: {
-  children: ReactNode;
-  description?: string;
-  title: string;
-}) {
-  return (
-    <Box
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 1,
-        bgcolor: "background.paper",
-        boxShadow: "0 1px 1px rgba(15, 23, 42, 0.04)",
-        overflow: "hidden",
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          bgcolor: "rgba(15, 23, 42, 0.04)",
-          borderBottom: "1px solid",
-          borderBottomColor: "divider",
-          display: "flex",
-          minHeight: 36,
-          px: 1.25,
-        }}
-      >
-        <Typography sx={{ fontSize: 14, fontWeight: 800 }} variant="subtitle1">
-          {title}
-        </Typography>
-      </Box>
-      <Box sx={{ p: 1 }}>
-        {description ? (
-          <Typography color="text.secondary" sx={{ mb: 1 }} variant="body2">
-            {description}
-          </Typography>
-        ) : null}
-        {children}
-      </Box>
-    </Box>
-  );
-}
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
@@ -244,25 +198,19 @@ function ClientAutocompleteField({
 }) {
   const [keyword, setKeyword] = useState("");
   const searchKeyword = keyword || value || initialSearchKeyword;
-  const selectedClientQuery = useQuery({
-    queryKey: ["bid-notice-client", value],
-    queryFn: () => getClientCode(value),
-    enabled: Boolean(value),
-    staleTime: 5 * 60 * 1000,
-  });
-  const clientsQuery = useQuery({
-    queryKey: ["bid-notice-client-options", searchKeyword],
-    queryFn: () =>
-      listClientCodes({
-        businessName: searchKeyword,
-        companyType: "",
-        orderClass: "",
-        page: 0,
-      }),
-    staleTime: 60 * 1000,
-  });
+  const selectedClientQuery = useClientByCode(value);
+  const clientsQuery = useClientOptions(
+    {
+      businessName: searchKeyword,
+      companyType: "",
+      orderClass: "",
+      page: 0,
+      size: CLIENT_CODE_PAGE_SIZE,
+    },
+    { enabled: !readOnly || Boolean(value || initialSearchKeyword.trim()) },
+  );
   const options = useMemo(() => {
-    const mapped = (clientsQuery.data?.content ?? []).map((client) => ({
+    const mapped = clientsQuery.items.map((client) => ({
       label: client.orderName ? `${client.orderName} (${client.clientCode})` : client.clientCode,
       value: client.clientCode,
     }));
@@ -288,19 +236,19 @@ function ClientAutocompleteField({
     }
 
     return [...uniqueOptions.values()];
-  }, [clientsQuery.data?.content, selectedClientQuery.data, value]);
+  }, [clientsQuery.items, selectedClientQuery.data, value]);
   const selectedOption = options.find((option) => option.value === value) ?? null;
 
   useEffect(() => {
     if (readOnly || value || !initialSearchKeyword.trim() || clientsQuery.isLoading) return;
     const normalizedKeyword = initialSearchKeyword.trim().toLowerCase();
-    const matchedClient = clientsQuery.data?.content.find(
+    const matchedClient = clientsQuery.items.find(
       (client) => client.orderName?.trim().toLowerCase() === normalizedKeyword,
     );
     if (matchedClient) {
       onChange(matchedClient.clientCode);
     }
-  }, [clientsQuery.data?.content, clientsQuery.isLoading, initialSearchKeyword, onChange, readOnly, value]);
+  }, [clientsQuery.items, clientsQuery.isLoading, initialSearchKeyword, onChange, readOnly, value]);
 
   return (
     <LabeledField label={label}>
@@ -399,38 +347,6 @@ function UserAutocompleteField({
   );
 }
 
-function MoneyField({
-  label,
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  readOnly?: boolean;
-  value: number;
-}) {
-  const formattedValue = value ? new Intl.NumberFormat("ko-KR").format(value) : "";
-
-  return (
-    <LabeledField label={label}>
-      <TextField
-        fullWidth
-        inputMode="numeric"
-        onChange={(event) => {
-          const digits = event.target.value.replace(/[^\d]/g, "");
-          onChange(digits ? Number(digits) : 0);
-        }}
-        placeholder="0"
-        size="small"
-        slotProps={{ htmlInput: { readOnly } }}
-        sx={standardFieldSx}
-        value={formattedValue}
-      />
-    </LabeledField>
-  );
-}
-
 function DateTimeField({
   label,
   onChange,
@@ -456,12 +372,12 @@ function DateYmdField({
   readOnly?: boolean;
   value: string;
 }) {
-  const inputValue = /^\d{8}$/.test(value) ? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}` : value.slice(0, 10);
+  const inputValue = toDateInputValue(value);
 
   const field = (
     <TextField
       fullWidth
-      onChange={(event) => onChange(event.target.value.replaceAll("-", ""))}
+      onChange={(event) => onChange(toCompactDate(event.target.value))}
       size="small"
       slotProps={{ htmlInput: { readOnly } }}
       sx={standardFieldSx}
@@ -694,7 +610,7 @@ export function BidNoticeDetailDialog({
               alignItems: "start",
             }}
           >
-            <SectionCard title="기본 정보">
+          <DetailSectionCard title="기본 정보">
               <Stack spacing={1}>
                 <Stack spacing={1}>
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "120px minmax(0, 1fr)" } }}>
@@ -726,7 +642,9 @@ export function BidNoticeDetailDialog({
                   </Box>
 
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
-                    <MoneyField label="설계금액" onChange={(value) => onFieldChange("estimateAmount", value)} readOnly={readOnly} value={record.estimateAmount} />
+                    <LabeledField label="설계금액">
+                      <MoneyInputField hideZero integerOnly onChange={(value) => onFieldChange("estimateAmount", value ?? 0)} placeholder="0" readOnly={readOnly} value={record.estimateAmount} />
+                    </LabeledField>
                     <SelectField
                       label="발주방법"
                       onChange={(value) => onFieldChange("procurementMethod", value)}
@@ -827,10 +745,10 @@ export function BidNoticeDetailDialog({
                   />
                 </Box>
               </Stack>
-            </SectionCard>
+            </DetailSectionCard>
 
             <Stack spacing={1.25}>
-              <SectionCard title="심사 결과">
+              <DetailSectionCard title="심사 결과">
                 <Box
                   sx={{
                     border: "1px solid",
@@ -870,9 +788,9 @@ export function BidNoticeDetailDialog({
                     />
                   </Box>
                 </Box>
-              </SectionCard>
+              </DetailSectionCard>
 
-              <SectionCard title="일정 정보">
+              <DetailSectionCard title="일정 정보">
                 <Stack spacing={1}>
                   <CategoryBlock title="공고일자">
                     <DateYmdField onChange={(value) => onFieldChange("noticeDate", value)} readOnly={readOnly} value={record.noticeDate} />
@@ -903,11 +821,11 @@ export function BidNoticeDetailDialog({
                   </CategoryBlock>
 
                 </Stack>
-              </SectionCard>
+              </DetailSectionCard>
             </Stack>
 
             <Stack spacing={1.25}>
-              <SectionCard title="첨부 자료">
+              <DetailSectionCard title="첨부 자료">
                 <Stack spacing={1}>
                   {sourceAttachments.length > 0 ? (
                     <Box sx={{ bgcolor: "rgba(25, 118, 210, 0.035)", border: "1px solid", borderColor: "rgba(25, 118, 210, 0.22)", borderRadius: 1, p: 1 }}>
@@ -956,7 +874,7 @@ export function BidNoticeDetailDialog({
                     />
                   ))}
                 </Stack>
-              </SectionCard>
+              </DetailSectionCard>
             </Stack>
           </Box>
         </Stack>

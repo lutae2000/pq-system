@@ -1,13 +1,13 @@
-package com.cheil.cheil_be.application.commondepartment.port.in;
+package com.cheil.cheil_be.application.department.port.in;
 
 import java.time.Instant;
 import java.time.LocalDate;
 
 import com.cheil.cheil_be.application.common.validation.InputValues;
 import com.cheil.cheil_be.common.text.StringValues;
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
-public record CommonDepartmentUpsertCommand(
+public record DepartmentUpsertCommand(
         String deptCode,
         String deptName,
         String deptDiv,
@@ -22,7 +22,7 @@ public record CommonDepartmentUpsertCommand(
         String costDept
 ) {
 
-    public CommonDepartmentUpsertCommand {
+    public DepartmentUpsertCommand {
         deptCode = InputValues.requiredText(deptCode, 20, "deptCode");
         deptName = InputValues.requiredText(deptName, 100, "deptName");
         deptDiv = InputValues.requiredText(deptDiv, 10, "deptDiv");

@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.commondepartment.service;
+package com.cheil.cheil_be.application.department.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -23,14 +23,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUpsertCommand;
-import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.application.department.port.in.DepartmentUpsertCommand;
+import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
+import com.cheil.cheil_be.domain.department.Department;
 
 @ExtendWith(MockitoExtension.class)
 class DepartmentAdminServiceTest {
 
-    private final InMemoryCommonDepartmentRepository repository = new InMemoryCommonDepartmentRepository();
+    private final InMemoryDepartmentRepository repository = new InMemoryDepartmentRepository();
     private final DepartmentCacheService departmentCacheService = mock(DepartmentCacheService.class);
     private final DepartmentAdminService service = new DepartmentAdminService(
             repository,
@@ -55,7 +55,7 @@ class DepartmentAdminServiceTest {
 
     @Test
     void createRejectsOverlongValuesBeforeJpaCommit() {
-        Throwable thrown = catchThrowable(() -> service.create(new CommonDepartmentUpsertCommand(
+        Throwable thrown = catchThrowable(() -> service.create(new DepartmentUpsertCommand(
                 "D".repeat(21),
                 "\uBD80\uC11C",
                 "1",
@@ -79,7 +79,7 @@ class DepartmentAdminServiceTest {
 
     @Test
     void createStoresValidDepartment() {
-        Department created = service.create(new CommonDepartmentUpsertCommand(
+        Department created = service.create(new DepartmentUpsertCommand(
                 "D001",
                 "\uBD80\uC11C",
                 "1",
@@ -117,7 +117,7 @@ class DepartmentAdminServiceTest {
                 null
         ));
 
-        Department updated = service.update("DSR000", new CommonDepartmentUpsertCommand(
+        Department updated = service.update("DSR000", new DepartmentUpsertCommand(
                 "DSR000",
                 "\uB3C4\uB85C\uC0AC\uC5C5\uBD80 \uD14C\uC2A4\uD2B8",
                 "1",
@@ -155,7 +155,7 @@ class DepartmentAdminServiceTest {
                 null
         ));
 
-        Throwable thrown = catchThrowable(() -> service.update("DSR000", new CommonDepartmentUpsertCommand(
+        Throwable thrown = catchThrowable(() -> service.update("DSR000", new DepartmentUpsertCommand(
                 "DSR999",
                 "\uB3C4\uB85C\uC0AC\uC5C5\uBD80 \uD14C\uC2A4\uD2B8",
                 "1",
@@ -175,7 +175,7 @@ class DepartmentAdminServiceTest {
         assertThat(ex.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST);
     }
 
-    private static final class InMemoryCommonDepartmentRepository implements CommonDepartmentRepository {
+    private static final class InMemoryDepartmentRepository implements DepartmentRepository {
 
         private final Map<String, Department> departments = new HashMap<>();
 
@@ -195,17 +195,17 @@ class DepartmentAdminServiceTest {
         }
 
         @Override
-        public Department save(Department commonDepartment) {
-            departments.put(commonDepartment.deptCode(), commonDepartment);
-            return commonDepartment;
+        public Department save(Department department) {
+            departments.put(department.deptCode(), department);
+            return department;
         }
 
         int savedCount() {
             return departments.size();
         }
 
-        void put(Department commonDepartment) {
-            departments.put(commonDepartment.deptCode(), commonDepartment);
+        void put(Department department) {
+            departments.put(department.deptCode(), department);
         }
     }
 }

@@ -10,6 +10,7 @@ import {
   type SystemRoleUpsertRequest,
 } from "@/modules/system/roles/api";
 import { rolePermissionQueryKeys } from "@/modules/system/roles/application/queryKeys";
+import { referenceQueryKeys } from "@/modules/common/reference/queryKeys";
 
 export function useRolePermissionMutations({
   canCreate,
@@ -39,6 +40,7 @@ export function useRolePermissionMutations({
     },
     onSuccess: async (saved) => {
       await invalidateRoles();
+      await queryClient.invalidateQueries({ queryKey: referenceQueryKeys.rolesRoot });
       onRoleSaved(saved);
     },
     onError: (error) => onError(error, "역할 상세를 저장하지 못했습니다."),
@@ -63,6 +65,7 @@ export function useRolePermissionMutations({
     },
     onSuccess: async () => {
       await invalidateRoles();
+      await queryClient.invalidateQueries({ queryKey: referenceQueryKeys.rolesRoot });
       onDeleted();
     },
     onError: (error) => onError(error, "역할을 삭제하지 못했습니다."),

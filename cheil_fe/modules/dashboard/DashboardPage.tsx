@@ -7,7 +7,6 @@ import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { Box, Card, CardContent, Grid, LinearProgress, Stack, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { DashboardChartCard } from "./DashboardChartCard";
 import { MonthlyAwardAmountChart } from "./MonthlyAwardAmountChart";
@@ -16,7 +15,8 @@ import { MonthlyCategoryStackedChart } from "./MonthlyCategoryStackedChart";
 import type { CategoryMonthlySeries, DashboardCategory, MonthlyAwardAmountRecord, MonthlyBidRecord } from "./dashboard.types";
 import type { DashboardScheduleEvent } from "./dashboardSchedule.data";
 import type { BidNoticeAttachmentState, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
-import { getBidNotice, type BidNoticeDetailOptions, type BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import type { BidNoticeDetailOptions, BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { useDashboardBidNoticeQuery } from "@/modules/dashboard/application/useDashboardBidNoticeQuery";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
 
@@ -307,11 +307,7 @@ export function DashboardPage() {
       departmentOptions.options,
     ],
   );
-  const detailQuery = useQuery({
-    queryKey: ["dashboard-bid-notice-detail", selectedSchedule?.bidSeq],
-    queryFn: () => getBidNotice(selectedSchedule?.bidSeq ?? 0),
-    enabled: isTabActive && Boolean(selectedSchedule?.bidSeq),
-  });
+  const detailQuery = useDashboardBidNoticeQuery(isTabActive, selectedSchedule?.bidSeq);
 
   const selectedRecord = useMemo(
     () => (detailQuery.data ? toBidNoticeRecord(detailQuery.data) : emptyBidNoticeRecord()),

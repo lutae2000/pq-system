@@ -25,7 +25,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridRowId, GridRowParams } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -36,7 +35,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 
-import { createCertification, deleteCertification, listCertifications, updateCertification } from "./api";
+import { useCertificationManagement } from "./application/useCertificationManagement";
 import type { CertificationRecord, CertificationUpsertRequest } from "./certificates.types";
 
 type CertificationFilters = {
@@ -135,14 +134,6 @@ const matchesKeyword = (record: CertificationRecord, keyword: string) => {
 export function CertificateManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
-  const certificationsQuery = useQuery({
-    queryKey: ["pq-certifications"],
-    queryFn: listCertifications,
-    enabled: tabQueryEnabled,
-  });
-
-  const records = useMemo(() => certificationsQuery.data ?? [], [certificationsQuery.data]);
   const [filters, setFilters] = useState<CertificationFilters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState<CertificationFilters>(emptyFilters);
   const [selectedId, setSelectedId] = useState<GridRowId>("");
@@ -152,7 +143,32 @@ export function CertificateManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<CertificationRecord | null>(null);
   const { showError, showSuccess } = useAppSnackbar();
 
-  const filteredRecords = useMemo(() => {
+  const { query: certificationsQuery, deleteMutation, saveMutation } = useCertificationManagement({
+    canCreate,
+    canDelete,
+    canRead,
+    canUpdate,
+    enabled: tabQueryEnabled,
+    onDeleted: (deletedCode) => {
+      const nextRecord = filteredRecords.find((record) => record.certCode !== deletedCode) ?? null;
+      setSelectedId(nextRecord?.certCode ?? "");
+      setDraft(nextRecord ? toDraft(nextRecord) : emptyDraft());
+      setIsCreating(false);
+      setDeleteTarget(null);
+      showSuccess("자격증이 삭제되었습니다.");
+    },
+    onError: (error) => showError(error instanceof Error ? error.message : "요청에 실패했습니다."),
+    onSaved: (saved) => {
+      setSelectedId(saved.certCode);
+      setIsCreating(false);
+      setDraft(toDraft(saved));
+      setSubmitted(false);
+      showSuccess("자격증 정보가 저장되었습니다.");
+    },
+  });
+  const records = useMemo(() => certificationsQuery.data ?? [], [certificationsQuery.data]);
+
+  const filteredRecords = (() => {
     const keyword = appliedFilters.keyword.trim().toLowerCase();
     return records.filter((record) => {
       const matchesKind = appliedFilters.certKind === "All" || String(record.certKind) === appliedFilters.certKind;
@@ -160,7 +176,7 @@ export function CertificateManagementPage() {
         appliedFilters.useYn === "All" || (appliedFilters.useYn === "Y" ? record.useYn : !record.useYn);
       return matchesKeyword(record, keyword) && matchesKind && matchesUseYn;
     });
-  }, [appliedFilters, records]);
+  })();
 
   const effectiveSelectedId =
     !isCreating && selectedId && filteredRecords.some((record) => record.certCode === selectedId)
@@ -169,10 +185,7 @@ export function CertificateManagementPage() {
         ? filteredRecords[0]?.certCode ?? ""
         : "";
 
-  const selectedRow = useMemo(
-    () => filteredRecords.find((record) => record.certCode === effectiveSelectedId) ?? null,
-    [effectiveSelectedId, filteredRecords],
-  );
+  const selectedRow = filteredRecords.find((record) => record.certCode === effectiveSelectedId) ?? null;
 
   const detailDraft = isCreating
     ? draft
@@ -221,51 +234,6 @@ export function CertificateManagementPage() {
   const detailDisabled = !isCreating && !selectedRow;
   const canSaveCurrent = isCreating ? canCreate : canUpdate;
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const requestBody: CertificationUpsertRequest = {
-        certCode: normalizeText(detailDraft.certCode),
-        certKind: supportedCertKind(detailDraft.certKind),
-        certName: normalizeText(detailDraft.certName),
-        satisCode: normalizeText(detailDraft.satisCode) || null,
-        satisName: normalizeText(detailDraft.satisName) || null,
-        useYn: detailDraft.useYn,
-      };
-
-      if (isCreating) {
-        return createCertification(requestBody);
-      }
-      return updateCertification(String(effectiveSelectedId), requestBody);
-    },
-    onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({ queryKey: ["pq-certifications"] });
-      setSelectedId(saved.certCode);
-      setIsCreating(false);
-      setDraft(toDraft(saved));
-      setSubmitted(false);
-      showSuccess("자격증 정보가 저장되었습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteCertification,
-    onSuccess: async (_, deletedCode) => {
-      await queryClient.invalidateQueries({ queryKey: ["pq-certifications"] });
-      const nextRecord = filteredRecords.find((record) => record.certCode !== deletedCode) ?? null;
-      setSelectedId(nextRecord?.certCode ?? "");
-      setDraft(nextRecord ? toDraft(nextRecord) : emptyDraft());
-      setIsCreating(false);
-      setDeleteTarget(null);
-      showSuccess("자격증이 삭제되었습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
-    },
-  });
-
   const handleSelect = (record: CertificationRecord) => {
     setSelectedId(record.certCode);
     setDraft(toDraft(record));
@@ -285,7 +253,18 @@ export function CertificateManagementPage() {
     if (!isValid || detailDisabled || !canSaveCurrent) {
       return;
     }
-    saveMutation.mutate();
+    saveMutation.mutate({
+      certCode: String(effectiveSelectedId),
+      creating: isCreating,
+      request: {
+        certCode: normalizeText(detailDraft.certCode),
+        certKind: supportedCertKind(detailDraft.certKind),
+        certName: normalizeText(detailDraft.certName),
+        satisCode: normalizeText(detailDraft.satisCode) || null,
+        satisName: normalizeText(detailDraft.satisName) || null,
+        useYn: detailDraft.useYn,
+      },
+    });
   };
 
   const handleSearch = () => {

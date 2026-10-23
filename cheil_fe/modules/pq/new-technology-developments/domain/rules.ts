@@ -1,8 +1,9 @@
 import type { NewTechnologyDevelopmentRecord, NewTechnologyDevelopmentRequest } from "@/modules/pq/new-technology-developments/api";
+import { todayLocalDate, toDateInputValueFromDigits } from "@/modules/common/formatters";
 
 export const TECHNOLOGY_TYPES = ["신기술", "특허", "신안"] as const;
 
-export const today = () => new Date().toISOString().slice(0, 10).replaceAll("-", "");
+export const today = () => todayLocalDate().replaceAll("-", "");
 
 export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
   id: 0,
@@ -28,13 +29,9 @@ export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
 export const text = (value: string | null | undefined) => value ?? "";
 export const compactDate = (value: string | null | undefined) => text(value).replace(/\D/g, "").slice(0, 8);
 export const formatGridDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "-";
+  return toDateInputValueFromDigits(value) || "-";
 };
-export const toDateInputValue = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
-};
+export const toDateInputValue = toDateInputValueFromDigits;
 export const display = (value: string | null | undefined) => (value?.trim() ? value : "-");
 export const formatNumber = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined ? "-" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: digits, minimumFractionDigits: digits });

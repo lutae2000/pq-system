@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.commondepartment.service;
+package com.cheil.cheil_be.application.department.service;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,29 +12,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.common.validation.InputValues;
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentSearchCondition;
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUpsertCommand;
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUseCase;
-import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
+import com.cheil.cheil_be.application.department.port.in.DepartmentSearchCondition;
+import com.cheil.cheil_be.application.department.port.in.DepartmentUpsertCommand;
+import com.cheil.cheil_be.application.department.port.in.DepartmentUseCase;
+import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
 import com.cheil.cheil_be.common.text.StringValues;
-import com.cheil.cheil_be.domain.commondepartment.Department;
+import com.cheil.cheil_be.domain.department.Department;
 
 @Service
 @RequiredArgsConstructor
-public class DepartmentAdminService implements CommonDepartmentUseCase {
+public class DepartmentAdminService implements DepartmentUseCase {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private final CommonDepartmentRepository commonDepartmentRepository;
+    private final DepartmentRepository departmentRepository;
     private final DepartmentCacheService departmentCacheService;
     private final Clock clock;
 
     @Override
     @Transactional(readOnly = true)
-    public List<Department> findAll(CommonDepartmentSearchCondition condition) {
+    public List<Department> findAll(DepartmentSearchCondition condition) {
         String keyword = condition == null ? "" : StringValues.normalize(condition.keyword()).toLowerCase(Locale.ROOT);
         Boolean useYn = condition == null ? null : condition.useYn();
 
-        return departmentCacheService.getOrLoadAll(commonDepartmentRepository::findAll).stream()
+        return departmentCacheService.getOrLoadAll(departmentRepository::findAll).stream()
                 .filter(item -> matchesKeyword(item, keyword))
                 .filter(item -> useYn == null || useYn == item.useYn())
                 .toList();
@@ -46,37 +46,37 @@ public class DepartmentAdminService implements CommonDepartmentUseCase {
         String normalizedDeptCode = InputValues.requiredText(deptCode, "deptCode");
         return departmentCacheService.getOrLoadByDeptCode(
                         normalizedDeptCode,
-                        () -> commonDepartmentRepository.findByDeptCode(normalizedDeptCode))
+                        () -> departmentRepository.findByDeptCode(normalizedDeptCode))
                 .orElseThrow(() -> ApplicationException.notFound("부서를 찾을 수 없습니다."));
     }
 
     @Override
     @Transactional
-    public Department create(CommonDepartmentUpsertCommand command) {
+    public Department create(DepartmentUpsertCommand command) {
         InputValues.requireNonNull(command, "요청 본문은 필수입니다.");
         String deptCode = command.deptCode();
-        if (commonDepartmentRepository.existsByDeptCode(deptCode)) {
+        if (departmentRepository.existsByDeptCode(deptCode)) {
             throw ApplicationException.conflict("이미 존재하는 부서 코드입니다.");
         }
-        Department saved = commonDepartmentRepository.save(command.toDomain(null, Instant.now(clock)));
-        departmentCacheService.refreshAfterCommit(saved, commonDepartmentRepository::findAll);
+        Department saved = departmentRepository.save(command.toDomain(null, Instant.now(clock)));
+        departmentCacheService.refreshAfterCommit(saved, departmentRepository::findAll);
         return saved;
     }
 
     @Override
     @Transactional
-    public Department update(String deptCode, CommonDepartmentUpsertCommand command) {
+    public Department update(String deptCode, DepartmentUpsertCommand command) {
         InputValues.requireNonNull(command, "요청 본문은 필수입니다.");
         String normalizedDeptCode = InputValues.requiredText(deptCode, "deptCode");
-        Department existing = commonDepartmentRepository.findByDeptCode(normalizedDeptCode)
+        Department existing = departmentRepository.findByDeptCode(normalizedDeptCode)
                 .orElseThrow(() -> ApplicationException.notFound("부서를 찾을 수 없습니다."));
 
         String requestedDeptCode = StringValues.normalize(command.deptCode());
         if (!requestedDeptCode.isBlank() && !normalizedDeptCode.equals(requestedDeptCode)) {
             throw ApplicationException.badRequest("path deptCode와 body deptCode가 일치해야 합니다.");
         }
-        Department saved = commonDepartmentRepository.save(command.toDomain(existing, Instant.now(clock)));
-        departmentCacheService.refreshAfterCommit(saved, commonDepartmentRepository::findAll);
+        Department saved = departmentRepository.save(command.toDomain(existing, Instant.now(clock)));
+        departmentCacheService.refreshAfterCommit(saved, departmentRepository::findAll);
         return saved;
     }
 

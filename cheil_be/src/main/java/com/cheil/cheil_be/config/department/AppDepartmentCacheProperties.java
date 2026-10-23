@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.config.commondepartment;
+package com.cheil.cheil_be.config.department;
 
 import java.time.Duration;
 

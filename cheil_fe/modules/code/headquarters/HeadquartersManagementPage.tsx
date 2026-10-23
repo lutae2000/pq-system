@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
@@ -25,7 +25,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -38,14 +37,8 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { toApiErrorMessage } from "@/lib/http/apiClient";
 
 import { CompanyAttachmentDeleteDialog } from "./CompanyAttachmentDeleteDialog";
-import {
-  createCompanyAttachment,
-  deleteCompanyAttachment,
-  getCompanyProfile,
-  updateCompanyProfile,
-  uploadFile,
-  type CompanyAttachmentRequest,
-} from "./api";
+import type { CompanyAttachmentRequest } from "./api";
+import { useHeadquartersManagement } from "@/modules/code/headquarters/application/useHeadquartersManagement";
 import type {
   CompanyAttachment,
   CompanyAttachmentType,
@@ -109,21 +102,21 @@ const formatDateTime = (value?: string | null) => {
 export function HeadquartersManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const queryClient = useQueryClient();
-  const companyQuery = useQuery({
-    queryKey: ["system-company-profile"],
-    queryFn: getCompanyProfile,
-    enabled: tabQueryEnabled,
-  });
 
-  const detail = companyQuery.data;
   const [profileDraft, setProfileDraft] = useState<CompanyProfile>(emptyProfile);
   const [attachmentTab, setAttachmentTab] = useState<CompanyAttachmentType>("FINANCIAL");
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [deleteAttachmentTarget, setDeleteAttachmentTarget] = useState<CompanyAttachment | null>(null);
   const [attachmentDraft, setAttachmentDraft] = useState(emptyAttachmentDraft);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const { showError, showSuccess } = useAppSnackbar();
+  const { showError, showSuccess } = useAppSnackbar();  const { attachmentMutation, deleteAttachmentMutation, query: companyQuery, updateMutation } = useHeadquartersManagement({
+    canCreate, canDelete, canRead, canUpdate, enabled: tabQueryEnabled,
+    onAttachmentAdded: () => { setAttachmentDialogOpen(false); setAttachmentDraft(emptyAttachmentDraft()); setAttachmentFile(null); showSuccess("첨부파일을 등록했습니다."); },
+    onAttachmentDeleted: () => { setDeleteAttachmentTarget(null); showSuccess("첨부파일을 삭제했습니다."); },
+    onError: (error, operation) => showError(toApiErrorMessage(error, operation === "profile" ? "회사 기초정보 저장에 실패했습니다." : operation === "upload" ? "첨부파일 등록에 실패했습니다." : "첨부파일 삭제에 실패했습니다.")),
+    onProfileSaved: () => showSuccess("회사 기초정보를 저장했습니다."),
+  });
+  const detail = companyQuery.data;
 
   useEffect(() => {
     if (!detail?.profile) {
@@ -136,52 +129,6 @@ export function HeadquartersManagementPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [detail?.profile]);
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["system-company-profile"] });
-
-  const updateMutation = useMutation({
-    mutationFn: updateCompanyProfile,
-    onSuccess: () => {
-      invalidate();
-      showSuccess("회사 기초정보를 저장했습니다.");
-    },
-    onError: (error) => showError(toApiErrorMessage(error, "회사 기초정보 저장에 실패했습니다.")),
-  });
-
-  const attachmentMutation = useMutation({
-    mutationFn: async () => {
-      if (!attachmentFile) {
-        throw new Error("업로드할 파일을 선택하세요.");
-      }
-      const uploaded = await uploadFile(attachmentFile);
-      return createCompanyAttachment({
-        ...attachmentDraft,
-        contentType: uploaded.contentType,
-        downloadUrl: uploaded.downloadUrl,
-        fileId: uploaded.fileId,
-        fileSize: uploaded.size,
-        originalFilename: uploaded.originalFilename,
-      });
-    },
-    onSuccess: () => {
-      invalidate();
-      setAttachmentDialogOpen(false);
-      setAttachmentDraft(emptyAttachmentDraft());
-      setAttachmentFile(null);
-      showSuccess("첨부파일을 등록했습니다.");
-    },
-    onError: (error) => showError(toApiErrorMessage(error, "첨부파일 등록에 실패했습니다.")),
-  });
-
-  const deleteAttachmentMutation = useMutation({
-    mutationFn: deleteCompanyAttachment,
-    onSuccess: () => {
-      invalidate();
-      setDeleteAttachmentTarget(null);
-      showSuccess("첨부파일을 삭제했습니다.");
-    },
-    onError: (error) => showError(toApiErrorMessage(error, "첨부파일 삭제에 실패했습니다.")),
-  });
 
   const attachments = useMemo(
     () => (detail?.attachments ?? []).filter((attachment) => attachment.attachmentType === attachmentTab),
@@ -379,7 +326,7 @@ export function HeadquartersManagementPage() {
               <Button color="inherit" onClick={() => setAttachmentDialogOpen(false)}>
                 취소
               </Button>
-              <Button disabled={!canCreate || attachmentMutation.isPending || !attachmentFile} onClick={() => attachmentMutation.mutate()} variant="contained">
+              <Button disabled={!canCreate || attachmentMutation.isPending || !attachmentFile} onClick={() => attachmentMutation.mutate({ file: attachmentFile, request: attachmentDraft })} variant="contained">
                 등록
               </Button>
             </DialogActions>

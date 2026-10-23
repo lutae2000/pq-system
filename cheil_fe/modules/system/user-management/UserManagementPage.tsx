@@ -25,7 +25,6 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CommonSelectField, defineCommonSelectDataSource } from "@/components/common/CommonSelectField";
@@ -36,14 +35,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { buildMenuTree, collectDescendantPageCodes, compareMenus, type MenuTreeNode } from "@/lib/permissions/menuPermissionTree";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { getUsers, resetUserPassword, saveUser, USER_PAGE_SIZE, type UserSearchParams } from "@/modules/system/user-management/api";
-import { listDepartments, type DepartmentRecord } from "@/modules/code/departments/api";
+import { USER_PAGE_SIZE, type UserSearchParams } from "@/modules/system/user-management/api";
+import type { DepartmentRecord } from "@/modules/code/departments/api";
 import { MenuPermissionCard, type MenuPermissionRowLike } from "@/components/common/MenuPermissionCard";
-import { listSystemMenus, type SystemMenuRecord } from "@/modules/system/menus/api";
-import { listSystemRoles, type SystemRoleRecord } from "@/modules/system/roles/api";
+import type { SystemMenuRecord } from "@/modules/system/menus/api";
+import type { SystemRoleRecord } from "@/modules/system/roles/api";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useUserManagementCommands } from "@/modules/system/user-management/application/useUserManagementCommands";
+import { useUserManagementQueries } from "@/modules/system/user-management/application/useUserManagementQueries";
 import { listUserMenuPermissions, type UserMenuPermissionRecord } from "@/modules/system/user-permission-management/api";
 import type { AuthUserAccount } from "@/types/user";
 
@@ -163,7 +163,6 @@ export function UserManagementPage() {
   const { canCreate, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { showError, showInfo, showSuccess } = useAppSnackbar();
-  const queryClient = useQueryClient();
   const initialSelectionApplied = useRef(false);
   const [activeTab, setActiveTab] = useState<UserManagementTab>("details");
   const [keyword, setKeyword] = useState("");
@@ -186,32 +185,28 @@ export function UserManagementPage() {
   const [permissionLoading, setPermissionLoading] = useState(false);
   const [permissionSaving, setPermissionSaving] = useState(false);
 
-  const { savePermissionMutation } = useUserManagementCommands({
+  const { resetPasswordMutation, saveMutation, savePermissionMutation } = useUserManagementCommands({
     canCreate,
     canUpdate,
-    onPasswordReset: () => undefined,
-    onUserSaved: () => undefined,
+    onPasswordReset: (user) => {
+      setSelectedEmployeeNo(user.employeeNo);
+      setDraftUser({ ...user, userPassword: "" });
+      setPasswordConfirm("");
+    },
+    onUserSaved: (user) => {
+      setSelectedEmployeeNo(user.employeeNo);
+      setDraftUser({ ...user, userPassword: "" });
+      setPasswordConfirm("");
+    },
     showError,
     showSuccess,
   });
 
-  const departmentsQuery = useQuery({
-    queryKey: ["departments", "useYn=true"],
-    queryFn: () => listDepartments({ useYn: true }),
-    enabled: tabQueryEnabled,
-  });
-
-  const rolesQuery = useQuery({
-    queryKey: ["system-roles", "use_yn=true"],
-    queryFn: () => listSystemRoles({ useYn: true }),
-    enabled: tabQueryEnabled,
-  });
-
-  const menuQuery = useQuery({
-    queryKey: ["system-menus"],
-    queryFn: listSystemMenus,
-    enabled: tabQueryEnabled,
-  });
+  const queryCriteria = useMemo<UserSearchParams>(
+    () => ({ keyword: appliedKeyword, page, useYn: useYnFilter, groupCode: groupFilter, deptCode: deptFilter }),
+    [appliedKeyword, deptFilter, groupFilter, page, useYnFilter],
+  );
+  const { departmentsQuery, menuQuery, rolesQuery, usersQuery } = useUserManagementQueries(tabQueryEnabled, queryCriteria, searchTick);
 
   const deptOptions = useMemo(
     () =>
@@ -252,23 +247,6 @@ export function UserManagementPage() {
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [expandedMenuCodes.length, menuTree]);
-
-  const queryCriteria = useMemo<UserSearchParams>(
-    () => ({
-      keyword: appliedKeyword,
-      page,
-      useYn: useYnFilter,
-      groupCode: groupFilter,
-      deptCode: deptFilter,
-    }),
-    [appliedKeyword, deptFilter, groupFilter, page, useYnFilter],
-  );
-
-  const usersQuery = useQuery({
-    queryKey: ["auth-users", queryCriteria, searchTick],
-    queryFn: () => getUsers(queryCriteria),
-    enabled: tabQueryEnabled,
-  });
 
   const usersPage = usersQuery.data ?? { content: EMPTY_USERS, page, size: USER_PAGE_SIZE, totalElements: 0, totalPages: 0 };
   const users = usersQuery.data?.content ?? EMPTY_USERS;
@@ -412,34 +390,6 @@ export function UserManagementPage() {
     };
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [menus, selectedUser?.loginId, showError]);
-
-  const saveMutation = useMutation({
-    mutationFn: saveUser,
-    onSuccess: (savedUser) => {
-      setSelectedEmployeeNo(savedUser.employeeNo);
-      setDraftUser({ ...savedUser, userPassword: "" });
-      setPasswordConfirm("");
-      queryClient.invalidateQueries({ queryKey: ["auth-users"] });
-      showSuccess("사용자 계정을 저장했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "사용자 계정 저장에 실패했습니다.");
-    },
-  });
-
-  const resetPasswordMutation = useMutation({
-    mutationFn: resetUserPassword,
-    onSuccess: (savedUser) => {
-      setSelectedEmployeeNo(savedUser.employeeNo);
-      setDraftUser({ ...savedUser, userPassword: "" });
-      setPasswordConfirm("");
-      queryClient.invalidateQueries({ queryKey: ["auth-users"] });
-      showSuccess("비밀번호를 0000으로 초기화했습니다.");
-    },
-    onError: (error) => {
-      showError(error instanceof Error ? error.message : "비밀번호 초기화에 실패했습니다.");
-    },
-  });
 
   const updateDraft = <K extends keyof AuthUserAccount>(key: K, value: AuthUserAccount[K]) => {
     setDraftUser((current) => ({ ...current, [key]: value }));

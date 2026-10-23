@@ -2,12 +2,9 @@ import { Chip, Typography } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 
 import type { WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
+import { toDateInputValueFromDigits as formatDate } from "@/modules/common/formatters";
 
 const normalizeDate = (value: string | null | undefined) => String(value ?? "").replace(/\D/g, "").slice(0, 8);
-const formatDate = (value: string | null | undefined) => {
-  const normalized = normalizeDate(value);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
-};
 
 export const getWorkOverlapContractStatus = (row: WorkOverlapEngineerContractRecord, referenceDate: string) => {
   const base = normalizeDate(referenceDate);

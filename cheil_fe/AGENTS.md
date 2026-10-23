@@ -174,3 +174,21 @@ modules/<area>/<feature>/
 - 한글이 포함된 파일을 수정한 뒤에는 다시 열어서 한글이 정상적으로 유지됐는지, 그리고 JSX나 SQL 문법이 깨지지 않았는지 확인한다.
 - 콘솔에서 글자가 깨져 보여도 바로 파일을 다시 쓰지 않는다. 먼저 표시 문제인지 확인하고, 파일 재저장으로 인코딩 손상을 키우지 않는다.
 - 한 번에 넓은 범위를 고치기보다, 한글 변경은 가능한 한 작은 단위로 나눠서 적용한다.
+
+## 화면 공통 요소 선택 기준
+
+- 날짜 입력의 내부 값이 `YYYYMMDD`인 화면은 `modules/common/formatters.ts`의 `toCompactDate`와 `toDateInputValue`를 사용한다. 숫자 이외의 문자가 섞인 기존 날짜·일시 문자열은 `toDateInputValueFromDigits`로 표시한다. 업무별 날짜 유효성 검사와 기간 계산은 해당 모듈에 둔다.
+- 사용자에게 보이는 오늘 날짜와 로컬 일시는 `todayLocalDate`와 `localDateTimeText`를 사용한다. `toISOString().slice(...)`는 UTC 날짜를 만들므로 한국 시간의 오늘·게시 시각·기본 조회기간에 사용하지 않는다.
+- 금액 입력은 `components/common/MoneyInputField.tsx`를 우선 사용한다. DB/API의 미입력 값이 `null`인지 `0`인지 확인하고 `onChange`에서 명시적으로 변환한다. 읽기 전용 상태를 포커스 가능하게 유지할지, `disabled`로 처리할지도 화면별로 지정한다.
+- 테두리와 제목 헤더가 있는 상세 카드에는 `DetailSectionCard`를, 제목·설명·필드 그리드가 필요한 섹션에는 `DetailFormSection`을 사용한다. 기존 화면을 전환할 때 제목 우측 액션, 본문 여백, 높이 계산을 함께 확인한다.
+- 첨부파일 업로드·삭제·정렬에는 `FileActionCard`를 사용한다. 기존 읽기 전용 첨부파일 표시와 다운로드 동작은 해당 화면 요구가 같을 때만 공통화한다.
+- 업체 선택은 `useClientOptions` 또는 `ClientSelect`를 우선 사용한다. 검색 결과 밖에 있는 기존 선택 코드의 표시가 필요하면 `useClientByCode`를 함께 사용하고, 화면마다 별도의 업체 조회 query key를 만들지 않는다.
+
+## 화면 단위 개선과 병렬 작업
+
+- 하나의 화면군을 개선할 때 `Page`, 연관 `Dialog`/`Popup`, application hook, query key, API mapper, 사용 중인 reference hook을 함께 살핀다. 화면에서 API 호출을 옮긴 뒤 같은 기능의 팝업에 남은 직접 조회도 확인한다.
+- API 응답과 요청 payload를 변환하는 함수는 `application/mapper.ts`에 둔다. `domain/rules.ts`에는 API 타입, MUI 타입, React Query 타입을 import하지 않는 순수 업무 규칙만 둔다.
+- 서버 목록의 query key는 같은 기능의 화면들이 같은 root를 사용하도록 한다. 저장·삭제 후에는 root와 관련 첨부파일·참조 데이터 키를 application command에서 무효화한다.
+- 업체·사용자·역할·부서·공사종류 관리 화면에서 원본 데이터를 변경하면 `modules/common/reference/queryKeys.ts`의 해당 root도 무효화한다. 관리 목록 키만 갱신하면 다른 화면의 선택 옵션은 이전 값을 계속 표시할 수 있다.
+- 병렬 작업은 화면군별 파일 소유권을 나누고, `components/common`, `modules/common`, `AGENTS.md` 수정은 한 작업에서 담당한다. 공통 컴포넌트의 props가 바뀌면 해당 사용처를 먼저 검색한 뒤 화면군에 적용한다.
+- 공통 변경은 대상 파일 ESLint, 전체 TypeScript 검사, 운영 빌드로 확인한다. 기존 화면의 null/0 처리, 날짜 형식, 읽기 전용 입력, 필터 초기화, 캐시 갱신이 유지되는지 변경 요약에 적는다.

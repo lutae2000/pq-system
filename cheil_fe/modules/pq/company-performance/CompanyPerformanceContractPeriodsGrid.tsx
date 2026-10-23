@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid, useEnterpriseRowActionConfirm, type EnterpriseRowActionConfirm } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { toDateInputValueFromDigits as toDateInputValue } from "@/modules/common/formatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
   createCompanyPerformanceContractPeriod,
@@ -36,11 +37,6 @@ import { tempId, text } from "@/modules/pq/company-performance/detail-tabs/detai
 type CompanyPerformanceContractPeriodsGridProps = {
   readOnly?: boolean;
   record: CompanyPerformanceRecord;
-};
-
-const toDateInputValue = (value: string | null | undefined) => {
-  const normalized = text(value).replace(/\D/g, "").slice(0, 8);
-  return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : "";
 };
 
 const toYmdText = (value: string | null | undefined) => text(value).replace(/\D/g, "").slice(0, 8);
