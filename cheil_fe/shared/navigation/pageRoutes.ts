@@ -1,9 +1,5 @@
-import { generatedPagePaths, type GeneratedPagePath } from "@/shared/navigation/pagePaths.generated";
+import { pageRegistry } from "@/shared/navigation/pageRegistry.generated";
 
-const pagePathSet = new Set<string>(generatedPagePaths);
+const pagePathSet = new Set(Object.keys(pageRegistry));
 
-export type AppPagePath = GeneratedPagePath;
-export const availablePagePaths = generatedPagePaths;
-
-export const isRegisteredPagePath = (pathname: string): pathname is AppPagePath =>
-  pagePathSet.has(pathname);
+export const isRegisteredPagePath = (pathname: string) => pagePathSet.has(pathname);

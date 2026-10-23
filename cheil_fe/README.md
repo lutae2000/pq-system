@@ -29,7 +29,7 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 
 업무 화면은 `app/`의 라우트 파일이 `modules/`의 페이지 컴포넌트를 불러오는 구조입니다. 반복 조회용 reference API와 hook은 `modules/common/reference`에 두고, 인증·권한·HTTP·전역 provider는 `lib/`와 `shared/`에서 관리합니다.
 
-`shared/navigation/pageRegistry.generated.tsx`와 `pagePaths.generated.ts`는 `scripts/generate-page-registry.mjs`가 `app/**/page.tsx`를 읽어 생성합니다. 이 파일들은 직접 수정하지 말고 라우트 페이지를 수정한 뒤 `npm run generate:page-registry` 또는 `npm run build`를 실행합니다.
+`shared/navigation/pageRegistry.generated.tsx`는 `scripts/generate-page-registry.mts`가 `app/**/page.tsx`를 읽어 생성합니다. 메뉴 경로 목록도 레지스트리에서 가져옵니다. 생성 파일은 직접 수정하지 말고 라우트 페이지를 수정한 뒤 `npm run generate:page-registry` 또는 `npm run build`를 실행합니다.
 
 ## 업무 모듈 안내
 
@@ -56,16 +56,15 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | 명령어 | 설명 |
 | --- | --- |
 | `npm install` | 패키지 설치 |
-| `npm run dev` | 개발 서버 실행 |
-| `npm run dev:local` | 로컬 개발 서버 실행 |
+| `npm run local` | `.env.local`을 사용해 로컬 백엔드로 연결 (포트 5000) |
+| `npm run dev` | `.env.development`를 사용해 개발 서버 백엔드로 연결 (포트 5000) |
 | `npm run build` | 프로덕션 빌드 |
-| `npm run start` | 빌드 결과 실행 |
 | `npm run lint` | ESLint 검사 |
 | `npm run generate:page-registry` | App Router 페이지 경로와 레지스트리 생성 |
 | `npm run storybook` | 공통 컴포넌트 Storybook 실행 |
 | `npm run build-storybook` | Storybook 정적 빌드 |
 
-기본 개발 서버는 `http://localhost:3000`에서 실행됩니다.
+`local`과 `dev`의 화면 주소는 `http://localhost:5000`입니다. Next.js는 `local` 실행 시 `.env.local`을 자동으로 읽습니다. `dev`는 `.env.development`를 먼저 읽어 개발 서버 API(`http://192.168.2.9/api`)를 사용합니다. 운영 배포에서는 Jenkins가 Dockerfile의 `npm run build`로 이미지를 만들고, Kubernetes가 이미지의 `node server.js`를 실행합니다. `NEXT_PUBLIC_` 값은 빌드 시점에 결정되므로 Jenkins 빌드에 운영값을 전달해야 합니다. 실행 환경을 바꿀 때는 기존 서버를 종료한 뒤 다시 시작합니다.
 
 ## 환경 변수
 
@@ -75,7 +74,7 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | `NEXT_API_KEY` | API 호출용 `x-api-key` 값 |
 | `NEXT_SERVICE_ID` | API 호출용 `x-service-id` 값 |
 
-환경별 파일은 `.env.local`, `.env.development`, `.env.production`을 사용합니다.
+환경별 파일은 `.env.local`, `.env.development`, `.env.production`을 사용합니다. `.env.development`의 `NEXT_API_BASE_URL`에는 개발 서버 주소를 지정합니다. 환경 파일은 Git에 포함되지 않습니다.
 
 ## API 호출 규칙
 
