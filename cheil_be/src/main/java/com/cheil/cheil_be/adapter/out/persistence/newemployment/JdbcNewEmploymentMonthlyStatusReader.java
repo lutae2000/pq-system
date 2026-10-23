@@ -8,8 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatus;
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusPivot;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatus;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusPivot;
 import com.cheil.cheil_be.application.newemployment.port.out.NewEmploymentMonthlyStatusReader;
 
 @Repository

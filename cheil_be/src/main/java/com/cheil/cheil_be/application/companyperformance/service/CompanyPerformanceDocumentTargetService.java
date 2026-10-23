@@ -1,5 +1,9 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -31,7 +35,7 @@ public class CompanyPerformanceDocumentTargetService {
 
     @Transactional(readOnly = true)
     public List<CompanyPerformanceDocumentTargetResponse> findByBidSeq(Long bidSeq) {
-        var targets = targetRepository.findByBidSeqOrderByTargetId(requiredBidSeq(bidSeq));
+        var targets = targetRepository.findByBidSeqOrderByTargetId(requiredPositive(bidSeq, "bidSeq"));
         Map<Long, CompanyPerformanceResponse> performances = companyPerformanceRepository.findByIds(
                         targets.stream().map(CompanyPerformanceDocumentTargetEntity::getCompanyPerformanceSeq).toList())
                 .stream()
@@ -54,7 +58,7 @@ public class CompanyPerformanceDocumentTargetService {
 
     @Transactional
     public List<CompanyPerformanceDocumentTargetResponse> add(Long bidSeq, List<Long> companyPerformanceSeqs) {
-        Long requiredBidSeq = requiredBidSeq(bidSeq);
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
         if (companyPerformanceSeqs == null || companyPerformanceSeqs.isEmpty()) return findByBidSeq(requiredBidSeq);
         List<Long> distinctSeqs = companyPerformanceSeqs.stream().distinct().toList();
         if (distinctSeqs.stream().anyMatch(seq -> seq == null)) {
@@ -84,7 +88,7 @@ public class CompanyPerformanceDocumentTargetService {
 
     @Transactional
     public List<CompanyPerformanceDocumentTargetResponse> addByConditions(Long bidSeq, List<CompanyPerformanceDocumentTargetCondition> conditions) {
-        Long requiredBidSeq = requiredBidSeq(bidSeq);
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
         if (conditions == null || conditions.isEmpty()) {
             return findByBidSeq(requiredBidSeq);
         }
@@ -120,7 +124,7 @@ public class CompanyPerformanceDocumentTargetService {
     public void delete(Long bidSeq, Long targetId) {
         CompanyPerformanceDocumentTargetEntity target = targetRepository.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.getBidSeq().equals(requiredBidSeq(bidSeq))) {
+        if (!target.getBidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다.");
         }
         targetRepository.delete(target);
@@ -133,15 +137,11 @@ public class CompanyPerformanceDocumentTargetService {
         }
         CompanyPerformanceDocumentTargetEntity target = targetRepository.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.getBidSeq().equals(requiredBidSeq(bidSeq))) {
+        if (!target.getBidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다.");
         }
         target.setDisplayOrder(request.displayOrder());
         targetRepository.save(target);
     }
 
-    private Long requiredBidSeq(Long bidSeq) {
-        if (bidSeq == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidSeq는 필수입니다.");
-        return bidSeq;
-    }
 }

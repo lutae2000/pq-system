@@ -48,6 +48,7 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
     private static final String FORBIDDEN_MESSAGE = "해당 메뉴에 대한 권한이 없습니다.";
+    private static final String PASSWORD_CHANGE_PATH = "/auth/password";
 
     private final MenuPermissionQueryUseCase menuPermissionQueryUseCase;
     private final AppSecurityProperties appSecurityProperties;
@@ -115,7 +116,15 @@ public class MenuPermissionAuthorizationFilter extends OncePerRequestFilter {
     }
 
     private boolean isAuthenticatedOnlyRequest(HttpServletRequest request) {
-        return isAuthenticatedOnlyPath(request.getRequestURI());
+        if (!isAuthenticatedOnlyPath(request.getRequestURI())) {
+            return false;
+        }
+        String normalizedPath = request.getRequestURI().startsWith("/api/")
+                ? request.getRequestURI().substring(4)
+                : request.getRequestURI();
+        return PASSWORD_CHANGE_PATH.equals(normalizedPath)
+                || HttpMethod.GET.matches(request.getMethod())
+                || HttpMethod.HEAD.matches(request.getMethod());
     }
 
     private static boolean hasPermission(MenuPermissionResult permission, String method) {

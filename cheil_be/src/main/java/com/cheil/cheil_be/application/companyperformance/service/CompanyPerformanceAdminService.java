@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -96,18 +98,18 @@ public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUs
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "요청 본문은 필수입니다.");
         }
 
-        StringValues.validateMaxLength(StringValues.normalize(command.jobName()), JOB_NAME_MAX_LENGTH, "jobName");
-        StringValues.validateMaxLength(normalizeDateText(command.contractFromDate(), "contractFromDate", CONTRACT_DATE_MAX_LENGTH), CONTRACT_DATE_MAX_LENGTH, "contractFromDate");
-        StringValues.validateMaxLength(normalizeDateText(command.contractToDate(), "contractToDate", CONTRACT_DATE_MAX_LENGTH), CONTRACT_DATE_MAX_LENGTH, "contractToDate");
-        StringValues.validateMaxLength(normalizeDateText(command.stopDate(), "stopDate", STOP_DATE_MAX_LENGTH), STOP_DATE_MAX_LENGTH, "stopDate");
-        StringValues.validateMaxLength(StringValues.normalize(command.jobFinishYn()), STATUS_CODE_MAX_LENGTH, "jobFinishYn");
-        StringValues.validateMaxLength(StringValues.normalize(command.jobType()), CODE_MAX_LENGTH, "jobType");
-        StringValues.validateMaxLength(StringValues.normalize(command.jobRatio()), JOB_RATIO_MAX_LENGTH, "jobRatio");
-        StringValues.validateMaxLength(StringValues.normalize(command.orderClient()), ORDER_CLIENT_MAX_LENGTH, "orderClient");
-        StringValues.validateMaxLength(StringValues.normalize(command.clientKind()), CODE_MAX_LENGTH, "clientKind");
-        StringValues.validateMaxLength(StringValues.normalize(command.businessType()), CODE_MAX_LENGTH, "businessType");
-        StringValues.validateMaxLength(StringValues.optional(command.createdId(), "admin"), AUDIT_ID_MAX_LENGTH, "createdId");
-        StringValues.validateMaxLength(
+        InputValues.validateMaxLength(StringValues.normalize(command.jobName()), JOB_NAME_MAX_LENGTH, "jobName");
+        InputValues.validateMaxLength(normalizeDateText(command.contractFromDate(), "contractFromDate", CONTRACT_DATE_MAX_LENGTH), CONTRACT_DATE_MAX_LENGTH, "contractFromDate");
+        InputValues.validateMaxLength(normalizeDateText(command.contractToDate(), "contractToDate", CONTRACT_DATE_MAX_LENGTH), CONTRACT_DATE_MAX_LENGTH, "contractToDate");
+        InputValues.validateMaxLength(normalizeDateText(command.stopDate(), "stopDate", STOP_DATE_MAX_LENGTH), STOP_DATE_MAX_LENGTH, "stopDate");
+        InputValues.validateMaxLength(StringValues.normalize(command.jobFinishYn()), STATUS_CODE_MAX_LENGTH, "jobFinishYn");
+        InputValues.validateMaxLength(StringValues.normalize(command.jobType()), CODE_MAX_LENGTH, "jobType");
+        InputValues.validateMaxLength(StringValues.normalize(command.jobRatio()), JOB_RATIO_MAX_LENGTH, "jobRatio");
+        InputValues.validateMaxLength(StringValues.normalize(command.orderClient()), ORDER_CLIENT_MAX_LENGTH, "orderClient");
+        InputValues.validateMaxLength(StringValues.normalize(command.clientKind()), CODE_MAX_LENGTH, "clientKind");
+        InputValues.validateMaxLength(StringValues.normalize(command.businessType()), CODE_MAX_LENGTH, "businessType");
+        InputValues.validateMaxLength(StringValues.optional(command.createdId(), "admin"), AUDIT_ID_MAX_LENGTH, "createdId");
+        InputValues.validateMaxLength(
                 StringValues.optional(command.lastChangedId(), StringValues.optional(command.createdId(), "admin")),
                 AUDIT_ID_MAX_LENGTH,
                 "lastChangedId"

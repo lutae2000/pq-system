@@ -13,6 +13,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
+import com.cheil.cheil_be.application.systempolicy.model.SystemPolicy;
 
 @Entity
 @Table(name = "system_policies")
@@ -44,4 +45,30 @@ public class SystemPolicyEntity extends AuditEntity {
 
     @Column(name = "description", length = 500)
     private String description;
+
+    static SystemPolicyEntity from(SystemPolicy policy) {
+        return SystemPolicyEntity.builder()
+                .policyKey(policy.policyKey())
+                .policyName(policy.policyName())
+                .policyValue(policy.policyValue())
+                .valueType(policy.valueType())
+                .sortSeq(policy.sortSeq())
+                .useYn(policy.useYn())
+                .description(policy.description())
+                .build();
+    }
+
+    SystemPolicyEntity update(SystemPolicy policy) {
+        policyName = policy.policyName();
+        policyValue = policy.policyValue();
+        valueType = policy.valueType();
+        sortSeq = policy.sortSeq();
+        useYn = policy.useYn();
+        description = policy.description();
+        return this;
+    }
+
+    SystemPolicy toModel() {
+        return new SystemPolicy(policyKey, policyName, policyValue, valueType, sortSeq, useYn, description);
+    }
 }

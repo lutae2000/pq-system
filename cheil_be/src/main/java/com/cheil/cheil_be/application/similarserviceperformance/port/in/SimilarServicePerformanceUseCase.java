@@ -2,12 +2,13 @@ package com.cheil.cheil_be.application.similarserviceperformance.port.in;
 
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformancePage;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
 
 public interface SimilarServicePerformanceUseCase {
 
-    SimilarServicePerformancePage findAll(SimilarServicePerformanceSearch search);
+    Page<SimilarServicePerformance> findAll(SimilarServicePerformanceSearch search, Pageable pageable);
 
     SimilarServicePerformance findById(Long id);
 

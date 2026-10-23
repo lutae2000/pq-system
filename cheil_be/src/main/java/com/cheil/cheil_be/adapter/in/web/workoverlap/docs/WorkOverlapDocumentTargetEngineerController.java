@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentTargetEngineerService;
 
+/** 업무중복도 문서 대상 기술자와 표시 정보를 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/work-overlap-document-engineers")
 @RequiredArgsConstructor

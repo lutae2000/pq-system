@@ -4,11 +4,10 @@ import java.time.Clock;
 import java.time.Instant;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.common.service.PasswordVerificationService;
 import com.cheil.cheil_be.application.systempolicy.service.LoginSessionPolicyService;
 import com.cheil.cheil_be.application.userauth.port.in.LoginCommand;
@@ -33,25 +32,25 @@ public class UserLoginService implements LoginUseCase {
     @Transactional
     public LoginResult login(LoginCommand command, String clientIp) {
         UserAccount userAccount = userAccountRepository.findByLoginId(command.loginId())
-                .orElseThrow(this::loginIdNotFound);
+                .orElseThrow(() -> ApplicationException.unauthorized("존재하지 않는 계정 입니다."));
 
         if (!userAccount.useYn()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비활성화된 계정입니다.");
+            throw ApplicationException.unauthorized("비활성화된 계정입니다.");
         }
 
         Instant occurredAt = Instant.now(clock);
         if (loginSessionPolicyService.isInactiveLoginRestricted(userAccount.loginDt(), occurredAt)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "장기 미접속으로 로그인이 제한된 계정입니다.");
+            throw ApplicationException.unauthorized("장기 미접속으로 로그인이 제한된 계정입니다.");
         }
 
         int passwordFailureLimit = loginSessionPolicyService.passwordFailureLimit();
         if (passwordFailureLimit > 0 && userAccount.wrongPasswordCount() >= passwordFailureLimit) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 실패 횟수 제한을 초과했습니다.");
+            throw ApplicationException.unauthorized("로그인 실패 횟수 제한을 초과했습니다.");
         }
 
         if (!passwordVerificationService.matches(command.userPassword(), userAccount.userPassword())) {
             userAccountRepository.save(userAccount.recordFailedLogin());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다.");
+            throw ApplicationException.unauthorized("비밀번호가 올바르지 않습니다.");
         }
 
         var sessionTimeout = loginSessionPolicyService.sessionTimeout();
@@ -79,7 +78,4 @@ public class UserLoginService implements LoginUseCase {
         );
     }
 
-    private ResponseStatusException loginIdNotFound() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "존재하지 않는 계정 입니다.");
-    }
 }

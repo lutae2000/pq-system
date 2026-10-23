@@ -2,7 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.serviceperformance;
 
 import java.math.BigDecimal;
 
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
 
 public record ServicePerformanceResponse(
         Long id,

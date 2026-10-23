@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.educationreminder.service;
 
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderBasicInfoEngineerAssignRequest;
@@ -30,7 +31,7 @@ public class EducationReminderBasicInfoEngineerService {
 
     @Transactional(readOnly = true)
     public List<EducationReminderAssignedEngineer> findAssignedEngineers(String basicInfoCode) {
-        String normalizedBasicInfoCode = requiredBasicInfoCode(basicInfoCode);
+        String normalizedBasicInfoCode = requiredText(basicInfoCode, "basicInfoCode");
         ensureBasicInfoExists(normalizedBasicInfoCode);
         return assignmentRepository.findByBasicInfoCode(normalizedBasicInfoCode);
     }
@@ -40,7 +41,7 @@ public class EducationReminderBasicInfoEngineerService {
             String basicInfoCode,
             EducationReminderBasicInfoEngineerAssignRequest request
     ) {
-        String normalizedBasicInfoCode = requiredBasicInfoCode(basicInfoCode);
+        String normalizedBasicInfoCode = requiredText(basicInfoCode, "basicInfoCode");
         ensureBasicInfoExists(normalizedBasicInfoCode);
 
         List<String> engineerIds = normalizeEngineerIds(request == null ? null : request.engineerIds());
@@ -68,10 +69,10 @@ public class EducationReminderBasicInfoEngineerService {
 
     @Transactional
     public void deleteAssignment(String basicInfoCode, String engineerId) {
-        String normalizedBasicInfoCode = requiredBasicInfoCode(basicInfoCode);
+        String normalizedBasicInfoCode = requiredText(basicInfoCode, "basicInfoCode");
         ensureBasicInfoExists(normalizedBasicInfoCode);
 
-        String normalizedEngineerId = requiredEngineerId(engineerId);
+        String normalizedEngineerId = requiredText(engineerId, "engineerId");
         boolean deleted = assignmentRepository.delete(
                 normalizedBasicInfoCode,
                 normalizedEngineerId
@@ -88,7 +89,7 @@ public class EducationReminderBasicInfoEngineerService {
 
         LinkedHashSet<String> normalized = new LinkedHashSet<>();
         for (String engineerId : engineerIds) {
-            String value = requiredEngineerId(engineerId);
+            String value = requiredText(engineerId, "engineerId");
             normalized.add(value);
         }
         return new ArrayList<>(normalized);
@@ -100,18 +101,4 @@ public class EducationReminderBasicInfoEngineerService {
         }
     }
 
-    private String requiredBasicInfoCode(String basicInfoCode) {
-        if (!StringUtils.hasText(basicInfoCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "basicInfoCode is required.");
-        }
-        return basicInfoCode.trim();
-    }
-
-    private String requiredEngineerId(String engineerId) {
-        String normalized = StringUtils.hasText(engineerId) ? engineerId.trim() : null;
-        if (!StringUtils.hasText(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "engineerId is required.");
-        }
-        return normalized;
-    }
 }

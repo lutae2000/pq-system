@@ -10,4 +10,10 @@ public record NewEmploymentEmployeeRequest(
         String jobCategory,
         String remark
 ) {
+    com.cheil.cheil_be.application.newemployment.model.NewEmploymentEmployeeCommand toCommand() {
+        return new com.cheil.cheil_be.application.newemployment.model.NewEmploymentEmployeeCommand(
+                baseYearMonth, employeeNo, employeeName, birthDate, hireDate,
+                departmentCode, jobCategory, remark
+        );
+    }
 }

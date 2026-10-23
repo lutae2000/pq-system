@@ -1,5 +1,9 @@
 package com.cheil.cheil_be.application.educationreminder.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -411,8 +415,8 @@ public class EducationReminderCompletionService {
         return new CompletionSearchCriteria(
                 like(name),
                 educationRegistered,
-                nullIfBlank(specialtyField),
-                nullIfBlank(jobField),
+                trimToNull(specialtyField),
+                trimToNull(jobField),
                 EducationReminderDateUtils.normalizeOptionalDateFilter(scheduledEducationYear),
                 upcomingWithinDays,
                 educationCodes == null ? null : educationCodes.stream()
@@ -542,8 +546,8 @@ public class EducationReminderCompletionService {
 
     @Transactional
     public EducationReminderNotificationPhoneResponse saveNotificationPhone(String engrId, EducationReminderNotificationPhoneRequest request) {
-        String normalizedEngineerId = required(engrId, "engrId", ENGINEER_ID_MAX_LENGTH);
-        String phoneNo = normalizePhoneNo(request.phoneNo());
+        String normalizedEngineerId = InputValues.requiredText(engrId, ENGINEER_ID_MAX_LENGTH, "engrId");
+        String phoneNo = InputValues.digits(request.phoneNo(), PHONE_NO_MAX_LENGTH, "phoneNo");
 
         validateEngineerExists(normalizedEngineerId);
 
@@ -589,7 +593,7 @@ public class EducationReminderCompletionService {
 
     @Transactional
     public void deleteNotificationPhone(String engrId) {
-        String normalizedEngineerId = required(engrId, "engrId", ENGINEER_ID_MAX_LENGTH);
+        String normalizedEngineerId = InputValues.requiredText(engrId, ENGINEER_ID_MAX_LENGTH, "engrId");
         jdbcClient.sql("""
                         DELETE FROM engineer_contacts
                         WHERE engr_id = :engrId
@@ -606,12 +610,12 @@ public class EducationReminderCompletionService {
     }
 
     private EducationReminderCompletionRequest normalize(EducationReminderCompletionRequest request) {
-        String engrId = required(request.engrId(), "engrId", ENGINEER_ID_MAX_LENGTH);
-        String educationCode = required(request.educationCode(), "educationCode", CODE_MAX_LENGTH);
+        String engrId = InputValues.requiredText(request.engrId(), ENGINEER_ID_MAX_LENGTH, "engrId");
+        String educationCode = InputValues.requiredText(request.educationCode(), CODE_MAX_LENGTH, "educationCode");
         if (request.educationRegistered() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "educationRegistered is required.");
         }
-        StringValues.validateMaxLength(request.remark(), REMARK_MAX_LENGTH, "remark");
+        InputValues.validateMaxLength(request.remark(), REMARK_MAX_LENGTH, "remark");
 
         return new EducationReminderCompletionRequest(
                 engrId,
@@ -719,22 +723,6 @@ public class EducationReminderCompletionService {
                         (left, right) -> left,
                         LinkedHashMap::new
                 ));
-    }
-
-    private String nullIfBlank(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
-    private String required(String value, String fieldName, int maxLength) {
-        String normalized = StringValues.required(value, fieldName);
-        StringValues.validateMaxLength(normalized, maxLength, fieldName);
-        return normalized;
-    }
-
-    private String normalizePhoneNo(String value) {
-        String normalized = StringUtils.hasText(value) ? value.replaceAll("\\D", "") : "";
-        StringValues.validateMaxLength(normalized, PHONE_NO_MAX_LENGTH, "phoneNo");
-        return normalized;
     }
 
     private void validateEngineerExists(String engrId) {

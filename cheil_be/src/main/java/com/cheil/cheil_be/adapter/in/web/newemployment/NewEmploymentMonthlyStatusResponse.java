@@ -12,4 +12,12 @@ public record NewEmploymentMonthlyStatusResponse(
         Instant lastChangedAt,
         String lastChangedId
 ) {
+    static NewEmploymentMonthlyStatusResponse from(
+            com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatus status
+    ) {
+        return new NewEmploymentMonthlyStatusResponse(
+                status.id(), status.baseYearMonth(), status.employeeCount(), status.newHireCount(),
+                status.createdAt(), status.createdId(), status.lastChangedAt(), status.lastChangedId()
+        );
+    }
 }

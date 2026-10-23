@@ -1,24 +1,36 @@
 package com.cheil.cheil_be.adapter.out.persistence.serviceperformance;
 
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceCommand;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePage;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePageQuery;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceSearch;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceCommand;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRepository {
 
   private static final String TABLE = "service_performances";
+  private static final String SEARCH_WHERE = """
+      WHERE (CAST(:keyword AS VARCHAR) IS NULL
+             OR LOWER(COALESCE(p.client_code, '')) LIKE CAST(:keyword AS VARCHAR)
+             OR LOWER(COALESCE(p.field_name, '')) LIKE CAST(:keyword AS VARCHAR)
+             OR LOWER(COALESCE(p.site_name, '')) LIKE CAST(:keyword AS VARCHAR)
+             OR LOWER(COALESCE(p.remark, '')) LIKE CAST(:keyword AS VARCHAR))
+        AND (CAST(:clientCode AS VARCHAR) IS NULL OR p.client_code = CAST(:clientCode AS VARCHAR))
+        AND (CAST(:fieldName AS VARCHAR) IS NULL OR p.field_name LIKE CAST(:fieldName AS VARCHAR))
+        AND (CAST(:siteName AS VARCHAR) IS NULL OR p.site_name LIKE CAST(:siteName AS VARCHAR))
+        AND (CAST(:referenceDate AS VARCHAR) IS NULL OR p.evaluation_date <= CAST(:referenceDate AS VARCHAR))
+        AND (CAST(:periodLowerDate AS VARCHAR) IS NULL OR p.evaluation_date >= CAST(:periodLowerDate AS VARCHAR))
+      """;
   private final JdbcClient jdbcClient;
 
   public ServicePerformanceRepositoryAdapter(JdbcClient jdbcClient) {
@@ -26,11 +38,8 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
   }
 
   @Override
-  public ServicePerformancePage findAll(
-      ServicePerformanceSearch search, ServicePerformancePageQuery pageQuery) {
-    StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
-    Map<String, Object> params = new LinkedHashMap<>();
-    appendWhere(where, params, search);
+  public Page<ServicePerformanceView> findAll(
+      ServicePerformanceSearch search, Pageable pageable) {
     String sql =
         """
         SELECT p.id, p.client_code, p.client_code AS client_name,
@@ -43,27 +52,18 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
         ORDER BY p.evaluation_date DESC, p.id DESC
         LIMIT :limit OFFSET :offset
         """
-            .formatted(TABLE, where);
-    Map<String, Object> listParams = new LinkedHashMap<>(params);
-    listParams.put("limit", pageQuery.size());
-    listParams.put("offset", (long) pageQuery.page() * pageQuery.size());
+            .formatted(TABLE, SEARCH_WHERE);
     List<ServicePerformanceView> content =
-        bind(jdbcClient.sql(sql), listParams).query((rs, rowNum) -> mapResponse(rs)).list();
+        bindSearch(jdbcClient.sql(sql), search)
+            .param("limit", pageable.getPageSize())
+            .param("offset", pageable.getOffset())
+            .query((rs, rowNum) -> mapResponse(rs))
+            .list();
     Long total =
-        bind(jdbcClient.sql("SELECT COUNT(*) FROM %s p %s".formatted(TABLE, where)), params)
+        bindSearch(jdbcClient.sql("SELECT COUNT(*) FROM %s p %s".formatted(TABLE, SEARCH_WHERE)), search)
             .query(Long.class)
             .single();
-    long totalElements = total == null ? 0 : total;
-    int totalPages =
-        totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / pageQuery.size());
-    return new ServicePerformancePage(
-        content,
-        pageQuery.page(),
-        pageQuery.size(),
-        totalElements,
-        totalPages,
-        pageQuery.page() == 0,
-        totalPages == 0 || pageQuery.page() >= totalPages - 1);
+    return new PageImpl<>(content, pageable, total == null ? 0 : total);
   }
 
   @Override
@@ -141,41 +141,6 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
         .update();
   }
 
-  private void appendWhere(
-      StringBuilder where, Map<String, Object> params, ServicePerformanceSearch search) {
-    if (hasText(search.keyword())) {
-      where.append(
-          "AND (LOWER(COALESCE(p.client_code, '')) LIKE :keyword OR LOWER(COALESCE(p.field_name,"
-              + " '')) LIKE :keyword OR LOWER(COALESCE(p.site_name, '')) LIKE :keyword OR"
-              + " LOWER(COALESCE(p.remark, '')) LIKE :keyword)\n");
-      params.put("keyword", "%" + search.keyword().trim().toLowerCase(Locale.ROOT) + "%");
-    }
-    if (hasText(search.clientCode())) {
-      where.append("AND p.client_code = :clientCode\n");
-      params.put("clientCode", search.clientCode().trim());
-    }
-    if (hasText(search.fieldName())) {
-      where.append("AND p.field_name LIKE '%' || :fieldName || '%'\n");
-      params.put("fieldName", search.fieldName().trim());
-    }
-    if (hasText(search.siteName())) {
-      where.append("AND p.site_name LIKE '%' || :siteName || '%'\n");
-      params.put("siteName", search.siteName().trim());
-    }
-    if (hasText(search.referenceDate())) {
-      where.append("AND p.evaluation_date <= :referenceDate\n");
-      params.put("referenceDate", search.referenceDate());
-      if ("3".equals(search.periodType()) || "5".equals(search.periodType())) {
-        where.append("AND p.evaluation_date >= :periodLowerDate\n");
-        params.put("periodLowerDate", search.periodLowerDate());
-      }
-    }
-  }
-
-  private boolean hasText(String value) {
-    return value != null && !value.trim().isEmpty();
-  }
-
   private ServicePerformanceView mapResponse(ResultSet rs) throws SQLException {
     return new ServicePerformanceView(
         ((Number) rs.getObject("id")).longValue(),
@@ -198,10 +163,21 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
     return value == null ? null : value.toInstant().toString();
   }
 
-  private JdbcClient.StatementSpec bind(
-      JdbcClient.StatementSpec statement, Map<String, Object> params) {
-    JdbcClient.StatementSpec bound = statement;
-    for (var entry : params.entrySet()) bound = bound.param(entry.getKey(), entry.getValue());
-    return bound;
+  private JdbcClient.StatementSpec bindSearch(
+      JdbcClient.StatementSpec statement, ServicePerformanceSearch search) {
+    String keyword = search.keyword() == null
+        ? null
+        : "%" + search.keyword().toLowerCase(Locale.ROOT) + "%";
+    return statement
+        .param("keyword", keyword)
+        .param("clientCode", search.clientCode())
+        .param("fieldName", contains(search.fieldName()))
+        .param("siteName", contains(search.siteName()))
+        .param("referenceDate", search.referenceDate())
+        .param("periodLowerDate", search.periodLowerDate());
+  }
+
+  private String contains(String value) {
+    return value == null ? null : "%" + value + "%";
   }
 }

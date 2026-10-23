@@ -12,11 +12,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.out.crypto.BCryptPasswordHasher;
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.common.service.PasswordHashService;
 import com.cheil.cheil_be.application.common.service.PasswordVerificationService;
 import com.cheil.cheil_be.application.systempolicy.service.LoginSessionPolicyService;
@@ -97,9 +97,9 @@ class UserLoginServiceTest {
         ));
 
         Throwable thrown = catchThrowable(() -> service.login(new LoginCommand("stleekm", "wrong"), "127.0.0.1"));
-        assertThat(thrown).isInstanceOf(ResponseStatusException.class);
-        assertThat(((ResponseStatusException) thrown).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(((ResponseStatusException) thrown).getReason()).isEqualTo("비밀번호가 올바르지 않습니다.");
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        assertThat(((ApplicationException) thrown).errorType()).isEqualTo(ApplicationErrorType.UNAUTHORIZED);
+        assertThat(thrown.getMessage()).isEqualTo("비밀번호가 올바르지 않습니다.");
 
         assertThat(repository.findByLoginId("stleekm").orElseThrow().wrongPasswordCount()).isEqualTo(1);
     }
@@ -107,9 +107,9 @@ class UserLoginServiceTest {
     @Test
     void loginRejectsMissingLoginId() {
         Throwable thrown = catchThrowable(() -> service.login(new LoginCommand("missing", "wrong"), "127.0.0.1"));
-        assertThat(thrown).isInstanceOf(ResponseStatusException.class);
-        assertThat(((ResponseStatusException) thrown).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(((ResponseStatusException) thrown).getReason()).isEqualTo("존재하지 않는 계정 입니다.");
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        assertThat(((ApplicationException) thrown).errorType()).isEqualTo(ApplicationErrorType.UNAUTHORIZED);
+        assertThat(thrown.getMessage()).isEqualTo("존재하지 않는 계정 입니다.");
     }
 
     @Test
@@ -134,9 +134,9 @@ class UserLoginServiceTest {
         ));
 
         Throwable thrown = catchThrowable(() -> service.login(new LoginCommand("stleekm", "kmlee0414"), "127.0.0.1"));
-        assertThat(thrown).isInstanceOf(ResponseStatusException.class);
-        assertThat(((ResponseStatusException) thrown).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(((ResponseStatusException) thrown).getReason()).isEqualTo("비활성화된 계정입니다.");
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        assertThat(((ApplicationException) thrown).errorType()).isEqualTo(ApplicationErrorType.UNAUTHORIZED);
+        assertThat(thrown.getMessage()).isEqualTo("비활성화된 계정입니다.");
     }
 
     private static final class InMemoryUserAccountRepository implements UserAccountRepository {

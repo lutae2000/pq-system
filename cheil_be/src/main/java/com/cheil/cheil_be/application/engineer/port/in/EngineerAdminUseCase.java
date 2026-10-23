@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.engineer.port.in;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 
@@ -14,11 +15,7 @@ import com.cheil.cheil_be.application.engineer.EngineerDtos;
  */
 public interface EngineerAdminUseCase {
 
-    Page<EngineerDtos.Profile> findAll(Integer page, Integer size);
-
     Page<EngineerDtos.Profile> findAll(
-            Integer page,
-            Integer size,
             String retireYn,
             String status,
             String keyword,
@@ -27,7 +24,8 @@ public interface EngineerAdminUseCase {
             String designGrade,
             String constructionManagementGrade,
             String specialtyField,
-            String jobField
+            String jobField,
+            Pageable pageable
     );
 
     List<EngineerDtos.Profile> findAllProfiles();

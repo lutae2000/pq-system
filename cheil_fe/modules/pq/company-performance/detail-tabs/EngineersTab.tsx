@@ -537,7 +537,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       },
       {
         field: "participationFieldPosition",
-        headerName: "참여분야직위",
+        headerName: "참여분야 직위",
         width: 120,
         editable: true,
         type: "singleSelect",
@@ -586,7 +586,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         valueGetter: (_value, row) => row.participationGrade ?? "",
         valueOptions: participationGradeOptions,
       },
-      { field: "companyAtParticipation", headerName: "참여당시회사", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.companyAtParticipation) },
+      { field: "companyAtParticipation", headerName: "참여당시 회사", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.companyAtParticipation) },
       { field: "departmentAtParticipation", headerName: "참여당시 부서", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.departmentAtParticipation) },
       { field: "positionAtParticipation", headerName: "참여당시 직위", width: 120, editable: true, valueGetter: (_value, row) => displayBlank(row.positionAtParticipation) },
       { field: "duty", headerName: "담당업무", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.duty) },

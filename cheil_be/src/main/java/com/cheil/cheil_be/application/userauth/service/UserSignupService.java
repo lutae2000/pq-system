@@ -1,5 +1,10 @@
 package com.cheil.cheil_be.application.userauth.service;
 
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.conflict;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requireNonNull;
+
 import java.time.Clock;
 import java.time.Instant;
 
@@ -8,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.service.PasswordHashService;
-import com.cheil.cheil_be.application.userauth.exception.UserAuthApplicationException;
 import com.cheil.cheil_be.application.userauth.port.in.SignupCommand;
 import com.cheil.cheil_be.application.userauth.port.in.SignupResult;
 import com.cheil.cheil_be.application.userauth.port.in.SignupUseCase;
@@ -63,24 +67,13 @@ public class UserSignupService implements SignupUseCase {
     }
 
     private void validate(SignupCommand command) {
-        if (command == null) throw invalid("회원가입 요청은 필수입니다.");
-        require(command.employeeNo(), "employeeNo");
-        require(command.userName(), "userName");
-        require(command.loginId(), "loginId");
-        require(command.userPassword(), "userPassword");
-        require(command.groupCode(), "groupCode");
-        require(command.deptCode(), "deptCode");
+        requireNonNull(command, "회원가입 요청은 필수입니다.");
+        requiredText(command.employeeNo(), "employeeNo");
+        requiredText(command.userName(), "userName");
+        requiredText(command.loginId(), "loginId");
+        requiredText(command.userPassword(), "userPassword");
+        requiredText(command.groupCode(), "groupCode");
+        requiredText(command.deptCode(), "deptCode");
     }
 
-    private void require(String value, String field) {
-        if (value == null || value.isBlank()) throw invalid(field + "은(는) 필수입니다.");
-    }
-
-    private UserAuthApplicationException invalid(String message) {
-        return new UserAuthApplicationException(UserAuthApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private UserAuthApplicationException conflict(String message) {
-        return new UserAuthApplicationException(UserAuthApplicationException.Type.CONFLICT, message);
-    }
 }

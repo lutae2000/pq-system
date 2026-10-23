@@ -1,10 +1,12 @@
 package com.cheil.cheil_be.adapter.out.persistence.newtechnology;
 
-import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyInvestmentRequest;
-import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyInvestmentResponse;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyInvestment;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyInvestmentCommand;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyInvestmentSearch;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import com.cheil.cheil_be.application.newtechnology.port.out.NewTechnologyInvestmentRepository;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -12,30 +14,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyInvestmentRepository {
-  private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
   private final JdbcClient jdbcClient;
 
   @Override
-  public Page<NewTechnologyInvestmentResponse> findAll(
-      String yearFrom, String yearTo, Pageable pageable) {
+  public Page<NewTechnologyInvestment> findAll(
+      NewTechnologyInvestmentSearch search, Pageable pageable) {
     StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
     Map<String, Object> params = new LinkedHashMap<>();
-    if (hasText(yearFrom)) {
+    if (hasText(search.yearFrom())) {
       where.append("AND investment_year >= :yearFrom\n");
-      params.put("yearFrom", yearFrom);
+      params.put("yearFrom", search.yearFrom());
     }
-    if (hasText(yearTo)) {
+    if (hasText(search.yearTo())) {
       where.append("AND investment_year <= :yearTo\n");
-      params.put("yearTo", yearTo);
+      params.put("yearTo", search.yearTo());
     }
     String sql =
         """
@@ -49,7 +47,7 @@ public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyIn
     Map<String, Object> listParams = new LinkedHashMap<>(params);
     listParams.put("limit", pageable.getPageSize());
     listParams.put("offset", pageable.getOffset());
-    List<NewTechnologyInvestmentResponse> content =
+    List<NewTechnologyInvestment> content =
         bind(jdbcClient.sql(sql), listParams).query((rs, rowNum) -> map(rs)).list();
     Long total =
         bind(jdbcClient.sql("SELECT COUNT(*) FROM new_technology_investments " + where), params)
@@ -59,7 +57,7 @@ public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyIn
   }
 
   @Override
-  public NewTechnologyInvestmentResponse findById(Long id) {
+  public java.util.Optional<NewTechnologyInvestment> findById(Long id) {
     return jdbcClient
         .sql(
             """
@@ -70,12 +68,11 @@ public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyIn
             """)
         .param("id", id)
         .query((rs, rowNum) -> map(rs))
-        .optional()
-        .orElse(null);
+        .optional();
   }
 
   @Override
-  public Long create(NewTechnologyInvestmentRequest request, String actor) {
+  public Long create(NewTechnologyInvestmentCommand request, String actor) {
     return jdbcClient
         .sql(
             """
@@ -103,7 +100,7 @@ public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyIn
   }
 
   @Override
-  public int update(Long id, NewTechnologyInvestmentRequest request, String actor) {
+  public int update(Long id, NewTechnologyInvestmentCommand request, String actor) {
     return jdbcClient
         .sql(
             """
@@ -151,43 +148,24 @@ public class NewTechnologyInvestmentRepositoryAdapter implements NewTechnologyIn
     return count != null && count > 0;
   }
 
-  private NewTechnologyInvestmentResponse map(ResultSet rs) throws SQLException {
-    BigDecimal revenue = rs.getBigDecimal("revenue"),
-        assets = rs.getBigDecimal("total_assets"),
-        equity = rs.getBigDecimal("equity_capital");
-    BigDecimal currentLiabilities = rs.getBigDecimal("current_liabilities"),
-        currentAssets = rs.getBigDecimal("current_assets"),
-        income = rs.getBigDecimal("net_income"),
-        liabilities = rs.getBigDecimal("total_liabilities");
-    BigDecimal investment = rs.getBigDecimal("technology_development_investment");
-    return new NewTechnologyInvestmentResponse(
+  private NewTechnologyInvestment map(ResultSet rs) throws SQLException {
+    return new NewTechnologyInvestment(
         rs.getLong("id"),
         rs.getString("investment_year"),
-        revenue,
-        assets,
-        equity,
-        currentLiabilities,
+        rs.getBigDecimal("revenue"),
+        rs.getBigDecimal("total_assets"),
+        rs.getBigDecimal("equity_capital"),
+        rs.getBigDecimal("current_liabilities"),
         rs.getBigDecimal("fixed_liabilities"),
-        currentAssets,
-        income,
-        liabilities,
-        investment,
-        ratio(investment, revenue),
-        ratio(equity, assets),
-        ratio(income, equity),
-        ratio(currentAssets, currentLiabilities),
-        ratio(liabilities, equity),
+        rs.getBigDecimal("current_assets"),
+        rs.getBigDecimal("net_income"),
+        rs.getBigDecimal("total_liabilities"),
+        rs.getBigDecimal("technology_development_investment"),
         rs.getString("remark"),
         instant(rs.getTimestamp("created_at")),
         rs.getString("created_id"),
         instant(rs.getTimestamp("last_changed_at")),
         rs.getString("last_changed_id"));
-  }
-
-  private BigDecimal ratio(BigDecimal numerator, BigDecimal denominator) {
-    return numerator == null || denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0
-        ? null
-        : numerator.multiply(HUNDRED).divide(denominator, 2, RoundingMode.HALF_UP);
   }
 
   private java.time.Instant instant(Timestamp value) {

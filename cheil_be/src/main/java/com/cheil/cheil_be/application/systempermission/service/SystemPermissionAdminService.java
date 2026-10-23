@@ -1,197 +1,90 @@
 package com.cheil.cheil_be.application.systempermission.service;
 
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
+import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.util.StringUtils;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.JpaSystemMenuRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.JpaRolePermissionRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.JpaSystemRoleRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemMenuEntity;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemRoleEntity;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.RolePermissionEntity;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.RolePermissionId;
-import com.cheil.cheil_be.common.security.AuditActorResolver;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
+import com.cheil.cheil_be.application.systempermission.model.RolePermission;
+import com.cheil.cheil_be.application.systempermission.model.RolePermissionCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemRole;
+import com.cheil.cheil_be.application.systempermission.port.in.SystemPermissionUseCase;
+import com.cheil.cheil_be.application.systempermission.port.out.SystemPermissionRepository;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class SystemPermissionAdminService {
+public class SystemPermissionAdminService implements SystemPermissionUseCase {
 
-    private final JpaSystemMenuRepository systemMenuRepository;
-    private final JpaSystemRoleRepository systemRoleRepository;
-    private final JpaRolePermissionRepository rolePermissionRepository;
+    private final SystemPermissionRepository repository;
+    private final CurrentActorPort currentActorPort;
+    private final Clock clock;
 
+    @Override
     @Transactional(readOnly = true)
-    public List<SystemRoleEntity> findRoles(Boolean useYn) {
-        if (useYn == null) {
-            return systemRoleRepository.findAllByOrderBySortSeqAscRoleCodeAsc();
+    public List<SystemRole> findRoles(Boolean useYn) {
+        return repository.findRoles(useYn);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SystemRole findRole(String roleCode) {
+        String code = requiredText(roleCode, "roleCode");
+        return repository.findRole(code)
+                .orElseThrow(() -> ApplicationException.notFound("역할을 찾을 수 없습니다."));
+    }
+
+    @Override
+    public SystemRole saveRole(SystemRole role) {
+        if (role == null) {
+            throw ApplicationException.badRequest("role is required");
         }
-
-        return systemRoleRepository.findAllByUseYnOrderBySortSeqAscRoleCodeAsc(useYn);
+        return repository.saveRole(new SystemRole(
+                requiredText(role.roleCode(), "roleCode"),
+                requiredText(role.roleName(), "roleName"),
+                role.useYn(),
+                role.sortSeq(),
+                trimToNull(role.description())
+        ));
     }
 
-    @Transactional(readOnly = true)
-    public SystemRoleEntity findRole(String roleCode) {
-        requireText(roleCode, "roleCode");
-        return systemRoleRepository.findById(roleCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "역할을 찾을 수 없습니다."));
-    }
-
-    public SystemRoleEntity saveRole(SystemRoleEntity request) {
-        requireText(request.getRoleCode(), "roleCode");
-        requireText(request.getRoleName(), "roleName");
-
-        return systemRoleRepository.findById(request.getRoleCode())
-                .map(existing -> {
-                    existing.setRoleName(request.getRoleName().trim());
-                    existing.setUseYn(request.isUseYn());
-                    existing.setDescription(trimToNull(request.getDescription()));
-                    existing.setSortSeq(request.getSortSeq());
-                    return existing;
-                })
-                .orElseGet(() -> systemRoleRepository.save(request));
-    }
-
+    @Override
     public void deleteRole(String roleCode) {
-        requireText(roleCode, "roleCode");
-        if (!systemRoleRepository.existsById(roleCode)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "역할을 찾을 수 없습니다.");
-        }
-        systemRoleRepository.deleteById(roleCode);
+        repository.deleteRole(findRole(roleCode).roleCode());
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public List<RolePermissionView> findRolePermissions(String roleCode) {
-        requireText(roleCode, "roleCode");
-        findRole(roleCode);
-
-        List<SystemMenuEntity> menus = systemMenuRepository.findAllByOrderBySortSeqAscMenuCodeAsc();
-        Map<String, RolePermissionEntity> permissionByMenu = rolePermissionRepository
-                .findAllByIdRoleCodeOrderByIdMenuCodeAsc(roleCode)
-                .stream()
-                .collect(Collectors.toMap(item -> item.getId().getMenuCode(), item -> item));
-
-        List<RolePermissionView> views = new ArrayList<>();
-        for (SystemMenuEntity menu : menus) {
-            RolePermissionEntity permission = permissionByMenu.get(menu.getMenuCode());
-            views.add(new RolePermissionView(
-                    roleCode,
-                    menu.getMenuCode(),
-                    menu.getMenuName(),
-                    menu.getParentMenuCode(),
-                    menu.getMenuPath(),
-                    menu.getMenuType(),
-                    menu.getSortSeq(),
-                    menu.isUseYn(),
-                    menu.isVisibleYn(),
-                    menu.getDescription(),
-                    permission != null && permission.isReadYn(),
-                    permission != null && permission.isCreateYn(),
-                    permission != null && permission.isUpdateYn(),
-                    permission != null && permission.isDeleteYn(),
-                    permission != null ? permission.getCreatedAt() : null,
-                    permission != null ? permission.getCreatedId() : null,
-                    permission != null ? permission.getLastChangedAt() : null,
-                    permission != null ? permission.getLastChangedId() : null
-            ));
-        }
-
-        return views.stream()
-                .sorted(Comparator.comparingInt(RolePermissionView::sortSeq).thenComparing(RolePermissionView::menuCode))
-                .toList();
+    public List<RolePermission> findRolePermissions(String roleCode) {
+        String code = findRole(roleCode).roleCode();
+        return repository.findRolePermissions(code);
     }
 
-    public List<RolePermissionView> saveRolePermissions(String roleCode, List<RolePermissionUpsertItem> items, String lastChangedId) {
-        requireText(roleCode, "roleCode");
-        findRole(roleCode);
-
-        String actor = AuditActorResolver.resolve(trimToNull(lastChangedId));
-        Instant now = Instant.now();
-
-        for (RolePermissionUpsertItem item : items) {
-            if (!StringUtils.hasText(item.menuCode())) {
-                continue;
-            }
-            String menuCode = item.menuCode().trim();
-            RolePermissionId id = new RolePermissionId(roleCode, menuCode);
-            RolePermissionEntity entity = rolePermissionRepository.findById(id)
-                    .orElseGet(() -> RolePermissionEntity.builder()
-                            .id(id)
-                            .createdAt(now)
-                            .createdId(actor)
-                            .build());
-
-            if (entity.getCreatedAt() == null) {
-                entity.setCreatedAt(now);
-            }
-            if (!StringUtils.hasText(entity.getCreatedId())) {
-                entity.setCreatedId(actor);
-            }
-
-            entity.setReadYn(item.read());
-            entity.setCreateYn(item.create());
-            entity.setUpdateYn(item.update());
-            entity.setDeleteYn(item.delete());
-            entity.setLastChangedAt(now);
-            entity.setLastChangedId(actor);
-            rolePermissionRepository.save(entity);
-        }
-
-        return findRolePermissions(roleCode);
-    }
-
-    private static void requireText(String value, String field) {
-        if (!StringUtils.hasText(value)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + "는 필수입니다.");
-        }
-    }
-
-    private static String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value.trim();
-    }
-
-    public record RolePermissionUpsertItem(
-            String menuCode,
-            boolean read,
-            boolean create,
-            boolean update,
-            boolean delete
-    ) {
-    }
-
-    public record RolePermissionView(
+    @Override
+    public List<RolePermission> saveRolePermissions(
             String roleCode,
-            String menuCode,
-            String menuName,
-            String parentMenuCode,
-            String menuPath,
-            String menuType,
-            int sortSeq,
-            boolean useYn,
-            boolean visibleYn,
-            String description,
-            boolean read,
-            boolean create,
-            boolean update,
-            boolean delete,
-            Instant createdAt,
-            String createdId,
-            Instant lastChangedAt,
+            List<RolePermissionCommand> items,
             String lastChangedId
     ) {
+        String code = findRole(roleCode).roleCode();
+        if (items == null) {
+            throw ApplicationException.badRequest("permission items are required");
+        }
+        List<RolePermissionCommand> normalized = items.stream()
+                .filter(item -> item != null && item.menuCode() != null && !item.menuCode().isBlank())
+                .map(item -> new RolePermissionCommand(item.menuCode().trim(), item.read(), item.create(), item.update(), item.delete()))
+                .toList();
+        String actor = trimToNull(lastChangedId);
+        repository.saveRolePermissions(code, normalized,
+                actor == null ? currentActorPort.currentActor() : actor, Instant.now(clock));
+        return repository.findRolePermissions(code);
     }
 }

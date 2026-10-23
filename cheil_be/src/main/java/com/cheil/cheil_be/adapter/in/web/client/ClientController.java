@@ -1,7 +1,9 @@
 package com.cheil.cheil_be.adapter.in.web.client;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,11 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.client.port.in.ClientSearchCondition;
-import com.cheil.cheil_be.application.client.service.ClientAdminService;
+import com.cheil.cheil_be.application.client.model.ClientSearchCondition;
+import com.cheil.cheil_be.application.client.port.in.ClientUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
-import com.cheil.cheil_be.domain.client.Client;
 
 /**
  * 거래처 코드 관리 API.
@@ -30,7 +31,7 @@ import com.cheil.cheil_be.domain.client.Client;
 @RequiredArgsConstructor
 public class ClientController {
 
-    private final ClientAdminService clientAdminService;
+    private final ClientUseCase clientUseCase;
 
     /**
      * 거래처 목록을 clientCode 오름차순으로 페이지 단위 조회합니다.
@@ -43,12 +44,12 @@ public class ClientController {
             @RequestParam(required = false) String businessName,
             @RequestParam(required = false) String orderClass,
             @RequestParam(required = false) String companyType,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<Client> result = clientAdminService.findAll(
+        var safePageable = PageRequests.of(pageable);
+        var result = clientUseCase.findAll(
                 new ClientSearchCondition(businessName, orderClass, companyType),
-                PageRequests.of(page, size)
+                safePageable
         );
         return ResponseEntity.ok(PageResponse.from(result, ClientResponse::from));
     }
@@ -58,15 +59,15 @@ public class ClientController {
      */
     @GetMapping("/{clientCode}")
     public ResponseEntity<ClientResponse> get(@PathVariable String clientCode) {
-        return ResponseEntity.ok(ClientResponse.from(clientAdminService.findByClientCode(clientCode)));
+        return ResponseEntity.ok(ClientResponse.from(clientUseCase.findByClientCode(clientCode)));
     }
 
     /**
      * 신규 거래처를 등록합니다.
      */
     @PostMapping
-    public ResponseEntity<ClientResponse> create(@RequestBody ClientUpsertRequest request) {
-        return ResponseEntity.ok(ClientResponse.from(clientAdminService.create(request.toCommand())));
+    public ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientUpsertRequest request) {
+        return ResponseEntity.ok(ClientResponse.from(clientUseCase.create(request.toCommand())));
     }
 
     /**
@@ -75,9 +76,9 @@ public class ClientController {
     @PutMapping("/{clientCode}")
     public ResponseEntity<ClientResponse> update(
             @PathVariable String clientCode,
-            @RequestBody ClientUpsertRequest request
+            @Valid @RequestBody ClientUpsertRequest request
     ) {
-        return ResponseEntity.ok(ClientResponse.from(clientAdminService.update(clientCode, request.toCommand())));
+        return ResponseEntity.ok(ClientResponse.from(clientUseCase.update(clientCode, request.toCommand())));
     }
 
     /**
@@ -85,7 +86,7 @@ public class ClientController {
      */
     @DeleteMapping("/{clientCode}")
     public ResponseEntity<Void> delete(@PathVariable String clientCode) {
-        clientAdminService.delete(clientCode);
+        clientUseCase.delete(clientCode);
         return ResponseEntity.noContent().build();
     }
 }

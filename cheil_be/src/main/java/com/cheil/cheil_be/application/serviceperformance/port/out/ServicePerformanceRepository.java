@@ -1,12 +1,13 @@
 package com.cheil.cheil_be.application.serviceperformance.port.out;
 
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceCommand;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePage;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePageQuery;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceSearch;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceCommand;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
 public interface ServicePerformanceRepository {
 
-    ServicePerformancePage findAll(ServicePerformanceSearch search, ServicePerformancePageQuery pageQuery);
+    Page<ServicePerformanceView> findAll(ServicePerformanceSearch search, Pageable pageable);
 
     ServicePerformanceView findById(Long id);
 
@@ -15,14 +16,4 @@ public interface ServicePerformanceRepository {
     int update(Long id, ServicePerformanceCommand command, String actor);
 
     int delete(Long id);
-
-    record ServicePerformanceSearch(
-            String keyword,
-            String clientCode,
-            String fieldName,
-            String siteName,
-            String referenceDate,
-            String periodType,
-            String periodLowerDate
-    ) {}
 }

@@ -1,5 +1,10 @@
 package com.cheil.cheil_be.application.workoverlap.docs;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+
 import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapEngineerContractResponse;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentEngineerContractsResponse;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentSavedContractResponse;
@@ -37,11 +42,9 @@ public class WorkOverlapDocumentContractsQueryService {
             String remainingDays,
             Pageable pageable
     ) {
-        String normalizedEngineerId = required(engineerId, "engineerId");
-        String normalizedWorkDutyId = required(workDutyId, "workDutyId");
-        if (bidSeq == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidSeq is required.");
-        }
+        String normalizedEngineerId = requiredText(engineerId, "engineerId");
+        String normalizedWorkDutyId = requiredText(workDutyId, "workDutyId");
+        requiredPositive(bidSeq, "bidSeq");
 
         String normalizedReferenceDate = normalizeReferenceDate(referenceDate);
         int normalizedRemainingDays = positiveInteger(remainingDays, "remainingDays");
@@ -121,13 +124,6 @@ public class WorkOverlapDocumentContractsQueryService {
                 null,
                 false
         );
-    }
-
-    private String required(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
-        }
-        return value.trim();
     }
 
     private String normalizeReferenceDate(String value) {

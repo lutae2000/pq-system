@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.notice.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +34,7 @@ public class NotificationPreferenceService {
 
     @Transactional
     public void save(String menuPath, Boolean receiveYn) {
-        String normalizedPath = StringValues.required(menuPath, "menuPath");
+        String normalizedPath = InputValues.requiredText(menuPath, "menuPath");
         String loginId = currentActorPort.currentActor();
         notificationPreferenceRepository.save(loginId, normalizedPath, Boolean.TRUE.equals(receiveYn));
     }

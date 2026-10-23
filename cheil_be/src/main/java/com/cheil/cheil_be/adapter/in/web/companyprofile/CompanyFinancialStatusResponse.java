@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
-import com.cheil.cheil_be.adapter.out.persistence.companyprofile.CompanyFinancialStatusEntity;
+import com.cheil.cheil_be.application.companyprofile.port.in.CompanyProfileUseCase;
 
 public record CompanyFinancialStatusResponse(
         Long financialId,
@@ -20,19 +20,11 @@ public record CompanyFinancialStatusResponse(
         String createdId
 ) {
 
-    public static CompanyFinancialStatusResponse from(CompanyFinancialStatusEntity entity) {
+    public static CompanyFinancialStatusResponse from(CompanyProfileUseCase.FinancialStatus entity) {
         return new CompanyFinancialStatusResponse(
-                entity.getFinancialId(),
-                entity.getFiscalYear(),
-                entity.getCapitalAmountMillion(),
-                entity.getSalesAmountMillion(),
-                entity.getDebtRatio(),
-                entity.getCurrentRatio(),
-                entity.getCreditRating(),
-                entity.getRegisteredOn(),
-                entity.getNote(),
-                entity.getCreatedAt(),
-                entity.getCreatedId()
+                entity.financialId(), entity.fiscalYear(), entity.capitalAmountMillion(),
+                entity.salesAmountMillion(), entity.debtRatio(), entity.currentRatio(), entity.creditRating(),
+                entity.registeredOn(), entity.note(), entity.createdAt(), entity.createdId()
         );
     }
 }

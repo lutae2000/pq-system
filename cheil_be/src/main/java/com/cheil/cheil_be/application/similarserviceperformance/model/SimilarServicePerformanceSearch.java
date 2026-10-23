@@ -5,8 +5,6 @@ public record SimilarServicePerformanceSearch(
         String constructionType,
         String client,
         String contractFromDate,
-        String contractToDate,
-        int page,
-        int size
+        String contractToDate
 ) {
 }

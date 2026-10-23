@@ -1,12 +1,17 @@
 package com.cheil.cheil_be.application.engineerperformancedoc.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
@@ -35,33 +40,20 @@ public class DocumentValueSettingService implements DocumentValueSettingUseCase 
     @Transactional
     public DocumentValueSetting save(SaveDocumentValueSettingCommand command) {
         if (command == null) {
-            throw new IllegalArgumentException("문서 값 설정 요청은 필수입니다.");
+            throw ApplicationException.badRequest("문서 값 설정 요청은 필수입니다.");
         }
 
-        long bidSeq = requiredBidSeq(command.bidSeq());
-        String engineerId = required(command.engineerId(), "engineerId");
+        long bidSeq = requiredPositive(command.bidSeq(), "bidSeq");
+        String engineerId = requiredText(command.engineerId(), "engineerId");
         if (command.educationId() != null && !repository.existsEducation(command.educationId(), engineerId)) {
-            throw new IllegalArgumentException("선택한 학력이 기술인 정보와 일치하지 않습니다.");
+            throw ApplicationException.badRequest("educationId에 해당하는 학력이 기술인 정보와 일치하지 않습니다.");
         }
         if (command.licenseId() != null && !repository.existsLicense(command.licenseId(), engineerId)) {
-            throw new IllegalArgumentException("선택한 자격이 기술인 정보와 일치하지 않습니다.");
+            throw ApplicationException.badRequest("licenseId에 해당하는 자격이 기술인 정보와 일치하지 않습니다.");
         }
 
         return repository.save(new SaveDocumentValueSettingCommand(
                 bidSeq, engineerId, command.educationId(), command.licenseId()), AuditActorResolver.resolve());
     }
 
-    private long requiredBidSeq(Long bidSeq) {
-        if (bidSeq == null || bidSeq <= 0) {
-            throw new IllegalArgumentException("bidSeq는 필수입니다.");
-        }
-        return bidSeq;
-    }
-
-    private String required(String value, String fieldName) {
-        if (!StringUtils.hasText(value)) {
-            throw new IllegalArgumentException(fieldName + "는 필수입니다.");
-        }
-        return value.trim();
-    }
 }

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.educationreminder.service.EducationReminderSendService;
 
+/** 교육 알림 발송, 재시도, 발송 이력 조회를 제공하는 API다. */
 @RestController
 @RequestMapping("/education-reminders")
 @RequiredArgsConstructor

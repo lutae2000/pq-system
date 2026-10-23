@@ -98,6 +98,7 @@ class BidNoticeControllerRestDocsTest {
                                 fieldWithPath("orderMethod").description("Ordering method code."),
                                 fieldWithPath("orderMethodLabel").description("Ordering method label."),
                                 fieldWithPath("bidDate").description("Bid date."),
+                                fieldWithPath("interviewDate").description("Interview date."),
                                 fieldWithPath("bidSuccessYn").description("Bid success flag."),
                                 fieldWithPath("bidSuccessYnLabel").description("Bid success label."),
                                 fieldWithPath("pqDecideEmpno").description("PQ decision employee number."),

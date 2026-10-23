@@ -1,7 +1,8 @@
 package com.cheil.cheil_be.adapter.in.web.shinindo;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,9 +15,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.shinindo.port.in.ShinindoManagementUseCase;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSearch;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 신인도 평가 자료를 조회하고 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/shinindo-management")
 @RequiredArgsConstructor
@@ -29,16 +32,13 @@ public class ShinindoManagementController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String clientCode,
             @RequestParam(required = false) String referenceDate,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<ShinindoManagementResponse> result = shinindoManagementUseCase.findAll(
-                keyword,
-                clientCode,
-                referenceDate,
-                PageRequests.of(page, size)
-        ).map(ShinindoManagementResponse::from);
-        return ResponseEntity.ok(PageResponse.from(result));
+        var safePageable = PageRequests.of(pageable);
+        var result = shinindoManagementUseCase.findAll(new ShinindoManagementSearch(
+                keyword, clientCode, referenceDate
+        ), safePageable);
+        return ResponseEntity.ok(PageResponse.from(result, ShinindoManagementResponse::from));
     }
 
     @GetMapping("/{id}")

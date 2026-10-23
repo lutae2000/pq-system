@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.constructiontype;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeSearchCondition;
 import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeUseCase;
 
+/** 공사종류 기준정보를 관리하는 API다. */
 @RestController
 @RequestMapping("/code/construction-types")
 @RequiredArgsConstructor
@@ -59,7 +61,7 @@ public class ConstructionTypeController {
      * 공사종류를 신규 등록한다.
      */
     @PostMapping
-    public ResponseEntity<ConstructionTypeResponse> create(@RequestBody ConstructionTypeUpsertRequest request) {
+    public ResponseEntity<ConstructionTypeResponse> create(@Valid @RequestBody ConstructionTypeUpsertRequest request) {
         return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeUseCase.create(request.toCommand())));
     }
 
@@ -67,7 +69,7 @@ public class ConstructionTypeController {
      * 기존 공사종류를 수정한다.
      */
     @PutMapping("/{codeId}")
-    public ResponseEntity<ConstructionTypeResponse> update(@PathVariable Long codeId, @RequestBody ConstructionTypeUpsertRequest request) {
+    public ResponseEntity<ConstructionTypeResponse> update(@PathVariable Long codeId, @Valid @RequestBody ConstructionTypeUpsertRequest request) {
         return ResponseEntity.ok(ConstructionTypeResponse.from(constructionTypeUseCase.update(codeId, request.toCommand())));
     }
 

@@ -1,15 +1,16 @@
 package com.cheil.cheil_be.application.shinindo.port.out;
 
 import com.cheil.cheil_be.application.shinindo.model.ShinindoManagement;
-import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSearch;
 
 import java.util.Optional;
 
 public interface ShinindoManagementRepository {
 
-    Page<ShinindoManagement> findAll(String keyword, String clientCode, Pageable pageable);
+    Page<ShinindoManagement> findAll(ShinindoManagementSearch search, Pageable pageable);
 
     Optional<ShinindoManagement> findById(Long id);
 

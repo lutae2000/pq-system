@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import com.cheil.cheil_be.application.client.port.in.ClientSearchCondition;
+import com.cheil.cheil_be.application.client.model.ClientSearchCondition;
 import com.cheil.cheil_be.domain.client.Client;
 
 public interface ClientRepository {

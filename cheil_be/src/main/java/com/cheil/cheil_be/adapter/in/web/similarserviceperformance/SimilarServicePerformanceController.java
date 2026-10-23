@@ -1,6 +1,8 @@
 package com.cheil.cheil_be.adapter.in.web.similarserviceperformance;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import com.cheil.cheil_be.application.similarserviceperformance.port.in.SimilarS
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 유사용역 수행실적을 조회하고 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/similar-service-performances")
 @RequiredArgsConstructor
@@ -31,18 +34,13 @@ public class SimilarServicePerformanceController {
             @RequestParam(required = false) String client,
             @RequestParam(required = false) String contractFromDate,
             @RequestParam(required = false) String contractToDate,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        var paging = PageRequests.of(page, size);
+        var safePageable = PageRequests.of(pageable);
         var result = useCase.findAll(new SimilarServicePerformanceSearch(
-                keyword, constructionType, client, contractFromDate, contractToDate,
-                paging.getPageNumber(), paging.getPageSize()
-        ));
-        return ResponseEntity.ok(new PageResponse<>(
-                result.content().stream().map(SimilarServicePerformanceResponse::from).toList(),
-                result.page(), result.size(), result.totalElements(), result.totalPages(), result.first(), result.last()
-        ));
+                keyword, constructionType, client, contractFromDate, contractToDate
+        ), safePageable);
+        return ResponseEntity.ok(PageResponse.from(result, SimilarServicePerformanceResponse::from));
     }
 
     @GetMapping("/{id}")

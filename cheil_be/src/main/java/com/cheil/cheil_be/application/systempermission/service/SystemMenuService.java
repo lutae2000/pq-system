@@ -1,15 +1,18 @@
 package com.cheil.cheil_be.application.systempermission.service;
 
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import com.cheil.cheil_be.application.systempermission.exception.SystemPermissionApplicationException;
 import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
-import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenuCommand;
 import com.cheil.cheil_be.application.systempermission.port.in.SystemMenuUseCase;
 import com.cheil.cheil_be.application.systempermission.port.out.SystemMenuRepository;
 
@@ -36,7 +39,7 @@ public class SystemMenuService implements SystemMenuUseCase {
 
     @Override
     @Transactional
-    public SystemMenu saveMenu(SaveSystemMenuCommand command) {
+    public SystemMenu saveMenu(SystemMenuCommand command) {
         if (command == null) {
             throw badRequest("메뉴 요청 본문이 필요합니다.");
         }
@@ -46,7 +49,7 @@ public class SystemMenuService implements SystemMenuUseCase {
         String menuType = requiredText(command.menuType(), "menuType");
 
         // 공백만 입력된 선택 필드는 null로 통일해 저장 어댑터와 조회 결과의 의미를 일관되게 한다.
-        return repository.save(new SaveSystemMenuCommand(
+        return repository.save(new SystemMenuCommand(
                 menuCode,
                 menuName,
                 trimToNull(command.parentMenuCode()),
@@ -68,22 +71,4 @@ public class SystemMenuService implements SystemMenuUseCase {
         repository.deleteByCode(normalizedCode);
     }
 
-    private String requiredText(String value, String fieldName) {
-        if (!StringUtils.hasText(value)) {
-            throw badRequest(fieldName + "은(는) 필수입니다.");
-        }
-        return value.trim();
-    }
-
-    private String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
-    private SystemPermissionApplicationException badRequest(String message) {
-        return new SystemPermissionApplicationException(SystemPermissionApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private SystemPermissionApplicationException notFound(String message) {
-        return new SystemPermissionApplicationException(SystemPermissionApplicationException.Type.NOT_FOUND, message);
-    }
 }

@@ -15,6 +15,7 @@ import com.cheil.cheil_be.application.client.port.out.ClientRepository;
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
 import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
+import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 import com.cheil.cheil_be.domain.client.Client;
 import com.cheil.cheil_be.domain.commoncode.CommonCode;
@@ -94,7 +95,7 @@ public class BidNoticeResponseMapper {
                 .filter(item -> StringUtils.hasText(keyExtractor.apply(item)))
                 .collect(Collectors.toMap(
                         item -> normalizeKey(keyExtractor.apply(item)),
-                        item -> defaultString(labelExtractor.apply(item)),
+                        item -> StringValues.emptyIfNull(labelExtractor.apply(item)),
                         (left, right) -> left,
                         LinkedHashMap::new
                 ));
@@ -120,10 +121,6 @@ public class BidNoticeResponseMapper {
 
     private static String normalizeKey(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-    }
-
-    private static String defaultString(String value) {
-        return value == null ? "" : value;
     }
 
     public record BidNoticeResponseLookup(

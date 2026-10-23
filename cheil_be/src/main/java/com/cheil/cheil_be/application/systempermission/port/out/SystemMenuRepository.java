@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
-import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenuCommand;
 
 public interface SystemMenuRepository {
 
@@ -12,7 +12,7 @@ public interface SystemMenuRepository {
 
     Optional<SystemMenu> findByCode(String menuCode);
 
-    SystemMenu save(SaveSystemMenuCommand command);
+    SystemMenu save(SystemMenuCommand command);
 
     void deleteByCode(String menuCode);
 }

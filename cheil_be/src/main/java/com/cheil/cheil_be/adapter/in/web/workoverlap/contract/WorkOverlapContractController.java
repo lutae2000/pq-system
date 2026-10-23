@@ -2,7 +2,9 @@ package com.cheil.cheil_be.adapter.in.web.workoverlap.contract;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ import com.cheil.cheil_be.application.workoverlap.contract.WorkOverlapContractSe
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 업무중복도 계약과 참여 기술자 및 변경 이력을 관리하는 API다. */
 @RestController
 @RequestMapping("/work-overlap-contracts")
 @RequiredArgsConstructor
@@ -47,8 +50,7 @@ public class WorkOverlapContractController {
             @RequestParam(required = false) Boolean cemsConfirm,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String referenceDate,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         Page<WorkOverlapContractResponse> result = workOverlapContractService.findAll(
                 keyword,
@@ -62,7 +64,7 @@ public class WorkOverlapContractController {
                 cemsConfirm,
                 status,
                 referenceDate,
-                PageRequests.of(page, size, DEFAULT_SORT)
+                PageRequests.of(pageable, DEFAULT_SORT)
         );
         return ResponseEntity.ok(PageResponse.from(result));
     }
@@ -107,8 +109,7 @@ public class WorkOverlapContractController {
             @RequestParam(required = false) String referenceDate,
             @RequestParam(required = false) String remainingDays,
             @RequestParam(required = false, defaultValue = "false") boolean excludeCompleted,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         // This endpoint is covered by the same read permission as the contract page.
         Page<WorkOverlapEngineerContractResponse> result = workOverlapContractService.findEngineerContracts(
@@ -116,7 +117,7 @@ public class WorkOverlapContractController {
                 referenceDate,
                 remainingDays,
                 excludeCompleted,
-                PageRequests.of(page, size, DEFAULT_SORT)
+                PageRequests.of(pageable, DEFAULT_SORT)
         );
         return ResponseEntity.ok(PageResponse.from(result));
     }

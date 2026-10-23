@@ -1,12 +1,13 @@
 package com.cheil.cheil_be.adapter.in.web.serviceperformance;
 
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceCommand;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePage;
-import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformancePageQuery;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceQuery;
 import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 용역 수행성과를 조회하고 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/service-performance-management")
 @RequiredArgsConstructor
@@ -33,28 +35,18 @@ public class ServicePerformanceController {
             @RequestParam(required = false) String siteName,
             @RequestParam(required = false) String referenceDate,
             @RequestParam(required = false) String periodType,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        ServicePerformancePage result = servicePerformanceUseCase.findAll(
+        var safePageable = PageRequests.of(pageable);
+        var result = servicePerformanceUseCase.findAll(new ServicePerformanceQuery(
                 keyword,
                 clientCode,
                 fieldName,
                 siteName,
                 referenceDate,
-                periodType,
-                toPageQuery(page, size)
-        );
-        // application 결과를 HTTP 응답 DTO로 변환하는 책임은 inbound adapter 경계에 둡니다.
-        return ResponseEntity.ok(new PageResponse<>(
-                result.content().stream().map(ServicePerformanceResponse::from).toList(),
-                result.page(),
-                result.size(),
-                result.totalElements(),
-                result.totalPages(),
-                result.first(),
-                result.last()
-        ));
+                periodType
+        ), safePageable);
+        return ResponseEntity.ok(PageResponse.from(result, ServicePerformanceResponse::from));
     }
 
     @GetMapping("/{id}")
@@ -63,19 +55,19 @@ public class ServicePerformanceController {
     }
 
     @PostMapping
-    public ResponseEntity<ServicePerformanceResponse> create(@RequestBody ServicePerformanceRequest request) {
+    public ResponseEntity<ServicePerformanceResponse> create(@Valid @RequestBody ServicePerformanceRequest request) {
         return ResponseEntity.ok(ServicePerformanceResponse.from(
-                servicePerformanceUseCase.create(toCommand(request))
+                servicePerformanceUseCase.create(request.toCommand())
         ));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ServicePerformanceResponse> update(
             @PathVariable Long id,
-            @RequestBody ServicePerformanceRequest request
+            @Valid @RequestBody ServicePerformanceRequest request
     ) {
         return ResponseEntity.ok(ServicePerformanceResponse.from(
-                servicePerformanceUseCase.update(id, toCommand(request))
+                servicePerformanceUseCase.update(id, request.toCommand())
         ));
     }
 
@@ -85,12 +77,4 @@ public class ServicePerformanceController {
         return ResponseEntity.noContent().build();
     }
 
-    private static ServicePerformancePageQuery toPageQuery(Integer page, Integer size) {
-        var pageable = PageRequests.of(page, size);
-        return new ServicePerformancePageQuery(pageable.getPageNumber(), pageable.getPageSize());
-    }
-
-    private static ServicePerformanceCommand toCommand(ServicePerformanceRequest request) {
-        return request == null ? null : request.toCommand();
-    }
 }

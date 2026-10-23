@@ -2,7 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.companyprofile;
 
 import java.time.Instant;
 
-import com.cheil.cheil_be.adapter.out.persistence.companyprofile.CompanyProfileHistEntity;
+import com.cheil.cheil_be.application.companyprofile.port.in.CompanyProfileUseCase;
 
 public record CompanyProfileHistoryResponse(
         Long histId,
@@ -13,14 +13,10 @@ public record CompanyProfileHistoryResponse(
         String snapshotJson
 ) {
 
-    public static CompanyProfileHistoryResponse from(CompanyProfileHistEntity entity) {
+    public static CompanyProfileHistoryResponse from(CompanyProfileUseCase.History entity) {
         return new CompanyProfileHistoryResponse(
-                entity.getHistId(),
-                entity.getChangedAt(),
-                entity.getChangedBy(),
-                entity.getChangeType(),
-                entity.getChangeSummary(),
-                entity.getSnapshotJson()
+                entity.histId(), entity.changedAt(), entity.changedBy(), entity.changeType(),
+                entity.changeSummary(), entity.snapshotJson()
         );
     }
 }

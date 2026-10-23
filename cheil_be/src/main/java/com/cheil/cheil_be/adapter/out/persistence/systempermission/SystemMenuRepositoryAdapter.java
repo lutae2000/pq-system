@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
-import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenuCommand;
 import com.cheil.cheil_be.application.systempermission.port.out.SystemMenuRepository;
 
 /** 시스템 메뉴 Entity와 애플리케이션 모델의 변환 및 JPA 저장을 담당하는 출력 어댑터다. */
@@ -30,7 +30,7 @@ public class SystemMenuRepositoryAdapter implements SystemMenuRepository {
     }
 
     @Override
-    public SystemMenu save(SaveSystemMenuCommand command) {
+    public SystemMenu save(SystemMenuCommand command) {
         SystemMenuEntity entity = repository.findById(command.menuCode())
                 .map(existing -> update(existing, command))
                 .orElseGet(() -> repository.save(toEntity(command)));
@@ -42,7 +42,7 @@ public class SystemMenuRepositoryAdapter implements SystemMenuRepository {
         repository.deleteById(menuCode);
     }
 
-    private SystemMenuEntity update(SystemMenuEntity entity, SaveSystemMenuCommand command) {
+    private SystemMenuEntity update(SystemMenuEntity entity, SystemMenuCommand command) {
         entity.setMenuName(command.menuName());
         entity.setParentMenuCode(command.parentMenuCode());
         entity.setMenuPath(command.menuPath());
@@ -54,7 +54,7 @@ public class SystemMenuRepositoryAdapter implements SystemMenuRepository {
         return entity;
     }
 
-    private SystemMenuEntity toEntity(SaveSystemMenuCommand command) {
+    private SystemMenuEntity toEntity(SystemMenuCommand command) {
         return SystemMenuEntity.builder()
                 .menuCode(command.menuCode())
                 .menuName(command.menuName())

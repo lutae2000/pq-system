@@ -12,10 +12,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -44,18 +43,18 @@ public class LoginAccessTokenService {
 
     public LoginAccessTokenClaims parse(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith(TOKEN_TYPE + " ")) {
-            throw unauthorized();
+            throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
 
         String token = authorizationHeader.substring((TOKEN_TYPE + " ").length()).trim();
         String[] parts = token.split("\\.");
         if (parts.length != 3) {
-            throw unauthorized();
+            throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
 
         String unsignedToken = "%s.%s".formatted(parts[0], parts[1]);
         if (!constantTimeEquals(sign(unsignedToken), parts[2])) {
-            throw unauthorized();
+            throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
 
         Map<?, ?> payload = readPayload(parts[1]);
@@ -64,7 +63,7 @@ public class LoginAccessTokenService {
         Instant expiresAt = instantValue(payload.get("exp"));
 
         if (loginId == null || sessionId == null || expiresAt == null || !Instant.now(clock).isBefore(expiresAt)) {
-            throw unauthorized();
+            throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
 
         return new LoginAccessTokenClaims(loginId, sessionId, expiresAt);
@@ -93,7 +92,7 @@ public class LoginAccessTokenService {
         try {
             return objectMapper.readValue(decoder.decode(encodedPayload), Map.class);
         } catch (Exception ex) {
-            throw unauthorized();
+            throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
     }
 
@@ -126,10 +125,6 @@ public class LoginAccessTokenService {
             return Instant.ofEpochSecond(number.longValue());
         }
         return null;
-    }
-
-    private static ResponseStatusException unauthorized() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 토큰이 유효하지 않습니다.");
     }
 
     public record LoginAccessToken(String accessToken, String tokenType, Instant expiresAt) {

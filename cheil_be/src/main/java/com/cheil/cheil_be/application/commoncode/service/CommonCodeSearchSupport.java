@@ -122,6 +122,6 @@ public class CommonCodeSearchSupport {
     }
 
     private boolean contains(String value, String keyword) {
-        return value != null && StringValues.containsIgnoreCase(value, keyword);
+        return StringValues.containsIgnoreCase(value, keyword);
     }
 }

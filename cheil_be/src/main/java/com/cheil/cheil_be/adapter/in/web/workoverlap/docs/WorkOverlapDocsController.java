@@ -1,7 +1,9 @@
 package com.cheil.cheil_be.adapter.in.web.workoverlap.docs;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import com.cheil.cheil_be.application.engineerperformancedoc.service.Performance
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import org.springframework.web.multipart.MultipartFile;
 
+/** 업무중복도 계약 조회와 HWPX 문서 생성을 제공하는 API다. */
 @RestController
 @RequestMapping("/work-overlap-docs")
 @RequiredArgsConstructor
@@ -70,8 +73,7 @@ public class WorkOverlapDocsController {
             @RequestParam String workDutyId,
             @RequestParam(required = false) String referenceDate,
             @RequestParam(required = false) String remainingDays,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         WorkOverlapDocumentEngineerContractsResponse result = contractQueryService.findContracts(
                 engineerId,
@@ -79,7 +81,7 @@ public class WorkOverlapDocsController {
                 workDutyId,
                 referenceDate,
                 remainingDays,
-                PageRequests.of(page, size, DEFAULT_SORT)
+                PageRequests.of(pageable, DEFAULT_SORT)
         );
         return ResponseEntity.ok(result);
     }

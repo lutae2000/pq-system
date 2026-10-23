@@ -21,7 +21,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.server.ResponseStatusException;
+
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 
 @ExtendWith(MockitoExtension.class)
 class EngineerAdminServiceTest {
@@ -139,7 +140,7 @@ class EngineerAdminServiceTest {
         when(licenseRepository.findByEngrIdOrderById("ENG-1")).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.deleteLicense("ENG-1", 99L))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ApplicationException.class)
                 .hasMessageContaining("Record not found.");
         verify(licenseRepository, never()).deleteById(99L);
     }

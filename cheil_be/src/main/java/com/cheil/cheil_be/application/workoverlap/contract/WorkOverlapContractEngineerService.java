@@ -1,5 +1,10 @@
 package com.cheil.cheil_be.application.workoverlap.contract;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerChangeRequest;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerRequest;
 import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
@@ -11,11 +16,10 @@ import com.cheil.cheil_be.application.workoverlap.contract.port.out.WorkOverlapC
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 
-import com.cheil.cheil_be.application.workoverlap.exception.WorkOverlapApplicationException;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 
 @Service
 @RequiredArgsConstructor
@@ -30,24 +34,24 @@ public class WorkOverlapContractEngineerService {
             Integer limit
     ) {
         int pageSize = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
-        return repository.findCandidates(normalize(keyword), pageSize);
+        return repository.findCandidates(trimToNull(keyword), pageSize);
     }
 
     @Transactional(readOnly = true)
     public List<WorkOverlapContractEngineer> findByContractNo(String contractNo) {
-        return repository.findByContractNo(required(contractNo, "contractNo"));
+        return repository.findByContractNo(requiredText(contractNo, "contractNo"));
     }
 
     @Transactional(readOnly = true)
     public List<WorkOverlapContractEngineerHistory> findHistoriesByContractNo(String contractNo) {
-        return repository.findHistoriesByContractNo(required(contractNo, "contractNo"));
+        return repository.findHistoriesByContractNo(requiredText(contractNo, "contractNo"));
     }
 
     @Transactional
     public void deleteHistory(String contractNo, long historyId) {
-        String normalizedContractNo = required(contractNo, "contractNo");
+        String normalizedContractNo = requiredText(contractNo, "contractNo");
         if (!repository.deleteHistory(normalizedContractNo, historyId)) {
-            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.NOT_FOUND, "변경 이력을 찾을 수 없습니다.");
+            throw ApplicationException.notFound("변경 이력을 찾을 수 없습니다.");
         }
     }
 
@@ -57,20 +61,20 @@ public class WorkOverlapContractEngineerService {
             WorkOverlapContractEngineerRequest request
     ) {
         if (request == null) {
-            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, "Request body is required.");
+            throw ApplicationException.badRequest("Request body is required.");
         }
 
-        String normalizedContractNo = required(contractNo, "contractNo");
-        String engineerId = required(request.engineerId(), "engineerId");
+        String normalizedContractNo = requiredText(contractNo, "contractNo");
+        String engineerId = requiredText(request.engineerId(), "engineerId");
         repository.create(new WorkOverlapContractEngineerSaveCommand(
                 normalizedContractNo,
                 null,
                 engineerId,
-                normalize(request.field()),
+                trimToNull(request.field()),
                 normalizeDate(request.participationDate()),
-                normalize(request.participationType()),
+                trimToNull(request.participationType()),
                 Boolean.TRUE.equals(request.pqTargetYn()),
-                normalize(request.remark()),
+                trimToNull(request.remark()),
                 currentActorPort.currentActor()
         ));
         return findByEngineerId(normalizedContractNo, engineerId);
@@ -83,29 +87,29 @@ public class WorkOverlapContractEngineerService {
             WorkOverlapContractEngineerChangeRequest request
     ) {
         if (request == null) {
-            throw new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, "Request body is required.");
+            throw ApplicationException.badRequest("Request body is required.");
         }
 
-        String normalizedContractNo = required(contractNo, "contractNo");
-        String normalizedEngineerId = required(engineerId, "engineerId");
-        String beforeEngineerId = required(request.beforeEngineerId(), "beforeEngineerId");
-        String afterEngineerId = required(request.afterEngineerId(), "afterEngineerId");
-        String changeContent = required(request.changeContent(), "changeContent");
+        String normalizedContractNo = requiredText(contractNo, "contractNo");
+        String normalizedEngineerId = requiredText(engineerId, "engineerId");
+        String beforeEngineerId = requiredText(request.beforeEngineerId(), "beforeEngineerId");
+        String afterEngineerId = requiredText(request.afterEngineerId(), "afterEngineerId");
+        String changeContent = requiredText(request.changeContent(), "changeContent");
         String actor = currentActorPort.currentActor();
 
         boolean updated = repository.update(new WorkOverlapContractEngineerSaveCommand(
                 normalizedContractNo,
                 normalizedEngineerId,
                 afterEngineerId,
-                normalize(request.field()),
+                trimToNull(request.field()),
                 normalizeDate(request.participationDate()),
-                normalize(request.participationType()),
+                trimToNull(request.participationType()),
                 Boolean.TRUE.equals(request.pqTargetYn()),
-                normalize(request.remark()),
+                trimToNull(request.remark()),
                 actor
         ));
         if (!updated) {
-            throw engineerNotFound();
+            throw ApplicationException.notFound("참여 기술자 정보를 찾을 수 없습니다.");
         }
 
         if (!beforeEngineerId.equals(afterEngineerId)) {
@@ -122,11 +126,11 @@ public class WorkOverlapContractEngineerService {
 
     @Transactional
     public void delete(String contractNo, String engineerId) {
-        String normalizedContractNo = required(contractNo, "contractNo");
-        String normalizedEngineerId = required(engineerId, "engineerId");
+        String normalizedContractNo = requiredText(contractNo, "contractNo");
+        String normalizedEngineerId = requiredText(engineerId, "engineerId");
         findByEngineerId(normalizedContractNo, normalizedEngineerId);
         if (!repository.delete(normalizedContractNo, normalizedEngineerId)) {
-            throw engineerNotFound();
+            throw ApplicationException.notFound("참여 기술자 정보를 찾을 수 없습니다.");
         }
     }
 
@@ -134,33 +138,11 @@ public class WorkOverlapContractEngineerService {
         return repository.findByContractNo(contractNo).stream()
                 .filter(engineer -> engineer.engineerId().equals(engineerId))
                 .findFirst()
-                .orElseThrow(this::engineerNotFound);
-    }
-
-    private WorkOverlapApplicationException engineerNotFound() {
-        return new WorkOverlapApplicationException(
-                WorkOverlapApplicationException.Type.NOT_FOUND,
-                "참여 기술자 정보를 찾을 수 없습니다."
-        );
-    }
-
-    private String required(String value, String fieldName) {
-        String normalized = normalize(value);
-        if (!StringUtils.hasText(normalized)) {
-            throw new WorkOverlapApplicationException(
-                    WorkOverlapApplicationException.Type.BAD_REQUEST,
-                    fieldName + " is required."
-            );
-        }
-        return normalized;
-    }
-
-    private String normalize(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
+                .orElseThrow(() -> ApplicationException.notFound("참여 기술자 정보를 찾을 수 없습니다."));
     }
 
     private String normalizeDate(String value) {
-        String normalized = normalize(value);
+        String normalized = trimToNull(value);
         return normalized == null ? null : normalized.replaceAll("\\D", "");
     }
 }

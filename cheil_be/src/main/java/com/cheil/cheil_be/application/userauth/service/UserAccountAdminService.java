@@ -1,56 +1,54 @@
 package com.cheil.cheil_be.application.userauth.service;
 
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.application.common.service.PasswordHashService;
-import com.cheil.cheil_be.application.common.service.PasswordVerificationService;
-import com.cheil.cheil_be.application.userauth.port.in.UserAccountSearchCondition;
-import com.cheil.cheil_be.application.userauth.port.in.UserAccountUpsertCommand;
+import com.cheil.cheil_be.application.userauth.model.UserAccountCommand;
+import com.cheil.cheil_be.application.userauth.model.UserAccountSearch;
+import com.cheil.cheil_be.application.userauth.model.UserMenuPermission;
+import com.cheil.cheil_be.application.userauth.model.UserMenuPermissionCommand;
+import com.cheil.cheil_be.application.userauth.port.in.UserAccountAdminUseCase;
 import com.cheil.cheil_be.application.userauth.port.out.UserAccountRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.JpaSystemMenuRepository;
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemMenuEntity;
-import com.cheil.cheil_be.adapter.out.persistence.userauth.JpaUserMenuPermissionRepository;
-import com.cheil.cheil_be.adapter.out.persistence.userauth.UserMenuPermissionEntity;
-import com.cheil.cheil_be.adapter.out.persistence.userauth.UserMenuPermissionId;
-import com.cheil.cheil_be.common.security.AuditActorResolver;
-import com.cheil.cheil_be.common.paging.PageRequests;
+import com.cheil.cheil_be.application.userauth.port.out.UserMenuPermissionRepository;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.userauth.UserAccount;
 
 @Service
 @RequiredArgsConstructor
-public class UserAccountAdminService {
+public class UserAccountAdminService implements UserAccountAdminUseCase {
 
     private final UserAccountRepository userAccountRepository;
-    private final JpaSystemMenuRepository systemMenuRepository;
-    private final JpaUserMenuPermissionRepository userMenuPermissionRepository;
+    private final UserMenuPermissionRepository userMenuPermissionRepository;
     private final PasswordHashService passwordHashService;
-    private final PasswordVerificationService passwordVerificationService;
+    private final CurrentActorPort currentActorPort;
     private final Clock clock;
 
     private static final String DEFAULT_RESET_PASSWORD = "0000";
     private static final DateTimeFormatter PASSWORD_RESET_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     @Transactional(readOnly = true)
-    public Page<UserAccount> findAll(UserAccountSearchCondition condition, Integer page) {
+    @Override
+    public Page<UserAccount> findAll(UserAccountSearch condition, Pageable pageable) {
+        if (pageable == null) {
+            throw ApplicationException.badRequest("페이지 정보는 필수입니다.");
+        }
         String keyword = StringValues.normalize(condition.keyword()).toLowerCase(Locale.ROOT);
         String useYn = StringValues.normalize(condition.useYn());
         String groupCode = StringValues.normalize(condition.groupCode());
@@ -63,110 +61,61 @@ public class UserAccountAdminService {
                 .filter(user -> matchesCode(deptCode, user.deptCode()))
                 .toList();
 
-        var pageable = PageRequests.of(page);
-        int fromIndex = Math.min(pageable.getPageNumber() * pageable.getPageSize(), filteredUsers.size());
+        int fromIndex = Math.min(Math.toIntExact(pageable.getOffset()), filteredUsers.size());
         int toIndex = Math.min(fromIndex + pageable.getPageSize(), filteredUsers.size());
-
         return new PageImpl<>(filteredUsers.subList(fromIndex, toIndex), pageable, filteredUsers.size());
     }
 
     @Transactional(readOnly = true)
     public UserAccount findByEmployeeNo(String employeeNo) {
         return userAccountRepository.findByEmployeeNo(employeeNo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자 계정을 찾을 수 없습니다."));
+                .orElseThrow(() -> ApplicationException.notFound("사용자 계정을 찾을 수 없습니다."));
     }
 
     @Transactional(readOnly = true)
-    public List<UserMenuPermissionView> findUserMenuPermissions(String loginId) {
-        findByLoginId(loginId);
-
-        List<SystemMenuEntity> menus = systemMenuRepository.findAllByOrderBySortSeqAscMenuCodeAsc();
-        Map<String, UserMenuPermissionEntity> permissionByMenu = userMenuPermissionRepository
-                .findAllByIdLoginIdOrderByIdMenuCodeAsc(loginId)
-                .stream()
-                .collect(Collectors.toMap(item -> item.getId().getMenuCode(), item -> item));
-
-        List<UserMenuPermissionView> views = new ArrayList<>();
-        for (SystemMenuEntity menu : menus) {
-            UserMenuPermissionEntity permission = permissionByMenu.get(menu.getMenuCode());
-            views.add(new UserMenuPermissionView(
-                    loginId,
-                    menu.getMenuCode(),
-                    menu.getMenuName(),
-                    menu.getParentMenuCode(),
-                    menu.getMenuPath(),
-                    menu.getMenuType(),
-                    menu.getSortSeq(),
-                    menu.isUseYn(),
-                    menu.isVisibleYn(),
-                    menu.getDescription(),
-                    permission != null && permission.isReadYn(),
-                    permission != null && permission.isCreateYn(),
-                    permission != null && permission.isUpdateYn(),
-                    permission != null && permission.isDeleteYn()
-            ));
-        }
-
-        return views.stream()
-                .sorted(Comparator.comparingInt(UserMenuPermissionView::sortSeq).thenComparing(UserMenuPermissionView::menuCode))
-                .toList();
+    public List<UserMenuPermission> findUserMenuPermissions(String loginId) {
+        String normalizedLoginId = findByLoginId(loginId).loginId();
+        return userMenuPermissionRepository.findAll(normalizedLoginId);
     }
 
     @Transactional
-    public List<UserMenuPermissionView> saveUserMenuPermissions(String loginId, List<UserMenuPermissionUpsertItem> items) {
-        findByLoginId(loginId);
-
-        userMenuPermissionRepository.deleteByIdLoginId(loginId);
-        for (UserMenuPermissionUpsertItem item : items) {
-            if (!StringUtils.hasText(item.menuCode())) {
-                continue;
-            }
-            if (!item.read() && !item.create() && !item.update() && !item.delete()) {
-                continue;
-            }
-            userMenuPermissionRepository.save(UserMenuPermissionEntity.builder()
-                    .id(new UserMenuPermissionId(loginId, item.menuCode().trim()))
-                    .readYn(item.read())
-                    .createYn(item.create())
-                    .updateYn(item.update())
-                    .deleteYn(item.delete())
-                    .build());
+    public List<UserMenuPermission> saveUserMenuPermissions(String loginId, List<UserMenuPermissionCommand> items) {
+        String normalizedLoginId = findByLoginId(loginId).loginId();
+        if (items == null) {
+            throw ApplicationException.badRequest("permission items are required");
         }
-
-        return findUserMenuPermissions(loginId);
+        List<UserMenuPermissionCommand> normalized = items.stream()
+                .filter(item -> item != null && StringUtils.hasText(item.menuCode()))
+                .map(item -> new UserMenuPermissionCommand(item.menuCode().trim(), item.read(), item.create(), item.update(), item.delete()))
+                .toList();
+        userMenuPermissionRepository.replaceAll(normalizedLoginId, normalized);
+        return userMenuPermissionRepository.findAll(normalizedLoginId);
     }
 
     @Transactional(readOnly = true)
     public UserAccount findByLoginId(String loginId) {
         return userAccountRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자 계정을 찾을 수 없습니다."));
+                .orElseThrow(() -> ApplicationException.notFound("사용자 계정을 찾을 수 없습니다."));
     }
 
     @Transactional
-    public UserAccount upsert(UserAccountUpsertCommand command) {
-        if (command.employeeNo() == null || command.employeeNo().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "employeeNo는 필수입니다.");
+    public UserAccount upsert(UserAccountCommand command) {
+        if (command == null) {
+            throw ApplicationException.badRequest("user account is required");
         }
-        if (command.userName() == null || command.userName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userName은 필수입니다.");
-        }
-        if (command.loginId() == null || command.loginId().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "loginId는 필수입니다.");
-        }
-        if (command.groupCode() == null || command.groupCode().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "groupCode는 필수입니다.");
-        }
-        if (command.deptCode() == null || command.deptCode().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "deptCode는 필수입니다.");
-        }
+        String employeeNo = requiredText(command.employeeNo(), "employeeNo");
+        String userName = requiredText(command.userName(), "userName");
+        String loginId = requiredText(command.loginId(), "loginId");
+        String groupCode = requiredText(command.groupCode(), "groupCode");
+        String deptCode = requiredText(command.deptCode(), "deptCode");
 
-        UserAccount existing = userAccountRepository.findByEmployeeNo(command.employeeNo()).orElse(null);
+        UserAccount existing = userAccountRepository.findByEmployeeNo(employeeNo).orElse(null);
         boolean createMode = existing == null;
 
-        userAccountRepository.findByLoginId(command.loginId())
-                .filter(item -> !item.employeeNo().equals(command.employeeNo()))
+        userAccountRepository.findByLoginId(loginId)
+                .filter(item -> !item.employeeNo().equals(employeeNo))
                 .ifPresent(item -> {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 로그인 ID입니다.");
+                    throw ApplicationException.conflict("이미 존재하는 로그인 ID입니다.");
                 });
 
         String rawPassword = command.userPassword() == null ? "" : command.userPassword().trim();
@@ -176,18 +125,18 @@ public class UserAccountAdminService {
         } else if (!createMode) {
             passwordToSave = existing.userPassword();
         } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "신규 계정은 비밀번호가 필요합니다.");
+            throw ApplicationException.badRequest("신규 계정은 비밀번호가 필요합니다.");
         }
 
         Instant occurredAt = Instant.now(clock);
         UserAccount updated = new UserAccount(
-                command.employeeNo().trim(),
-                command.userName().trim(),
-                command.loginId().trim(),
+                employeeNo,
+                userName,
+                loginId,
                 passwordToSave,
                 command.useYn() != null ? command.useYn() : true,
-                command.groupCode().trim(),
-                command.deptCode().trim(),
+                groupCode,
+                deptCode,
                 parseInstant(command.loginDt()),
                 StringValues.normalize(command.recentIpAddr()),
                 StringValues.normalize(command.passwordResetDt()),
@@ -196,11 +145,7 @@ public class UserAccountAdminService {
                 normalizeCount(command.wrongPasswordCount()),
                 StringValues.normalize(command.email()),
                 occurredAt,
-                AuditActorResolver.resolve(
-                        command.lastChangedId() != null && !command.lastChangedId().isBlank()
-                                ? command.lastChangedId().trim()
-                                : command.loginId().trim()
-                )
+                StringUtils.hasText(command.lastChangedId()) ? command.lastChangedId().trim() : currentActorPort.currentActor()
         );
 
         return userAccountRepository.save(updated);
@@ -210,96 +155,13 @@ public class UserAccountAdminService {
     public UserAccount resetPassword(String employeeNo) {
         UserAccount userAccount = findByEmployeeNo(employeeNo);
         Instant occurredAt = Instant.now(clock);
-        String actorId = AuditActorResolver.resolve("system");
+        String actorId = currentActorPort.currentActor();
         return userAccountRepository.save(userAccount.resetPassword(
                 passwordHashService.hash(DEFAULT_RESET_PASSWORD),
                 passwordResetDate(occurredAt),
                 occurredAt,
                 actorId
         ));
-    }
-
-    @Transactional
-    public UserAccount changePassword(String loginId, String currentPassword, String newPassword) {
-        if (!StringUtils.hasText(loginId)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "loginId is required.");
-        }
-        if (!StringUtils.hasText(currentPassword)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "currentPassword is required.");
-        }
-        if (!StringUtils.hasText(newPassword)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "newPassword is required.");
-        }
-
-        UserAccount userAccount = findByLoginId(loginId);
-        if (!passwordVerificationService.matches(currentPassword, userAccount.userPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is not valid.");
-        }
-
-        Instant occurredAt = Instant.now(clock);
-        return userAccountRepository.save(userAccount.changePassword(
-                passwordHashService.hash(newPassword.trim()),
-                passwordResetDate(occurredAt),
-                occurredAt,
-                AuditActorResolver.resolve(loginId)
-        ));
-    }
-
-    @Transactional
-    public UserAccount updateSelfProfile(
-            String loginId,
-            String employeeNo,
-            String deptCode,
-            String email,
-            String currentPassword,
-            String newPassword
-    ) {
-        UserAccount userAccount = findByLoginId(loginId);
-        String nextEmployeeNo = requiredValue(employeeNo, "employeeNo");
-        String nextDeptCode = requiredValue(deptCode, "deptCode");
-        String nextEmail = StringValues.normalize(email);
-
-        userAccountRepository.findByEmployeeNo(nextEmployeeNo)
-                .filter(item -> !item.loginId().equals(userAccount.loginId()))
-                .ifPresent(item -> {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 사번입니다.");
-                });
-
-        boolean passwordChanged = StringUtils.hasText(newPassword);
-        String encodedPassword = userAccount.userPassword();
-        String passwordResetDt = userAccount.passwordResetDt();
-        boolean passwordReset = userAccount.passwordReset();
-        if (passwordChanged) {
-            if (!StringUtils.hasText(currentPassword)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호는 필수입니다.");
-            }
-            if (!passwordVerificationService.matches(currentPassword, userAccount.userPassword())) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 올바르지 않습니다.");
-            }
-            encodedPassword = passwordHashService.hash(newPassword.trim());
-            passwordResetDt = passwordResetDate(Instant.now(clock));
-            passwordReset = false;
-        }
-
-        Instant occurredAt = Instant.now(clock);
-        return userAccountRepository.save(userAccount.updateProfile(
-                nextEmployeeNo,
-                nextDeptCode,
-                nextEmail,
-                encodedPassword,
-                passwordResetDt,
-                passwordReset,
-                occurredAt,
-                AuditActorResolver.resolve(loginId)
-        ));
-    }
-
-    private static String requiredValue(String value, String fieldName) {
-        String normalized = StringValues.normalize(value);
-        if (!StringUtils.hasText(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
-        }
-        return normalized;
     }
 
     private static Instant parseInstant(String value) {
@@ -335,16 +197,16 @@ public class UserAccountAdminService {
             return true;
         }
 
-        return contains(user.employeeNo(), keyword)
-                || contains(user.userName(), keyword)
-                || contains(user.loginId(), keyword)
-                || contains(user.groupCode(), keyword)
-                || contains(user.deptCode(), keyword)
-                || contains(user.email(), keyword)
-                || contains(user.recentIpAddr(), keyword)
-                || contains(user.lastChangedId(), keyword)
-                || contains(user.loginDt() == null ? "" : user.loginDt().toString(), keyword)
-                || contains(user.lastChangedAt() == null ? "" : user.lastChangedAt().toString(), keyword);
+        return StringValues.containsIgnoreCase(user.employeeNo(), keyword)
+                || StringValues.containsIgnoreCase(user.userName(), keyword)
+                || StringValues.containsIgnoreCase(user.loginId(), keyword)
+                || StringValues.containsIgnoreCase(user.groupCode(), keyword)
+                || StringValues.containsIgnoreCase(user.deptCode(), keyword)
+                || StringValues.containsIgnoreCase(user.email(), keyword)
+                || StringValues.containsIgnoreCase(user.recentIpAddr(), keyword)
+                || StringValues.containsIgnoreCase(user.lastChangedId(), keyword)
+                || StringValues.containsIgnoreCase(user.loginDt() == null ? "" : user.loginDt().toString(), keyword)
+                || StringValues.containsIgnoreCase(user.lastChangedAt() == null ? "" : user.lastChangedAt().toString(), keyword);
     }
 
     private static boolean matchesUseYn(UserAccount user, String useYn) {
@@ -358,34 +220,4 @@ public class UserAccountAdminService {
         return expected == null || expected.isBlank() || "All".equalsIgnoreCase(expected) || expected.equals(actual);
     }
 
-    private static boolean contains(String value, String keyword) {
-        return value != null && StringValues.containsIgnoreCase(value, keyword);
-    }
-
-    public record UserMenuPermissionUpsertItem(
-            String menuCode,
-            boolean read,
-            boolean create,
-            boolean update,
-            boolean delete
-    ) {
-    }
-
-    public record UserMenuPermissionView(
-            String loginId,
-            String menuCode,
-            String menuName,
-            String parentMenuCode,
-            String menuPath,
-            String menuType,
-            int sortSeq,
-            boolean useYn,
-            boolean visibleYn,
-            String description,
-            boolean read,
-            boolean create,
-            boolean update,
-            boolean delete
-    ) {
-    }
 }

@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.out.DocumentValueSettingRepository;
 
@@ -39,7 +40,7 @@ class DocumentValueSettingServiceTest {
         when(repository.existsEducation(10L, "E001")).thenReturn(false);
 
         assertThatThrownBy(() -> service.save(command))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ApplicationException.class)
                 .hasMessageContaining("educationId");
         verify(repository, never()).save(any(), anyString());
     }

@@ -5,6 +5,8 @@ import java.time.format.DateTimeFormatter;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +23,7 @@ import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
+/** 입찰공고의 조회, 등록, 수정, 삭제를 제공하는 API다. */
 @RestController
 @RequiredArgsConstructor
 public class BidNoticeController {
@@ -49,8 +52,7 @@ public class BidNoticeController {
             @RequestParam(required = false) String pqSubmitDateFrom,
             @RequestParam(required = false) String pqSubmitDateTo,
             @RequestParam(required = false) String bidSuccessYn,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshot();
         Page<BidNotice> result = bidNoticeAdminUseCase.findAll(
@@ -70,7 +72,7 @@ public class BidNoticeController {
                         parseDate(pqSubmitDateTo),
                         bidSuccessYn
                 ),
-                PageRequests.of(page, size)
+                PageRequests.of(pageable)
         );
         return ResponseEntity.ok(PageResponse.from(result, bidNotice -> bidNoticeResponseMapper.toResponse(bidNotice, lookup)));
     }

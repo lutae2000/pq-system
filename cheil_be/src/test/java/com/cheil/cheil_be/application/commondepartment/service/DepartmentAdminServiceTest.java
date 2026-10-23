@@ -19,10 +19,10 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUpsertCommand;
 import com.cheil.cheil_be.application.commondepartment.port.out.CommonDepartmentRepository;
 import com.cheil.cheil_be.domain.commondepartment.Department;
@@ -70,10 +70,10 @@ class DepartmentAdminServiceTest {
                 null
         )));
 
-        assertThat(thrown).isInstanceOf(ResponseStatusException.class);
-        ResponseStatusException ex = (ResponseStatusException) thrown;
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(ex.getReason()).contains("deptCode");
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        ApplicationException ex = (ApplicationException) thrown;
+        assertThat(ex.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST);
+        assertThat(ex.getMessage()).contains("deptCode");
         assertThat(repository.savedCount()).isZero();
     }
 
@@ -170,9 +170,9 @@ class DepartmentAdminServiceTest {
                 "DSR000"
         )));
 
-        assertThat(thrown).isInstanceOf(ResponseStatusException.class);
-        ResponseStatusException ex = (ResponseStatusException) thrown;
-        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        ApplicationException ex = (ApplicationException) thrown;
+        assertThat(ex.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST);
     }
 
     private static final class InMemoryCommonDepartmentRepository implements CommonDepartmentRepository {

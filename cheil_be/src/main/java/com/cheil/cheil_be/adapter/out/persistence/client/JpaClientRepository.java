@@ -8,15 +8,15 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
-import com.cheil.cheil_be.application.client.port.in.ClientSearchCondition;
+import com.cheil.cheil_be.application.client.model.ClientSearchCondition;
 import com.cheil.cheil_be.application.client.port.out.ClientRepository;
 import com.cheil.cheil_be.domain.client.Client;
 
@@ -40,21 +40,16 @@ public class JpaClientRepository implements ClientRepository {
         var query = queryFactory
                 .selectFrom(clientEntity)
                 .where(predicate)
-                .orderBy(clientEntity.clientCode.length().asc(), clientEntity.clientCode.asc());
-
-        if (pageable.isPaged()) {
-            query.offset(pageable.getOffset()).limit(pageable.getPageSize());
-        }
+                .orderBy(clientEntity.clientCode.length().asc(), clientEntity.clientCode.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize());
 
         var content = query.fetch().stream().map(ClientEntity::toDomain).toList();
-        return PageableExecutionUtils.getPage(
-                content,
-                pageable,
-                () -> queryFactory.select(clientEntity.count())
-                        .from(clientEntity)
-                        .where(predicate)
-                        .fetchOne()
-        );
+        Long total = queryFactory.select(clientEntity.count())
+                .from(clientEntity)
+                .where(predicate)
+                .fetchOne();
+        return new PageImpl<>(content, pageable, total == null ? 0 : total);
     }
 
     @Override

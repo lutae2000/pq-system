@@ -1,5 +1,11 @@
 package com.cheil.cheil_be.application.engineerperformancedoc.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,8 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -25,9 +29,10 @@ import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectH
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewSyncRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadata;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadataService;
 
 /** 기술인 실적 문서에 필요한 프로젝트 이력, 검토 결과, 문서 값 설정을 조회·관리하는 서비스. */
 @Service
@@ -37,7 +42,7 @@ public class EngineerPerformanceDocumentService {
     private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
     private final JdbcClient jdbcClient;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
-    private final Gson gson = new Gson();
+    private final ProjectHistoryConditionJsonCodec conditionJsonCodec;
 
     @Transactional(readOnly = true)
     public List<EngineerProjectHistoryReviewResponse> findProjectHistories(
@@ -50,7 +55,7 @@ public class EngineerPerformanceDocumentService {
 
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("engineerId", engineerId.trim());
-        List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(relatedProjectHistoryConditions);
+        List<ProjectHistoryCondition> conditions = conditionJsonCodec.parse(relatedProjectHistoryConditions);
         String conditionSql = buildProjectHistoryConditionSql(
                 conditions,
                 params,
@@ -195,9 +200,9 @@ public class EngineerPerformanceDocumentService {
 
     @Transactional
     public EngineerProjectHistoryReviewResponse createReviewResult(EngineerProjectHistoryReviewRequest request) {
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String engineerId = required(request.engineerId(), "engineerId");
-        Integer sourceSeq = requiredSourceSeq(request.sourceSeq());
+        Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
+        String engineerId = requiredText(request.engineerId(), "engineerId");
+        Integer sourceSeq = requiredPositive(request.sourceSeq(), "sourceSeq");
         ensureSourceHistoryExists(engineerId, sourceSeq);
         Integer displayOrder = request.displayOrder() == null ? nextDisplayOrder(bidSeq, engineerId) : request.displayOrder();
 
@@ -229,8 +234,8 @@ public class EngineerPerformanceDocumentService {
 
     @Transactional
     public List<EngineerProjectHistoryReviewResponse> syncReviewResults(EngineerProjectHistoryReviewSyncRequest request) {
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String engineerId = required(request.engineerId(), "engineerId");
+        Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
+        String engineerId = requiredText(request.engineerId(), "engineerId");
         String actor = AuditActorResolver.resolve();
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("bidSeq", bidSeq);
@@ -247,7 +252,7 @@ public class EngineerPerformanceDocumentService {
                 .param("actor", actor)
                 .update();
 
-        List<ProjectHistoryCondition> conditions = parseProjectHistoryConditions(request.relatedProjectHistoryConditions());
+        List<ProjectHistoryCondition> conditions = conditionJsonCodec.parse(request.relatedProjectHistoryConditions());
         String conditionSql = buildProjectHistoryConditionSql(
                 conditions,
                 params,
@@ -305,9 +310,9 @@ public class EngineerPerformanceDocumentService {
     public EngineerProjectHistoryReviewResponse updateReviewResult(Long reviewId, EngineerProjectHistoryReviewRequest request) {
         findByReviewId(reviewId);
 
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String engineerId = required(request.engineerId(), "engineerId");
-        Integer sourceSeq = requiredSourceSeq(request.sourceSeq());
+        Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
+        String engineerId = requiredText(request.engineerId(), "engineerId");
+        Integer sourceSeq = requiredPositive(request.sourceSeq(), "sourceSeq");
         ensureSourceHistoryExists(engineerId, sourceSeq);
         Integer displayOrder = request.displayOrder() == null ? findByReviewId(reviewId).displayOrder() : request.displayOrder();
 
@@ -341,8 +346,8 @@ public class EngineerPerformanceDocumentService {
                           AND engr_id = :engineerId
                           AND review_id = :reviewId
                         """)
-                .param("bidSeq", requiredBidSeq(bidSeq))
-                .param("engineerId", required(engineerId, "engineerId"))
+                .param("bidSeq", requiredPositive(bidSeq, "bidSeq"))
+                .param("engineerId", requiredText(engineerId, "engineerId"))
                 .param("reviewId", reviewId)
                 .update();
         if (deleted != 1) {
@@ -489,7 +494,7 @@ public class EngineerPerformanceDocumentService {
         List<String> fragments = new ArrayList<>();
         for (int i = 0; i < projectHistoryConditions.size(); i++) {
             ProjectHistoryCondition condition = projectHistoryConditions.get(i);
-            String conditionType = normalize(condition.conditionType());
+        String conditionType = trimToNull(condition.conditionType());
             String fragment = switch (conditionType == null ? "" : conditionType) {
                 case "constructionKind" -> constructionKindCondition(condition, params, i);
                 case "general" -> generalCondition(condition, params, i, conditionMetadata);
@@ -512,7 +517,7 @@ public class EngineerPerformanceDocumentService {
     }
 
     private String constructionKindCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String level1Code = normalize(condition.level1Code());
+        String level1Code = trimToNull(condition.level1Code());
         if (!StringUtils.hasText(level1Code)) {
             return "";
         }
@@ -520,8 +525,8 @@ public class EngineerPerformanceDocumentService {
         String level2Param = "historyLevel2Code" + index;
         String level3Param = "historyLevel3Code" + index;
         params.put(level1Param, level1Code);
-        params.put(level2Param, normalize(condition.level2Code()));
-        params.put(level3Param, normalize(condition.level3Code()));
+            params.put(level2Param, trimToNull(condition.level2Code()));
+            params.put(level3Param, trimToNull(condition.level3Code()));
         String kindAlias = "k" + index;
         return """
                 h.seq IN (
@@ -537,7 +542,7 @@ public class EngineerPerformanceDocumentService {
 
     private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
             Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(condition.generalCode()));
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(condition.generalCode()));
         String historyAlias = "h" + index;
         String targetAlias = "target" + index;
         String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index, metadata.valueType());
@@ -553,8 +558,8 @@ public class EngineerPerformanceDocumentService {
 
     private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
             Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        String categoryCode = normalize(condition.outlineCategoryCode());
-        String subcategoryCode = normalize(condition.outlineSubcategoryCode());
+        String categoryCode = trimToNull(condition.outlineCategoryCode());
+        String subcategoryCode = trimToNull(condition.outlineSubcategoryCode());
         if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
             return "";
         }
@@ -571,7 +576,7 @@ public class EngineerPerformanceDocumentService {
             outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
             params.put(paramName, subcategoryCode);
         }
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(categoryCode) + normalize(subcategoryCode));
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(categoryCode) + trimToNull(subcategoryCode));
         if (metadata == null) return "";
         String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
                 metadata.valueType());
@@ -594,13 +599,13 @@ public class EngineerPerformanceDocumentService {
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
             String metadataValueType) {
-        String value = normalize(condition.value());
+        String value = trimToNull(condition.value());
         String operator = operator(condition.operator());
         if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
             return "";
         }
 
-        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : normalize(condition.valueType());
+        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : trimToNull(condition.valueType());
         boolean numberType = "number".equals(valueType);
         boolean dateType = "date".equals(valueType);
         String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
@@ -619,7 +624,7 @@ public class EngineerPerformanceDocumentService {
             return "LOWER(CAST(" + column + " AS TEXT)) LIKE :" + paramName;
         }
         if ("BETWEEN".equals(operator)) {
-            String valueTo = normalize(condition.valueTo());
+        String valueTo = trimToNull(condition.valueTo());
             if (!StringUtils.hasText(valueTo)) {
                 return "";
             }
@@ -632,50 +637,8 @@ public class EngineerPerformanceDocumentService {
         return expression + " " + operator + " :" + paramName;
     }
 
-    private List<ProjectHistoryCondition> parseProjectHistoryConditions(String projectHistoryConditions) {
-        if (!StringUtils.hasText(projectHistoryConditions)) {
-            return List.of();
-        }
-        try {
-            List<ProjectHistoryCondition> conditions = gson.fromJson(
-                    projectHistoryConditions,
-                    new TypeToken<List<ProjectHistoryCondition>>() {
-                    }.getType()
-            );
-            return conditions == null ? List.of() : conditions;
-        } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Project history conditions are invalid.", exception);
-        }
-    }
-
-    private Long requiredBidSeq(Long bidSeq) {
-        if (bidSeq == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidSeq is required.");
-        }
-        return bidSeq;
-    }
-
-    private Integer requiredSourceSeq(Integer sourceSeq) {
-        if (sourceSeq == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sourceSeq is required.");
-        }
-        return sourceSeq;
-    }
-
-    private String required(String value, String fieldName) {
-        String normalized = normalize(value);
-        if (!StringUtils.hasText(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
-        }
-        return normalized;
-    }
-
-    private String normalize(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
     private String operator(String value) {
-        String normalized = normalize(value);
+        String normalized = trimToNull(value);
         if (!StringUtils.hasText(normalized)) {
             return "=";
         }
@@ -687,7 +650,7 @@ public class EngineerPerformanceDocumentService {
     }
 
     private String logicalOperator(String value) {
-        return "OR".equalsIgnoreCase(normalize(value)) ? "OR" : "AND";
+        return "OR".equalsIgnoreCase(trimToNull(value)) ? "OR" : "AND";
     }
 
     private String formatDays(Object value) {

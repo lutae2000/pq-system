@@ -1,5 +1,9 @@
 package com.cheil.cheil_be.application.educationreminder.service;
 
+import static com.cheil.cheil_be.common.text.StringValues.digitsOnly;
+import static com.cheil.cheil_be.common.text.StringValues.emptyIfNull;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -102,8 +106,8 @@ public class EducationReminderSendService {
             String requestedTo
     ) {
         String normalizedKeyword = like(keyword);
-        String normalizedStatus = nullIfBlank(status);
-        String normalizedChannel = nullIfBlank(channel);
+        String normalizedStatus = trimToNull(status);
+        String normalizedChannel = trimToNull(channel);
         LocalDate normalizedRequestedFrom = parseOptionalDate(requestedFrom, "requestedFrom");
         LocalDate normalizedRequestedTo = parseOptionalDate(requestedTo, "requestedTo");
 
@@ -162,7 +166,7 @@ public class EducationReminderSendService {
         }
 
         boolean testSend = Boolean.TRUE.equals(request.testSend());
-        String testPhoneNo = normalizePhoneNo(request.testPhoneNo());
+        String testPhoneNo = digitsOnly(request.testPhoneNo());
         if (testSend && !StringUtils.hasText(testPhoneNo)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "testPhoneNo is required for test send.");
         }
@@ -259,12 +263,12 @@ public class EducationReminderSendService {
 
         for (EducationReminderSendRetryRequest.Item item : items) {
             RetrySourceSendLog source = findRetrySourceSendLog(item.logId());
-            String actualPhoneNo = normalizePhoneNo(item.actualPhoneNo());
+            String actualPhoneNo = digitsOnly(item.actualPhoneNo());
             if (!StringUtils.hasText(actualPhoneNo)) {
-                actualPhoneNo = normalizePhoneNo(source.actualPhoneNo());
+                actualPhoneNo = digitsOnly(source.actualPhoneNo());
             }
             if (!StringUtils.hasText(actualPhoneNo)) {
-                actualPhoneNo = normalizePhoneNo(source.targetPhoneNo());
+                actualPhoneNo = digitsOnly(source.targetPhoneNo());
             }
             if (!StringUtils.hasText(actualPhoneNo)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "actualPhoneNo is required for retry.");
@@ -401,7 +405,7 @@ public class EducationReminderSendService {
     }
 
     private LocalDate parseOptionalDate(String value, String fieldName) {
-        String normalized = nullIfBlank(value);
+        String normalized = trimToNull(value);
         if (normalized == null) {
             return null;
         }
@@ -486,7 +490,7 @@ public class EducationReminderSendService {
     ) {
         List<PendingSendItem> items = new ArrayList<>();
         for (EducationReminderNotificationTargetResponse target : targets) {
-            String actualPhoneNo = testSend ? testPhoneNo : normalizePhoneNo(target.phoneNo());
+            String actualPhoneNo = testSend ? testPhoneNo : digitsOnly(target.phoneNo());
             String messageContent = renderMessage(messageSource, target);
             validateMessageLength(channel, messageContent);
             Long logId = jdbcClient.sql("""
@@ -537,7 +541,7 @@ public class EducationReminderSendService {
                     .param("engineerId", target.engineerId())
                     .param("engineerName", target.name())
                     .param("departmentName", target.department())
-                    .param("targetPhoneNo", normalizePhoneNo(target.phoneNo()))
+                    .param("targetPhoneNo", digitsOnly(target.phoneNo()))
                     .param("actualPhoneNo", actualPhoneNo)
                     .param("channel", channel)
                     .param("templateId", templateId)
@@ -554,7 +558,7 @@ public class EducationReminderSendService {
                     target.engineerId(),
                     target.name(),
                     target.department(),
-                    normalizePhoneNo(target.phoneNo()),
+                    digitsOnly(target.phoneNo()),
                     actualPhoneNo,
                     channel,
                     templateName,
@@ -767,21 +771,17 @@ public class EducationReminderSendService {
 
     private String renderMessage(String templateContent, EducationReminderNotificationTargetResponse target) {
         String content = StringUtils.hasText(templateContent) ? templateContent : "";
-        content = content.replace("{직위}", nullToEmpty(target.grade()));
+        content = content.replace("{직위}", emptyIfNull(target.grade()));
         return content
-                .replace("{대상자명}", nullToEmpty(target.name()))
-                .replace("{이름}", nullToEmpty(target.name()))
-                .replace("{부서명}", nullToEmpty(target.department()))
-                .replace("{교육명}", nullToEmpty(target.targetEducationNames()))
-                .replace("{교육이름}", nullToEmpty(target.targetEducationNames()))
-                .replace("{마감일}", nullToEmpty(target.deadline()))
-                .replace("{전화번호}", nullToEmpty(target.phoneNo()))
-                .replace("{채널}", nullToEmpty(target.highlightTone() == null ? "" : target.highlightTone().name()))
+                .replace("{대상자명}", emptyIfNull(target.name()))
+                .replace("{이름}", emptyIfNull(target.name()))
+                .replace("{부서명}", emptyIfNull(target.department()))
+                .replace("{교육명}", emptyIfNull(target.targetEducationNames()))
+                .replace("{교육이름}", emptyIfNull(target.targetEducationNames()))
+                .replace("{마감일}", emptyIfNull(target.deadline()))
+                .replace("{전화번호}", emptyIfNull(target.phoneNo()))
+                .replace("{채널}", emptyIfNull(target.highlightTone() == null ? "" : target.highlightTone().name()))
                 .trim();
-    }
-
-    private String normalizePhoneNo(String value) {
-        return StringUtils.hasText(value) ? value.replaceAll("\\D", "") : "";
     }
 
     private void validateMessageLength(String channel, String messageContent) {
@@ -809,12 +809,8 @@ public class EducationReminderSendService {
         return value.trim();
     }
 
-    private String nullToEmpty(String value) {
-        return value == null ? "" : value;
-    }
-
     private String maskPhoneNo(String value) {
-        String phoneNo = nullToEmpty(value);
+        String phoneNo = emptyIfNull(value);
         if (phoneNo.length() <= 4) {
             return "****";
         }
@@ -823,10 +819,6 @@ public class EducationReminderSendService {
 
     private String like(String value) {
         return StringUtils.hasText(value) ? "%" + value.trim().toLowerCase() + "%" : null;
-    }
-
-    private String nullIfBlank(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private String timestampToString(java.sql.Timestamp value) {

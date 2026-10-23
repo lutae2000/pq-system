@@ -1,15 +1,23 @@
 package com.cheil.cheil_be.application.qualificationcriteria.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.conflict;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.validation.InputValues.nonNegative;
+import static com.cheil.cheil_be.application.common.validation.InputValues.optionalText;
+import static com.cheil.cheil_be.application.common.validation.InputValues.isoDate;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.adapter.in.web.qualificationcriteria.QualificationReviewAgencyRequest;
 import com.cheil.cheil_be.adapter.in.web.qualificationcriteria.QualificationReviewAgencyResponse;
@@ -23,7 +31,6 @@ import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.Qualific
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationReviewCriterionJpaRepository;
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationScoreBandEntity;
 import com.cheil.cheil_be.adapter.out.persistence.qualificationcriteria.QualificationScoreBandJpaRepository;
-import com.cheil.cheil_be.application.qualificationcriteria.exception.QualificationCriteriaApplicationException;
 import com.cheil.cheil_be.common.text.StringValues;
 
 @Service
@@ -83,7 +90,7 @@ public class QualificationCriteriaService {
 
     @Transactional(readOnly = true)
     public List<QualificationReviewCriterionResponse> findCriteria(Long agencyId, String keyword, Boolean useYn) {
-        requireId(agencyId, "agencyId");
+        requiredPositive(agencyId, "agencyId");
         findAgency(agencyId);
 
         String normalizedKeyword = keyword(keyword);
@@ -130,7 +137,7 @@ public class QualificationCriteriaService {
 
     @Transactional(readOnly = true)
     public List<QualificationScoreBandResponse> findScoreBands(Long criterionId) {
-        requireId(criterionId, "criterionId");
+        requiredPositive(criterionId, "criterionId");
         findCriterion(criterionId);
 
         return scoreBandRepository.findByCriterionIdOrderBySortOrderAsc(criterionId).stream()
@@ -166,26 +173,17 @@ public class QualificationCriteriaService {
     }
 
     private QualificationReviewAgencyEntity findAgency(Long id) {
-        if (id == null) {
-            throw badRequest("agencyId is required.");
-        }
-        return agencyRepository.findById(id)
+        return agencyRepository.findById(requiredPositive(id, "agencyId"))
                 .orElseThrow(() -> notFound("기관을 찾을 수 없습니다."));
     }
 
     private QualificationReviewCriterionEntity findCriterion(Long id) {
-        if (id == null) {
-            throw badRequest("criterionId is required.");
-        }
-        return criterionRepository.findById(id)
+        return criterionRepository.findById(requiredPositive(id, "criterionId"))
                 .orElseThrow(() -> notFound("시행기준을 찾을 수 없습니다."));
     }
 
     private QualificationScoreBandEntity findScoreBand(Long id) {
-        if (id == null) {
-            throw badRequest("scoreBandId is required.");
-        }
-        return scoreBandRepository.findById(id)
+        return scoreBandRepository.findById(requiredPositive(id, "scoreBandId"))
                 .orElseThrow(() -> notFound("가격구간을 찾을 수 없습니다."));
     }
 
@@ -195,8 +193,8 @@ public class QualificationCriteriaService {
         }
 
         return new QualificationReviewAgencyRequest(
-                requiredText(request.agencyCode(), AGENCY_CODE_MAX_LENGTH, "agencyCode"),
-                requiredText(request.agencyName(), AGENCY_NAME_MAX_LENGTH, "agencyName"),
+                InputValues.requiredText(request.agencyCode(), AGENCY_CODE_MAX_LENGTH, "agencyCode"),
+                InputValues.requiredText(request.agencyName(), AGENCY_NAME_MAX_LENGTH, "agencyName"),
                 request.useYn()
         );
     }
@@ -211,8 +209,8 @@ public class QualificationCriteriaService {
 
         return new QualificationReviewCriterionRequest(
                 request.agencyId(),
-                requiredText(request.ruleCode(), RULE_CODE_MAX_LENGTH, "ruleCode"),
-                requiredText(request.revisionNo(), REVISION_NO_MAX_LENGTH, "revisionNo"),
+                InputValues.requiredText(request.ruleCode(), RULE_CODE_MAX_LENGTH, "ruleCode"),
+                InputValues.requiredText(request.revisionNo(), REVISION_NO_MAX_LENGTH, "revisionNo"),
                 dateText(request.effectiveDate(), "effectiveDate"),
                 limitedText(request.legalBasis(), BASIS_MAX_LENGTH, "legalBasis"),
                 nonNegative(request.technicalWeight(), "technicalWeight"),
@@ -262,53 +260,17 @@ public class QualificationCriteriaService {
         );
     }
 
-    private String requiredText(String value, int maxLength, String fieldName) {
-        String normalized = StringValues.required(value, fieldName).trim();
-        StringValues.validateMaxLength(normalized, maxLength, fieldName);
-        return normalized;
-    }
-
     private String limitedText(String value, int maxLength, String fieldName) {
-        String normalized = value(value);
-        StringValues.validateMaxLength(normalized, maxLength, fieldName);
-        return normalized;
+        return optionalText(value, maxLength, fieldName);
     }
 
     private String dateText(String value, String fieldName) {
-        String normalized = value(value);
-        if (normalized == null) {
-            return null;
-        }
-        if (!normalized.matches("\\d{4}-\\d{2}-\\d{2}")) {
-            throw badRequest(fieldName + " must be YYYY-MM-DD.");
-        }
-        try {
-            // 정규식만으로는 2026-02-31 같은 달력상 존재하지 않는 날짜를 걸러낼 수 없습니다.
-            LocalDate.parse(normalized);
-        } catch (DateTimeParseException exception) {
-            throw badRequest(fieldName + " must be a valid calendar date.");
-        }
-        return normalized;
-    }
-
-    private BigDecimal nonNegative(BigDecimal value, String fieldName) {
-        if (value == null) {
-            return null;
-        }
-        if (value.compareTo(BigDecimal.ZERO) < 0) {
-            throw badRequest(fieldName + " must be greater than or equal to 0.");
-        }
-        return value;
+        return isoDate(value, fieldName, false);
     }
 
     private String keyword(String value) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
-    }
-
-    private String value(String value) {
-        String normalized = StringValues.normalize(value);
-        return StringUtils.hasText(normalized) ? normalized.trim() : null;
     }
 
     private boolean matches(String keyword, String... values) {
@@ -323,30 +285,4 @@ public class QualificationCriteriaService {
         return false;
     }
 
-    private void requireId(Long id, String fieldName) {
-        if (id == null) {
-            throw badRequest(fieldName + " is required.");
-        }
-    }
-
-    private QualificationCriteriaApplicationException badRequest(String message) {
-        return new QualificationCriteriaApplicationException(
-                QualificationCriteriaApplicationException.Type.BAD_REQUEST,
-                message
-        );
-    }
-
-    private QualificationCriteriaApplicationException conflict(String message) {
-        return new QualificationCriteriaApplicationException(
-                QualificationCriteriaApplicationException.Type.CONFLICT,
-                message
-        );
-    }
-
-    private QualificationCriteriaApplicationException notFound(String message) {
-        return new QualificationCriteriaApplicationException(
-                QualificationCriteriaApplicationException.Type.NOT_FOUND,
-                message
-        );
-    }
 }

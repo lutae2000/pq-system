@@ -18,6 +18,7 @@ import com.cheil.cheil_be.application.educationreminder.service.EducationReminde
 import com.cheil.cheil_be.application.educationreminder.service.EducationReminderBasicInfoEngineerService;
 import com.cheil.cheil_be.application.educationreminder.service.EducationReminderCompletionService;
 
+/** 교육 알림의 기본정보, 대상 기술자, 템플릿, 수료 및 연락처를 관리하는 API다. */
 @RestController
 @RequestMapping("/education-reminders")
 @RequiredArgsConstructor

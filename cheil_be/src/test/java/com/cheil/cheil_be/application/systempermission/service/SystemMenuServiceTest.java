@@ -15,9 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.cheil.cheil_be.application.systempermission.exception.SystemPermissionApplicationException;
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
-import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenuCommand;
 import com.cheil.cheil_be.application.systempermission.port.out.SystemMenuRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,23 +32,23 @@ class SystemMenuServiceTest {
 
     @Test
     void trimsMenuValuesBeforeDelegatingSave() {
-        SaveSystemMenuCommand command = new SaveSystemMenuCommand(
+        SystemMenuCommand command = new SystemMenuCommand(
                 " MENU ", " 메뉴 ", " PARENT ", " /menu ", " PAGE ", 1, true, true, " 설명 ");
         SystemMenu saved = new SystemMenu("MENU", "메뉴", "PARENT", "/menu", "PAGE", 1, true, true, "설명");
         when(repository.save(any())).thenReturn(saved);
 
         assertThat(service.saveMenu(command)).isEqualTo(saved);
-        verify(repository).save(new SaveSystemMenuCommand("MENU", "메뉴", "PARENT", "/menu", "PAGE", 1, true, true, "설명"));
+        verify(repository).save(new SystemMenuCommand("MENU", "메뉴", "PARENT", "/menu", "PAGE", 1, true, true, "설명"));
     }
 
     @Test
     void rejectsMissingMenuCode() {
-        SaveSystemMenuCommand command = new SaveSystemMenuCommand(" ", "메뉴", null, null, "PAGE", 0, true, true, null);
+        SystemMenuCommand command = new SystemMenuCommand(" ", "메뉴", null, null, "PAGE", 0, true, true, null);
 
         assertThatThrownBy(() -> service.saveMenu(command))
-                .isInstanceOf(SystemPermissionApplicationException.class)
-                .extracting(exception -> ((SystemPermissionApplicationException) exception).type())
-                .isEqualTo(SystemPermissionApplicationException.Type.BAD_REQUEST);
+                .isInstanceOf(ApplicationException.class)
+                .extracting(exception -> ((ApplicationException) exception).errorType())
+                .isEqualTo(ApplicationErrorType.BAD_REQUEST);
         verify(repository, never()).save(any());
     }
 
@@ -56,8 +57,8 @@ class SystemMenuServiceTest {
         when(repository.findByCode("MISSING")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findMenu("MISSING"))
-                .isInstanceOf(SystemPermissionApplicationException.class)
-                .extracting(exception -> ((SystemPermissionApplicationException) exception).type())
-                .isEqualTo(SystemPermissionApplicationException.Type.NOT_FOUND);
+                .isInstanceOf(ApplicationException.class)
+                .extracting(exception -> ((ApplicationException) exception).errorType())
+                .isEqualTo(ApplicationErrorType.NOT_FOUND);
     }
 }

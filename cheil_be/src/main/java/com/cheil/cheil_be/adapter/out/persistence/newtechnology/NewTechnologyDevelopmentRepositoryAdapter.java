@@ -1,11 +1,13 @@
 package com.cheil.cheil_be.adapter.out.persistence.newtechnology;
 
-import com.cheil.cheil_be.adapter.in.web.newtechnology.NewTechnologyDevelopmentRequest;
-import com.cheil.cheil_be.application.newtechnology.port.out.NewTechnologyDevelopmentRepository;
-import lombok.RequiredArgsConstructor;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyDevelopment;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyDevelopmentCommand;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyDevelopmentSearch;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import com.cheil.cheil_be.application.newtechnology.port.out.NewTechnologyDevelopmentRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -27,45 +29,38 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     private final JdbcClient jdbcClient;
 
     @Override
-    public Page<Record> findAll(
-            String keyword,
-            String technologyType,
-            String targetField,
-            String applicationDateFrom,
-            String applicationDateTo,
-            Boolean useYn,
-            Pageable pageable
-    ) {
+    public Page<NewTechnologyDevelopment> findAll(
+            NewTechnologyDevelopmentSearch search, Pageable pageable) {
         StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
         Map<String, Object> params = new LinkedHashMap<>();
 
-        if (text(keyword)) {
+        if (text(search.keyword())) {
             where.append("AND (LOWER(title) LIKE :keyword "
                     + "OR LOWER(COALESCE(application_no, '')) LIKE :keyword "
                     + "OR LOWER(COALESCE(registration_no, '')) LIKE :keyword "
                     + "OR LOWER(COALESCE(summary, '')) LIKE :keyword "
                     + "OR LOWER(COALESCE(remark, '')) LIKE :keyword)\n");
-            params.put("keyword", "%" + keyword.trim().toLowerCase() + "%");
+            params.put("keyword", "%" + search.keyword().trim().toLowerCase() + "%");
         }
-        if (text(technologyType)) {
+        if (text(search.technologyType())) {
             where.append("AND technology_type = :technologyType\n");
-            params.put("technologyType", technologyType.trim());
+            params.put("technologyType", search.technologyType().trim());
         }
-        if (text(targetField)) {
+        if (text(search.targetField())) {
             where.append("AND LOWER(COALESCE(target_field, '')) LIKE :targetField\n");
-            params.put("targetField", "%" + targetField.trim().toLowerCase() + "%");
+            params.put("targetField", "%" + search.targetField().trim().toLowerCase() + "%");
         }
-        if (text(applicationDateFrom)) {
+        if (text(search.applicationDateFrom())) {
             where.append("AND application_date >= :applicationDateFrom\n");
-            params.put("applicationDateFrom", applicationDateFrom);
+            params.put("applicationDateFrom", search.applicationDateFrom());
         }
-        if (text(applicationDateTo)) {
+        if (text(search.applicationDateTo())) {
             where.append("AND application_date <= :applicationDateTo\n");
-            params.put("applicationDateTo", applicationDateTo);
+            params.put("applicationDateTo", search.applicationDateTo());
         }
 
         where.append("AND use_yn = :useYn\n");
-        params.put("useYn", useYn == null || useYn);
+        params.put("useYn", search.useYn() == null || search.useYn());
 
         Map<String, Object> listParams = new LinkedHashMap<>(params);
         listParams.put("limit", pageable.getPageSize());
@@ -76,7 +71,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 + where
                 + " ORDER BY id ASC LIMIT :limit OFFSET :offset";
 
-        List<Record> content = bind(jdbcClient.sql(sql), listParams)
+        List<NewTechnologyDevelopment> content = bind(jdbcClient.sql(sql), listParams)
                 .query((rs, rowNum) -> map(rs))
                 .list();
         Long total = bind(
@@ -88,16 +83,15 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     }
 
     @Override
-    public Record findById(Long id) {
+    public java.util.Optional<NewTechnologyDevelopment> findById(Long id) {
         return jdbcClient.sql("SELECT " + COLUMNS + " FROM new_technology_developments WHERE id = :id")
                 .param("id", id)
                 .query((rs, rowNum) -> map(rs))
-                .optional()
-                .orElse(null);
+                .optional();
     }
 
     @Override
-    public Long create(NewTechnologyDevelopmentRequest request, String actor) {
+    public Long create(NewTechnologyDevelopmentCommand request, String actor) {
         String sql = """
                 INSERT INTO new_technology_developments (
                     title, technology_type, applicant_count, use_yn, application_date,
@@ -130,7 +124,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     }
 
     @Override
-    public int update(Long id, NewTechnologyDevelopmentRequest request, String actor) {
+    public int update(Long id, NewTechnologyDevelopmentCommand request, String actor) {
         String sql = """
                 UPDATE new_technology_developments
                 SET title = :title,
@@ -175,8 +169,8 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 .update();
     }
 
-    private Record map(ResultSet rs) throws SQLException {
-        return new Record(
+    private NewTechnologyDevelopment map(ResultSet rs) throws SQLException {
+        return new NewTechnologyDevelopment(
                 rs.getLong("id"),
                 rs.getString("title"),
                 rs.getString("technology_type"),

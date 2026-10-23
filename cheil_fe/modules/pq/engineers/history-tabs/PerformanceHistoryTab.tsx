@@ -55,7 +55,7 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
       },
       {
         field: "jobClass",
-        headerName: "참여분야직위",
+        headerName: "참여분야 직위",
         width: 120,
         valueFormatter: (value) => formatReferenceLabel(jobClassLabelByCode, value),
       },

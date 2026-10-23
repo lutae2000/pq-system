@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.commondepartment;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentSearchCondition;
-import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUpsertCommand;
-import com.cheil.cheil_be.application.commondepartment.service.DepartmentAdminService;
+import com.cheil.cheil_be.application.commondepartment.port.in.CommonDepartmentUseCase;
 
 /**
  * 부서 코드 조회 및 관리 API.
@@ -25,7 +25,7 @@ import com.cheil.cheil_be.application.commondepartment.service.DepartmentAdminSe
 @RequiredArgsConstructor
 public class DepartmentController {
 
-    private final DepartmentAdminService departmentAdminService;
+    private final CommonDepartmentUseCase departmentUseCase;
 
     /**
      * 부서 코드 목록을 조회한다.
@@ -35,7 +35,7 @@ public class DepartmentController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Boolean useYn
     ) {
-        return ResponseEntity.ok(departmentAdminService.findAll(new CommonDepartmentSearchCondition(
+        return ResponseEntity.ok(departmentUseCase.findAll(new CommonDepartmentSearchCondition(
                 keyword,
                 useYn
         )).stream().map(CommonDepartmentResponse::from).toList());
@@ -46,28 +46,15 @@ public class DepartmentController {
      */
     @GetMapping("/{deptCode}")
     public ResponseEntity<CommonDepartmentResponse> get(@PathVariable String deptCode) {
-        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentAdminService.findByDeptCode(deptCode)));
+        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentUseCase.findByDeptCode(deptCode)));
     }
 
     /**
      * 부서 코드를 신규 등록한다.
      */
     @PostMapping
-    public ResponseEntity<CommonDepartmentResponse> create(@RequestBody CommonDepartmentUpsertRequest request) {
-        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentAdminService.create(new CommonDepartmentUpsertCommand(
-                request.deptCode(),
-                request.deptName(),
-                request.deptDiv(),
-                request.projDiv(),
-                request.useYn(),
-                request.terminateDate(),
-                request.headquarterCode(),
-                request.inputDutyId(),
-                request.chgDutyId(),
-                request.sortSeq(),
-                request.mhYn(),
-                request.costDept()
-        ))));
+    public ResponseEntity<CommonDepartmentResponse> create(@Valid @RequestBody CommonDepartmentUpsertRequest request) {
+        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentUseCase.create(request.toCommand())));
     }
 
     /**
@@ -76,21 +63,8 @@ public class DepartmentController {
     @PutMapping("/{deptCode}")
     public ResponseEntity<CommonDepartmentResponse> update(
             @PathVariable String deptCode,
-            @RequestBody CommonDepartmentUpsertRequest request
+            @Valid @RequestBody CommonDepartmentUpsertRequest request
     ) {
-        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentAdminService.update(deptCode, new CommonDepartmentUpsertCommand(
-                request.deptCode(),
-                request.deptName(),
-                request.deptDiv(),
-                request.projDiv(),
-                request.useYn(),
-                request.terminateDate(),
-                request.headquarterCode(),
-                request.inputDutyId(),
-                request.chgDutyId(),
-                request.sortSeq(),
-                request.mhYn(),
-                request.costDept()
-        ))));
+        return ResponseEntity.ok(CommonDepartmentResponse.from(departmentUseCase.update(deptCode, request.toCommand())));
     }
 }

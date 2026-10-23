@@ -1,12 +1,13 @@
 package com.cheil.cheil_be.adapter.out.valkey;
 
+import static org.springframework.util.Assert.hasText;
+
 import java.time.Duration;
 import java.util.UUID;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.cache.port.out.CacheStore;
 import com.cheil.cheil_be.application.userauth.port.out.LoginSessionStore;
@@ -21,7 +22,7 @@ public class ValkeyLoginSessionStore implements LoginSessionStore {
 
     @Override
     public String issue(String loginId, Duration ttl) {
-        requireText(loginId, "loginId");
+        hasText(loginId, "loginId must not be blank");
         if (ttl == null || ttl.isZero() || ttl.isNegative()) {
             throw new IllegalArgumentException("ttl must be positive");
         }
@@ -33,20 +34,20 @@ public class ValkeyLoginSessionStore implements LoginSessionStore {
 
     @Override
     public Optional<String> currentSessionId(String loginId) {
-        requireText(loginId, "loginId");
+        hasText(loginId, "loginId must not be blank");
         return cacheStore.get(key(loginId));
     }
 
     @Override
     public boolean isCurrent(String loginId, String sessionId) {
-        requireText(loginId, "loginId");
-        requireText(sessionId, "sessionId");
+        hasText(loginId, "loginId must not be blank");
+        hasText(sessionId, "sessionId must not be blank");
         return cacheStore.get(key(loginId)).filter(sessionId::equals).isPresent();
     }
 
     @Override
     public void revoke(String loginId) {
-        requireText(loginId, "loginId");
+        hasText(loginId, "loginId must not be blank");
         cacheStore.evict(key(loginId));
     }
 
@@ -54,9 +55,4 @@ public class ValkeyLoginSessionStore implements LoginSessionStore {
         return KEY_PREFIX + loginId;
     }
 
-    private static void requireText(String value, String name) {
-        if (!StringUtils.hasText(value)) {
-            throw new IllegalArgumentException(name + " must not be blank");
-        }
-    }
 }

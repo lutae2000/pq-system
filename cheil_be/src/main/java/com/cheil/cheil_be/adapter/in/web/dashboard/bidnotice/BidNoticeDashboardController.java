@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
 
+/** 대시보드에 표시할 입찰공고 일정을 조회하는 API다. */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/dashboard/bid-notices")

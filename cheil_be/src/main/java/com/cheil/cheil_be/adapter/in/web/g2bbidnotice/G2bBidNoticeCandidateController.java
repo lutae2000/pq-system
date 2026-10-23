@@ -4,6 +4,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,6 +26,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidate;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 
+/** 나라장터 입찰공고 후보의 수집, 조회, 반영 상태를 관리하는 API다. */
 @RestController
 @RequiredArgsConstructor
 public class G2bBidNoticeCandidateController {
@@ -69,8 +72,7 @@ public class G2bBidNoticeCandidateController {
             @RequestParam(required = false) String bidNtceDateFrom,
             @RequestParam(required = false) String bidNtceDateTo,
             @RequestParam(required = false, defaultValue = "false") boolean orderById,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         Page<G2bBidNoticeCandidate> result = queryUseCase.findAll(
                 new G2bBidNoticeCandidateSearchCondition(
@@ -87,7 +89,7 @@ public class G2bBidNoticeCandidateController {
                         bidNtceDateTo,
                         orderById
                 ),
-                PageRequests.of(page, size)
+                PageRequests.of(pageable)
         );
         return ResponseEntity.ok(PageResponse.from(result, G2bBidNoticeCandidateResponse::from));
     }

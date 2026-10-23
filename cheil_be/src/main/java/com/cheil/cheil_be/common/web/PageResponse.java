@@ -5,6 +5,7 @@ import java.util.function.Function;
 
 import org.springframework.data.domain.Page;
 
+
 public record PageResponse<T>(
         List<T> content,
         int page,
@@ -38,4 +39,5 @@ public record PageResponse<T>(
                 page.isLast()
         );
     }
+
 }

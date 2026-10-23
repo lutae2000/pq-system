@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cheil.cheil_be.application.notice.service.NotificationPreferenceService;
 import com.cheil.cheil_be.domain.notice.NotificationPreferenceOption;
 
+/** 사용자별 알림 수신 설정과 선택 항목을 관리하는 API다. */
 @RestController
 @RequestMapping("/system/notification-preferences")
 @RequiredArgsConstructor

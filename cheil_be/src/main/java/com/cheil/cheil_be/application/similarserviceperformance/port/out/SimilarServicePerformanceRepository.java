@@ -4,12 +4,13 @@ import java.util.Optional;
 
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformancePage;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
 
 public interface SimilarServicePerformanceRepository {
 
-    SimilarServicePerformancePage findAll(SimilarServicePerformanceSearch search);
+    Page<SimilarServicePerformance> findAll(SimilarServicePerformanceSearch search, Pageable pageable);
 
     Optional<SimilarServicePerformance> findById(Long id);
 

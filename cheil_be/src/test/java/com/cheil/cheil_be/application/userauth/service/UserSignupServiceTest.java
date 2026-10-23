@@ -14,10 +14,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.cheil.cheil_be.adapter.out.crypto.BCryptPasswordHasher;
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.common.service.PasswordHashService;
 import com.cheil.cheil_be.application.userauth.port.in.SignupCommand;
 import com.cheil.cheil_be.application.userauth.port.out.UserAccountRepository;
-import com.cheil.cheil_be.application.userauth.exception.UserAuthApplicationException;
 import com.cheil.cheil_be.domain.userauth.UserAccount;
 
 class UserSignupServiceTest {
@@ -76,9 +77,9 @@ class UserSignupServiceTest {
                 "100"
         )));
 
-        assertThat(thrown).isInstanceOf(UserAuthApplicationException.class);
-        assertThat(((UserAuthApplicationException) thrown).type()).isEqualTo(UserAuthApplicationException.Type.CONFLICT);
-        assertThat(thrown.getMessage()).isEqualTo("이미 존재하는 로그인 아이디입니다.");
+        assertThat(thrown).isInstanceOf(ApplicationException.class);
+        assertThat(((ApplicationException) thrown).errorType()).isEqualTo(ApplicationErrorType.CONFLICT);
+        assertThat(thrown.getMessage()).isEqualTo("이미 존재하는 로그인 ID입니다.");
     }
 
     private static final class InMemoryUserAccountRepository implements UserAccountRepository {

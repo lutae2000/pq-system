@@ -2,8 +2,8 @@ package com.cheil.cheil_be.application.newemployment.port.out;
 
 import java.util.List;
 
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatus;
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusPivot;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatus;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusPivot;
 
 /**
  * 월별 고용 현황 조회에 필요한 데이터만 정의하는 outbound port입니다.

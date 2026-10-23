@@ -27,6 +27,7 @@ import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValue
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
 
+/** 기술자 실적 증명서와 HWPX 문서 생성 및 검토 결과를 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/engineer-performance-docs")
 @RequiredArgsConstructor

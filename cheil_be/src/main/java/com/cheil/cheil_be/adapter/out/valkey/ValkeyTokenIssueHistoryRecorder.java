@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.adapter.out.valkey;
 
+import static org.springframework.util.Assert.hasText;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -13,7 +15,6 @@ import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.auth.port.out.TokenIssueHistoryRecorder;
 import com.cheil.cheil_be.domain.auth.IssuedToken;
@@ -37,10 +38,10 @@ public class ValkeyTokenIssueHistoryRecorder implements TokenIssueHistoryRecorde
 
     @Override
     public void record(String issuer, String serviceId, Set<String> scopes, IssuedToken issuedToken, Instant issuedAt) {
-        requireText(issuer, "issuer");
-        requireText(serviceId, "serviceId");
-        requireText(issuedToken.accessToken(), "issuedToken.accessToken");
-        requireText(issuedToken.tokenType(), "issuedToken.tokenType");
+        hasText(issuer, "issuer must not be blank");
+        hasText(serviceId, "serviceId must not be blank");
+        hasText(issuedToken.accessToken(), "issuedToken.accessToken must not be blank");
+        hasText(issuedToken.tokenType(), "issuedToken.tokenType must not be blank");
         if (issuedAt == null) {
             throw new IllegalArgumentException("issuedAt must not be null");
         }
@@ -86,9 +87,4 @@ public class ValkeyTokenIssueHistoryRecorder implements TokenIssueHistoryRecorde
         }
     }
 
-    private static void requireText(String value, String name) {
-        if (!StringUtils.hasText(value)) {
-            throw new IllegalArgumentException(name + " must not be blank");
-        }
-    }
 }

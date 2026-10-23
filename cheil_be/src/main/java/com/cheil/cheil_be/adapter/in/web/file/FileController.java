@@ -21,6 +21,7 @@ import com.cheil.cheil_be.common.file.FileDownloadResult;
 import com.cheil.cheil_be.common.file.FileStorageResult;
 import com.cheil.cheil_be.common.file.FileStorageService;
 
+/** 파일 저장소의 업로드와 다운로드를 제공하는 API다. */
 @RestController
 @RequestMapping("/files")
 @RequiredArgsConstructor

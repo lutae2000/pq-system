@@ -8,14 +8,14 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.common.file.FileStorageResult;
 import com.cheil.cheil_be.common.file.FileStorageService;
+import com.cheil.cheil_be.application.systempolicy.port.in.SystemPolicyAdminUseCase;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +60,7 @@ public class BrandingAssetService {
     );
 
     private final FileStorageService fileStorageService;
-    private final SystemPolicyAdminService systemPolicyAdminService;
+    private final SystemPolicyAdminUseCase systemPolicyAdminService;
 
     public BrandingSettings findSettings() {
         return new BrandingSettings(
@@ -112,36 +112,36 @@ public class BrandingAssetService {
     private static AssetDefinition requireAssetDefinition(String assetType) {
         AssetDefinition definition = ASSET_DEFINITIONS.get(assetType);
         if (definition == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 브랜딩 이미지 유형입니다.");
+            throw ApplicationException.badRequest("지원하지 않는 브랜딩 이미지 유형입니다.");
         }
         return definition;
     }
 
     private String policyValue(String policyKey, String fallback) {
         return systemPolicyAdminService.findEnabledPolicy(policyKey)
-                .map(policy -> policy.getPolicyValue())
+                .map(policy -> policy.policyValue())
                 .filter(StringUtils::hasText)
                 .orElse(fallback);
     }
 
     private static void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 이미지가 필요합니다.");
+            throw ApplicationException.badRequest("업로드할 이미지가 필요합니다.");
         }
         String filename = file.getOriginalFilename();
         String extension = extensionOf(filename);
         String expectedContentType = ALLOWED_IMAGE_TYPES.get(extension);
         if (expectedContentType == null || !expectedContentType.equalsIgnoreCase(file.getContentType())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "PNG, JPG, JPEG, GIF 이미지만 업로드할 수 있습니다.");
+            throw ApplicationException.badRequest("PNG, JPG, JPEG, GIF 이미지만 업로드할 수 있습니다.");
         }
 
         try {
             BufferedImage image = ImageIO.read(file.getInputStream());
             if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "올바른 이미지 파일이 아닙니다.");
+                throw ApplicationException.badRequest("올바른 이미지 파일이 아닙니다.");
             }
         } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미지 파일을 읽을 수 없습니다.", exception);
+            throw ApplicationException.badRequest("이미지 파일을 읽을 수 없습니다.", exception);
         }
     }
 

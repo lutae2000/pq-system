@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeSearchCondition;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 
+/** 화면과 업무에서 사용하는 공통코드를 조회하고 관리하는 API다. */
 @RestController
 @RequestMapping("/code/common-codes")
 @RequiredArgsConstructor

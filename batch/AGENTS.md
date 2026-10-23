@@ -53,7 +53,7 @@ batch → application.port.in, batch 설정 객체
 - 단순히 외부 API를 조회하고 일괄 저장하는 작업은 tasklet을 사용할 수 있다. 대량 데이터를 한 건씩 처리하거나 재시작 지점이 필요한 경우에는 chunk 기반 Step을 검토한다.
 - 하나의 Step 안에서 외부 API 호출, 데이터 변환, 저장, 알림을 모두 직접 구현하지 않는다. 각 책임을 application service와 outbound port로 나눈다.
 - 실행 결과에 전체 조회 건수, 저장 건수, 연계 건수, 알림 건수 같은 핵심 수치를 ExecutionContext와 INFO 로그에 남긴다.
-- 스케줄러는 Job을 직접 처리하지 않고 공통 실행기 또는 JobLauncher를 통해 실행한다.
+- 스케줄러와 수동 실행 진입점은 `BatchJobRunner`를 사용한다. 일반 Job은 `run`, 중복 실행 방지가 필요한 Job은 TTL과 함께 `runWithLock`으로 실행하며, 실행 파라미터·상태 판정·공통 메트릭·분산 락 코드를 업무별 Launcher에 반복 구현하지 않는다.
 - 같은 Job이 동시에 실행될 가능성이 있으면 분산 잠금, 실행 중복 검사, 또는 Spring Batch JobRepository를 통한 제어 방식을 적용한다.
 - startup 실행은 `run-on-startup` 같은 명시적인 설정이 켜진 경우에만 수행한다. 운영 환경에서 외부 API 배치가 의도하지 않게 시작되지 않도록 기본값은 비활성화한다.
 

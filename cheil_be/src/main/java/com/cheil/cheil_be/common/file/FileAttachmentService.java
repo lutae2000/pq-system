@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.common.file;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -25,8 +27,8 @@ public class FileAttachmentService {
     public List<AppFileAttachmentEntity> findAll(String ownerType, String ownerId) {
         requireReadAccess(ownerType);
         return attachmentRepository.findByOwnerTypeAndOwnerIdOrderByCreatedAtDesc(
-                StringValues.required(ownerType, "ownerType"),
-                StringValues.required(ownerId, "ownerId")
+                InputValues.requiredText(ownerType, "ownerType"),
+                InputValues.requiredText(ownerId, "ownerId")
         );
     }
 
@@ -36,15 +38,15 @@ public class FileAttachmentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "첨부파일 요청이 필요합니다.");
         }
 
-        String ownerType = StringValues.required(request.ownerType(), "ownerType");
+        String ownerType = InputValues.requiredText(request.ownerType(), "ownerType");
         requireWriteAccess(ownerType);
 
-        AppFileAttachmentEntity attachment = attachmentRepository.findByFileId(StringValues.required(request.fileId(), "fileId"))
+        AppFileAttachmentEntity attachment = attachmentRepository.findByFileId(InputValues.requiredText(request.fileId(), "fileId"))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "파일을 찾을 수 없습니다."));
         attachment.attachTo(
                 ownerType,
-                StringValues.required(request.ownerId(), "ownerId"),
-                StringValues.required(request.attachmentType(), "attachmentType")
+                InputValues.requiredText(request.ownerId(), "ownerId"),
+                InputValues.requiredText(request.attachmentType(), "attachmentType")
         );
         attachment.changeDisplayOrder(request.displayOrder());
         return attachment;
@@ -80,8 +82,8 @@ public class FileAttachmentService {
 
     @Transactional
     public void deleteAll(String ownerType, String ownerId) {
-        String requiredOwnerType = StringValues.required(ownerType, "ownerType");
-        String requiredOwnerId = StringValues.required(ownerId, "ownerId");
+        String requiredOwnerType = InputValues.requiredText(ownerType, "ownerType");
+        String requiredOwnerId = InputValues.requiredText(ownerId, "ownerId");
         requireDeleteAccess(requiredOwnerType);
         List<AppFileAttachmentEntity> attachments = attachmentRepository.findByOwnerTypeAndOwnerIdOrderByCreatedAtDesc(
                 requiredOwnerType,

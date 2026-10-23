@@ -16,16 +16,17 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempolicy.SystemPolicyEntity;
-import com.cheil.cheil_be.application.systempolicy.service.SystemPolicyAdminService;
+import com.cheil.cheil_be.application.systempolicy.model.SystemPolicy;
+import com.cheil.cheil_be.application.systempolicy.port.in.SystemPolicyAdminUseCase;
 import com.cheil.cheil_be.application.systempolicy.service.BrandingAssetService;
 
+/** 시스템 정책과 브랜딩 이미지를 관리하는 API다. */
 @RestController
 @RequestMapping("/system/policies")
 @RequiredArgsConstructor
 public class SystemPolicyController {
 
-    private final SystemPolicyAdminService systemPolicyAdminService;
+    private final SystemPolicyAdminUseCase systemPolicyAdminService;
     private final BrandingAssetService brandingAssetService;
 
     /**
@@ -41,9 +42,9 @@ public class SystemPolicyController {
      */
     @PutMapping
     public ResponseEntity<List<SystemPolicyResponse>> savePolicies(@RequestBody PolicyUpsertRequest request) {
-        List<SystemPolicyEntity> policies = request == null || request.items() == null
+        List<SystemPolicy> policies = request == null || request.items() == null
                 ? null
-                : request.items().stream().map(SystemPolicyUpsertItem::toEntity).toList();
+                : request.items().stream().map(SystemPolicyUpsertItem::toModel).toList();
         return ResponseEntity.ok(systemPolicyAdminService.savePolicies(policies)
                 .stream()
                 .map(SystemPolicyResponse::from)
@@ -53,7 +54,7 @@ public class SystemPolicyController {
     @PostMapping
     public ResponseEntity<SystemPolicyResponse> createPolicy(@RequestBody SystemPolicyUpsertItem request) {
         return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.createPolicy(
-                request == null ? null : request.toEntity()
+                request == null ? null : request.toModel()
         )));
     }
 
@@ -64,7 +65,7 @@ public class SystemPolicyController {
     ) {
         return ResponseEntity.ok(SystemPolicyResponse.from(systemPolicyAdminService.updatePolicy(
                 policyKey,
-                request == null ? null : request.toEntity()
+                request == null ? null : request.toModel()
         )));
     }
 
@@ -95,16 +96,9 @@ public class SystemPolicyController {
             Boolean useYn,
             String description
     ) {
-        SystemPolicyEntity toEntity() {
-            return SystemPolicyEntity.builder()
-                    .policyKey(policyKey)
-                    .policyName(policyName)
-                    .policyValue(policyValue)
-                    .valueType(valueType)
-                    .sortSeq(sortSeq == null ? 0 : sortSeq)
-                    .useYn(useYn == null || useYn)
-                    .description(description)
-                    .build();
+        SystemPolicy toModel() {
+            return new SystemPolicy(policyKey, policyName, policyValue, valueType,
+                    sortSeq == null ? 0 : sortSeq, useYn == null || useYn, description);
         }
     }
 
@@ -117,15 +111,10 @@ public class SystemPolicyController {
             boolean useYn,
             String description
     ) {
-        static SystemPolicyResponse from(SystemPolicyEntity entity) {
+        static SystemPolicyResponse from(SystemPolicy policy) {
             return new SystemPolicyResponse(
-                    entity.getPolicyKey(),
-                    entity.getPolicyName(),
-                    entity.getPolicyValue(),
-                    entity.getValueType(),
-                    entity.getSortSeq(),
-                    entity.isUseYn(),
-                    entity.getDescription()
+                    policy.policyKey(), policy.policyName(), policy.policyValue(), policy.valueType(),
+                    policy.sortSeq(), policy.useYn(), policy.description()
             );
         }
     }

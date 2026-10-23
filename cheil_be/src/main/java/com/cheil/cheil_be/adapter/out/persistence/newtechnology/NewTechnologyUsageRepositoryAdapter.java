@@ -1,6 +1,10 @@
 package com.cheil.cheil_be.adapter.out.persistence.newtechnology;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageCommand;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageSearch;
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageView;
 import com.cheil.cheil_be.application.newtechnology.port.out.NewTechnologyUsageRepository;
 import java.sql.ResultSet;
@@ -11,9 +15,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -29,37 +30,32 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
 
   @Override
   public Page<NewTechnologyUsageView> findAll(
-      String keyword,
-      String designationNo,
-      String client,
-      String noticeDateFrom,
-      String noticeDateTo,
-      Pageable pageable) {
+      NewTechnologyUsageSearch search, Pageable pageable) {
     StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
     Map<String, Object> params = new LinkedHashMap<>();
-    if (text(keyword)) {
+    if (text(search.keyword())) {
       where.append(
           "AND (LOWER(title) LIKE :keyword OR LOWER(COALESCE(developers, '')) LIKE :keyword OR"
               + " LOWER(COALESCE(project_name, '')) LIKE :keyword OR LOWER(COALESCE(client, ''))"
               + " LIKE :keyword OR LOWER(COALESCE(summary, '')) LIKE :keyword OR"
               + " LOWER(COALESCE(remark, '')) LIKE :keyword)\n");
-      params.put("keyword", "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
+      params.put("keyword", "%" + search.keyword().trim().toLowerCase(Locale.ROOT) + "%");
     }
-    if (text(designationNo)) {
+    if (text(search.designationNo())) {
       where.append("AND LOWER(designation_no) LIKE :designationNo\n");
-      params.put("designationNo", "%" + designationNo.trim().toLowerCase(Locale.ROOT) + "%");
+      params.put("designationNo", "%" + search.designationNo().trim().toLowerCase(Locale.ROOT) + "%");
     }
-    if (text(client)) {
+    if (text(search.client())) {
       where.append("AND LOWER(COALESCE(client, '')) LIKE :client\n");
-      params.put("client", "%" + client.trim().toLowerCase(Locale.ROOT) + "%");
+      params.put("client", "%" + search.client().trim().toLowerCase(Locale.ROOT) + "%");
     }
-    if (text(noticeDateFrom)) {
+    if (text(search.noticeDateFrom())) {
       where.append("AND notice_date >= :noticeDateFrom\n");
-      params.put("noticeDateFrom", noticeDateFrom);
+      params.put("noticeDateFrom", search.noticeDateFrom());
     }
-    if (text(noticeDateTo)) {
+    if (text(search.noticeDateTo())) {
       where.append("AND notice_date <= :noticeDateTo\n");
-      params.put("noticeDateTo", noticeDateTo);
+      params.put("noticeDateTo", search.noticeDateTo());
     }
     String sql =
         "SELECT "
@@ -81,13 +77,12 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
   }
 
   @Override
-  public NewTechnologyUsageView findById(Long id) {
+  public java.util.Optional<NewTechnologyUsageView> findById(Long id) {
     return jdbcClient
         .sql("SELECT " + COLUMNS + " FROM new_technology_usages WHERE id = :id")
         .param("id", id)
         .query((rs, rowNum) -> map(rs))
-        .optional()
-        .orElse(null);
+        .optional();
   }
 
   @Override

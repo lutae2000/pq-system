@@ -1,15 +1,15 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceOutlineRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceOutlineResponse;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceOutlineRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 
 @Service
 @RequiredArgsConstructor
@@ -31,49 +31,45 @@ public class CompanyPerformanceOutlineQueryService {
   @Transactional
   public CompanyPerformanceOutlineResponse update(
       Long seq, Long id, CompanyPerformanceOutlineRequest request) {
-    if (repository.update(seq, id, normalize(request)) != 1) throw notFound();
+    if (repository.update(seq, id, normalize(request)) != 1) {
+      throw ApplicationException.notFound("Company performance outline was not found.");
+    }
     return findById(seq, id);
   }
 
   @Transactional
   public void delete(Long seq, Long id) {
-    if (repository.delete(seq, id) != 1) throw notFound();
+    if (repository.delete(seq, id) != 1) {
+      throw ApplicationException.notFound("Company performance outline was not found.");
+    }
   }
 
   private CompanyPerformanceOutlineResponse findById(Long seq, Long id) {
     var result = repository.findById(seq, id);
-    if (result == null) throw notFound();
+    if (result == null) throw ApplicationException.notFound("Company performance outline was not found.");
     return result;
   }
 
   private CompanyPerformanceOutlineRequest normalize(CompanyPerformanceOutlineRequest r) {
     if (r == null)
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
+      throw ApplicationException.badRequest("Request body is required.");
     return new CompanyPerformanceOutlineRequest(
         r.outlineGroupSeq(),
         r.outlineLineSeq(),
-        text(r.categoryCode()),
-        text(r.subcategoryCode()),
-        text(r.categoryName()),
-        text(r.subcategoryName()),
-        text(r.subcategoryUnit()),
-        text(r.outlineContent()),
+        trimToNull(r.categoryCode()),
+        trimToNull(r.subcategoryCode()),
+        trimToNull(r.categoryName()),
+        trimToNull(r.subcategoryName()),
+        trimToNull(r.subcategoryUnit()),
+        trimToNull(r.outlineContent()),
         yn(r.ddlbYn()),
-        text(r.ddlbGroupCode()),
+        trimToNull(r.ddlbGroupCode()),
         r.sortSeq());
   }
 
-  private String text(String value) {
-    return StringUtils.hasText(value) ? value.trim() : null;
-  }
-
   private String yn(String value) {
-    String n = text(value);
+    String n = trimToNull(value);
     return n == null ? null : (n.equalsIgnoreCase("Y") ? "Y" : "N");
   }
 
-  private ResponseStatusException notFound() {
-    return new ResponseStatusException(
-        HttpStatus.NOT_FOUND, "Company performance outline was not found.");
-  }
 }

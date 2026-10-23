@@ -86,6 +86,7 @@ G2bBidNoticeBatchLauncher
 ```
 
 - `batch`: Job, Step, 스케줄과 실행 설정을 관리합니다.
+- `common/batch/BatchJobRunner`: Job 실행 파라미터, 상태 판정, 메트릭과 선택적 Valkey 분산 락을 공통 처리합니다.
 - `application/port/in`: 배치가 호출하는 유스케이스 인터페이스입니다.
 - `application/service`: 업무 흐름을 조정합니다.
 - `application/port/out`: 외부 API나 DB에 필요한 인터페이스입니다.

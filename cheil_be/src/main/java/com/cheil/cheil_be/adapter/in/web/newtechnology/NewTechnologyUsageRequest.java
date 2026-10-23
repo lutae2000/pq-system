@@ -2,22 +2,26 @@ package com.cheil.cheil_be.adapter.in.web.newtechnology;
 
 import java.math.BigDecimal;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageCommand;
 
 public record NewTechnologyUsageRequest(
-        String designationNo,
-        String title,
+        @NotBlank @Size(max = 100) String designationNo,
+        @NotBlank @Size(max = 500) String title,
         String developers,
         String projectName,
-        String client,
+        @Size(max = 300) String client,
         String noticeDate,
         String usageExpirationDate,
-        Integer usageCount,
-        BigDecimal amountThousand,
-        BigDecimal score,
+        @PositiveOrZero Integer usageCount,
+        @PositiveOrZero BigDecimal amountThousand,
+        @PositiveOrZero BigDecimal score,
         String summary,
-        BigDecimal weight,
-        BigDecimal disasterPreventionScore,
+        @PositiveOrZero BigDecimal weight,
+        @PositiveOrZero BigDecimal disasterPreventionScore,
         String remark
 ) {
     public NewTechnologyUsageCommand toCommand() {

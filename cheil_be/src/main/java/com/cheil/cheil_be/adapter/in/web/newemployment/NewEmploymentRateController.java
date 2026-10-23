@@ -3,7 +3,8 @@ package com.cheil.cheil_be.adapter.in.web.newemployment;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,19 +16,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.newemployment.service.NewEmploymentRateService;
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatus;
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusPivot;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentEmployeeSearch;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatus;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusPivot;
 import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusUseCase;
+import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentRateUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 신규 고용률의 월별 현황과 대상 직원을 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/new-employment-rates")
 @RequiredArgsConstructor
 public class NewEmploymentRateController {
 
-    private final NewEmploymentRateService newEmploymentRateService;
+    private final NewEmploymentRateUseCase newEmploymentRateUseCase;
     private final NewEmploymentMonthlyStatusUseCase monthlyStatusUseCase;
 
     @GetMapping("/monthly-statuses")
@@ -56,12 +59,14 @@ public class NewEmploymentRateController {
 
     @GetMapping("/monthly-statuses/{id}")
     public ResponseEntity<NewEmploymentMonthlyStatusResponse> monthlyStatus(@PathVariable Long id) {
-        return ResponseEntity.ok(newEmploymentRateService.findMonthlyStatusById(id));
+        return ResponseEntity.ok(NewEmploymentMonthlyStatusResponse.from(newEmploymentRateUseCase.findMonthlyStatusById(id)));
     }
 
     @PostMapping("/monthly-statuses")
     public ResponseEntity<NewEmploymentMonthlyStatusResponse> createMonthlyStatus(@RequestBody NewEmploymentMonthlyStatusRequest request) {
-        return ResponseEntity.ok(newEmploymentRateService.createMonthlyStatus(request));
+        return ResponseEntity.ok(NewEmploymentMonthlyStatusResponse.from(
+                newEmploymentRateUseCase.createMonthlyStatus(request.toCommand())
+        ));
     }
 
     @PutMapping("/monthly-statuses/{id}")
@@ -69,12 +74,14 @@ public class NewEmploymentRateController {
             @PathVariable Long id,
             @RequestBody NewEmploymentMonthlyStatusRequest request
     ) {
-        return ResponseEntity.ok(newEmploymentRateService.updateMonthlyStatus(id, request));
+        return ResponseEntity.ok(NewEmploymentMonthlyStatusResponse.from(
+                newEmploymentRateUseCase.updateMonthlyStatus(id, request.toCommand())
+        ));
     }
 
     @DeleteMapping("/monthly-statuses/{id}")
     public ResponseEntity<Void> deleteMonthlyStatus(@PathVariable Long id) {
-        newEmploymentRateService.deleteMonthlyStatus(id);
+        newEmploymentRateUseCase.deleteMonthlyStatus(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -83,26 +90,27 @@ public class NewEmploymentRateController {
             @RequestParam(required = false) String selectedYearMonth,
             @RequestParam(required = false) String departmentCode,
             @RequestParam(required = false) String employeeName,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<NewEmploymentEmployeeResponse> result = newEmploymentRateService.findEmployees(
+        var safePageable = PageRequests.of(pageable);
+        var result = newEmploymentRateUseCase.findEmployees(new NewEmploymentEmployeeSearch(
                 selectedYearMonth,
                 departmentCode,
-                employeeName,
-                PageRequests.of(page, size)
-        );
-        return ResponseEntity.ok(PageResponse.from(result));
+                employeeName
+        ), safePageable);
+        return ResponseEntity.ok(PageResponse.from(result, NewEmploymentEmployeeResponse::from));
     }
 
     @GetMapping("/employees/{id}")
     public ResponseEntity<NewEmploymentEmployeeResponse> employee(@PathVariable Long id) {
-        return ResponseEntity.ok(newEmploymentRateService.findEmployeeById(id));
+        return ResponseEntity.ok(NewEmploymentEmployeeResponse.from(newEmploymentRateUseCase.findEmployeeById(id)));
     }
 
     @PostMapping("/employees")
     public ResponseEntity<NewEmploymentEmployeeResponse> createEmployee(@RequestBody NewEmploymentEmployeeRequest request) {
-        return ResponseEntity.ok(newEmploymentRateService.createEmployee(request));
+        return ResponseEntity.ok(NewEmploymentEmployeeResponse.from(
+                newEmploymentRateUseCase.createEmployee(request.toCommand())
+        ));
     }
 
     @PutMapping("/employees/{id}")
@@ -110,20 +118,19 @@ public class NewEmploymentRateController {
             @PathVariable Long id,
             @RequestBody NewEmploymentEmployeeRequest request
     ) {
-        return ResponseEntity.ok(newEmploymentRateService.updateEmployee(id, request));
+        return ResponseEntity.ok(NewEmploymentEmployeeResponse.from(
+                newEmploymentRateUseCase.updateEmployee(id, request.toCommand())
+        ));
     }
 
     @DeleteMapping("/employees/{id}")
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
-        newEmploymentRateService.deleteEmployee(id);
+        newEmploymentRateUseCase.deleteEmployee(id);
         return ResponseEntity.noContent().build();
     }
 
     private NewEmploymentMonthlyStatusResponse toResponse(NewEmploymentMonthlyStatus status) {
-        return new NewEmploymentMonthlyStatusResponse(
-                status.id(), status.baseYearMonth(), status.employeeCount(), status.newHireCount(),
-                status.createdAt(), status.createdId(), status.lastChangedAt(), status.lastChangedId()
-        );
+        return NewEmploymentMonthlyStatusResponse.from(status);
     }
 
     private NewEmploymentMonthlyStatusPivotResponse toPivotResponse(NewEmploymentMonthlyStatusPivot pivot) {

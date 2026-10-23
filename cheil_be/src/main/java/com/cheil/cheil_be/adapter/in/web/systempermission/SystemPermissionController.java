@@ -14,18 +14,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempermission.SystemRoleEntity;
+import com.cheil.cheil_be.application.systempermission.model.RolePermission;
+import com.cheil.cheil_be.application.systempermission.model.RolePermissionCommand;
 import com.cheil.cheil_be.application.systempermission.model.SystemMenu;
-import com.cheil.cheil_be.application.systempermission.port.in.SaveSystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemMenuCommand;
+import com.cheil.cheil_be.application.systempermission.model.SystemRole;
 import com.cheil.cheil_be.application.systempermission.port.in.SystemMenuUseCase;
-import com.cheil.cheil_be.application.systempermission.service.SystemPermissionAdminService;
+import com.cheil.cheil_be.application.systempermission.port.in.SystemPermissionUseCase;
 
+/** 시스템 메뉴, 역할, 역할별 권한을 관리하는 API다. */
 @RestController
 @RequestMapping("/system/permissions")
 @RequiredArgsConstructor
 public class SystemPermissionController {
 
-    private final SystemPermissionAdminService systemPermissionAdminService;
+    private final SystemPermissionUseCase systemPermissionAdminService;
     private final SystemMenuUseCase systemMenuUseCase;
 
     /**
@@ -95,7 +98,7 @@ public class SystemPermissionController {
      */
     @PostMapping("/roles")
     public ResponseEntity<SystemRoleResponse> createRole(@RequestBody SystemRoleUpsertRequest request) {
-        return ResponseEntity.ok(SystemRoleResponse.from(systemPermissionAdminService.saveRole(request.toEntity())));
+        return ResponseEntity.ok(SystemRoleResponse.from(systemPermissionAdminService.saveRole(request.toModel())));
     }
 
     /**
@@ -106,7 +109,7 @@ public class SystemPermissionController {
             @PathVariable String roleCode,
             @RequestBody SystemRoleUpsertRequest request
     ) {
-        return ResponseEntity.ok(SystemRoleResponse.from(systemPermissionAdminService.saveRole(request.toEntity(roleCode))));
+        return ResponseEntity.ok(SystemRoleResponse.from(systemPermissionAdminService.saveRole(request.toModel(roleCode))));
     }
 
     /**
@@ -152,12 +155,12 @@ public class SystemPermissionController {
             Boolean visibleYn,
             String description
     ) {
-        SaveSystemMenuCommand toCommand() {
+        SystemMenuCommand toCommand() {
             return toCommand(menuCode);
         }
 
-        SaveSystemMenuCommand toCommand(String resolvedMenuCode) {
-            return new SaveSystemMenuCommand(
+        SystemMenuCommand toCommand(String resolvedMenuCode) {
+            return new SystemMenuCommand(
                     resolvedMenuCode,
                     menuName, parentMenuCode, menuPath, menuType, sortSeq == null ? 0 : sortSeq,
                     useYn != null && useYn, visibleYn == null || visibleYn, description);
@@ -190,18 +193,13 @@ public class SystemPermissionController {
             Integer sortSeq,
             String description
     ) {
-        SystemRoleEntity toEntity() {
-            return toEntity(roleCode);
+        SystemRole toModel() {
+            return toModel(roleCode);
         }
 
-        SystemRoleEntity toEntity(String resolvedRoleCode) {
-            return SystemRoleEntity.builder()
-                    .roleCode(resolvedRoleCode)
-                    .roleName(roleName)
-                    .useYn(useYn != null && useYn)
-                    .sortSeq(sortSeq == null ? 0 : sortSeq)
-                    .description(description)
-                    .build();
+        SystemRole toModel(String resolvedRoleCode) {
+            return new SystemRole(resolvedRoleCode, roleName, useYn != null && useYn,
+                    sortSeq == null ? 0 : sortSeq, description);
         }
     }
 
@@ -212,19 +210,15 @@ public class SystemPermissionController {
             int sortSeq,
             String description
     ) {
-        static SystemRoleResponse from(SystemRoleEntity entity) {
+        static SystemRoleResponse from(SystemRole role) {
             return new SystemRoleResponse(
-                    entity.getRoleCode(),
-                    entity.getRoleName(),
-                    entity.isUseYn(),
-                    entity.getSortSeq(),
-                    entity.getDescription()
+                    role.roleCode(), role.roleName(), role.useYn(), role.sortSeq(), role.description()
             );
         }
     }
 
     public record RoleMenuPermissionUpsertRequest(
-            List<SystemPermissionAdminService.RolePermissionUpsertItem> items,
+            List<RolePermissionCommand> items,
             String lastChangedId
     ) {
     }
@@ -249,7 +243,7 @@ public class SystemPermissionController {
             String lastChangedAt,
             String lastChangedId
     ) {
-        static RoleMenuPermissionResponse from(SystemPermissionAdminService.RolePermissionView view) {
+        static RoleMenuPermissionResponse from(RolePermission view) {
             return new RoleMenuPermissionResponse(
                     view.roleCode(),
                     view.menuCode(),

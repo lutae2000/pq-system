@@ -26,11 +26,12 @@ import com.cheil.cheil_be.application.userauth.port.in.MenuPermissionResult;
 import com.cheil.cheil_be.application.userauth.port.in.SignupUseCase;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionCommand;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
+import com.cheil.cheil_be.application.userauth.port.in.UserAccountSelfUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
-import com.cheil.cheil_be.application.userauth.service.UserAccountAdminService;
 import com.cheil.cheil_be.common.security.SecurityHeaders;
 import com.cheil.cheil_be.common.web.ClientIpResolver;
 
+/** 로그인, 세션, 사용자 정보, 비밀번호와 로그아웃을 처리하는 API다. */
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -41,7 +42,7 @@ public class UserAuthController {
     private final SignupUseCase signupUseCase;
     private final ValidateLoginSessionUseCase validateLoginSessionUseCase;
     private final MenuPermissionQueryUseCase menuPermissionQueryUseCase;
-    private final UserAccountAdminService userAccountAdminService;
+    private final UserAccountSelfUseCase userAccountSelfUseCase;
     private final LoginAccessTokenService loginAccessTokenService;
 
     /**
@@ -109,7 +110,7 @@ public class UserAuthController {
             @RequestHeader(SecurityHeaders.AUTHORIZATION) String authorization
     ) {
         var token = validateAccessToken(authorization);
-        return ResponseEntity.ok(UserAccountResponse.from(userAccountAdminService.findByLoginId(token.loginId())));
+        return ResponseEntity.ok(UserAccountResponse.from(userAccountSelfUseCase.findByLoginId(token.loginId())));
     }
 
     @PatchMapping("/me")
@@ -121,7 +122,7 @@ public class UserAuthController {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
         }
-        return ResponseEntity.ok(UserAccountResponse.from(userAccountAdminService.updateSelfProfile(
+        return ResponseEntity.ok(UserAccountResponse.from(userAccountSelfUseCase.updateProfile(
                 token.loginId(),
                 request.employeeNo(),
                 request.deptCode(),
@@ -144,7 +145,7 @@ public class UserAuthController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required.");
         }
 
-        return ResponseEntity.ok(UserAccountResponse.from(userAccountAdminService.changePassword(
+        return ResponseEntity.ok(UserAccountResponse.from(userAccountSelfUseCase.changePassword(
                 token.loginId(),
                 request.currentPassword(),
                 request.newPassword()

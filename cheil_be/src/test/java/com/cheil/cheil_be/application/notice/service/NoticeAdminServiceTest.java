@@ -12,8 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.web.server.ResponseStatusException;
-
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.notice.port.out.NoticeRepository;
 import com.cheil.cheil_be.application.notice.port.in.NoticeAdminUseCase.NoticeListScope;
 import com.cheil.cheil_be.domain.notice.Notice;
@@ -152,7 +151,7 @@ class NoticeAdminServiceTest {
                 "title",
                 null
         )))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ApplicationException.class)
                 .hasMessageContaining("exposureEndAt");
     }
 

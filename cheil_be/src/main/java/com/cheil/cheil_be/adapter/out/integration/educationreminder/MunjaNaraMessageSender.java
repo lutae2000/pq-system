@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.adapter.out.integration.educationreminder;
 
+import static com.cheil.cheil_be.common.text.StringValues.emptyIfNull;
+
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
@@ -7,10 +9,10 @@ import java.nio.charset.StandardCharsets;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.cheil.cheil_be.application.educationreminder.model.EducationReminderMessageSendCommand;
@@ -53,9 +55,9 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
                     .queryParam("receiver", command.receiverNumber())
                     // 문자나라의 encode=1은 URL 디코딩을 사용한다는 의미입니다.
                     .queryParam("encode", "1")
-                    .queryParam("allow_mms", isLongMessage(command) ? "1" : "0")
+                    .queryParam("allow_mms", "LMS".equalsIgnoreCase(command.channel()) ? "1" : "0")
                     .queryParam("end_alert", "0")
-                    .queryParam("admin_phone", nullToEmpty(properties.adminNumber()))
+                    .queryParam("admin_phone", emptyIfNull(properties.adminNumber()))
                     // 메시지 값은 문자나라가 URL 디코딩할 수 있도록 이미 인코딩한 값을 전달합니다.
                     .queryParam("message", encodedMessage)
                     .build(true)
@@ -64,17 +66,15 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
             String responseBody = munjaNaraRestClient.get()
                     .uri(requestUri)
                     .retrieve()
-                    .onStatus(HttpStatusCode::isError, (request, response) -> {
-                        throw new MunjaNaraHttpException("문자나라 HTTP " + response.getStatusCode().value());
-                    })
                     .body(String.class);
 
             EducationReminderMessageSendResult result = parseResponse(responseBody);
             log.info("문자나라 발송 응답: channel={}, receiver={}, resultCode={}, success={}",
                     command.channel(), maskPhoneNo(command.receiverNumber()), resultCode(responseBody), result.success());
             return result;
-        } catch (MunjaNaraHttpException exception) {
-            return EducationReminderMessageSendResult.failure(exception.getMessage(), null);
+        } catch (RestClientResponseException exception) {
+            return EducationReminderMessageSendResult.failure(
+                    "문자나라 HTTP " + exception.getStatusCode().value(), null);
         } catch (RuntimeException exception) {
             log.warn("문자나라 메시지 발송 중 오류가 발생했습니다.", exception);
             return EducationReminderMessageSendResult.failure("문자나라 호출에 실패했습니다.", exception.getMessage());
@@ -82,7 +82,7 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
     }
 
     private EducationReminderMessageSendResult parseResponse(String responseBody) {
-        String normalized = nullToEmpty(responseBody).trim();
+        String normalized = emptyIfNull(responseBody).trim();
         String resultCode = normalized.split("\\|", 2)[0].trim();
         if ("9".equals(resultCode)) {
             return EducationReminderMessageSendResult.success(normalized);
@@ -108,11 +108,11 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
     }
 
     private String resultCode(String responseBody) {
-        return nullToEmpty(responseBody).trim().split("\\|", 2)[0].trim();
+        return emptyIfNull(responseBody).trim().split("\\|", 2)[0].trim();
     }
 
     private int messageByteLength(String message) {
-        return (int) nullToEmpty(message).codePoints()
+        return (int) emptyIfNull(message).codePoints()
                 .mapToLong(codePoint -> codePoint > 0x7F ? 2 : 1)
                 .sum();
     }
@@ -124,7 +124,7 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
      */
     private String encodeMessage(String message, String charsetName) {
         Charset charset = resolveMessageCharset(charsetName);
-        return URLEncoder.encode(nullToEmpty(message), charset);
+        return URLEncoder.encode(emptyIfNull(message), charset);
     }
 
     private Charset resolveMessageCharset(String charsetName) {
@@ -140,24 +140,11 @@ public class MunjaNaraMessageSender implements EducationReminderMessageSender {
     }
 
     private String maskPhoneNo(String value) {
-        String phoneNo = nullToEmpty(value);
+        String phoneNo = emptyIfNull(value);
         if (phoneNo.length() <= 4) {
             return "****";
         }
         return "*".repeat(Math.max(0, phoneNo.length() - 4)) + phoneNo.substring(phoneNo.length() - 4);
     }
 
-    private boolean isLongMessage(EducationReminderMessageSendCommand command) {
-        return "LMS".equalsIgnoreCase(command.channel());
-    }
-
-    private String nullToEmpty(String value) {
-        return value == null ? "" : value;
-    }
-
-    private static final class MunjaNaraHttpException extends RuntimeException {
-        private MunjaNaraHttpException(String message) {
-            super(message);
-        }
-    }
 }

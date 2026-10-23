@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.cheil.cheil_be.application.engineer.EngineerPdfExtractionDtos;
 import com.cheil.cheil_be.application.engineer.EngineerPdfExtractionService;
 
+/** 기술자 PDF에서 등록에 필요한 정보를 추출하는 API다. */
 @RestController
 @RequestMapping("/pq/engineers/pdf-extractions")
 @RequiredArgsConstructor

@@ -1,5 +1,13 @@
 package com.cheil.cheil_be.application.pqparticipatingengineer.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -9,8 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -25,11 +31,11 @@ import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipating
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerResponse;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.ReplacePqParticipatingEngineersRequest;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
-import com.cheil.cheil_be.application.pqparticipatingengineer.exception.PqParticipatingEngineerApplicationException;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryCondition;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadata;
-import com.cheil.cheil_be.application.relatedprojecthistorycondition.ProjectHistoryConditionMetadataService;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadata;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadataService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 /** PQ 공고에 참여하는 기술인의 후보·선정 목록을 조회하고 변경하는 서비스. */
@@ -41,7 +47,7 @@ public class PqParticipatingEngineerQueryService {
     private final JdbcClient jdbcClient;
     private final EngineerAdminUseCase engineerAdminService;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
-    private final Gson gson = new Gson();
+    private final ProjectHistoryConditionJsonCodec conditionJsonCodec;
 
     @Transactional(readOnly = true)
     public Page<PqParticipatingEngineerCandidateResponse> findCandidates(
@@ -57,7 +63,7 @@ public class PqParticipatingEngineerQueryService {
             String projectHistoryConditions,
             Pageable pageable
     ) {
-        List<ProjectHistoryCondition> historyConditions = parseProjectHistoryConditions(projectHistoryConditions);
+        List<ProjectHistoryCondition> historyConditions = conditionJsonCodec.parse(projectHistoryConditions);
         Map<String, ProjectHistoryConditionMetadata> conditionMetadata = historyConditions.isEmpty()
                 ? Map.of()
                 : conditionMetadataService.findAll();
@@ -289,9 +295,9 @@ public class PqParticipatingEngineerQueryService {
         if (request == null) {
             throw badRequest("요청 본문이 필요합니다.");
         }
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String workDutyId = required(request.workDutyId(), "workDutyId");
-        String engrId = required(request.engrId(), "engrId");
+        Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
+        String workDutyId = requiredText(request.workDutyId(), "workDutyId");
+        String engrId = requiredText(request.engrId(), "engrId");
         upsert(bidSeq, workDutyId, engrId, request.priority(), request.responsibility());
         return findSelectedOne(bidSeq, workDutyId, engrId);
     }
@@ -301,9 +307,9 @@ public class PqParticipatingEngineerQueryService {
         if (request == null) {
             throw badRequest("요청 본문이 필요합니다.");
         }
-        Long targetBidSeq = requiredBidSeq(bidSeq);
-        String targetWorkDutyId = required(workDutyId, "workDutyId");
-        String targetEngrId = required(engrId, "engrId");
+        Long targetBidSeq = requiredPositive(bidSeq, "bidSeq");
+        String targetWorkDutyId = requiredText(workDutyId, "workDutyId");
+        String targetEngrId = requiredText(engrId, "engrId");
         validateUpdateIdentity(targetBidSeq, targetWorkDutyId, targetEngrId, request);
 
         int updated = jdbcClient.sql("""
@@ -319,7 +325,7 @@ public class PqParticipatingEngineerQueryService {
                 .param("workDutyId", targetWorkDutyId)
                 .param("engrId", targetEngrId)
                 .param("priority", request.priority())
-                .param("responsibility", normalize(request.responsibility()))
+                .param("responsibility", trimToNull(request.responsibility()))
                 .param("actor", AuditActorResolver.resolve())
                 .update();
         if (updated != 1) {
@@ -334,9 +340,9 @@ public class PqParticipatingEngineerQueryService {
                         DELETE FROM pq_find_engr_info
                         WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId AND engr_id = :engrId
                         """)
-                .param("bidSeq", requiredBidSeq(bidSeq))
-                .param("workDutyId", required(workDutyId, "workDutyId"))
-                .param("engrId", required(engrId, "engrId"))
+                .param("bidSeq", requiredPositive(bidSeq, "bidSeq"))
+                .param("workDutyId", requiredText(workDutyId, "workDutyId"))
+                .param("engrId", requiredText(engrId, "engrId"))
                 .update();
         if (deleted != 1) {
             throw notFound("PQ참여 기술자 정보를 찾을 수 없습니다.");
@@ -350,8 +356,8 @@ public class PqParticipatingEngineerQueryService {
         if (request == null) {
             throw badRequest("요청 본문이 필요합니다.");
         }
-        Long bidSeq = requiredBidSeq(request.bidSeq());
-        String workDutyId = required(request.workDutyId(), "workDutyId");
+        Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
+        String workDutyId = requiredText(request.workDutyId(), "workDutyId");
 
         jdbcClient.sql("DELETE FROM pq_find_engr_info WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId")
                 .param("bidSeq", bidSeq)
@@ -363,7 +369,7 @@ public class PqParticipatingEngineerQueryService {
             request.engineers().stream()
                     .filter(item -> StringUtils.hasText(item.engrId()))
                     .forEach(item -> {
-                        String engineerId = normalize(item.engrId());
+                        String engineerId = trimToNull(item.engrId());
                         if (engineerIds.add(engineerId)) {
                             upsert(bidSeq, workDutyId, engineerId, item.priority(), item.responsibility());
                         }
@@ -427,7 +433,7 @@ public class PqParticipatingEngineerQueryService {
                     )
                     """);
             params.put("excludeBidSeq", bidSeq);
-            params.put("excludeWorkDutyId", normalize(workDutyId));
+            params.put("excludeWorkDutyId", trimToNull(workDutyId));
         }
 
         String historySql = buildProjectHistoryConditionSql(projectHistoryConditions, params, conditionMetadata);
@@ -446,7 +452,7 @@ public class PqParticipatingEngineerQueryService {
         List<String> fragments = new ArrayList<>();
         for (int i = 0; i < projectHistoryConditions.size(); i++) {
             ProjectHistoryCondition condition = projectHistoryConditions.get(i);
-            String conditionType = normalize(condition.conditionType());
+            String conditionType = trimToNull(condition.conditionType());
             String fragment = switch (conditionType == null ? "" : conditionType) {
                 case "constructionKind" -> constructionKindCondition(condition, params, i);
                 case "general" -> generalCondition(condition, params, i, conditionMetadata);
@@ -466,7 +472,7 @@ public class PqParticipatingEngineerQueryService {
     }
 
     private String constructionKindCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String level1Code = normalize(condition.level1Code());
+        String level1Code = trimToNull(condition.level1Code());
         if (!StringUtils.hasText(level1Code)) {
             return "";
         }
@@ -474,8 +480,8 @@ public class PqParticipatingEngineerQueryService {
         String level2Param = "historyLevel2Code" + index;
         String level3Param = "historyLevel3Code" + index;
         params.put(level1Param, level1Code);
-        params.put(level2Param, normalize(condition.level2Code()));
-        params.put(level3Param, normalize(condition.level3Code()));
+        params.put(level2Param, trimToNull(condition.level2Code()));
+        params.put(level3Param, trimToNull(condition.level3Code()));
         String historyAlias = "h" + index;
         String kindAlias = "k" + index;
         return """
@@ -496,7 +502,7 @@ public class PqParticipatingEngineerQueryService {
 
     private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
             Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(condition.generalCode()));
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(condition.generalCode()));
         if (metadata == null) return "";
         String historyAlias = "h" + index;
         String targetAlias = "target" + index;
@@ -515,8 +521,8 @@ public class PqParticipatingEngineerQueryService {
 
     private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
             Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        String categoryCode = normalize(condition.outlineCategoryCode());
-        String subcategoryCode = normalize(condition.outlineSubcategoryCode());
+        String categoryCode = trimToNull(condition.outlineCategoryCode());
+        String subcategoryCode = trimToNull(condition.outlineSubcategoryCode());
         if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
             return "";
         }
@@ -534,7 +540,7 @@ public class PqParticipatingEngineerQueryService {
             outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
             params.put(paramName, subcategoryCode);
         }
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(normalize(categoryCode) + normalize(subcategoryCode));
+        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(categoryCode) + trimToNull(subcategoryCode));
         if (metadata == null) return "";
         String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
                 metadata.valueType());
@@ -560,13 +566,13 @@ public class PqParticipatingEngineerQueryService {
 
     private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
             String metadataValueType) {
-        String value = normalize(condition.value());
+        String value = trimToNull(condition.value());
         String operator = operator(condition.operator());
         if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
             return "";
         }
 
-        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : normalize(condition.valueType());
+        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : trimToNull(condition.valueType());
         boolean numberType = "number".equals(valueType);
         boolean dateType = "date".equals(valueType);
         String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
@@ -581,7 +587,7 @@ public class PqParticipatingEngineerQueryService {
             return "LOWER(CAST(" + column + " AS TEXT)) LIKE :" + paramName;
         }
         if ("BETWEEN".equals(operator)) {
-            String valueTo = normalize(condition.valueTo());
+            String valueTo = trimToNull(condition.valueTo());
             if (!StringUtils.hasText(valueTo)) {
                 return "";
             }
@@ -595,24 +601,6 @@ public class PqParticipatingEngineerQueryService {
     }
 
 
-    private List<ProjectHistoryCondition> parseProjectHistoryConditions(String projectHistoryConditions) {
-        if (!StringUtils.hasText(projectHistoryConditions)) {
-            return List.of();
-        }
-        try {
-            // JSON 조건은 SQL 조각으로 직접 이어 붙이지 않고 구조화된 객체로 먼저 파싱합니다.
-            // 이후 조건 코드의 metadata를 통해 허용된 컬럼만 SQL에 사용합니다.
-            List<ProjectHistoryCondition> conditions = gson.fromJson(
-                    projectHistoryConditions,
-                    new TypeToken<List<ProjectHistoryCondition>>() {
-                    }.getType()
-            );
-            return conditions == null ? List.of() : conditions;
-        } catch (Exception exception) {
-            throw badRequest("관련 공사 참여 이력 조건 형식이 올바르지 않습니다.", exception);
-        }
-    }
-
     private PqParticipatingEngineerResponse findSelectedOne(Long bidSeq, String workDutyId, String engrId) {
         return findSelected(bidSeq, workDutyId).stream()
                 .filter(row -> row.engrId().equals(engrId))
@@ -621,30 +609,7 @@ public class PqParticipatingEngineerQueryService {
     }
 
     private void upsert(Long bidSeq, String workDutyId, String engrId) {
-        jdbcClient.sql("""
-                        INSERT INTO pq_find_engr_info (
-                            bid_seq, work_duty_id, engr_id, priority, responsibility,
-                            created_id, last_changed_at, last_changed_id
-                        )
-                        VALUES (
-                            :bidSeq, :workDutyId, :engrId, :priority, :responsibility,
-                            :actor, CURRENT_TIMESTAMP, :actor
-                        )
-                        ON CONFLICT (bid_seq, work_duty_id, engr_id)
-                        DO UPDATE SET
-                            priority = EXCLUDED.priority,
-                            responsibility = EXCLUDED.responsibility,
-                            created_id = COALESCE(pq_find_engr_info.created_id, EXCLUDED.created_id),
-                            last_changed_at = CURRENT_TIMESTAMP,
-                            last_changed_id = EXCLUDED.last_changed_id
-                        """)
-                .param("bidSeq", bidSeq)
-                .param("workDutyId", workDutyId)
-                .param("engrId", engrId)
-                .param("priority", null)
-                .param("responsibility", null)
-                .param("actor", AuditActorResolver.resolve())
-                .update();
+        upsert(bidSeq, workDutyId, engrId, null, null);
     }
 
     private void upsert(Long bidSeq, String workDutyId, String engrId, Integer priority, String responsibility) {
@@ -669,7 +634,7 @@ public class PqParticipatingEngineerQueryService {
                 .param("workDutyId", workDutyId)
                 .param("engrId", engrId)
                 .param("priority", priority)
-                .param("responsibility", normalize(responsibility))
+                .param("responsibility", trimToNull(responsibility))
                 .param("actor", AuditActorResolver.resolve())
                 .update();
     }
@@ -707,7 +672,7 @@ public class PqParticipatingEngineerQueryService {
     }
 
     private void addEquals(List<String> conditions, Map<String, Object> params, String column, String paramName, String value) {
-        String normalized = normalize(value);
+        String normalized = trimToNull(value);
         if (!StringUtils.hasText(normalized)) {
             return;
         }
@@ -715,27 +680,8 @@ public class PqParticipatingEngineerQueryService {
         params.put(paramName, normalized);
     }
 
-    private Long requiredBidSeq(Long bidSeq) {
-        if (bidSeq == null) {
-            throw badRequest("bidSeq는 필수입니다.");
-        }
-        return bidSeq;
-    }
-
-    private String required(String value, String fieldName) {
-        String normalized = normalize(value);
-        if (!StringUtils.hasText(normalized)) {
-            throw badRequest(fieldName + "는 필수입니다.");
-        }
-        return normalized;
-    }
-
-    private String normalize(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
-    }
-
     private String operator(String value) {
-        String normalized = normalize(value);
+        String normalized = trimToNull(value);
         if (!StringUtils.hasText(normalized)) {
             return "=";
         }
@@ -748,7 +694,7 @@ public class PqParticipatingEngineerQueryService {
     }
 
     private String logicalOperator(String value) {
-        return "OR".equalsIgnoreCase(normalize(value)) ? "OR" : "AND";
+        return "OR".equalsIgnoreCase(trimToNull(value)) ? "OR" : "AND";
     }
 
     private BigDecimal number(String value, String fieldName) {
@@ -757,18 +703,6 @@ public class PqParticipatingEngineerQueryService {
         } catch (NumberFormatException exception) {
             throw badRequest(fieldName + "는 숫자여야 합니다.", exception);
         }
-    }
-
-    private PqParticipatingEngineerApplicationException badRequest(String message) {
-        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private PqParticipatingEngineerApplicationException badRequest(String message, Throwable cause) {
-        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.BAD_REQUEST, message, cause);
-    }
-
-    private PqParticipatingEngineerApplicationException notFound(String message) {
-        return new PqParticipatingEngineerApplicationException(PqParticipatingEngineerApplicationException.Type.NOT_FOUND, message);
     }
 
     private Object typedValue(String value, String fieldName, boolean numberType, boolean dateType) {

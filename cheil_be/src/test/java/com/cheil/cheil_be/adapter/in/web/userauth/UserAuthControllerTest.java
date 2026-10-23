@@ -40,7 +40,7 @@ import com.cheil.cheil_be.application.userauth.port.in.SignupResult;
 import com.cheil.cheil_be.application.userauth.port.in.SignupUseCase;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
-import com.cheil.cheil_be.application.userauth.service.UserAccountAdminService;
+import com.cheil.cheil_be.application.userauth.port.in.UserAccountSelfUseCase;
 import com.cheil.cheil_be.config.security.LoginJwtAuthenticationFilter;
 import com.cheil.cheil_be.config.security.ServiceHeaderAuthenticationFilter;
 
@@ -76,7 +76,7 @@ class UserAuthControllerTest {
     private MenuPermissionQueryUseCase menuPermissionQueryUseCase;
 
     @MockitoBean
-    private UserAccountAdminService userAccountAdminService;
+    private UserAccountSelfUseCase userAccountSelfUseCase;
 
     @MockitoBean
     private LoginAccessTokenService loginAccessTokenService;

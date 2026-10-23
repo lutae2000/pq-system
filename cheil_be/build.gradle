@@ -45,6 +45,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-json:${springBootVersion}"
     implementation "org.springframework.boot:spring-boot-starter-mail:${springBootVersion}"
     implementation "org.springframework.boot:spring-boot-starter-security:${springBootVersion}"
+    implementation "org.springframework.boot:spring-boot-starter-validation:${springBootVersion}"
     implementation "org.springframework.boot:spring-boot-starter-webmvc:${springBootVersion}"
     implementation "org.springframework.boot:spring-boot-starter-opentelemetry:${springBootVersion}"
     implementation "org.apache.pdfbox:pdfbox:${pdfboxVersion}"

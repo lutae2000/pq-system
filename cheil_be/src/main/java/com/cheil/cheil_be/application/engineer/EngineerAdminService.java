@@ -2,7 +2,7 @@ package com.cheil.cheil_be.application.engineer;
 
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
-import com.cheil.cheil_be.application.engineer.exception.EngineerApplicationException;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.function.Function;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,14 +29,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     private final EngineerSchoolRepository schoolRepository;
 
     @Transactional(readOnly = true)
-    public Page<EngineerDtos.Profile> findAll(Integer page, Integer size) {
-        return findAll(page, size, null, null, null, null, null, null, null, null, null);
-    }
-
-    @Transactional(readOnly = true)
     public Page<EngineerDtos.Profile> findAll(
-            Integer page,
-            Integer size,
             String retireYn,
             String status,
             String keyword,
@@ -45,9 +38,9 @@ public class EngineerAdminService implements EngineerAdminUseCase {
             String designGrade,
             String constructionManagementGrade,
             String specialtyField,
-            String jobField
+            String jobField,
+            Pageable pageable
     ) {
-        PageRequest pageable = PageRequest.of(Math.max(page == null ? 0 : page, 0), Math.max(Math.min(size == null ? 1000 : size, 1000), 1));
         return masterRepository.search(
                 retireYnParam(retireYn, status),
                 blankToEmpty(keyword),
@@ -94,7 +87,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
         EngineerDtos.Basic basic = requireBasic(request);
         String engrId = requireEngrId(basic.engrId());
         if (masterRepository.existsById(engrId)) {
-            throw new EngineerApplicationException(EngineerApplicationException.Type.CONFLICT, "Engineer already exists.");
+            throw ApplicationException.conflict("Engineer already exists.");
         }
         if (!allowDuplicate) validateDuplicate(basic, engrId);
         masterRepository.save(EngineerMasterEntity.from(basic, engrId));
@@ -135,7 +128,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
         }
 
         if (masterRepository.existsDuplicate(nameKor, birthday, engrId)) {
-            throw new EngineerApplicationException(EngineerApplicationException.Type.CONFLICT, "이미 존재하는 기술인이 있습니다.");
+            throw ApplicationException.conflict("이미 존재하는 기술인이 있습니다.");
         }
     }
 
@@ -300,10 +293,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
 
     private EngineerMasterEntity findMaster(String engrId) {
         return masterRepository.findById(requireEngrId(engrId))
-                .orElseThrow(() -> new EngineerApplicationException(
-                        EngineerApplicationException.Type.NOT_FOUND,
-                        "Engineer not found."
-                ));
+                .orElseThrow(() -> ApplicationException.notFound("Engineer not found."));
     }
 
     private String requireExistingEngrId(String engrId) {
@@ -312,7 +302,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
 
     private EngineerDtos.Basic requireBasic(EngineerDtos.Profile request) {
         if (request == null || request.basic() == null) {
-            throw new EngineerApplicationException(EngineerApplicationException.Type.BAD_REQUEST, "basic is required.");
+            throw ApplicationException.badRequest("basic is required.");
         }
         return request.basic();
     }
@@ -320,7 +310,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     private String requireEngrId(String engrId) {
         String text = blankToNull(engrId);
         if (text == null) {
-            throw new EngineerApplicationException(EngineerApplicationException.Type.BAD_REQUEST, "ENGR_ID is required.");
+            throw ApplicationException.badRequest("ENGR_ID is required.");
         }
         return text;
     }
@@ -414,7 +404,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
                 && existingFinder.apply(normalizedEngrId).stream()
                 .anyMatch(entity -> recordId.equals(entityIdExtractor.apply(entity)));
         if (!belongsToEngineer) {
-            throw new EngineerApplicationException(EngineerApplicationException.Type.NOT_FOUND, "Record not found.");
+            throw ApplicationException.notFound("Record not found.");
         }
         repository.deleteById(recordId);
     }

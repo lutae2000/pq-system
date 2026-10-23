@@ -2,6 +2,7 @@ package com.cheil.cheil_be.common.paging;
 
 import lombok.experimental.UtilityClass;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 /**
@@ -30,6 +31,18 @@ public class PageRequests {
 
     public static PageRequest of(Integer page, Integer size, Sort sort) {
         return PageRequest.of(safePage(page), safeSize(size), sort == null ? Sort.unsorted() : sort);
+    }
+
+    public static PageRequest of(Pageable pageable) {
+        return of(pageable, Sort.unsorted());
+    }
+
+    public static PageRequest of(Pageable pageable, Sort defaultSort) {
+        if (pageable == null || pageable.isUnpaged()) {
+            return of(null, null, defaultSort);
+        }
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : defaultSort;
+        return of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
     private static int safePage(Integer page) {

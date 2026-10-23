@@ -3,7 +3,7 @@ package com.cheil.cheil_be.adapter.in.web.companyprofile;
 import java.time.Instant;
 import java.time.LocalDate;
 
-import com.cheil.cheil_be.adapter.out.persistence.companyprofile.CompanyAttachmentEntity;
+import com.cheil.cheil_be.application.companyprofile.port.in.CompanyProfileUseCase;
 
 public record CompanyAttachmentResponse(
         Long attachmentId,
@@ -22,22 +22,12 @@ public record CompanyAttachmentResponse(
         String createdId
 ) {
 
-    public static CompanyAttachmentResponse from(CompanyAttachmentEntity entity) {
+    public static CompanyAttachmentResponse from(CompanyProfileUseCase.Attachment entity) {
         return new CompanyAttachmentResponse(
-                entity.getAttachmentId(),
-                entity.getAttachmentType(),
-                entity.getTitle(),
-                entity.getFiscalYear(),
-                entity.getIssuedOn(),
-                entity.getValidUntil(),
-                entity.getFileId(),
-                entity.getOriginalFilename(),
-                entity.getContentType(),
-                entity.getFileSize(),
-                entity.getDownloadUrl(),
-                entity.getNote(),
-                entity.getCreatedAt(),
-                entity.getCreatedId()
+                entity.attachmentId(), entity.attachmentType(), entity.title(), entity.fiscalYear(),
+                entity.issuedOn(), entity.validUntil(), entity.fileId(), entity.originalFilename(),
+                entity.contentType(), entity.fileSize(), entity.downloadUrl(), entity.note(),
+                entity.createdAt(), entity.createdId()
         );
     }
 }

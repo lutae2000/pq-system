@@ -129,7 +129,7 @@
           AND candidate.imported_bid_seq IS DISTINCT FROM notice.bid_seq
     </update>
 
-    <insert id="createChangeNotices">
+    <insert id="createChangeNotices"><![CDATA[
         INSERT INTO system_notices (
             notice_id, title, content, target_path,
             exposure_start_at, exposure_end_at, publish_at,
@@ -169,7 +169,7 @@
                      OR imported_candidate.bid_ntce_no = current_candidate.bef_bid_bbanc_no
                 )
                   AND imported_candidate.imported_bid_seq IS NOT NULL
-                  AND imported_candidate.id &lt; current_candidate.id
+                  AND imported_candidate.id < current_candidate.id
           )
           AND (
                 current_candidate.ntce_kind_nm ILIKE '%변경%'
@@ -177,5 +177,5 @@
              OR current_candidate.ntce_kind_nm ILIKE '%재공고%'
           )
         ON CONFLICT (notice_id) DO NOTHING
-    </insert>
+    ]]></insert>
 </mapper>

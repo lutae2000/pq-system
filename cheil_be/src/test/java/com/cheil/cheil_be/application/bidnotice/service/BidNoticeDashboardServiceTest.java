@@ -12,10 +12,10 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException;
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException.Type;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEventType;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 class BidNoticeDashboardServiceTest {
@@ -63,14 +63,14 @@ class BidNoticeDashboardServiceTest {
     @Test
     void rejectsInvalidCalendarMonthWithoutCallingRepository() {
         assertThatThrownBy(() -> service.findCalendarByMonth(2026, 13, null))
-                .isInstanceOfSatisfying(BidNoticeApplicationException.class, exception ->
-                        assertThat(exception.type()).isEqualTo(Type.BAD_REQUEST));
+                .isInstanceOfSatisfying(ApplicationException.class, exception ->
+                        assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
     }
 
     @Test
     void rejectsInvalidYearMonthFormat() {
         assertThatThrownBy(() -> service.findCalendarByYearMonth("202613", null))
-                .isInstanceOfSatisfying(BidNoticeApplicationException.class, exception ->
-                        assertThat(exception.type()).isEqualTo(Type.BAD_REQUEST));
+                .isInstanceOfSatisfying(ApplicationException.class, exception ->
+                        assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
     }
 }

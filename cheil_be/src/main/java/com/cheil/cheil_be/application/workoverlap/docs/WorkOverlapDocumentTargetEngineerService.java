@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.workoverlap.docs;
 
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +35,7 @@ public class WorkOverlapDocumentTargetEngineerService {
         return queryRepository.find(
                 bidSeq,
                 workDutyId.trim(),
-                normalize(keyword)
+                trimToNull(keyword)
         );
     }
 
@@ -56,9 +58,9 @@ public class WorkOverlapDocumentTargetEngineerService {
             WorkOverlapDocumentTargetEngineerItem item = entry.getValue();
             WorkOverlapDocumentTargetEngineerEntity row = repository.findByWorkDutyIdAndBidSeqAndEngrId(workDutyId, request.bidSeq(), entry.getKey());
             if (row == null) {
-                return new WorkOverlapDocumentTargetEngineerEntity(request.bidSeq(), workDutyId, entry.getKey(), item.displayOrder(), normalize(item.responsibility()));
+            return new WorkOverlapDocumentTargetEngineerEntity(request.bidSeq(), workDutyId, entry.getKey(), item.displayOrder(), trimToNull(item.responsibility()));
             }
-            row.update(item.displayOrder(), normalize(item.responsibility()));
+            row.update(item.displayOrder(), trimToNull(item.responsibility()));
             return row;
         }).toList();
         repository.saveAll(next);
@@ -80,7 +82,7 @@ public class WorkOverlapDocumentTargetEngineerService {
         if (row == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Selected engineer was not found.");
         }
-        row.update(request.displayOrder(), normalize(request.responsibility()));
+        row.update(request.displayOrder(), trimToNull(request.responsibility()));
         repository.save(row);
     }
 
@@ -90,7 +92,4 @@ public class WorkOverlapDocumentTargetEngineerService {
         }
     }
 
-    private String normalize(String value) {
-        return value == null || value.trim().isBlank() ? null : value.trim();
-    }
 }

@@ -12,8 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException;
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException.Type;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEvent;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEventType;
@@ -84,23 +83,23 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
 
     private YearMonth toYearMonth(int year, int month) {
         if (year < 1900 || year > 9999) {
-            throw failure("연도는 1900년부터 9999년 사이여야 합니다.");
+            throw ApplicationException.badRequest("연도는 1900년부터 9999년 사이여야 합니다.");
         }
         if (month < 1 || month > 12) {
-            throw failure("월은 1부터 12 사이여야 합니다.");
+            throw ApplicationException.badRequest("월은 1부터 12 사이여야 합니다.");
         }
         return YearMonth.of(year, month);
     }
 
     private YearMonth toYearMonth(String yearMonth) {
         if (yearMonth == null || !yearMonth.matches("\\d{6}")) {
-            throw failure("yearMonth는 yyyyMM 형식이어야 합니다.");
+            throw ApplicationException.badRequest("yearMonth는 yyyyMM 형식이어야 합니다.");
         }
 
         try {
             return YearMonth.parse(yearMonth, YEAR_MONTH_FORMATTER);
         } catch (RuntimeException ex) {
-            throw failure("yearMonth는 yyyyMM 형식이어야 합니다.");
+            throw ApplicationException.badRequest("yearMonth는 yyyyMM 형식이어야 합니다.");
         }
     }
 
@@ -111,7 +110,4 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
         return departmentCode.trim();
     }
 
-    private static BidNoticeApplicationException failure(String message) {
-        return new BidNoticeApplicationException(Type.BAD_REQUEST, message);
-    }
 }

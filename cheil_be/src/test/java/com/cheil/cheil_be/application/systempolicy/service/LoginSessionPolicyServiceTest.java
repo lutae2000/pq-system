@@ -3,6 +3,8 @@ package com.cheil.cheil_be.application.systempolicy.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -11,14 +13,14 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempolicy.JpaSystemPolicyRepository;
+import com.cheil.cheil_be.application.systempolicy.port.out.SystemPolicyRepository;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
 
 class LoginSessionPolicyServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-10-06T00:00:00Z");
 
-    private final JpaSystemPolicyRepository repository = mock(JpaSystemPolicyRepository.class);
+    private final SystemPolicyRepository repository = mock(SystemPolicyRepository.class);
     private final SystemPolicyCacheService cacheService = mock(SystemPolicyCacheService.class);
     private final LoginSessionPolicyService service = new LoginSessionPolicyService(
             securityProperties(),
@@ -28,7 +30,7 @@ class LoginSessionPolicyServiceTest {
 
     @Test
     void passwordChangeIsNotRequiredWhenPeriodPolicyIsDisabled() {
-        when(cacheService.getOrLoad("PASSWORD_CHANGE_PERIOD_DAYS", org.mockito.ArgumentMatchers.any()))
+        when(cacheService.getOrLoad(eq("PASSWORD_CHANGE_PERIOD_DAYS"), any()))
                 .thenReturn(Optional.of(new SystemPolicyCacheService.CachedPolicy(false, "90")));
 
         boolean expired = service.isPasswordChangeExpired(null, true, NOW);
@@ -38,7 +40,7 @@ class LoginSessionPolicyServiceTest {
 
     @Test
     void passwordChangeIsRequiredForResetAccountWhenPeriodPolicyIsEnabled() {
-        when(cacheService.getOrLoad("PASSWORD_CHANGE_PERIOD_DAYS", org.mockito.ArgumentMatchers.any()))
+        when(cacheService.getOrLoad(eq("PASSWORD_CHANGE_PERIOD_DAYS"), any()))
                 .thenReturn(Optional.of(new SystemPolicyCacheService.CachedPolicy(true, "90")));
 
         boolean expired = service.isPasswordChangeExpired(null, true, NOW);

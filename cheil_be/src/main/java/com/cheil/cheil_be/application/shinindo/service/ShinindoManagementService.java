@@ -1,15 +1,18 @@
 package com.cheil.cheil_be.application.shinindo.service;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.basicDate;
+import static com.cheil.cheil_be.application.common.validation.InputValues.nonNegative;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.util.Locale;
 
 import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
-import com.cheil.cheil_be.application.shinindo.exception.ShinindoApplicationException;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.shinindo.model.ShinindoManagement;
 import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSearch;
 import com.cheil.cheil_be.application.shinindo.port.in.ShinindoManagementUseCase;
 import com.cheil.cheil_be.application.shinindo.port.out.ShinindoManagementRepository;
 import com.cheil.cheil_be.common.text.StringValues;
@@ -25,22 +28,24 @@ public class ShinindoManagementService implements ShinindoManagementUseCase {
     private static final int CLIENT_CODE_MAX_LENGTH = 20;
     private static final int ITEM_NAME_MAX_LENGTH = 300;
     private static final int REMARK_MAX_LENGTH = 1000;
-    private static final DateTimeFormatter COMPACT_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
-
     private final ShinindoManagementRepository repository;
     private final CurrentActorPort currentActorPort;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ShinindoManagement> findAll(String keyword, String clientCode, String referenceDate, Pageable pageable) {
-        return repository.findAll(keyword, clientCode, pageable);
+    public Page<ShinindoManagement> findAll(ShinindoManagementSearch search, Pageable pageable) {
+        if (search == null || pageable == null) throw ApplicationException.badRequest("조회 조건과 페이지 정보는 필수입니다.");
+        return repository.findAll(new ShinindoManagementSearch(
+                trimToNull(search.keyword()), trimToNull(search.clientCode()), trimToNull(search.referenceDate())
+        ), pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public ShinindoManagement findById(Long id) {
-        if (id == null) throw invalid("id는 필수입니다.");
-        return repository.findById(id).orElseThrow(this::notFound);
+        if (id == null) throw ApplicationException.badRequest("id는 필수입니다.");
+        return repository.findById(id)
+                .orElseThrow(() -> ApplicationException.notFound("신인도 정보를 찾을 수 없습니다."));
     }
 
     @Override
@@ -65,20 +70,20 @@ public class ShinindoManagementService implements ShinindoManagementUseCase {
     @Transactional
     public void delete(Long id) {
         findById(id);
-        if (!repository.delete(id)) throw notFound();
+        if (!repository.delete(id)) throw ApplicationException.notFound("신인도 정보를 찾을 수 없습니다.");
     }
 
     private ShinindoManagementSaveCommand normalizeAndValidate(ShinindoManagementSaveCommand command) {
-        if (command == null) throw invalid("요청 본문은 필수입니다.");
-        String clientCode = StringValues.required(command.clientCode(), "clientCode");
-        String itemName = StringValues.required(command.itemName(), "itemName");
-        StringValues.validateMaxLength(clientCode, CLIENT_CODE_MAX_LENGTH, "clientCode");
-        StringValues.validateMaxLength(itemName, ITEM_NAME_MAX_LENGTH, "itemName");
-        StringValues.validateMaxLength(StringValues.normalize(command.remark()), REMARK_MAX_LENGTH, "remark");
+        if (command == null) throw ApplicationException.badRequest("요청 본문은 필수입니다.");
+        String clientCode = InputValues.requiredText(command.clientCode(), "clientCode");
+        String itemName = InputValues.requiredText(command.itemName(), "itemName");
+        InputValues.validateMaxLength(clientCode, CLIENT_CODE_MAX_LENGTH, "clientCode");
+        InputValues.validateMaxLength(itemName, ITEM_NAME_MAX_LENGTH, "itemName");
+        InputValues.validateMaxLength(StringValues.normalize(command.remark()), REMARK_MAX_LENGTH, "remark");
         return new ShinindoManagementSaveCommand(
-                clientCode, itemName, normalizeAppliedYn(command.appliedYn()), normalizeScore(command.score()),
-                normalizeDate(command.acquiredDate(), "acquiredDate"), normalizeDate(command.validUntil(), "validUntil"),
-                nullIfBlank(command.remark()), null
+                clientCode, itemName, normalizeAppliedYn(command.appliedYn()), nonNegative(command.score(), "score"),
+                basicDate(command.acquiredDate(), "acquiredDate", false), basicDate(command.validUntil(), "validUntil", false),
+                trimToNull(command.remark()), null
         );
     }
 
@@ -88,41 +93,15 @@ public class ShinindoManagementService implements ShinindoManagementUseCase {
     }
 
     private void ensureClientExists(String clientCode) {
-        if (!repository.clientExists(clientCode)) throw invalid("존재하지 않는 발주처 코드입니다.");
+        if (!repository.clientExists(clientCode)) throw ApplicationException.badRequest("존재하지 않는 발주처 코드입니다.");
     }
 
     private String normalizeAppliedYn(String value) {
-        String normalized = StringValues.required(value, "appliedYn").trim().toUpperCase(Locale.ROOT);
-        if (!"Y".equals(normalized) && !"N".equals(normalized)) throw invalid("appliedYn은 Y 또는 N이어야 합니다.");
+        String normalized = InputValues.requiredText(value, "appliedYn").trim().toUpperCase(Locale.ROOT);
+        if (!"Y".equals(normalized) && !"N".equals(normalized)) {
+            throw ApplicationException.badRequest("appliedYn은 Y 또는 N이어야 합니다.");
+        }
         return normalized;
     }
 
-    private BigDecimal normalizeScore(BigDecimal value) {
-        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) throw invalid("score는 0 이상이어야 합니다.");
-        return value;
-    }
-
-    private String normalizeDate(String value, String fieldName) {
-        String normalized = StringValues.normalize(value);
-        if (normalized == null || normalized.isBlank()) return null;
-        // 화면에서 하이픈 날짜도 허용하되, 저장소에는 YYYYMMDD 형식으로 통일합니다.
-        String compact = normalized.replace("-", "");
-        if (!compact.matches("\\d{8}")) throw invalid(fieldName + "은 YYYYMMDD 형식이어야 합니다.");
-        try { LocalDate.parse(compact, COMPACT_DATE_FORMATTER); }
-        catch (DateTimeParseException exception) { throw invalid(fieldName + "은 YYYYMMDD 형식이어야 합니다."); }
-        return compact;
-    }
-
-    private String nullIfBlank(String value) {
-        String normalized = StringValues.normalize(value);
-        return normalized == null || normalized.isBlank() ? null : normalized;
-    }
-
-    private ShinindoApplicationException invalid(String message) {
-        return new ShinindoApplicationException(ShinindoApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private ShinindoApplicationException notFound() {
-        return new ShinindoApplicationException(ShinindoApplicationException.Type.NOT_FOUND, "신인도 정보를 찾을 수 없습니다.");
-    }
 }

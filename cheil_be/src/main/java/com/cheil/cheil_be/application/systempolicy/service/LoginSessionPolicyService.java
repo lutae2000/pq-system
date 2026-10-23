@@ -11,7 +11,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempolicy.JpaSystemPolicyRepository;
+import com.cheil.cheil_be.application.systempolicy.port.out.SystemPolicyRepository;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
 
 @Service
@@ -19,7 +19,7 @@ import com.cheil.cheil_be.config.security.AppSecurityProperties;
 public class LoginSessionPolicyService {
 
     private final AppSecurityProperties securityProperties;
-    private final JpaSystemPolicyRepository systemPolicyRepository;
+    private final SystemPolicyRepository systemPolicyRepository;
     private final SystemPolicyCacheService systemPolicyCacheService;
 
     public Duration sessionTimeout() {
@@ -88,7 +88,7 @@ public class LoginSessionPolicyService {
             return Optional.empty();
         }
         return systemPolicyCacheService
-                .getOrLoad(policyKey, () -> systemPolicyRepository.findById(policyKey))
+                .getOrLoad(policyKey, () -> systemPolicyRepository.findByKey(policyKey))
                 .filter(SystemPolicyCacheService.CachedPolicy::enabled);
     }
 

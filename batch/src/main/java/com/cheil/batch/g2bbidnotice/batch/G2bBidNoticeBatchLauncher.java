@@ -1,20 +1,13 @@
 package com.cheil.batch.g2bbidnotice.batch;
 
-import com.cheil.batch.g2bbidnotice.application.model.BatchRunStatus;
+import com.cheil.batch.common.batch.BatchJobRunner;
+import com.cheil.batch.common.batch.BatchRunStatus;
 import com.cheil.batch.g2bbidnotice.application.port.in.RunG2bBidNoticeBatchUseCase;
-import com.cheil.batch.common.batch.BatchMetrics;
-import java.util.UUID;
-import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.Job;
-import org.springframework.batch.core.job.JobExecution;
-import org.springframework.batch.core.job.parameters.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,18 +20,14 @@ import org.springframework.stereotype.Component;
 public class G2bBidNoticeBatchLauncher implements ApplicationRunner, RunG2bBidNoticeBatchUseCase {
 
     private final Job g2bBidNoticeCandidateSyncJob;
-    private final JobOperator jobOperator;
     private final G2bBidNoticeBatchProperties properties;
-    private final StringRedisTemplate valkeyTemplate;
-    private final BatchMetrics batchMetrics;
-
-    private static final String RELEASE_LOCK_SCRIPT = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+    private final BatchJobRunner batchJobRunner;
 
     @Override
     public void run(ApplicationArguments args) {
         if (properties.enabled() && properties.runOnStartup()) {
             log.info("Startup batch job 실행: jobName={}", g2bBidNoticeCandidateSyncJob.getName());
-            runWithLock();
+            batchJobRunner.runWithLock(g2bBidNoticeCandidateSyncJob, properties.lockTtl());
         }
     }
 
@@ -53,51 +42,12 @@ public class G2bBidNoticeBatchLauncher implements ApplicationRunner, RunG2bBidNo
             return;
         }
 
-        runWithLock();
+        batchJobRunner.runWithLock(g2bBidNoticeCandidateSyncJob, properties.lockTtl());
     }
 
     @Override
     public BatchRunStatus runOnDemand() {
         // Controller의 수동 실행도 스케줄 실행과 동일한 분산 락 경로를 사용합니다.
-        return runWithLock();
-    }
-
-    private BatchRunStatus runWithLock() {
-        String lockValue = UUID.randomUUID().toString();
-        String lockKey = "batch:lock:" + g2bBidNoticeCandidateSyncJob.getName();
-        Timer.Sample timer = batchMetrics.startTimer();
-        batchMetrics.recordRun(G2bBidNoticeBatchConfig.JOB_NAME);
-        // Valkey TTL은 비정상 종료로 락 해제가 누락되어도 영구 정지가 되지 않도록 합니다.
-        Boolean acquired = valkeyTemplate.opsForValue().setIfAbsent(lockKey, lockValue, properties.lockTtl());
-        if (!Boolean.TRUE.equals(acquired)) {
-            log.warn("{} skipped because the distributed lock already exists", g2bBidNoticeCandidateSyncJob.getName());
-            batchMetrics.recordSkipped(G2bBidNoticeBatchConfig.JOB_NAME);
-            batchMetrics.recordDuration(G2bBidNoticeBatchConfig.JOB_NAME, timer);
-            return BatchRunStatus.SKIPPED;
-        }
-        try {
-            JobExecution execution = jobOperator.start(g2bBidNoticeCandidateSyncJob, new JobParametersBuilder()
-                    .addLong("scheduledAt", System.currentTimeMillis())
-                    .toJobParameters());
-            log.info("{} completed: executionId={}, status={}", g2bBidNoticeCandidateSyncJob.getName(), execution.getId(), execution.getStatus());
-            if (execution.getStatus() == BatchStatus.COMPLETED) {
-                batchMetrics.recordSuccess(G2bBidNoticeBatchConfig.JOB_NAME);
-                return BatchRunStatus.COMPLETED;
-            }
-            batchMetrics.recordFailure(G2bBidNoticeBatchConfig.JOB_NAME);
-            return BatchRunStatus.FAILED;
-        } catch (Exception exception) {
-            log.error("{} failed", g2bBidNoticeCandidateSyncJob.getName(), exception);
-            batchMetrics.recordFailure(G2bBidNoticeBatchConfig.JOB_NAME);
-            return BatchRunStatus.FAILED;
-        } finally {
-            batchMetrics.recordDuration(G2bBidNoticeBatchConfig.JOB_NAME, timer);
-            // 내가 획득한 락인지 확인하는 Lua 스크립트로 다른 실행자의 락 삭제를 방지합니다.
-            valkeyTemplate.execute(
-                    new org.springframework.data.redis.core.script.DefaultRedisScript<>(RELEASE_LOCK_SCRIPT, Long.class),
-                    java.util.List.of(lockKey),
-                    lockValue
-            );
-        }
+        return batchJobRunner.runWithLock(g2bBidNoticeCandidateSyncJob, properties.lockTtl());
     }
 }

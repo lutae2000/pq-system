@@ -4,6 +4,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +28,7 @@ import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 
+/** 회사 수행실적과 연결된 기간, 기술자, 공종, 수행개요를 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/company-performances")
 @RequiredArgsConstructor
@@ -51,8 +54,7 @@ public class CompanyPerformanceController {
             @RequestParam(required = false) String contractFromDate,
             @RequestParam(required = false) String contractToDate,
             @RequestParam(required = false) Long excludeDocumentTargetBidSeq,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         Page<CompanyPerformance> result = companyPerformanceAdminUseCase.findAll(
                 new CompanyPerformanceSearchCondition(
@@ -65,7 +67,7 @@ public class CompanyPerformanceController {
                         contractToDate,
                         excludeDocumentTargetBidSeq
                 ),
-                PageRequests.of(page, size)
+                PageRequests.of(pageable)
         );
         return ResponseEntity.ok(PageResponse.from(result, CompanyPerformanceResponse::from));
     }

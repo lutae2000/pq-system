@@ -3,7 +3,8 @@ package com.cheil.cheil_be.adapter.in.web.userauth;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -17,9 +18,13 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.application.userauth.port.in.UserAccountSearchCondition;
-import com.cheil.cheil_be.application.userauth.port.in.UserAccountUpsertCommand;
-import com.cheil.cheil_be.application.userauth.service.UserAccountAdminService;
+import com.cheil.cheil_be.application.userauth.model.UserAccountCommand;
+import com.cheil.cheil_be.application.userauth.model.UserAccountSearch;
+import com.cheil.cheil_be.application.userauth.model.UserMenuPermission;
+import com.cheil.cheil_be.application.userauth.model.UserMenuPermissionCommand;
+import com.cheil.cheil_be.application.userauth.port.in.UserAccountAdminUseCase;
+import com.cheil.cheil_be.common.paging.PageRequests;
+import com.cheil.cheil_be.common.web.PageResponse;
 
 /**
  * 관리자용 사용자 계정 관리 API.
@@ -30,7 +35,7 @@ import com.cheil.cheil_be.application.userauth.service.UserAccountAdminService;
 @RequiredArgsConstructor
 public class UserAccountController {
 
-    private final UserAccountAdminService userAccountAdminService;
+    private final UserAccountAdminUseCase userAccountAdminService;
 
     /**
      * 사용자 계정 목록 조회.
@@ -40,27 +45,22 @@ public class UserAccountController {
      * 사용자 계정 목록을 조회한다.
      */
     @GetMapping
-    public ResponseEntity<UserAccountPageResponse> list(
+    public ResponseEntity<PageResponse<UserAccountResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String useYn,
             @RequestParam(required = false) String groupCode,
             @RequestParam(required = false) String deptCode,
-            @RequestParam(required = false, defaultValue = "0") Integer page
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<UserAccountResponse> result = userAccountAdminService.findAll(new UserAccountSearchCondition(
+        var safePageable = PageRequests.of(pageable);
+        var result = userAccountAdminService.findAll(new UserAccountSearch(
                 keyword,
                 useYn,
                 groupCode,
                 deptCode
-        ), page).map(UserAccountResponse::from);
+        ), safePageable);
 
-        return ResponseEntity.ok(new UserAccountPageResponse(
-                result.getContent(),
-                result.getNumber(),
-                result.getSize(),
-                result.getTotalElements(),
-                result.getTotalPages()
-        ));
+        return ResponseEntity.ok(PageResponse.from(result, UserAccountResponse::from));
     }
 
     /**
@@ -92,7 +92,7 @@ public class UserAccountController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "요청 본문이 필요합니다.");
         }
 
-        var saved = userAccountAdminService.upsert(new UserAccountUpsertCommand(
+        var saved = userAccountAdminService.upsert(new UserAccountCommand(
                 request.employeeNo(),
                 request.userName(),
                 request.loginId(),
@@ -170,16 +170,7 @@ public class UserAccountController {
     ) {
     }
 
-    public record UserMenuPermissionUpsertRequest(List<UserAccountAdminService.UserMenuPermissionUpsertItem> items) {
-    }
-
-    public record UserAccountPageResponse(
-            List<UserAccountResponse> content,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages
-    ) {
+    public record UserMenuPermissionUpsertRequest(List<UserMenuPermissionCommand> items) {
     }
 
     public record UserMenuPermissionResponse(
@@ -198,7 +189,7 @@ public class UserAccountController {
             boolean update,
             boolean delete
     ) {
-        static UserMenuPermissionResponse from(UserAccountAdminService.UserMenuPermissionView view) {
+        static UserMenuPermissionResponse from(UserMenuPermission view) {
             return new UserMenuPermissionResponse(
                     view.loginId(),
                     view.menuCode(),

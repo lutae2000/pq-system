@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceDocumentTargetService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceHwpxGenerationService;
 
+/** 회사 실적 문서의 출력 대상과 순서, HWPX 생성을 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/company-performance-document-targets")
 @RequiredArgsConstructor

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.common.file.FileAttachmentService;
 
+/** 업무 데이터에 연결된 첨부파일의 조회, 추가, 정렬, 삭제를 제공하는 API다. */
 @RestController
 @RequiredArgsConstructor
 public class FileAttachmentController {

@@ -5,4 +5,9 @@ public record NewEmploymentMonthlyStatusRequest(
         Integer employeeCount,
         Integer newHireCount
 ) {
+    com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusCommand toCommand() {
+        return new com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusCommand(
+                baseYearMonth, employeeCount, newHireCount
+        );
+    }
 }

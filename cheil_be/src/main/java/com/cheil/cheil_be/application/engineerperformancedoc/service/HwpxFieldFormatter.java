@@ -24,6 +24,9 @@ final class HwpxFieldFormatter {
             "근무일(일)",
             "근무일(월)",
             "근무일(년월)",
+            "근무기간(일)",
+            "근무기간(월)",
+            "근무기간(년월)",
             "참여일수(일)",
             "참여일수(월)",
             "참여일수(년)"
@@ -88,11 +91,11 @@ final class HwpxFieldFormatter {
     }
 
     static String formatContractPeriods(String fieldName, List<ContractPeriod> periods) {
-        return formatPeriodList(fieldName, periods, "용역차수기간");
+        return formatPeriodList(fieldName, periods, "용역차수");
     }
 
     static String formatParticipationPeriods(String fieldName, List<ContractPeriod> periods) {
-        return formatPeriodList(fieldName, periods, "참여차수기간");
+        return formatPeriodList(fieldName, periods, "참여차수");
     }
 
     static String formatCurrentEmploymentPeriod(String fieldName, String entryDate) {
@@ -115,14 +118,14 @@ final class HwpxFieldFormatter {
             if (from == null || to == null || to.isBefore(from)) continue;
             long days = ChronoUnit.DAYS.between(from, to) + 1;
             totalDays += days;
-            if (value.length() > 0) value.append("\n\n");
+            if (value.length() > 0) value.append("\n");
             value.append(from.format(formatter)).append("\n~\n")
                     .append(to.format(formatter)).append("\n(")
                     .append(formatPeriodDays(days, totalUnit))
                     .append(periodUnitLabel(totalUnit)).append(")");
         }
         if (value.length() == 0) return "";
-        return value.append("\n\n(총 ")
+        return value.append("\n(총 ")
                 .append(formatPeriodDays(totalDays, totalUnit))
                 .append(periodUnitLabel(totalUnit)).append(")").toString();
     }
@@ -140,7 +143,7 @@ final class HwpxFieldFormatter {
     }
 
     private static String periodUnitLabel(String unit) {
-        return "일".equals(unit) ? "일" : unit;
+        return "일".equals(unit) ? "일" : "월".equals(unit) ? "개월" : unit;
     }
 
     static String format(String fieldName, EngineerDtos.Career history) {
@@ -156,7 +159,7 @@ final class HwpxFieldFormatter {
             return formatDate(history.retireDt(), label);
         }
         if (label.contains("근무일") || label.contains("근무기간")) {
-            return formatPeriod(history.entryDt(), history.retireDt(), label, true);
+            return formatPeriod(history.entryDt(), history.retireDt(), label, false);
         }
         return null;
     }
@@ -257,8 +260,7 @@ final class HwpxFieldFormatter {
         }
         if (label.contains("(월)")) {
             BigDecimal months = BigDecimal.valueOf(days)
-                    .divide(BigDecimal.valueOf(30L), 2, RoundingMode.HALF_UP)
-                    .stripTrailingZeros();
+                    .divide(BigDecimal.valueOf(30L), 0, RoundingMode.HALF_UP);
             return months.toPlainString() + (hasDateFormat(label) ? "개월" : "");
         }
         if (label.contains("(년)")) {

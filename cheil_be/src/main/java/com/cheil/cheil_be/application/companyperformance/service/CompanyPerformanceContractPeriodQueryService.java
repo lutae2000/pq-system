@@ -9,11 +9,10 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 
 @Service
 @RequiredArgsConstructor
@@ -40,18 +39,20 @@ public class CompanyPerformanceContractPeriodQueryService {
   public CompanyPerformanceContractPeriodResponse update(
       Long seq, Long id, CompanyPerformanceContractPeriodRequest request) {
     CompanyPerformanceContractPeriodRequest normalized = normalize(request);
-    if (repository.update(seq, id, normalized) != 1) throw notFound();
+    if (repository.update(seq, id, normalized) != 1) {
+      throw ApplicationException.notFound("Contract period was not found.");
+    }
     return findById(seq, id);
   }
 
   @Transactional
   public void delete(Long seq, Long id) {
-    if (repository.delete(seq, id) != 1) throw notFound();
+    if (repository.delete(seq, id) != 1) throw ApplicationException.notFound("Contract period was not found.");
   }
 
   private CompanyPerformanceContractPeriodResponse findById(Long seq, Long id) {
     var record = repository.findById(seq, id);
-    if (record == null) throw notFound();
+    if (record == null) throw ApplicationException.notFound("Contract period was not found.");
     return response(record);
   }
 
@@ -76,30 +77,23 @@ public class CompanyPerformanceContractPeriodQueryService {
 
   private CompanyPerformanceContractPeriodRequest normalize(
       CompanyPerformanceContractPeriodRequest r) {
-    if (r == null) throw invalid("Request body is required.");
+    if (r == null) throw ApplicationException.badRequest("Request body is required.");
     String from = date(r.contractFromDate(), "contractFromDate"),
         to = date(r.contractToDate(), "contractToDate");
     if (LocalDate.parse(to, BASIC_DATE).isBefore(LocalDate.parse(from, BASIC_DATE)))
-      throw invalid("Contract end date must not be before start date.");
+      throw ApplicationException.badRequest("Contract end date must not be before start date.");
     return new CompanyPerformanceContractPeriodRequest(from, to, r.sortSeq());
   }
 
   private String date(String value, String field) {
     String normalized = StringUtils.hasText(value) ? value.trim().replace("-", "") : null;
-    if (!StringUtils.hasText(normalized)) throw invalid(field + " is required.");
+    if (!StringUtils.hasText(normalized)) throw ApplicationException.badRequest(field + " is required.");
     try {
       LocalDate.parse(normalized, BASIC_DATE);
     } catch (DateTimeParseException e) {
-      throw invalid(field + " must be YYYYMMDD.");
+      throw ApplicationException.badRequest(field + " must be YYYYMMDD.");
     }
     return normalized;
   }
 
-  private ResponseStatusException invalid(String message) {
-    return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
-  }
-
-  private ResponseStatusException notFound() {
-    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract period was not found.");
-  }
 }

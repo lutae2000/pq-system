@@ -4,6 +4,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,8 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
+import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 기술자의 기본정보와 자격, 경력, 수상, 학력 이력을 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/engineers")
 @RequiredArgsConstructor
@@ -31,8 +35,6 @@ public class EngineerController {
      */
     @GetMapping
     public ResponseEntity<PageResponse<EngineerDtos.Profile>> list(
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false, defaultValue = "100") Integer size,
             @RequestParam(required = false) String retireYn,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
@@ -41,11 +43,10 @@ public class EngineerController {
             @RequestParam(required = false) String designGrade,
             @RequestParam(required = false) String constructionManagementGrade,
             @RequestParam(required = false) String specialtyField,
-            @RequestParam(required = false) String jobField
+            @RequestParam(required = false) String jobField,
+            @PageableDefault(size = 100) Pageable pageable
     ) {
         Page<EngineerDtos.Profile> result = engineerAdminService.findAll(
-                page,
-                size,
                 retireYn,
                 status,
                 keyword,
@@ -54,7 +55,8 @@ public class EngineerController {
                 designGrade,
                 constructionManagementGrade,
                 specialtyField,
-                jobField
+                jobField,
+                PageRequests.of(pageable)
         );
         return ResponseEntity.ok(PageResponse.from(result));
     }

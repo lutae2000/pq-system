@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.workoverlap.docs;
 
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -11,7 +13,6 @@ import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentTar
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentTargetResponse;
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.docs.WorkOverlapDocumentTargetEntity;
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.docs.WorkOverlapDocumentTargetJpaRepository;
-import com.cheil.cheil_be.application.workoverlap.exception.WorkOverlapApplicationException;
 
 @Service
 @RequiredArgsConstructor
@@ -77,10 +78,6 @@ public class WorkOverlapDocumentTargetService {
         if (workDutyId == null || workDutyId.isBlank() || bidSeq == null || engineerId == null || engineerId.isBlank()) {
             throw badRequest("공고와 기술인은 필수입니다.");
         }
-    }
-
-    private WorkOverlapApplicationException badRequest(String message) {
-        return new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, message);
     }
 
     private String normalizeResponsibility(String value) {

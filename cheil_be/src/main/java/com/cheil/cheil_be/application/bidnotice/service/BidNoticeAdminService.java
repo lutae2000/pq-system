@@ -1,5 +1,12 @@
 package com.cheil.cheil_be.application.bidnotice.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.common.text.StringValues.optional;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+import static com.cheil.cheil_be.application.common.validation.InputValues.validateMaxLength;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -11,8 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException;
-import com.cheil.cheil_be.application.bidnotice.exception.BidNoticeApplicationException.Type;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeUpsertCommand;
@@ -42,8 +49,8 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
 
     @Transactional(readOnly = true)
     public BidNotice findByBidSeq(Long bidSeq) {
-        return bidNoticeRepository.findByBidSeq(requiredBidSeq(bidSeq))
-                .orElseThrow(() -> failure(Type.NOT_FOUND, "공고문을 찾을 수 없습니다."));
+        return bidNoticeRepository.findByBidSeq(requiredPositive(bidSeq, "bidSeq"))
+                .orElseThrow(() -> ApplicationException.notFound("공고문을 찾을 수 없습니다."));
     }
 
     @Transactional
@@ -53,7 +60,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         if (bidSeq == null) {
             bidSeq = bidNoticeRepository.allocateBidSeq(LocalDate.now(clock).getYear());
         } else if (bidNoticeRepository.existsByBidSeq(bidSeq)) {
-            throw failure(Type.CONFLICT, "이미 등록된 공고문 번호입니다.");
+            throw ApplicationException.conflict("이미 등록된 공고문 번호입니다.");
         }
 
         Instant now = Instant.now(clock);
@@ -65,7 +72,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         BidNotice existing = findByBidSeq(bidSeq);
         NormalizedBidNotice normalized = normalize(command, existing);
         if (!bidSeq.equals(normalized.bidSeq())) {
-            throw failure(Type.BAD_REQUEST, "공고문 번호는 수정할 수 없습니다.");
+            throw ApplicationException.badRequest("공고문 번호는 수정할 수 없습니다.");
         }
 
         Instant now = Instant.now(clock);
@@ -75,20 +82,20 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     @Transactional
     public void delete(Long bidSeq) {
         findByBidSeq(bidSeq);
-        Long requiredBidSeq = requiredBidSeq(bidSeq);
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
         bidNoticeAttachmentRepository.deleteAllByBidSeq(requiredBidSeq);
         bidNoticeRepository.deleteByBidSeq(requiredBidSeq);
     }
 
     private NormalizedBidNotice normalize(BidNoticeUpsertCommand command, BidNotice existing) {
         if (command == null) {
-            throw failure(Type.BAD_REQUEST, "공고문 요청 본문이 필요합니다.");
+            throw ApplicationException.badRequest("공고문 요청 본문이 필요합니다.");
         }
 
-        String projectName = required(command.projectName(), "projectName");
-        String participateYn = normalize(command.participateYn());
+        String projectName = requiredText(command.projectName(), "projectName");
+        String participateYn = StringValues.normalize(command.participateYn());
         if (participateYn.isEmpty()) {
-            throw failure(Type.BAD_REQUEST, "최종 참여 여부는 필수입니다.");
+            throw ApplicationException.badRequest("최종 참여 여부는 필수입니다.");
         }
         String createdId = optional(command.createdId(), existing == null ? "admin" : existing.createdId());
         String lastChangedId = optional(command.lastChangedId(), createdId);
@@ -96,35 +103,35 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
 
         NormalizedBidNotice normalized = new NormalizedBidNotice(
                 bidSeq,
-                normalize(command.departmentCode()),
+                StringValues.normalize(command.departmentCode()),
                 projectName,
-                normalize(command.orderClient()),
+                StringValues.normalize(command.orderClient()),
                 command.designAmt(),
-                normalize(command.bidType()),
-                normalize(command.bidMethod()),
+                StringValues.normalize(command.bidType()),
+                StringValues.normalize(command.bidMethod()),
                 command.announceDate(),
                 command.pqRegistDate(),
                 command.pqSubmitDate(),
-                normalize(command.orderMethod()),
+                StringValues.normalize(command.orderMethod()),
                 command.bidDate(),
                 command.interviewDate(),
-                normalize(command.bidSuccessYn()),
-                normalize(command.pqDecideEmpno()),
+                StringValues.normalize(command.bidSuccessYn()),
+                StringValues.normalize(command.pqDecideEmpno()),
                 command.pqDecideDate(),
-                normalize(command.superDecideEmpno()),
+                StringValues.normalize(command.superDecideEmpno()),
                 participateYn,
-                normalize(command.businessType()),
+                StringValues.normalize(command.businessType()),
                 command.bidSubmissionDate(),
-                normalize(command.processTag()),
+                StringValues.normalize(command.processTag()),
                 command.bidClosingDate(),
-                normalize(command.fieldOfWorkCode()),
-                normalize(command.scopeOfWorkCode()),
-                normalize(command.reasonOfAbsenceCode()),
+                StringValues.normalize(command.fieldOfWorkCode()),
+                StringValues.normalize(command.scopeOfWorkCode()),
+                StringValues.normalize(command.reasonOfAbsenceCode()),
                 command.siteBriefingDate(),
                 command.tpSubmitDate(),
-                normalize(command.tpPassYn()),
-                normalize(command.primeContractor()),
-                normalize(command.remark()),
+                StringValues.normalize(command.tpPassYn()),
+                StringValues.normalize(command.primeContractor()),
+                StringValues.normalize(command.remark()),
                 normalizeYn(command.refmatYn()),
                 createdId,
                 lastChangedId
@@ -134,11 +141,11 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     }
 
     private String normalizeYn(String value) {
-        String normalized = normalize(value).toUpperCase();
+        String normalized = StringValues.normalize(value).toUpperCase();
         if (normalized.isEmpty() || "Y".equals(normalized) || "N".equals(normalized)) {
             return normalized;
         }
-        throw failure(Type.BAD_REQUEST, "YN 값은 Y 또는 N만 입력할 수 있습니다.");
+        throw ApplicationException.badRequest("YN 값은 Y 또는 N만 입력할 수 있습니다.");
     }
 
     private void validateLengths(NormalizedBidNotice value) {
@@ -205,39 +212,6 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         );
     }
 
-    private static String normalize(String value) {
-        return value == null || value.isBlank() ? "" : value.trim();
-    }
-
-    private static String required(String value, String fieldName) {
-        String normalized = normalize(value);
-        if (normalized.isEmpty()) {
-            throw failure(Type.BAD_REQUEST, fieldName + "은(는) 필수입니다.");
-        }
-        return normalized;
-    }
-
-    private static String optional(String value, String fallback) {
-        String normalized = normalize(value);
-        return normalized.isEmpty() ? fallback : normalized;
-    }
-
-    private static void validateMaxLength(String value, int maxLength, String fieldName) {
-        if (value != null && value.length() > maxLength) {
-            throw failure(Type.BAD_REQUEST, fieldName + "은(는) " + maxLength + "자 이하로 입력해야 합니다.");
-        }
-    }
-
-    private Long requiredBidSeq(Long bidSeq) {
-        if (bidSeq == null || bidSeq <= 0) {
-            throw failure(Type.BAD_REQUEST, "bidSeq는 1 이상의 값이어야 합니다.");
-        }
-        return bidSeq;
-    }
-
-    private static BidNoticeApplicationException failure(Type type, String message) {
-        return new BidNoticeApplicationException(type, message);
-    }
 
     private record NormalizedBidNotice(
             Long bidSeq,

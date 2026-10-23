@@ -22,9 +22,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.data.domain.PageImpl;
 
 import com.cheil.cheil_be.application.userauth.service.UserAccountAdminService;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
@@ -67,7 +68,8 @@ class UserAccountControllerRestDocsTest {
                 "100", "10", Instant.parse("2026-06-18T00:00:00Z"), "203.0.113.10",
                 "", false, true, 0, "stleekm@example.com",
                 Instant.parse("2026-06-18T00:00:00Z"), "system");
-        when(userAccountAdminService.findAll(any(), any())).thenReturn(new PageImpl<>(List.of(user)));
+        when(userAccountAdminService.findAll(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(user), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/auth/users")
                         .param("useYn", "Y")
@@ -104,7 +106,9 @@ class UserAccountControllerRestDocsTest {
                                 fieldWithPath("page").description("Zero-based page number."),
                                 fieldWithPath("size").description("Page size."),
                                 fieldWithPath("totalElements").description("Total number of users."),
-                                fieldWithPath("totalPages").description("Total number of pages.")
+                                fieldWithPath("totalPages").description("Total number of pages."),
+                                fieldWithPath("first").description("Whether this is the first page."),
+                                fieldWithPath("last").description("Whether this is the last page.")
                         )
                 ));
     }

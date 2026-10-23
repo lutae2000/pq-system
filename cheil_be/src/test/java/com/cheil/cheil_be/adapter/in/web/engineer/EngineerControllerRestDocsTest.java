@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.engineer;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -49,7 +50,8 @@ class EngineerControllerRestDocsTest {
 
     @Test
     void listEngineersDocumentsQueryAndPageContract() throws Exception {
-        when(service.findAll(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(service.findAll(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
         mockMvc.perform(get("/pq/engineers").param("page", "0").param("size", "100").param("keyword", "Kim"))
                 .andExpect(status().isOk()).andDo(document("pq-engineers-list", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()),
                         queryParameters(parameterWithName("page").description("Zero-based page number.").optional(), parameterWithName("size").description("Page size.").optional(), parameterWithName("retireYn").description("Retirement filter.").optional(), parameterWithName("status").description("Status filter.").optional(), parameterWithName("keyword").description("Engineer name or ID search.").optional(), parameterWithName("certificationName").description("Certification filter.").optional(), parameterWithName("department").description("Department filter.").optional(), parameterWithName("designGrade").description("Design grade filter.").optional(), parameterWithName("constructionManagementGrade").description("Construction management grade filter.").optional(), parameterWithName("specialtyField").description("Specialty field filter.").optional(), parameterWithName("jobField").description("Job field filter.").optional()),
@@ -65,7 +67,7 @@ class EngineerControllerRestDocsTest {
 
     @Test
     void saveEngineerProfileSectionsDocumentsContracts() throws Exception {
-        when(service.create(any())).thenReturn(profile());
+        when(service.create(any(), anyBoolean())).thenReturn(profile());
         when(service.update(any(), any())).thenReturn(profile());
         when(service.saveBasic(any(), any())).thenReturn(profile());
         when(service.saveLicenses(any(), any())).thenReturn(profile());

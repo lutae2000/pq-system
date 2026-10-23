@@ -1,7 +1,9 @@
 package com.cheil.cheil_be.adapter.in.web.newtechnology;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +16,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.newtechnology.port.in.NewTechnologyUsageUseCase;
+import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageSearch;
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageView;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** 신기술 활용 실적을 조회하고 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/new-technology-usages")
 @RequiredArgsConstructor
@@ -32,18 +36,17 @@ public class NewTechnologyUsageController {
             @RequestParam(required = false) String client,
             @RequestParam(required = false) String noticeDateFrom,
             @RequestParam(required = false) String noticeDateTo,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<NewTechnologyUsageView> result = newTechnologyUsageUseCase.findAll(
+        var safePageable = PageRequests.of(pageable);
+        var result = newTechnologyUsageUseCase.findAll(new NewTechnologyUsageSearch(
                 keyword,
                 designationNo,
                 client,
                 noticeDateFrom,
-                noticeDateTo,
-                PageRequests.of(page, size)
-        );
-        return ResponseEntity.ok(PageResponse.from(result.map(NewTechnologyUsageResponse::from)));
+                noticeDateTo
+        ), safePageable);
+        return ResponseEntity.ok(PageResponse.from(result, NewTechnologyUsageResponse::from));
     }
 
     @GetMapping("/{id}")
@@ -52,14 +55,15 @@ public class NewTechnologyUsageController {
     }
 
     @PostMapping
-    public ResponseEntity<NewTechnologyUsageResponse> create(@RequestBody NewTechnologyUsageRequest request) {
+    public ResponseEntity<NewTechnologyUsageResponse> create(
+            @Valid @RequestBody NewTechnologyUsageRequest request) {
         return ResponseEntity.ok(NewTechnologyUsageResponse.from(newTechnologyUsageUseCase.create(request.toCommand())));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<NewTechnologyUsageResponse> update(
             @PathVariable Long id,
-            @RequestBody NewTechnologyUsageRequest request
+            @Valid @RequestBody NewTechnologyUsageRequest request
     ) {
         return ResponseEntity.ok(NewTechnologyUsageResponse.from(newTechnologyUsageUseCase.update(id, request.toCommand())));
     }
@@ -69,4 +73,5 @@ public class NewTechnologyUsageController {
         newTechnologyUsageUseCase.delete(id);
         return ResponseEntity.noContent().build();
     }
+
 }

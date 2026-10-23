@@ -8,7 +8,7 @@ import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import com.cheil.cheil_be.adapter.out.persistence.systempolicy.SystemPolicyEntity;
+import com.cheil.cheil_be.application.systempolicy.model.SystemPolicy;
 
 @Service
 @RequiredArgsConstructor
@@ -20,9 +20,9 @@ public class SystemPolicyCacheService {
     )
     public Optional<CachedPolicy> getOrLoad(
             String policyKey,
-            Supplier<Optional<SystemPolicyEntity>> dbLoader
+            Supplier<Optional<SystemPolicy>> dbLoader
     ) {
-        return dbLoader.get().map(policy -> new CachedPolicy(policy.isUseYn(), policy.getPolicyValue()));
+        return dbLoader.get().map(policy -> new CachedPolicy(policy.useYn(), policy.policyValue()));
     }
 
     @CachePut(
@@ -30,8 +30,8 @@ public class SystemPolicyCacheService {
             key = "T(com.cheil.cheil_be.common.cache.CacheKeys).systemPolicy(#policyKey)",
             condition = "#policy != null"
     )
-    public CachedPolicy refresh(String policyKey, SystemPolicyEntity policy) {
-        return new CachedPolicy(policy.isUseYn(), policy.getPolicyValue());
+    public CachedPolicy refresh(String policyKey, SystemPolicy policy) {
+        return new CachedPolicy(policy.useYn(), policy.policyValue());
     }
 
     public record CachedPolicy(boolean enabled, String value) { }

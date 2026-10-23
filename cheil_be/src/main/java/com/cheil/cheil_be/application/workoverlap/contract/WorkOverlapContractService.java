@@ -1,5 +1,12 @@
 package com.cheil.cheil_be.application.workoverlap.contract;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.validation.InputValues.nonNegative;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -29,7 +36,6 @@ import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverl
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract.WorkOverlapContractJpaRepository;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.common.text.StringValues;
-import com.cheil.cheil_be.application.workoverlap.exception.WorkOverlapApplicationException;
 
 /** 업무중복도 계약의 본문과 계약별 요약·기간 이력을 조회하고 관리하는 서비스. */
 @Service
@@ -65,15 +71,15 @@ public class WorkOverlapContractService {
             Pageable pageable
     ) {
         String normalizedKeyword = keyword(keyword);
-        String normalizedServiceType = value(serviceType);
-        String normalizedClientName = value(clientName);
-        String normalizedEngineerName = value(engineerName);
+        String normalizedServiceType = trimToNull(serviceType);
+        String normalizedClientName = trimToNull(clientName);
+        String normalizedEngineerName = trimToNull(engineerName);
         String normalizedConstructionStartDateFrom = date(constructionStartDateFrom, "constructionStartDateFrom");
         String normalizedConstructionStartDateTo = date(constructionStartDateTo, "constructionStartDateTo");
-        String normalizedPerformanceCertification = value(performanceCertification);
-        String normalizedParticipateListDocument = value(participateListDocument);
+        String normalizedPerformanceCertification = trimToNull(performanceCertification);
+        String normalizedParticipateListDocument = trimToNull(participateListDocument);
         Boolean normalizedCemsConfirm = cemsConfirm;
-        String normalizedStatus = value(status);
+        String normalizedStatus = trimToNull(status);
         String normalizedReferenceDate = referenceDate(referenceDate);
         List<String> engineerContractNos = normalizedEngineerName == null ? null : findContractNosByEngineerName(normalizedEngineerName);
 
@@ -128,15 +134,15 @@ public class WorkOverlapContractService {
             String referenceDate
     ) {
         String normalizedKeyword = keyword(keyword);
-        String normalizedServiceType = value(serviceType);
-        String normalizedClientName = value(clientName);
-        String normalizedEngineerName = value(engineerName);
+        String normalizedServiceType = trimToNull(serviceType);
+        String normalizedClientName = trimToNull(clientName);
+        String normalizedEngineerName = trimToNull(engineerName);
         String normalizedConstructionStartDateFrom = date(constructionStartDateFrom, "constructionStartDateFrom");
         String normalizedConstructionStartDateTo = date(constructionStartDateTo, "constructionStartDateTo");
-        String normalizedPerformanceCertification = value(performanceCertification);
-        String normalizedParticipateListDocument = value(participateListDocument);
+        String normalizedPerformanceCertification = trimToNull(performanceCertification);
+        String normalizedParticipateListDocument = trimToNull(participateListDocument);
         Boolean normalizedCemsConfirm = cemsConfirm;
-        String normalizedStatus = value(status);
+        String normalizedStatus = trimToNull(status);
         String normalizedReferenceDate = referenceDate(referenceDate);
         List<String> engineerContractNos = normalizedEngineerName == null ? null : findContractNosByEngineerName(normalizedEngineerName);
 
@@ -222,7 +228,7 @@ public class WorkOverlapContractService {
             boolean excludeCompleted,
             Pageable pageable
     ) {
-        String normalizedEngineerId = value(engineerId);
+        String normalizedEngineerId = trimToNull(engineerId);
         if (normalizedEngineerId == null) {
             throw badRequest("engineerId is required.");
         }
@@ -395,7 +401,7 @@ public class WorkOverlapContractService {
 
     @Transactional(readOnly = true)
     public List<WorkOverlapContractPeriodHistoryResponse> findPeriodHistoriesByContractNo(String contractNo) {
-        String normalizedContractNo = value(contractNo);
+        String normalizedContractNo = trimToNull(contractNo);
         if (normalizedContractNo == null) {
             throw badRequest("contractNo is required.");
         }
@@ -428,7 +434,7 @@ public class WorkOverlapContractService {
 
     @Transactional
     public void deletePeriodHistory(String contractNo, long historyId) {
-        String normalizedContractNo = value(contractNo);
+        String normalizedContractNo = trimToNull(contractNo);
         if (normalizedContractNo == null) {
             throw badRequest("contractNo is required.");
         }
@@ -447,7 +453,7 @@ public class WorkOverlapContractService {
     }
 
     private WorkOverlapContractEntity findEntity(String contractNo) {
-        String normalizedContractNo = value(contractNo);
+        String normalizedContractNo = trimToNull(contractNo);
         if (normalizedContractNo == null) {
             throw badRequest("contractNo is required.");
         }
@@ -464,7 +470,7 @@ public class WorkOverlapContractService {
                 limitedText(request.clientName(), CLIENT_NAME_MAX_LENGTH, "clientName"),
                 limitedText(request.supervisingDepartmentCode(), SHORT_TEXT_MAX_LENGTH, "supervisingDepartmentCode"),
                 request.publicContractYn(),
-                requiredText(request.serviceName(), SERVICE_NAME_MAX_LENGTH, "serviceName"),
+                InputValues.requiredText(request.serviceName(), SERVICE_NAME_MAX_LENGTH, "serviceName"),
                 date(request.constructionStartDate(), "constructionStartDate"),
                 date(request.constructionCompleteDate(), "constructionCompleteDate"),
                 date(request.managementServiceCompleteDate(), "managementServiceCompleteDate"),
@@ -485,7 +491,7 @@ public class WorkOverlapContractService {
     private String generateContractNo() {
         long nextValue = repository.nextContractNoSequenceValue();
         String contractNo = String.format(Locale.ROOT, "C%07d", nextValue);
-        StringValues.validateMaxLength(contractNo, CONTRACT_NO_MAX_LENGTH, "contractNo");
+        InputValues.validateMaxLength(contractNo, CONTRACT_NO_MAX_LENGTH, "contractNo");
         return contractNo;
     }
 
@@ -614,30 +620,19 @@ public class WorkOverlapContractService {
         };
     }
 
-    private String requiredText(String value, int maxLength, String fieldName) {
-        String normalized = StringValues.required(value, fieldName).trim();
-        StringValues.validateMaxLength(normalized, maxLength, fieldName);
-        return normalized;
-    }
-
     private String limitedText(String value, int maxLength, String fieldName) {
-        String normalized = value(value);
-        StringValues.validateMaxLength(normalized, maxLength, fieldName);
+        String normalized = trimToNull(value);
+        InputValues.validateMaxLength(normalized, maxLength, fieldName);
         return normalized;
     }
 
     private String keyword(String value) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         return normalized == null ? null : "%" + normalized.toLowerCase(Locale.ROOT) + "%";
     }
 
-    private String value(String value) {
-        String normalized = StringValues.normalize(value);
-        return StringUtils.hasText(normalized) ? normalized : null;
-    }
-
     private String date(String value, String fieldName) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         if (normalized == null) {
             return null;
         }
@@ -649,12 +644,12 @@ public class WorkOverlapContractService {
     }
 
     private String normalizeDate(String value) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         return normalized == null ? null : normalized.replaceAll("\\D", "");
     }
 
     private String referenceDate(String value) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         if (normalized == null) {
             // 상태와 잔여일 계산은 호출 시점의 오늘을 기준으로 하여 화면의 기본 조회가 동작하도록 한다.
             return LocalDate.now().format(BASIC_DATE_FORMATTER);
@@ -702,7 +697,7 @@ public class WorkOverlapContractService {
     }
 
     private LocalDate parseDate(String value) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         if (normalized == null) {
             return null;
         }
@@ -786,7 +781,7 @@ public class WorkOverlapContractService {
     }
 
     private Integer positiveInteger(String value, String fieldName) {
-        String normalized = value(value);
+        String normalized = trimToNull(value);
         if (normalized == null) {
             throw badRequest(fieldName + " is required.");
         }
@@ -798,24 +793,6 @@ public class WorkOverlapContractService {
             throw badRequest(fieldName + " must be greater than 0.");
         }
         return parsed;
-    }
-
-    private BigDecimal nonNegative(BigDecimal value, String fieldName) {
-        if (value == null) {
-            return null;
-        }
-        if (value.compareTo(BigDecimal.ZERO) < 0) {
-            throw badRequest(fieldName + " must be greater than or equal to 0.");
-        }
-        return value;
-    }
-
-    private WorkOverlapApplicationException badRequest(String message) {
-        return new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private WorkOverlapApplicationException notFound(String message) {
-        return new WorkOverlapApplicationException(WorkOverlapApplicationException.Type.NOT_FOUND, message);
     }
 
     private record PeriodHistoryEntry(String periodName, String beforeValue, String afterValue) {

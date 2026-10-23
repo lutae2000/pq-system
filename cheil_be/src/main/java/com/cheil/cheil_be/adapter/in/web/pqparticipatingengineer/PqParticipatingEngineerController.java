@@ -4,6 +4,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,7 @@ import com.cheil.cheil_be.application.pqparticipatingengineer.service.PqParticip
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
+/** PQ 참여 기술자의 후보 조회와 선정 결과를 관리하는 API다. */
 @RestController
 @RequestMapping("/pq/participating-engineers")
 @RequiredArgsConstructor
@@ -42,8 +45,7 @@ public class PqParticipatingEngineerController {
             @RequestParam(required = false) String specialtyField,
             @RequestParam(required = false) String retireYn,
             @RequestParam(required = false) String projectHistoryConditions,
-            @RequestParam(required = false, defaultValue = "0") Integer page,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         Page<PqParticipatingEngineerCandidateResponse> result = queryService.findCandidates(
                 bidSeq,
@@ -56,7 +58,7 @@ public class PqParticipatingEngineerController {
                 specialtyField,
                 retireYn,
                 projectHistoryConditions,
-                PageRequests.of(page, size)
+                PageRequests.of(pageable)
         );
         return ResponseEntity.ok(PageResponse.from(result));
     }

@@ -1,8 +1,14 @@
 package com.cheil.cheil_be.application.commoncode.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.conflict;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -10,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.commoncode.exception.CommonCodeApplicationException;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeSearchCondition;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeUpsertCommand;
@@ -131,7 +136,7 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
     @Override
     @Transactional(readOnly = true)
     public CommonCode findByCodeId(Long codeId) {
-        Long normalizedCodeId = requireCodeId(codeId);
+        Long normalizedCodeId = requiredPositive(codeId, "codeId");
         return commonCodeCacheService.getOrLoadById(
                         normalizedCodeId,
                         () -> commonCodeRepository.findByCodeId(normalizedCodeId))
@@ -177,7 +182,7 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
     @Override
     @Transactional
     public CommonCode update(Long codeId, CommonCodeUpsertCommand command) {
-        Long normalizedCodeId = requireCodeId(codeId);
+        Long normalizedCodeId = requiredPositive(codeId, "codeId");
         CommonCode existing = findByCodeId(normalizedCodeId);
         NormalizedCommonCode normalized = normalize(command, existing);
 
@@ -217,7 +222,7 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
     @Override
     @Transactional
     public void delete(Long codeId) {
-        Long normalizedCodeId = requireCodeId(codeId);
+        Long normalizedCodeId = requiredPositive(codeId, "codeId");
         CommonCode existing = findByCodeId(normalizedCodeId);
         if (hasDependentChildren(existing)) {
             throw conflict("Cannot delete a common code with child codes.");
@@ -262,10 +267,10 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
             throw badRequest("codeLevel must be 1, 2, or 3.");
         }
 
-        String level1Code = StringValues.required(command.level1Code(), "level1Code");
+        String level1Code = InputValues.requiredText(command.level1Code(), "level1Code");
         String level2Code = StringValues.normalize(command.level2Code());
         String level3Code = StringValues.normalize(command.level3Code());
-        String codeName = StringValues.required(command.codeName(), "codeName");
+        String codeName = InputValues.requiredText(command.codeName(), "codeName");
         String codeDetailName = StringValues.normalize(command.codeDetailName());
         String refValue1 = StringValues.normalize(command.refValue1());
         String remark = StringValues.normalize(command.remark());
@@ -280,12 +285,12 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
             level3Code = "";
             codeDetailName = "";
         } else if (codeLevel == 2) {
-            level2Code = StringValues.required(level2Code, "level2Code");
+            level2Code = InputValues.requiredText(level2Code, "level2Code");
             level3Code = "";
             codeDetailName = "";
         } else {
-            level2Code = StringValues.required(level2Code, "level2Code");
-            level3Code = StringValues.required(level3Code, "level3Code");
+            level2Code = InputValues.requiredText(level2Code, "level2Code");
+            level3Code = InputValues.requiredText(level3Code, "level3Code");
         }
 
         validateLengths(level1Code, level2Code, level3Code, codeName, codeDetailName, refValue1, remark, createdId, lastChangedId);
@@ -316,122 +321,19 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
             String createdId,
             String lastChangedId
     ) {
-        StringValues.validateMaxLength(level1Code, CODE_MAX_LENGTH, "level1Code");
-        StringValues.validateMaxLength(level2Code, CODE_MAX_LENGTH, "level2Code");
-        StringValues.validateMaxLength(level3Code, CODE_MAX_LENGTH, "level3Code");
-        StringValues.validateMaxLength(codeName, CODE_NAME_MAX_LENGTH, "codeName");
-        StringValues.validateMaxLength(codeDetailName, CODE_NAME_MAX_LENGTH, "codeDetailName");
-        StringValues.validateMaxLength(refValue1, REF_VALUE_MAX_LENGTH, "refValue1");
-        StringValues.validateMaxLength(remark, REMARK_MAX_LENGTH, "remark");
-        StringValues.validateMaxLength(createdId, AUDIT_ID_MAX_LENGTH, "createdId");
-        StringValues.validateMaxLength(lastChangedId, AUDIT_ID_MAX_LENGTH, "lastChangedId");
-    }
-
-    private boolean matchesKeyword(CommonCode item, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
-        }
-
-        return contains(item.codeId() == null ? "" : String.valueOf(item.codeId()), keyword)
-                || contains(item.codeLevel() == null ? "" : String.valueOf(item.codeLevel()), keyword)
-                || contains(item.level1Code(), keyword)
-                || contains(item.level2Code(), keyword)
-                || contains(item.level3Code(), keyword)
-                || contains(item.codeName(), keyword)
-                || contains(item.codeDetailName(), keyword)
-                || contains(item.refValue1(), keyword)
-                || contains(item.remark(), keyword)
-                || contains(item.createdId(), keyword)
-                || contains(item.lastChangedId(), keyword);
-    }
-
-    private boolean matchesLevel1Code(CommonCode item, String level1Code) {
-        if (level1Code == null || level1Code.isBlank()) {
-            return true;
-        }
-
-        if (item.codeLevel() != null && item.codeLevel() == 1) {
-            return level1Code.equals(item.level2Code());
-        }
-
-        return level1Code.equals(item.level1Code());
-    }
-
-    private boolean matchesLevel2Code(CommonCode item, String level2Code) {
-        if (level2Code == null || level2Code.isBlank()) {
-            return true;
-        }
-
-        return level2Code.equals(item.level2Code());
-    }
-
-    private boolean matchesLevel2CodePrefix(CommonCode item, String level2CodePrefix) {
-        if (level2CodePrefix == null || level2CodePrefix.isBlank()) {
-            return true;
-        }
-
-        return item.level2Code() != null && item.level2Code().startsWith(level2CodePrefix);
-    }
-
-    private boolean matchesLevel3Code(CommonCode item, String level3Code) {
-        if (level3Code == null) {
-            return true;
-        }
-
-        return level3Code.equals(item.level3Code() == null ? "" : item.level3Code());
-    }
-
-    private boolean matchesRefValue1Contains(CommonCode item, String refValue1Contains) {
-        if (refValue1Contains == null || refValue1Contains.isBlank()) {
-            return true;
-        }
-
-        return item.refValue1() != null && item.refValue1().contains(refValue1Contains);
-    }
-
-    private Comparator<CommonCode> resolveComparator(String sort) {
-        Comparator<CommonCode> baseComparator = Comparator.comparing(CommonCode::codeLevel)
-                .thenComparing(CommonCode::level1Code);
-
-        if ("level3Code".equalsIgnoreCase(sort)) {
-            return baseComparator
-                    .thenComparing(CommonCode::level2Code)
-                    .thenComparing(CommonCode::level3Code)
-                    .thenComparing(CommonCode::codeId, Comparator.nullsLast(Comparator.naturalOrder()));
-        }
-
-        return baseComparator
-                .thenComparing(CommonCode::sortOrder, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(CommonCode::level2Code)
-                .thenComparing(CommonCode::level3Code)
-                .thenComparing(CommonCode::codeId, Comparator.nullsLast(Comparator.naturalOrder()));
+        InputValues.validateMaxLength(level1Code, CODE_MAX_LENGTH, "level1Code");
+        InputValues.validateMaxLength(level2Code, CODE_MAX_LENGTH, "level2Code");
+        InputValues.validateMaxLength(level3Code, CODE_MAX_LENGTH, "level3Code");
+        InputValues.validateMaxLength(codeName, CODE_NAME_MAX_LENGTH, "codeName");
+        InputValues.validateMaxLength(codeDetailName, CODE_NAME_MAX_LENGTH, "codeDetailName");
+        InputValues.validateMaxLength(refValue1, REF_VALUE_MAX_LENGTH, "refValue1");
+        InputValues.validateMaxLength(remark, REMARK_MAX_LENGTH, "remark");
+        InputValues.validateMaxLength(createdId, AUDIT_ID_MAX_LENGTH, "createdId");
+        InputValues.validateMaxLength(lastChangedId, AUDIT_ID_MAX_LENGTH, "lastChangedId");
     }
 
     private String trimNullable(String value) {
         return value == null ? null : value.trim();
-    }
-
-    private boolean contains(String value, String keyword) {
-        return value != null && StringValues.containsIgnoreCase(value, keyword);
-    }
-
-    private Long requireCodeId(Long codeId) {
-        if (codeId == null) {
-            throw badRequest("codeId is required.");
-        }
-        return codeId;
-    }
-
-    private CommonCodeApplicationException badRequest(String message) {
-        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.BAD_REQUEST, message);
-    }
-
-    private CommonCodeApplicationException conflict(String message) {
-        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.CONFLICT, message);
-    }
-
-    private CommonCodeApplicationException notFound(String message) {
-        return new CommonCodeApplicationException(CommonCodeApplicationException.Type.NOT_FOUND, message);
     }
 
     private record NormalizedCommonCode(

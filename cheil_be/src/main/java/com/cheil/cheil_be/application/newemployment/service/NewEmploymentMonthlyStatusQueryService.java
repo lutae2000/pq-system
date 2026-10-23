@@ -4,12 +4,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import static com.cheil.cheil_be.application.common.validation.InputValues.yearMonth;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatus;
-import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusPivot;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatus;
+import com.cheil.cheil_be.application.newemployment.model.NewEmploymentMonthlyStatusPivot;
 import com.cheil.cheil_be.application.newemployment.port.in.NewEmploymentMonthlyStatusUseCase;
 import com.cheil.cheil_be.application.newemployment.port.out.NewEmploymentMonthlyStatusReader;
 
@@ -42,18 +44,7 @@ public class NewEmploymentMonthlyStatusQueryService implements NewEmploymentMont
     }
 
     private String normalizeYearMonthAnchor(String value) {
-        String normalized = value == null ? "" : value.trim().replace("-", "");
-        if (normalized.isEmpty()) {
-            return LocalDate.now().format(YEAR_MONTH_FORMATTER);
-        }
-        if (!normalized.matches("\\d{6}")) {
-            throw new IllegalArgumentException("baseYearMonth must be YYYYMM.");
-        }
-        try {
-            LocalDate.parse(normalized + "01", DateTimeFormatter.BASIC_ISO_DATE);
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("baseYearMonth must be a valid month.", exception);
-        }
-        return normalized;
+        String normalized = yearMonth(value, "baseYearMonth", false);
+        return normalized == null ? LocalDate.now().format(YEAR_MONTH_FORMATTER) : normalized;
     }
 }

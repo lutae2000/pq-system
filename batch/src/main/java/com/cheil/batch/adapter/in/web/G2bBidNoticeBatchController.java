@@ -1,7 +1,7 @@
 package com.cheil.batch.adapter.in.web;
 
 import com.cheil.batch.config.BatchInternalProperties;
-import com.cheil.batch.g2bbidnotice.application.model.BatchRunStatus;
+import com.cheil.batch.common.batch.BatchRunStatus;
 import com.cheil.batch.g2bbidnotice.application.port.in.RunG2bBidNoticeBatchUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

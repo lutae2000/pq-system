@@ -36,6 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 
@@ -48,6 +49,7 @@ class EngineerPerformanceDocumentControllerRestDocsTest {
     @MockitoBean private EngineerPerformanceDocumentService documentService;
     @MockitoBean private DocumentValueSettingUseCase documentValueSettingUseCase;
     @MockitoBean private HwpxDocumentGenerationService hwpxService;
+    @MockitoBean private PerformanceCertificateGenerationService performanceCertificateGenerationService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase validateLoginSessionUseCase;
     @MockitoBean private com.cheil.cheil_be.config.security.AppSecurityProperties appSecurityProperties;

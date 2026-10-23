@@ -19,11 +19,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,8 +33,8 @@ import com.cheil.cheil_be.adapter.in.web.client.ClientController;
 import com.cheil.cheil_be.adapter.in.web.commoncode.CommonCodeController;
 import com.cheil.cheil_be.adapter.in.web.commondepartment.DepartmentController;
 import com.cheil.cheil_be.adapter.in.web.constructiontype.ConstructionTypeController;
-import com.cheil.cheil_be.application.certification.service.CertificationAdminService;
-import com.cheil.cheil_be.application.client.service.ClientAdminService;
+import com.cheil.cheil_be.application.certification.port.in.CertificationUseCase;
+import com.cheil.cheil_be.application.client.port.in.ClientUseCase;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.commondepartment.service.DepartmentAdminService;
 import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeUseCase;
@@ -63,13 +64,13 @@ class CommonReferenceControllersRestDocsTest {
     private ConstructionTypeUseCase constructionTypeUseCase;
 
     @MockitoBean
-    private CertificationAdminService certificationAdminService;
+    private CertificationUseCase certificationUseCase;
 
     @MockitoBean
     private DepartmentAdminService departmentAdminService;
 
     @MockitoBean
-    private ClientAdminService clientAdminService;
+    private ClientUseCase clientUseCase;
 
     @MockitoBean
     private LoginAccessTokenService loginAccessTokenService;
@@ -128,7 +129,7 @@ class CommonReferenceControllersRestDocsTest {
 
     @Test
     void listCertificationsDocumentsQueryContract() throws Exception {
-        when(certificationAdminService.findAll(any())).thenReturn(List.of());
+        when(certificationUseCase.findAll(any())).thenReturn(List.of());
 
         mockMvc.perform(get("/code/certifications").param("certKind", "1"))
                 .andExpect(status().isOk())
@@ -152,7 +153,8 @@ class CommonReferenceControllersRestDocsTest {
 
     @Test
     void listClientsDocumentsQueryAndPageContract() throws Exception {
-        when(clientAdminService.findAll(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(clientUseCase.findAll(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/code/client-codes")
                         .param("businessName", "client")

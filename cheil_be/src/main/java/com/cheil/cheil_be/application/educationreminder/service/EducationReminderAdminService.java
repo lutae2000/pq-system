@@ -1,5 +1,10 @@
 package com.cheil.cheil_be.application.educationreminder.service;
 
+import com.cheil.cheil_be.application.common.validation.InputValues;
+
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -39,7 +44,7 @@ public class EducationReminderAdminService {
 
     @Transactional(readOnly = true)
     public EducationReminderBasicInfoResponse findBasicInfoByCode(String code) {
-        return basicInfoRepository.findById(requiredCode(code))
+        return basicInfoRepository.findById(requiredText(code, "code"))
                 .map(EducationReminderBasicInfoEntity::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다."));
     }
@@ -52,7 +57,7 @@ public class EducationReminderAdminService {
 
     @Transactional
     public EducationReminderBasicInfoResponse updateBasicInfo(String code, EducationReminderBasicInfoRequest request) {
-        EducationReminderBasicInfoEntity entity = basicInfoRepository.findById(requiredCode(code))
+        EducationReminderBasicInfoEntity entity = basicInfoRepository.findById(requiredText(code, "code"))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다."));
         EducationReminderBasicInfoRequest normalized = normalizeBasicInfo(request);
         if (!entity.getCode().equals(normalized.code())) {
@@ -64,7 +69,7 @@ public class EducationReminderAdminService {
 
     @Transactional
     public void deleteBasicInfo(String code) {
-        String normalizedCode = requiredCode(code);
+        String normalizedCode = requiredText(code, "code");
         if (!basicInfoRepository.existsById(normalizedCode)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "기초 정보를 찾을 수 없습니다.");
         }
@@ -78,7 +83,7 @@ public class EducationReminderAdminService {
 
     @Transactional(readOnly = true)
     public EducationReminderTemplateResponse findTemplateById(Long id) {
-        return templateRepository.findById(requiredId(id, "id"))
+        return templateRepository.findById(requiredPositive(id, "id"))
                 .map(EducationReminderTemplateEntity::toResponse)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "템플릿을 찾을 수 없습니다."));
     }
@@ -91,7 +96,7 @@ public class EducationReminderAdminService {
 
     @Transactional
     public EducationReminderTemplateResponse updateTemplate(Long id, EducationReminderTemplateRequest request) {
-        EducationReminderTemplateEntity entity = templateRepository.findById(requiredId(id, "id"))
+        EducationReminderTemplateEntity entity = templateRepository.findById(requiredPositive(id, "id"))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "템플릿을 찾을 수 없습니다."));
         entity.update(normalizeTemplate(request));
         return templateRepository.save(entity).toResponse();
@@ -99,7 +104,7 @@ public class EducationReminderAdminService {
 
     @Transactional
     public void deleteTemplate(Long id) {
-        Long normalizedId = requiredId(id, "id");
+        Long normalizedId = requiredPositive(id, "id");
         if (!templateRepository.existsById(normalizedId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "템플릿을 찾을 수 없습니다.");
         }
@@ -107,16 +112,14 @@ public class EducationReminderAdminService {
     }
 
     private EducationReminderBasicInfoRequest normalizeBasicInfo(EducationReminderBasicInfoRequest request) {
-        String code = StringValues.required(request.code(), "code");
-        String name = StringValues.required(request.name(), "name");
-        String cycleUnit = StringValues.required(request.cycleUnit(), "cycleUnit");
+        String code = InputValues.requiredText(request.code(), "code");
+        String name = InputValues.requiredText(request.name(), "name");
+        String cycleUnit = InputValues.requiredText(request.cycleUnit(), "cycleUnit");
         Integer cycleValue = request.cycleValue();
-        if (cycleValue == null || cycleValue < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "cycleValue는 1 이상이어야 합니다.");
-        }
-        StringValues.validateMaxLength(code, CODE_MAX_LENGTH, "code");
-        StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
-        StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
+        requiredPositive(cycleValue, "cycleValue");
+        InputValues.validateMaxLength(code, CODE_MAX_LENGTH, "code");
+        InputValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
+        InputValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
         if (request.templateId() != null && !templateRepository.existsById(request.templateId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택한 교육 알림 템플릿을 찾을 수 없습니다.");
         }
@@ -132,19 +135,19 @@ public class EducationReminderAdminService {
     }
 
     private EducationReminderTemplateRequest normalizeTemplate(EducationReminderTemplateRequest request) {
-        String name = StringValues.required(request.name(), "name");
-        String channel = StringValues.required(request.channel(), "channel");
+        String name = InputValues.requiredText(request.name(), "name");
+        String channel = InputValues.requiredText(request.channel(), "channel");
         if (!"SMS".equalsIgnoreCase(channel) && !"LMS".equalsIgnoreCase(channel)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "channel must be SMS or LMS.");
         }
         channel = channel.toUpperCase();
-        String content = StringValues.required(request.content(), "content");
-        StringValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
-        StringValues.validateMaxLength(channel, CHANNEL_MAX_LENGTH, "channel");
-        StringValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
+        String content = InputValues.requiredText(request.content(), "content");
+        InputValues.validateMaxLength(name, NAME_MAX_LENGTH, "name");
+        InputValues.validateMaxLength(channel, CHANNEL_MAX_LENGTH, "channel");
+        InputValues.validateMaxLength(request.description(), DESCRIPTION_MAX_LENGTH, "description");
         String homepageUrl = request.homepageUrl() == null ? "" : request.homepageUrl().trim();
-        StringValues.validateMaxLength(homepageUrl, HOMEPAGE_URL_MAX_LENGTH, "homepageUrl");
-        StringValues.validateMaxLength(content, CONTENT_MAX_LENGTH, "content");
+        InputValues.validateMaxLength(homepageUrl, HOMEPAGE_URL_MAX_LENGTH, "homepageUrl");
+        InputValues.validateMaxLength(content, CONTENT_MAX_LENGTH, "content");
         return new EducationReminderTemplateRequest(
                 request.id(),
                 name,
@@ -156,17 +159,4 @@ public class EducationReminderAdminService {
         );
     }
 
-    private Long requiredId(Long id, String fieldName) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required.");
-        }
-        return id;
-    }
-
-    private String requiredCode(String code) {
-        if (code == null || code.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "code is required.");
-        }
-        return code.trim();
-    }
 }

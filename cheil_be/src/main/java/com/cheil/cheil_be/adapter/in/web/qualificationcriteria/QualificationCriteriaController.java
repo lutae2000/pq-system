@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.qualificationcriteria.service.QualificationCriteriaService;
 
+/** 발주기관별 적격심사 기준과 점수 구간을 관리하는 API다. */
 @RestController
 @RequestMapping("/bid/qualification-criteria")
 @RequiredArgsConstructor

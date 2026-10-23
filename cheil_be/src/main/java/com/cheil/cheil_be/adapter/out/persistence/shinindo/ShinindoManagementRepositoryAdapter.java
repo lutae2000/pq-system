@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.out.persistence.shinindo;
 
 import com.cheil.cheil_be.application.shinindo.model.ShinindoManagement;
 import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSaveCommand;
+import com.cheil.cheil_be.application.shinindo.model.ShinindoManagementSearch;
 import com.cheil.cheil_be.application.shinindo.port.out.ShinindoManagementRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -9,30 +10,31 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
 public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRepository {
 
+    private static final String SEARCH_WHERE = """
+            WHERE (CAST(:keyword AS VARCHAR) IS NULL
+                   OR LOWER(management.item_name) LIKE CAST(:keyword AS VARCHAR)
+                   OR LOWER(COALESCE(management.remark, '')) LIKE CAST(:keyword AS VARCHAR)
+                   OR LOWER(COALESCE(client.order_name_long, client.order_name, management.client_code)) LIKE CAST(:keyword AS VARCHAR))
+              AND (CAST(:clientCode AS VARCHAR) IS NULL
+                   OR LOWER(management.client_code) LIKE CAST(:clientCode AS VARCHAR))
+            """;
+
     private final JdbcClient jdbcClient;
 
     @Override
-    public Page<ShinindoManagement> findAll(
-            String keyword,
-            String clientCode,
-            Pageable pageable
-    ) {
-        QueryParts queryParts = buildWhere(keyword, clientCode);
+    public Page<ShinindoManagement> findAll(ShinindoManagementSearch search, Pageable pageable) {
         String listSql = """
                 SELECT management.id,
                        management.client_code,
@@ -49,18 +51,14 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
                        management.last_changed_id
                 FROM shinindo_managements management
                 LEFT JOIN clients client ON client.client_code = management.client_code
-                """ + queryParts.whereSql() + """
+                """ + SEARCH_WHERE + """
                 ORDER BY management.client_code, management.item_name, management.id DESC
                 LIMIT :limit OFFSET :offset
                 """;
 
-        Map<String, Object> listParameters = new LinkedHashMap<>(queryParts.parameters());
-        listParameters.put("limit", pageable.getPageSize());
-        listParameters.put("offset", pageable.getOffset());
-        List<ShinindoManagement> content = bindParameters(
-                jdbcClient.sql(listSql),
-                listParameters
-        )
+        List<ShinindoManagement> content = bindSearch(jdbcClient.sql(listSql), search.keyword(), search.clientCode())
+                .param("limit", pageable.getPageSize())
+                .param("offset", pageable.getOffset())
                 .query(this::mapManagement)
                 .list();
 
@@ -68,11 +66,8 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
                 SELECT COUNT(*)
                 FROM shinindo_managements management
                 LEFT JOIN clients client ON client.client_code = management.client_code
-                """ + queryParts.whereSql();
-        Long total = bindParameters(
-                jdbcClient.sql(countSql),
-                queryParts.parameters()
-        )
+                """ + SEARCH_WHERE;
+        Long total = bindSearch(jdbcClient.sql(countSql), search.keyword(), search.clientCode())
                 .query(Long.class)
                 .single();
 
@@ -192,27 +187,6 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
                 .update() == 1;
     }
 
-    private QueryParts buildWhere(String keyword, String clientCode) {
-        StringBuilder where = new StringBuilder("WHERE 1 = 1\n");
-        Map<String, Object> parameters = new LinkedHashMap<>();
-
-        if (StringUtils.hasText(keyword)) {
-            where.append("""
-                    AND (
-                        LOWER(management.item_name) LIKE :keyword
-                        OR LOWER(COALESCE(management.remark, '')) LIKE :keyword
-                        OR LOWER(COALESCE(client.order_name_long, client.order_name, management.client_code)) LIKE :keyword
-                    )
-                    """);
-            parameters.put("keyword", "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
-        }
-        if (StringUtils.hasText(clientCode)) {
-            where.append("AND LOWER(management.client_code) LIKE :clientCode\n");
-            parameters.put("clientCode", "%" + clientCode.trim().toLowerCase(Locale.ROOT) + "%");
-        }
-        return new QueryParts(where.toString(), parameters);
-    }
-
     private ShinindoManagement mapManagement(ResultSet resultSet, int rowNumber) throws SQLException {
         return new ShinindoManagement(
                 resultSet.getLong("id"),
@@ -235,17 +209,17 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
         return timestamp == null ? null : timestamp.toInstant();
     }
 
-    private JdbcClient.StatementSpec bindParameters(
+    private JdbcClient.StatementSpec bindSearch(
             JdbcClient.StatementSpec statement,
-            Map<String, Object> parameters
+            String keyword,
+            String clientCode
     ) {
-        JdbcClient.StatementSpec bound = statement;
-        for (Map.Entry<String, Object> entry : parameters.entrySet()) {
-            bound = bound.param(entry.getKey(), entry.getValue());
-        }
-        return bound;
+        return statement
+                .param("keyword", contains(keyword == null ? null : keyword.toLowerCase(Locale.ROOT)))
+                .param("clientCode", contains(clientCode == null ? null : clientCode.toLowerCase(Locale.ROOT)));
     }
 
-    private record QueryParts(String whereSql, Map<String, Object> parameters) {
+    private String contains(String value) {
+        return value == null ? null : "%" + value + "%";
     }
 }
