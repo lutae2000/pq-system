@@ -23,7 +23,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { menuIconMap } from "@/components/layout/navigation";
 import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
 import { getMenuItems, type MenuItemDto } from "@/shared/navigation/menu";
-import { preloadRegisteredPage } from "@/shared/navigation/pageRegistry.generated";
+import { preloadRegisteredPage } from "@/shared/navigation/pageRegistry";
 import { useBrandingSettings } from "@/modules/system/branding/useBrandingSettings";
 
 const emptyMenuItems: MenuItemDto[] = [];

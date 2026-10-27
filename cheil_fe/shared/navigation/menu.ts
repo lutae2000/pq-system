@@ -1,6 +1,6 @@
 import { readAuthSession, writeAuthSession, type MenuPermission } from "@/lib/auth/authSession";
 import { listMyMenuPermissions } from "@/modules/auth/authApi";
-import { isRegisteredPagePath } from "@/shared/navigation/pageRoutes";
+import { isRegisteredPagePath } from "@/shared/navigation/pageRegistry";
 
 export type MenuIconKey =
   | "analytics"

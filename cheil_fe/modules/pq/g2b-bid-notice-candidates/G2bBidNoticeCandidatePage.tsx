@@ -33,7 +33,7 @@ import {
   type G2bBidNoticeCandidateSearchFilters,
 } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 import { G2bBidNoticeCandidateFilters } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateFilters";
-import { G2bBidNoticeCandidateGrid } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateGrid";
+import { G2bBidNoticeCandidateGrid, g2bNoticeKindRowColors } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateGrid";
 
 const G2bBidNoticeCandidateDetailDialog = dynamic(
   () => import("@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateDetailDialog").then((module) => module.G2bBidNoticeCandidateDetailDialog),
@@ -539,14 +539,26 @@ export function G2bBidNoticeCandidatePage() {
         <Stack spacing={2}>
           <Card>
             <CardContent sx={{ p: 2 }}>
-              <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1.5 }}>
+              <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "space-between", mb: 1.5 }}>
                 <Box sx={{ alignItems: "baseline", display: "flex", gap: 1.5 }}>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">나라장터 공고 목록</Typography>
                   <Typography color="text.secondary" sx={{ fontSize: 12 }}>
                     조회 기준시간: {dateTimeText(syncStatusQuery.data?.lastSeenAt) || "-"}
                   </Typography>
                 </Box>
-                <Box sx={{ display: "flex", gap: 1 }}>
+                <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1.5, justifyContent: "flex-end" }}>
+                  <Box aria-label="공고구분 행 색상 안내" sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {[
+                      { color: g2bNoticeKindRowColors.changed.legend, label: "변경공고" },
+                      { color: g2bNoticeKindRowColors.cancelled.legend, label: "취소공고" },
+                      { color: g2bNoticeKindRowColors.reposted.legend, label: "재공고(이전 입찰번호 있음)" },
+                    ].map(({ color, label }) => (
+                      <Box key={label} sx={{ alignItems: "center", display: "flex", gap: 0.5, whiteSpace: "nowrap" }}>
+                        <Box component="span" sx={{ backgroundColor: color, borderRadius: 0.5, flexShrink: 0, height: 16, width: 24 }} />
+                        <Typography color="text.secondary" variant="caption">{label}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
                   <Button
                     disabled={!canRead || syncMutation.isPending}
                     onClick={() => syncMutation.mutate()}

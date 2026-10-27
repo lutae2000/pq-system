@@ -9,6 +9,25 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { dateTimeText, formatMoney } from "@/modules/common/formatters";
 import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 
+export const g2bNoticeKindRowColors = {
+  // The grid paints the row and its cells with the same translucent color, so the legend shows the composited result.
+  changed: {
+    background: "rgba(33, 150, 243, 0.14)",
+    hover: "rgba(33, 150, 243, 0.24)",
+    legend: "rgba(33, 150, 243, 0.2604)",
+  },
+  cancelled: {
+    background: "rgba(244, 67, 54, 0.14)",
+    hover: "rgba(244, 67, 54, 0.24)",
+    legend: "rgba(244, 67, 54, 0.2604)",
+  },
+  reposted: {
+    background: "rgba(76, 175, 80, 0.14)",
+    hover: "rgba(76, 175, 80, 0.24)",
+    legend: "rgba(76, 175, 80, 0.2604)",
+  },
+} as const;
+
 type Props = {
   loading: boolean;
   paginationModel: GridPaginationModel;
@@ -106,12 +125,12 @@ export function G2bBidNoticeCandidateGrid({ loading, paginationModel, rows, rowC
       sx={{
         height: 620,
         "& .MuiDataGrid-row:hover": { cursor: "pointer" },
-        "& .MuiDataGrid-row.g2b-changed-row, & .MuiDataGrid-row.g2b-changed-row > .MuiDataGrid-cell": { backgroundColor: "rgba(33, 150, 243, 0.14) !important" },
-        "& .MuiDataGrid-row.g2b-changed-row:hover, & .MuiDataGrid-row.g2b-changed-row:hover > .MuiDataGrid-cell": { backgroundColor: "rgba(33, 150, 243, 0.24) !important" },
-        "& .MuiDataGrid-row.g2b-cancelled-row, & .MuiDataGrid-row.g2b-cancelled-row > .MuiDataGrid-cell": { backgroundColor: "rgba(244, 67, 54, 0.14) !important" },
-        "& .MuiDataGrid-row.g2b-cancelled-row:hover, & .MuiDataGrid-row.g2b-cancelled-row:hover > .MuiDataGrid-cell": { backgroundColor: "rgba(244, 67, 54, 0.24) !important" },
-        "& .MuiDataGrid-row.g2b-reposted-row, & .MuiDataGrid-row.g2b-reposted-row > .MuiDataGrid-cell": { backgroundColor: "rgba(76, 175, 80, 0.14) !important" },
-        "& .MuiDataGrid-row.g2b-reposted-row:hover, & .MuiDataGrid-row.g2b-reposted-row:hover > .MuiDataGrid-cell": { backgroundColor: "rgba(76, 175, 80, 0.24) !important" },
+        "& .MuiDataGrid-row.g2b-changed-row, & .MuiDataGrid-row.g2b-changed-row > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.changed.background} !important` },
+        "& .MuiDataGrid-row.g2b-changed-row:hover, & .MuiDataGrid-row.g2b-changed-row:hover > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.changed.hover} !important` },
+        "& .MuiDataGrid-row.g2b-cancelled-row, & .MuiDataGrid-row.g2b-cancelled-row > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.cancelled.background} !important` },
+        "& .MuiDataGrid-row.g2b-cancelled-row:hover, & .MuiDataGrid-row.g2b-cancelled-row:hover > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.cancelled.hover} !important` },
+        "& .MuiDataGrid-row.g2b-reposted-row, & .MuiDataGrid-row.g2b-reposted-row > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.reposted.background} !important` },
+        "& .MuiDataGrid-row.g2b-reposted-row:hover, & .MuiDataGrid-row.g2b-reposted-row:hover > .MuiDataGrid-cell": { backgroundColor: `${g2bNoticeKindRowColors.reposted.hover} !important` },
       }}
     />
   );

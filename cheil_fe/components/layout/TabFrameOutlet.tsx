@@ -6,11 +6,11 @@ import { memo, useMemo, useState, type ReactNode } from "react";
 
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { TabActivityProvider } from "@/components/layout/TabActivityContext";
-import { pageRegistry } from "@/shared/navigation/pageRegistry.generated";
+import { pageRegistry } from "@/shared/navigation/pageRegistry";
 import { useLayoutStore } from "@/store/layoutStore";
 
 const PersistentTabPanel = memo(function PersistentTabPanel({ active, href }: { active: boolean; href: string }) {
-  const RegisteredPage = pageRegistry[href as keyof typeof pageRegistry];
+  const RegisteredPage = pageRegistry[href];
 
   if (!RegisteredPage) {
     return null;
@@ -72,7 +72,7 @@ export function TabFrameOutlet({ children }: { children: ReactNode }) {
     <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, position: "relative" }}>
       {tabHrefs.map((href) => {
         const active = href === pathname;
-        const RegisteredPage = pageRegistry[href as keyof typeof pageRegistry];
+        const RegisteredPage = pageRegistry[href];
         const visited = active || visitedHrefs.has(href);
 
         if (RegisteredPage && visited) {

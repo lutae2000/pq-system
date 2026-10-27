@@ -29,7 +29,7 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 
 업무 화면은 `app/`의 라우트 파일이 `modules/`의 페이지 컴포넌트를 불러오는 구조입니다. 반복 조회용 reference API와 hook은 `modules/common/reference`에 두고, 인증·권한·HTTP·전역 provider는 `lib/`와 `shared/`에서 관리합니다.
 
-`shared/navigation/pageRegistry.generated.tsx`는 `scripts/generate-page-registry.mts`가 `app/**/page.tsx`를 읽어 생성합니다. 메뉴 경로 목록도 레지스트리에서 가져옵니다. 생성 파일은 직접 수정하지 말고 라우트 페이지를 수정한 뒤 `npm run generate:page-registry` 또는 `npm run build`를 실행합니다.
+`shared/navigation/pageRegistry.tsx`는 `app/**/page.tsx`를 탐색해 탭 페이지를 지연 로딩합니다. 메뉴 경로 목록도 같은 레지스트리에서 가져오므로 새 페이지를 추가할 때 경로 목록을 따로 작성하지 않습니다.
 
 ## 업무 모듈 안내
 
@@ -60,7 +60,6 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | `npm run dev` | `.env.development`를 사용해 개발 서버 백엔드로 연결 (포트 5000) |
 | `npm run build` | 프로덕션 빌드 |
 | `npm run lint` | ESLint 검사 |
-| `npm run generate:page-registry` | App Router 페이지 경로와 레지스트리 생성 |
 | `npm run storybook` | 공통 컴포넌트 Storybook 실행 |
 | `npm run build-storybook` | Storybook 정적 빌드 |
 

@@ -37,6 +37,7 @@ import {
 } from "@/modules/code/clients/api";
 
 const EMPTY_ROWS: ClientCodeRecord[] = [];
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const emptyDraft = (): ClientCodeRecord => ({
   clientCode: "",
@@ -106,6 +107,7 @@ export function ClientCodesManagementPage() {
   const [orderClassFilter, setOrderClassFilter] = useState("All");
   const [companyTypeFilter, setCompanyTypeFilter] = useState("All");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(CLIENT_CODE_PAGE_SIZE);
   const [searchTick, setSearchTick] = useState(0);
   const [selectedClientCode, setSelectedClientCode] = useState("");
   const [draft, setDraft] = useState<ClientCodeRecord>(() => emptyDraft());
@@ -124,8 +126,9 @@ export function ClientCodesManagementPage() {
       companyType: companyTypeFilter,
       orderClass: orderClassFilter,
       page,
+      size: pageSize,
     }),
-    [appliedBusinessName, companyTypeFilter, orderClassFilter, page],
+    [appliedBusinessName, companyTypeFilter, orderClassFilter, page, pageSize],
   );
 
   const { deleteMutation, query: clientCodesQuery, saveMutation } = useClientCodeManagement({
@@ -137,7 +140,7 @@ export function ClientCodesManagementPage() {
   const clientCodesPage = clientCodesQuery.data ?? {
     content: EMPTY_ROWS,
     page,
-    size: CLIENT_CODE_PAGE_SIZE,
+    size: pageSize,
     totalElements: 0,
     totalPages: 0,
   };
@@ -176,7 +179,7 @@ export function ClientCodesManagementPage() {
     () => ({ type: "include" as const, ids: new Set(selectedClientCode ? [selectedClientCode] : []) }),
     [selectedClientCode],
   );
-  const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize: CLIENT_CODE_PAGE_SIZE }), [page]);
+  const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -308,7 +311,6 @@ export function ClientCodesManagementPage() {
 
       <Box
         sx={{
-          alignItems: "start",
           display: "grid",
           gap: 2,
           gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 7fr) minmax(420px, 5fr)" },
@@ -327,21 +329,25 @@ export function ClientCodesManagementPage() {
             getRowId={(row) => row.clientCode}
             hideFooterSelectedRowCount
             loading={clientCodesQuery.isLoading || clientCodesQuery.isFetching}
-            onPaginationModelChange={(model) => setPage((current) => (current === model.page ? current : model.page))}
+            onPaginationModelChange={(model) => {
+              setPage((current) => (current === model.page ? current : model.page));
+              setPageSize((current) => (current === model.pageSize ? current : model.pageSize));
+            }}
             onRowClick={(params) => {
               setSelectedClientCode(params.row.clientCode);
               setDraft(params.row);
             }}
-            pageSizeOptions={[CLIENT_CODE_PAGE_SIZE]}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
             paginationMode="server"
             paginationModel={paginationModel}
             rowCount={clientCodesPage.totalElements}
             rowSelectionModel={selectedRowModel}
             rows={rows}
             showToolbar={false}
+            wrapperMinHeight={640}
             sx={{
               border: 0,
-              minHeight: 560,
+              minHeight: 640,
               "& .MuiDataGrid-row:hover": { cursor: "pointer" },
             }}
           />
