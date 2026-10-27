@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.systempolicy.model.BrandingPolicyKeys;
 import com.cheil.cheil_be.application.systempolicy.model.SystemPolicy;
 import com.cheil.cheil_be.application.systempolicy.port.in.SystemPolicyAdminUseCase;
 import com.cheil.cheil_be.application.systempolicy.port.out.SystemPolicyRepository;
@@ -22,6 +23,7 @@ public class SystemPolicyAdminService implements SystemPolicyAdminUseCase {
 
     private final SystemPolicyRepository repository;
     private final SystemPolicyCacheService cacheService;
+    private final BrandingSettingsCacheService brandingSettingsCacheService;
 
     @Override
     @Transactional(readOnly = true)
@@ -79,6 +81,9 @@ public class SystemPolicyAdminService implements SystemPolicyAdminUseCase {
         }
         SystemPolicy saved = repository.save(normalized);
         cacheService.refresh(saved.policyKey(), saved);
+        if (BrandingPolicyKeys.contains(saved.policyKey())) {
+            brandingSettingsCacheService.evict();
+        }
         return saved;
     }
 

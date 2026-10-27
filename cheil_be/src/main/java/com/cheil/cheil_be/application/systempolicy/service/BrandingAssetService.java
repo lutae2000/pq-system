@@ -1,5 +1,9 @@
 package com.cheil.cheil_be.application.systempolicy.service;
 
+import static com.cheil.cheil_be.application.systempolicy.model.BrandingPolicyKeys.COMPANY_LOGO;
+import static com.cheil.cheil_be.application.systempolicy.model.BrandingPolicyKeys.FAVICON;
+import static com.cheil.cheil_be.application.systempolicy.model.BrandingPolicyKeys.LOGIN_BACKGROUND;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Locale;
@@ -26,26 +30,23 @@ public class BrandingAssetService {
     public static final String DEFAULT_FAVICON_URL = "";
     private static final String NO_FAVICON_POLICY_VALUE = "NONE";
 
-    private static final String LOGIN_BACKGROUND_POLICY_KEY = "BRANDING_LOGIN_BACKGROUND_URL";
-    private static final String COMPANY_LOGO_POLICY_KEY = "BRANDING_COMPANY_LOGO_URL";
-    private static final String FAVICON_POLICY_KEY = "BRANDING_FAVICON_URL";
     private static final Map<String, AssetDefinition> ASSET_DEFINITIONS = Map.of(
             "login-background", new AssetDefinition(
-                    LOGIN_BACKGROUND_POLICY_KEY,
+                    LOGIN_BACKGROUND,
                     "로그인 배경 이미지",
                     "로그인 화면에 표시할 배경 이미지입니다.",
                     200,
                     DEFAULT_LOGIN_BACKGROUND_URL
             ),
             "company-logo", new AssetDefinition(
-                    COMPANY_LOGO_POLICY_KEY,
+                    COMPANY_LOGO,
                     "회사 로고",
                     "로그인 후 왼쪽 위에 표시할 회사 로고입니다.",
                     210,
                     DEFAULT_COMPANY_LOGO_URL
             ),
             "favicon", new AssetDefinition(
-                    FAVICON_POLICY_KEY,
+                    FAVICON,
                     "파비콘",
                     "브라우저 탭과 즐겨찾기에 표시할 아이콘입니다.",
                     220,
@@ -61,17 +62,22 @@ public class BrandingAssetService {
 
     private final FileStorageService fileStorageService;
     private final SystemPolicyAdminUseCase systemPolicyAdminService;
+    private final BrandingSettingsCacheService brandingSettingsCacheService;
 
     public BrandingSettings findSettings() {
+        return brandingSettingsCacheService.getOrLoad(this::loadSettings);
+    }
+
+    private BrandingSettings loadSettings() {
         return new BrandingSettings(
-                policyValue(LOGIN_BACKGROUND_POLICY_KEY, DEFAULT_LOGIN_BACKGROUND_URL),
-                policyValue(COMPANY_LOGO_POLICY_KEY, DEFAULT_COMPANY_LOGO_URL),
+                policyValue(LOGIN_BACKGROUND, DEFAULT_LOGIN_BACKGROUND_URL),
+                policyValue(COMPANY_LOGO, DEFAULT_COMPANY_LOGO_URL),
                 faviconValue()
         );
     }
 
     private String faviconValue() {
-        String value = policyValue(FAVICON_POLICY_KEY, DEFAULT_FAVICON_URL);
+        String value = policyValue(FAVICON, DEFAULT_FAVICON_URL);
         return NO_FAVICON_POLICY_VALUE.equals(value) || "/branding/cheil-ci.svg".equals(value)
                 ? DEFAULT_FAVICON_URL
                 : value;

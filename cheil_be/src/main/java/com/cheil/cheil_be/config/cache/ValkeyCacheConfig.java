@@ -42,7 +42,8 @@ public class ValkeyCacheConfig implements CachingConfigurer {
                 "departments", cacheConfiguration(departmentProperties.ttl()),
                 "departmentByCode", cacheConfiguration(departmentProperties.ttl()),
                 "systemNotices", cacheConfiguration(DEFAULT_TTL),
-                "systemPolicies", cacheConfiguration(systemPolicyProperties.ttl())
+                "systemPolicies", cacheConfiguration(systemPolicyProperties.ttl()),
+                "brandingSettings", cacheConfiguration(systemPolicyProperties.ttl())
         );
 
         return RedisCacheManager.builder(connectionFactory)

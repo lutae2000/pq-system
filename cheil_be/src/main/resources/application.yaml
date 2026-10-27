@@ -43,8 +43,8 @@ spring:
       repositories:
         enabled: false
       # Valkey 연결과 요청 대기를 짧게 잡아서 일시 장애 복구를 빨리 감지
-      connect-timeout: ${SPRING_DATA_VALKEY_CONNECT_TIMEOUT:3s}
-      timeout: ${SPRING_DATA_VALKEY_TIMEOUT:3s}
+      connect-timeout: ${SPRING_DATA_VALKEY_CONNECT_TIMEOUT:1s}
+      timeout: ${SPRING_DATA_VALKEY_TIMEOUT:1s}
   servlet:
     multipart:
       max-file-size: ${SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE:20MB}

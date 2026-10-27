@@ -29,6 +29,10 @@ public class CacheKeys {
         return "cache:system:policies:%s".formatted(normalize(policyKey));
     }
 
+    public String brandingSettings() {
+        return "cache:system:branding-settings";
+    }
+
     public String commonCodeById(Long codeId) {
         if (codeId == null) {
             throw new IllegalArgumentException("codeId must not be null");
