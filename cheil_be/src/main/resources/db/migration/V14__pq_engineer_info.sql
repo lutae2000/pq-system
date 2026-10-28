@@ -160,7 +160,6 @@ CREATE INDEX idx_pq_engineer_education_engr_id ON pq_engineer_education (engr_id
 CREATE TABLE pq_engineer_project_history (
     id BIGSERIAL PRIMARY KEY,
     engr_id VARCHAR(20) NOT NULL,
-    jobname VARCHAR(250),
     seq INTEGER,
     startdt VARCHAR(8),
     enddt VARCHAR(8),
@@ -186,7 +185,6 @@ CREATE TABLE pq_engineer_project_history (
 COMMENT ON TABLE pq_engineer_project_history IS '프로젝트 이력';
 COMMENT ON COLUMN pq_engineer_project_history.id IS '상세 ID';
 COMMENT ON COLUMN pq_engineer_project_history.engr_id IS '기술자 ID';
-COMMENT ON COLUMN pq_engineer_project_history.jobname IS '프로젝트명';
 COMMENT ON COLUMN pq_engineer_project_history.seq IS '순번';
 COMMENT ON COLUMN pq_engineer_project_history.startdt IS '시작일';
 COMMENT ON COLUMN pq_engineer_project_history.enddt IS '종료일';

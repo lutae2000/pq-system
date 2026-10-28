@@ -264,7 +264,7 @@ export function BidNoticePage() {
 
   const columns = useMemo<BidNoticeGridColDef[]>(
     () => [
-      { field: "bidNo", headerName: "관리번호", width: 100, align: "center", headerAlign: "center" },
+      { field: "bidNo", headerName: "관리번호", width: 110, align: "center", headerAlign: "center" },
       {
         field: "participationStatus",
         headerName: "최종 참여",

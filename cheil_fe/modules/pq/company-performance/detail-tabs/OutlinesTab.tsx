@@ -45,9 +45,7 @@ type OutlinesTabProps = {
 };
 
 type OutlineCommonCodeMeta = {
-  ddlbGroupCode?: unknown;
   ddlbHeadYn?: unknown;
-  ddlbYn?: unknown;
   subcateUnit?: unknown;
 };
 
@@ -108,8 +106,6 @@ function OutlineDetailAutocompleteEditCell({
           params.api.setEditCellValue({ id: params.id, field: "subcategoryCode", value: nextValue?.level3Code ?? "" }, event),
           params.api.setEditCellValue({ id: params.id, field: "subcategoryName", value: nextValue ? outlineDetailCodeName(nextValue) : "" }, event),
           params.api.setEditCellValue({ id: params.id, field: "subcategoryUnit", value: metadataText(metadata.subcateUnit) }, event),
-          params.api.setEditCellValue({ id: params.id, field: "ddlbYn", value: metadataText(metadata.ddlbYn).toUpperCase() === "Y" ? "Y" : "N" }, event),
-          params.api.setEditCellValue({ id: params.id, field: "ddlbGroupCode", value: metadataText(metadata.ddlbGroupCode) }, event),
         ]);
       }}
       onKeyDown={(event) => {
@@ -150,8 +146,6 @@ const listOutlineDetailCodes = async (categoryCode: string) => {
 const toOutlineRequest = (row: CompanyPerformanceOutlineRecord): CompanyPerformanceOutlineRequest => ({
   categoryCode: text(row.categoryCode) || null,
   categoryName: text(row.categoryName) || null,
-  ddlbGroupCode: text(row.ddlbGroupCode) || null,
-  ddlbYn: text(row.ddlbYn).toUpperCase() === "Y" ? "Y" : "N",
   outlineContent: text(row.outlineContent) || null,
   outlineGroupSeq: toNullableNumber(row.outlineGroupSeq) ?? outlineGroupSeqFromCategoryCode(text(row.categoryCode)),
   outlineLineSeq: toNullableNumber(row.outlineLineSeq),
@@ -262,8 +256,6 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
         return {
           categoryCode,
           categoryName,
-          ddlbGroupCode: metadataText(metadata.ddlbGroupCode),
-          ddlbYn: metadataText(metadata.ddlbYn).toUpperCase() === "Y" ? "Y" : "N",
           id: -(rowIdBase + index),
           isNew: true,
           outlineContent: "",
@@ -382,8 +374,6 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
     const newRow: CompanyPerformanceOutlineRecord = {
       categoryCode: defaultCategoryCode,
       categoryName: defaultCategory?.label ?? "",
-      ddlbGroupCode: "",
-      ddlbYn: "N",
       id,
       isNew: true,
       outlineContent: "",
@@ -562,7 +552,7 @@ export function OutlinesTab({ readOnly = false, record, requestConfirmation }: O
   }, [columns]);
 
   const processRowUpdate = async (updatedRow: CompanyPerformanceOutlineRecord, originalRow: CompanyPerformanceOutlineRecord) => {
-    const hasEditableValue = [updatedRow.ddlbGroupCode, updatedRow.outlineContent, updatedRow.subcategoryCode, updatedRow.subcategoryName, updatedRow.subcategoryUnit].some((value) => text(value));
+    const hasEditableValue = [updatedRow.outlineContent, updatedRow.subcategoryCode, updatedRow.subcategoryName, updatedRow.subcategoryUnit].some((value) => text(value));
     if (updatedRow.isNew && !hasEditableValue) {
       setRowModesModel((current) => {
         const next = { ...current };

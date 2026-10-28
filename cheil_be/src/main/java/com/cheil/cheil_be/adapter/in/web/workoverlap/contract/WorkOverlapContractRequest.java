@@ -17,9 +17,9 @@ public record WorkOverlapContractRequest(
         BigDecimal contractAmount,
         BigDecimal shareAmount,
         String jointContractRatio,
-        String performanceCertification,
-        String participateListDocument,
-        String cemsConfirm,
+        Boolean performanceCertification,
+        Boolean participateListDocument,
+        Boolean cemsConfirm,
         String remark,
         String periodChangeReason
 ) {

@@ -21,9 +21,9 @@ export type WorkOverlapContractRecord = {
   contractAmount: number | null;
   shareAmount: number | null;
   jointContractRatio?: string | null;
-  performanceCertification: string | null;
-  participateListDocument: string | null;
-  cemsConfirm: string | null;
+  performanceCertification: boolean;
+  participateListDocument: boolean;
+  cemsConfirm: boolean;
   remark: string | null;
   createdAt: string | null;
   createdId: string | null;

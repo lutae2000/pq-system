@@ -96,12 +96,6 @@ type FieldOption = {
 
 const toText = (value: string | null | undefined) => value ?? "";
 
-const isTrueValue = (value: string | null | undefined) => {
-  const normalized = (value ?? "").trim().toLowerCase();
-  return normalized === "true" || normalized === "수령";
-};
-
-const toBooleanString = (checked: boolean) => (checked ? "true" : "false");
 const WORK_OVERLAP_CONTRACT_ATTACHMENT_OWNER_TYPE = "WORK_OVERLAP_CONTRACT";
 const WORK_OVERLAP_CONTRACT_EVIDENCE_ATTACHMENT_TYPE = "EVIDENCE";
 const WORK_OVERLAP_CONTRACT_PARTICIPANT_LIST_ATTACHMENT_TYPE =
@@ -1055,13 +1049,11 @@ export function WorkOverlapContractDetailDialog({
                         <FormControlLabel
                           control={
                             <Switch
-                              checked={isTrueValue(
-                                draft.performanceCertification,
-                              )}
+                              checked={draft.performanceCertification}
                               onChange={(_event, checked) =>
                                 updateField(
                                   "performanceCertification",
-                                  toBooleanString(checked),
+                                  checked,
                                 )
                               }
                               size="small"
@@ -1081,13 +1073,11 @@ export function WorkOverlapContractDetailDialog({
                         <FormControlLabel
                           control={
                             <Switch
-                              checked={isTrueValue(
-                                draft.participateListDocument,
-                              )}
+                              checked={draft.participateListDocument}
                               onChange={(_event, checked) =>
                                 updateField(
                                   "participateListDocument",
-                                  toBooleanString(checked),
+                                  checked,
                                 )
                               }
                               size="small"
@@ -1108,11 +1098,11 @@ export function WorkOverlapContractDetailDialog({
                         <FormControlLabel
                           control={
                             <Switch
-                              checked={isTrueValue(draft.cemsConfirm)}
+                              checked={draft.cemsConfirm}
                               onChange={(_event, checked) =>
                                 updateField(
                                   "cemsConfirm",
-                                  toBooleanString(checked),
+                                  checked,
                                 )
                               }
                               size="small"

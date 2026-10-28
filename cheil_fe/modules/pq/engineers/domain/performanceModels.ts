@@ -16,7 +16,7 @@ export type EngineerPerformanceRecord = {
   participationStartDate: string;
   participatingTitle: string;
   performanceType: string;
-  projectName: string;
+  projectName?: string;
   reported: boolean;
   round: string;
   status: string;

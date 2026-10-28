@@ -152,8 +152,6 @@ export type CompanyPerformanceOutlineRecord = {
   subcategoryName: string | null;
   subcategoryUnit: string | null;
   outlineContent: string | null;
-  ddlbYn: string | null;
-  ddlbGroupCode: string | null;
   sortSeq: number | null;
 };
 

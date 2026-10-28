@@ -8,6 +8,7 @@ const ENGINEER_PERFORMANCE_DOCS_API = "/pq/engineer-performance-docs";
 export type EngineerProjectHistoryReviewRecord = CareerDetailRecord & {
   bidSeq: number | null;
   engineerId: string;
+  jobName: string;
   reviewId: number | null;
   sourceSeq: number;
   displayOrder: number | null;

@@ -46,7 +46,6 @@ public class WorkOverlapContractService {
     private static final int SHORT_TEXT_MAX_LENGTH = 100;
     private static final int CLIENT_NAME_MAX_LENGTH = 300;
     private static final int SERVICE_NAME_MAX_LENGTH = 500;
-    private static final int STATUS_MAX_LENGTH = 30;
     private static final int REMARK_MAX_LENGTH = 1000;
     private static final int PERIOD_CHANGE_REASON_MAX_LENGTH = 500;
     private static final DateTimeFormatter BASIC_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
@@ -63,8 +62,8 @@ public class WorkOverlapContractService {
             String engineerName,
             String constructionStartDateFrom,
             String constructionStartDateTo,
-            String performanceCertification,
-            String participateListDocument,
+            Boolean performanceCertification,
+            Boolean participateListDocument,
             Boolean cemsConfirm,
             String status,
             String referenceDate,
@@ -76,8 +75,8 @@ public class WorkOverlapContractService {
         String normalizedEngineerName = trimToNull(engineerName);
         String normalizedConstructionStartDateFrom = date(constructionStartDateFrom, "constructionStartDateFrom");
         String normalizedConstructionStartDateTo = date(constructionStartDateTo, "constructionStartDateTo");
-        String normalizedPerformanceCertification = trimToNull(performanceCertification);
-        String normalizedParticipateListDocument = trimToNull(participateListDocument);
+        Boolean normalizedPerformanceCertification = performanceCertification;
+        Boolean normalizedParticipateListDocument = participateListDocument;
         Boolean normalizedCemsConfirm = cemsConfirm;
         String normalizedStatus = trimToNull(status);
         String normalizedReferenceDate = referenceDate(referenceDate);
@@ -127,8 +126,8 @@ public class WorkOverlapContractService {
             String engineerName,
             String constructionStartDateFrom,
             String constructionStartDateTo,
-            String performanceCertification,
-            String participateListDocument,
+            Boolean performanceCertification,
+            Boolean participateListDocument,
             Boolean cemsConfirm,
             String status,
             String referenceDate
@@ -139,8 +138,8 @@ public class WorkOverlapContractService {
         String normalizedEngineerName = trimToNull(engineerName);
         String normalizedConstructionStartDateFrom = date(constructionStartDateFrom, "constructionStartDateFrom");
         String normalizedConstructionStartDateTo = date(constructionStartDateTo, "constructionStartDateTo");
-        String normalizedPerformanceCertification = trimToNull(performanceCertification);
-        String normalizedParticipateListDocument = trimToNull(participateListDocument);
+        Boolean normalizedPerformanceCertification = performanceCertification;
+        Boolean normalizedParticipateListDocument = participateListDocument;
         Boolean normalizedCemsConfirm = cemsConfirm;
         String normalizedStatus = trimToNull(status);
         String normalizedReferenceDate = referenceDate(referenceDate);
@@ -185,10 +184,9 @@ public class WorkOverlapContractService {
         for (WorkOverlapContractEntity entity : entities) {
             boolean stopped = isBetweenDates(normalizedReferenceDate, entity.getConstructionStopFromDate(), entity.getConstructionStopToDate());
             boolean completed = entity.getConstructionCompleteDate() != null && normalizedReferenceDate.compareTo(entity.getConstructionCompleteDate()) > 0;
-            boolean processed =
-                    isReceiptTrue(entity.getPerformanceCertification())
-                            && isReceiptTrue(entity.getParticipateListDocument())
-                            && isReceiptTrue(entity.getCemsConfirm());
+            boolean processed = entity.isPerformanceCertification()
+                    && entity.isParticipateListDocument()
+                    && entity.isCemsConfirm();
 
             if (stopped) {
                 stoppedCount++;
@@ -351,9 +349,9 @@ public class WorkOverlapContractService {
                         rs.getString("restart_date"),
                         rs.getBigDecimal("contract_amount"),
                         rs.getBigDecimal("share_amount"),
-                        rs.getString("performance_certification"),
-                        rs.getString("participate_list_document"),
-                        rs.getString("cems_confirm"),
+                        rs.getBoolean("performance_certification"),
+                        rs.getBoolean("participate_list_document"),
+                        rs.getBoolean("cems_confirm"),
                         rs.getString("remark"),
                         rs.getString("created_at"),
                         rs.getString("created_id"),
@@ -480,9 +478,9 @@ public class WorkOverlapContractService {
                 nonNegative(request.contractAmount(), "contractAmount"),
                 nonNegative(request.shareAmount(), "shareAmount"),
                 limitedText(request.jointContractRatio(), SHORT_TEXT_MAX_LENGTH, "jointContractRatio"),
-                limitedText(request.performanceCertification(), STATUS_MAX_LENGTH, "performanceCertification"),
-                limitedText(request.participateListDocument(), STATUS_MAX_LENGTH, "participateListDocument"),
-                limitedText(request.cemsConfirm(), STATUS_MAX_LENGTH, "cemsConfirm"),
+                Boolean.TRUE.equals(request.performanceCertification()),
+                Boolean.TRUE.equals(request.participateListDocument()),
+                Boolean.TRUE.equals(request.cemsConfirm()),
                 limitedText(request.remark(), REMARK_MAX_LENGTH, "remark"),
                 limitedText(request.periodChangeReason(), PERIOD_CHANGE_REASON_MAX_LENGTH, "periodChangeReason")
         );
@@ -502,8 +500,8 @@ public class WorkOverlapContractService {
             List<String> engineerContractNos,
             String constructionStartDateFrom,
             String constructionStartDateTo,
-            String performanceCertification,
-            String participateListDocument,
+            Boolean performanceCertification,
+            Boolean participateListDocument,
             Boolean cemsConfirm,
             String status,
             String referenceDate
@@ -539,13 +537,13 @@ public class WorkOverlapContractService {
                 predicate = criteriaBuilder.and(predicate, criteriaBuilder.lessThanOrEqualTo(root.get("constructionStartDate"), constructionStartDateTo));
             }
             if (performanceCertification != null) {
-                predicate = criteriaBuilder.and(predicate, receiptPredicate(criteriaBuilder, root.get("performanceCertification"), performanceCertification));
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("performanceCertification"), performanceCertification));
             }
             if (participateListDocument != null) {
-                predicate = criteriaBuilder.and(predicate, receiptPredicate(criteriaBuilder, root.get("participateListDocument"), participateListDocument));
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("participateListDocument"), participateListDocument));
             }
             if (cemsConfirm != null) {
-                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("cemsConfirm"), cemsConfirm.toString()));
+                predicate = criteriaBuilder.and(predicate, criteriaBuilder.equal(root.get("cemsConfirm"), cemsConfirm));
             }
             if (status != null) {
                 predicate = criteriaBuilder.and(predicate, statusPredicate(criteriaBuilder, root, status, referenceDate));
@@ -602,24 +600,6 @@ public class WorkOverlapContractService {
         };
     }
 
-    private jakarta.persistence.criteria.Predicate receiptPredicate(
-            jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder,
-            jakarta.persistence.criteria.Path<String> path,
-            String value
-    ) {
-        return switch (value) {
-            case "true", "수령" -> criteriaBuilder.or(
-                    criteriaBuilder.equal(path, "true"),
-                    criteriaBuilder.equal(path, "수령")
-            );
-            case "false", "미수령" -> criteriaBuilder.or(
-                    criteriaBuilder.equal(path, "false"),
-                    criteriaBuilder.equal(path, "미수령")
-            );
-            default -> criteriaBuilder.equal(path, value);
-        };
-    }
-
     private String limitedText(String value, int maxLength, String fieldName) {
         String normalized = trimToNull(value);
         InputValues.validateMaxLength(normalized, maxLength, fieldName);
@@ -668,14 +648,6 @@ public class WorkOverlapContractService {
             return false;
         }
         return fromKey != null || toKey != null;
-    }
-
-    private boolean isReceiptTrue(String value) {
-        if (value == null) {
-            return false;
-        }
-        String normalized = value.trim();
-        return "true".equalsIgnoreCase(normalized) || "수령".equals(normalized);
     }
 
     private Boolean booleanValue(java.sql.ResultSet rs, String columnLabel) {

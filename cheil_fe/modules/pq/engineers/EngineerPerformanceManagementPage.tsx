@@ -66,7 +66,7 @@ type EngineerPerformanceRecord = {
   participationStartDate: string;
   participatingTitle: string;
   performanceType: PerformanceType;
-  projectName: string;
+  projectName?: string;
   reported: boolean;
   round: string;
   status: PerformanceStatus;
@@ -121,13 +121,13 @@ const performanceColumns: GridColDef<EngineerPerformanceRecord>[] = [
     },
   },
   { field: "round", headerName: "차수", width: 70 },
+  { field: "projectName", headerName: "용역명", flex: 1.4, minWidth: 240 },
   {
     field: "supervisor",
     headerName: "총괄",
     width: 80,
     renderCell: (params) => <Checkbox checked={Boolean(params.value)} disabled size="small" />,
   },
-  { field: "projectName", headerName: "사업명", flex: 1.4, minWidth: 240 },
   { field: "performanceType", headerName: "설계/감리", width: 100 },
   { field: "contractStartDate", headerName: "계약시작일", width: 110 },
   { field: "contractEndDate", headerName: "계약종료일", width: 110 },
@@ -169,7 +169,6 @@ const initialProfiles: EngineerProfile[] = [
         status: "준공",
         round: "1",
         supervisor: true,
-        projectName: "동작구 도시종합관리계획 수립용역(1차)",
         performanceType: "설계",
         contractStartDate: "2001-10-11",
         contractEndDate: "2002-12-11",
@@ -197,7 +196,6 @@ const initialProfiles: EngineerProfile[] = [
         status: "준공",
         round: "2",
         supervisor: false,
-        projectName: "동작구 도시종합관리계획 수립용역(2차)",
         performanceType: "감리",
         contractStartDate: "2002-12-12",
         contractEndDate: "2003-12-12",
@@ -239,7 +237,6 @@ const initialProfiles: EngineerProfile[] = [
         status: "진행",
         round: "1",
         supervisor: false,
-        projectName: "양평군 강상·강하 읍 개명군 정방처리구역 하수관거",
         performanceType: "감리",
         contractStartDate: "2002-07-15",
         contractEndDate: "2002-10-25",
@@ -281,7 +278,6 @@ const initialProfiles: EngineerProfile[] = [
         status: "준공",
         round: "3",
         supervisor: true,
-        projectName: "수원시 도시기본계획 수립용역",
         performanceType: "설계",
         contractStartDate: "2003-03-24",
         contractEndDate: "2004-05-29",
@@ -318,7 +314,6 @@ const emptyPerformanceRecord = (id: string): EngineerPerformanceRecord => ({
   status: "대기",
   round: "1",
   supervisor: false,
-  projectName: "",
   performanceType: "설계",
   contractStartDate: "",
   contractEndDate: "",
@@ -520,14 +515,13 @@ export function EngineerPerformanceManagementPage() {
       return;
     }
 
-    if (!performanceDraft.projectName.trim() || !performanceDraft.clientName.trim()) {
+    if (!performanceDraft.clientName.trim()) {
       return;
     }
 
     const nextRecord: EngineerPerformanceRecord = {
       ...performanceDraft,
       id: performanceDraft.id || createNextPerformanceId(selectedEngineerPerformances),
-      projectName: performanceDraft.projectName.trim(),
       clientName: performanceDraft.clientName.trim(),
       contractStartDate: performanceDraft.contractStartDate.trim(),
       contractEndDate: performanceDraft.contractEndDate.trim(),
@@ -761,16 +755,6 @@ export function EngineerPerformanceManagementPage() {
                 <Divider sx={{ my: 1.5 }} />
 
                 <Grid container spacing={1.5}>
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="용역명"
-                      size="small"
-                      sx={standardInputSx}
-                      value={performanceDraft.projectName}
-                      onChange={(event) => updateDraftField("projectName", event.target.value)}
-                    />
-                  </Grid>
                   <Grid size={{ xs: 12, sm: 3, md: 1.5 }}>
                     <TextField
                       fullWidth
@@ -1078,7 +1062,6 @@ export function EngineerPerformanceManagementPage() {
       onClose={() => setDeleteConfirmOpen(false)}
       onConfirm={() => void confirmDeleteRecord()}
       open={deleteConfirmOpen}
-      targetLabel={selectedPerformanceRow?.projectName || undefined}
     />
     </>
   );

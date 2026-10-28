@@ -62,14 +62,6 @@ public class CompanyPerformanceOutlineQueryService {
         trimToNull(r.subcategoryName()),
         trimToNull(r.subcategoryUnit()),
         trimToNull(r.outlineContent()),
-        yn(r.ddlbYn()),
-        trimToNull(r.ddlbGroupCode()),
         r.sortSeq());
   }
-
-  private String yn(String value) {
-    String n = trimToNull(value);
-    return n == null ? null : (n.equalsIgnoreCase("Y") ? "Y" : "N");
-  }
-
 }

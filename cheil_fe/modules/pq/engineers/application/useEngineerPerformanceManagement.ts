@@ -72,7 +72,7 @@ const toCareerDetailRecord = (row: EngineerPerformanceRecord, original?: CareerD
   grade: row.participatingPosition || row.participatingTitle,
   id: original?.id ?? row.id,
   jobClass: row.participationPosition,
-  jobName: row.projectName,
+  jobName: original?.jobName ?? row.projectName ?? "",
   jobPart: row.participationField || row.workField,
   jobTag: row.performanceType,
   joinDay: original?.joinDay ?? 0,

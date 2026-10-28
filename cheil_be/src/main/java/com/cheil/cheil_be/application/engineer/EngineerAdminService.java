@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -272,11 +273,20 @@ public class EngineerAdminService implements EngineerAdminUseCase {
                 careerRepository.findByEngrIdOrderByEntryDtAsc(engrId).stream().map(EngineerCareerEntity::toDto).toList(),
                 prizeRepository.findByEngrIdOrderById(engrId).stream().map(EngineerPrizeEntity::toDto).toList(),
                 educationRepository.findByEngrIdOrderById(engrId).stream().map(EngineerEducationEntity::toDto).toList(),
-                projectHistoryRepository.findByEngrIdOrderByStartDtDescIdDesc(engrId).stream()
-                        .map(EngineerProjectHistoryEntity::toDto)
-                        .toList(),
+                careerDetails(engrId),
                 schoolRepository.findByEngrIdOrderById(engrId).stream().map(EngineerSchoolEntity::toDto).toList()
         );
+    }
+
+    private List<EngineerDtos.CareerDetail> careerDetails(String engrId) {
+        Map<Long, String> jobNameByHistoryId = projectHistoryRepository.findProjectHistoryNames(engrId).stream()
+                .collect(Collectors.toMap(
+                        EngineerProjectHistoryRepository.ProjectHistoryNameProjection::getId,
+                        projection -> projection.getJobName() == null ? "" : projection.getJobName()
+                ));
+        return projectHistoryRepository.findByEngrIdOrderByStartDtDescIdDesc(engrId).stream()
+                .map(history -> history.toDto(jobNameByHistoryId.get(history.id)))
+                .toList();
     }
 
     private EngineerDtos.Profile toListProfile(EngineerMasterEntity master) {

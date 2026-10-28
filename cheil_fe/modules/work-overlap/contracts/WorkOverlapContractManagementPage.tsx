@@ -283,10 +283,7 @@ export function WorkOverlapContractManagementPage() {
     }
   };
 
-  const renderReceiptChip = (value: string | null | undefined) => {
-    const normalized = (value ?? "").trim();
-    const received = normalized === "true" || normalized === "received";
-
+  const renderReceiptChip = (received: boolean) => {
     return (
       <Chip
         color={received ? "success" : "default"}
@@ -297,13 +294,7 @@ export function WorkOverlapContractManagementPage() {
     );
   };
 
-  const renderCemsChip = (value: string | boolean | null | undefined) => {
-    if (value === null || value === undefined || value === "") {
-      return null;
-    }
-
-    const approved = value === true || String(value).trim().toLowerCase() === "true";
-
+  const renderCemsChip = (approved: boolean) => {
     return (
       <Chip
         color={approved ? "success" : "default"}

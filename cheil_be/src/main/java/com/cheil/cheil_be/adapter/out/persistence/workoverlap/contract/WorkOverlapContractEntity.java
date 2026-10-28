@@ -67,14 +67,14 @@ public class WorkOverlapContractEntity extends AuditEntity {
     @Column(name = "joint_contract_ratio", length = 100)
     private String jointContractRatio;
 
-    @Column(name = "performance_certification", length = 30)
-    private String performanceCertification;
+    @Column(name = "performance_certification", nullable = false)
+    private boolean performanceCertification;
 
-    @Column(name = "participate_list_document", length = 30)
-    private String participateListDocument;
+    @Column(name = "participate_list_document", nullable = false)
+    private boolean participateListDocument;
 
-    @Column(name = "cems_confirm", length = 30)
-    private String cemsConfirm;
+    @Column(name = "cems_confirm", nullable = false)
+    private boolean cemsConfirm;
 
     @Column(name = "remark", columnDefinition = "TEXT")
     private String remark;
@@ -99,9 +99,9 @@ public class WorkOverlapContractEntity extends AuditEntity {
         contractAmount = request.contractAmount();
         shareAmount = request.shareAmount();
         jointContractRatio = request.jointContractRatio();
-        performanceCertification = request.performanceCertification();
-        participateListDocument = request.participateListDocument();
-        cemsConfirm = request.cemsConfirm();
+        performanceCertification = Boolean.TRUE.equals(request.performanceCertification());
+        participateListDocument = Boolean.TRUE.equals(request.participateListDocument());
+        cemsConfirm = Boolean.TRUE.equals(request.cemsConfirm());
         remark = request.remark();
     }
 

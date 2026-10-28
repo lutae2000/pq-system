@@ -9,8 +9,6 @@ public record CompanyPerformanceOutlineRequest(
         String subcategoryName,
         String subcategoryUnit,
         String outlineContent,
-        String ddlbYn,
-        String ddlbGroupCode,
         Integer sortSeq
 ) {
 }

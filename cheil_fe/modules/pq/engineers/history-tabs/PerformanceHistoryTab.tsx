@@ -39,8 +39,8 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
     () => {
       const leftAlignedFields = new Set(["jobName", "compName", "method", "remark"]);
       const columns: GridColDef<CareerDetailRecord>[] = [
-      { field: "seq", headerName: "이력 ID", minWidth: 80, flex: 1 },
-      { field: "jobName", headerName: "이력명", minWidth: 240, flex: 1 },
+      { field: "seq", headerName: "회사실적 ID", minWidth: 90, flex: 1, align: "center", headerAlign: "center" },
+      { field: "jobName", headerName: "용역명", minWidth: 240, flex: 1.2, headerAlign: "center" },
       {
         field: "startDate",
         headerName: "참여시작",
@@ -67,15 +67,15 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         headerAlign: "right",
         valueFormatter: (value) => formatPaddedLevel2CodeLabel(technicalGradeLabelByCode, value),
       },
-      { field: "compName", headerName: "참여회사", width: 150 },
-      { field: "deptName", headerName: "참여부서", width: 130 },
-      { field: "grade", headerName: "참여직급", width: 100 },
+      { field: "compName", headerName: "참여회사", width: 150, align: "center", headerAlign: "center"},
+      { field: "deptName", headerName: "참여부서", width: 130, align: "center", headerAlign: "center" },
+      { field: "grade", headerName: "참여직급", width: 100, headerAlign: "center" },
       { field: "joinYn", headerName: "참여", width: 70, align: "center", headerAlign: "center" },
       { field: "returnYn", headerName: "복귀", width: 70, align: "center", headerAlign: "center" },
-      { field: "duty", headerName: "업무", width: 120 },
-      { field: "jobPart", headerName: "직무분야", width: 130 },
-      { field: "proPart", headerName: "전문분야", width: 130 },
-      { field: "method", headerName: "수행방식", width: 110 },
+      { field: "duty", headerName: "업무", width: 120, align: "center", headerAlign: "center" },
+      { field: "jobPart", headerName: "직무분야", width: 130, align: "center", headerAlign: "center" },
+      { field: "proPart", headerName: "전문분야", width: 130, align: "center", headerAlign: "center" },
+      { field: "method", headerName: "수행방식", width: 110, align: "center", headerAlign: "center" },
       { field: "remark", headerName: "비고", minWidth: 160, flex: 0.7 },
       ];
 

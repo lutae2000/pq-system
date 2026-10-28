@@ -11,8 +11,6 @@ public record CompanyPerformanceOutlineResponse(
         String subcategoryName,
         String subcategoryUnit,
         String outlineContent,
-        String ddlbYn,
-        String ddlbGroupCode,
         Integer sortSeq
 ) {
 }

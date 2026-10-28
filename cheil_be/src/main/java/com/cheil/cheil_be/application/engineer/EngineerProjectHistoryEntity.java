@@ -23,8 +23,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     Long id;
     @Column(name = "engr_id")
     String engrId;
-    @Column(name = "jobname")
-    String jobName;
     @Column(name = "seq")
     Integer seq;
     @Column(name = "startdt")
@@ -56,7 +54,7 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     @Column(name = "remark")
     String remark;
 
-    EngineerDtos.CareerDetail toDto() {
+    EngineerDtos.CareerDetail toDto(String jobName) {
         return new EngineerDtos.CareerDetail(
                 id,
                 engrId,
@@ -90,7 +88,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     }
 
     void updateFrom(EngineerDtos.CareerDetail dto) {
-        jobName = EngineerEntityUtils.clean(dto.jobName());
         seq = dto.seq();
         startDt = EngineerEntityUtils.date(dto.startDt());
         endDt = EngineerEntityUtils.date(dto.endDt());

@@ -14,7 +14,7 @@ public class CompanyPerformanceOutlineRepositoryAdapter
     implements CompanyPerformanceOutlineRepository {
   private final JdbcClient jdbcClient;
   private static final String COLUMNS =
-      "id,seq,otln_gseq,otln_lseq,cate_code,subcate_code,cate_name,subcate_name,subcate_unit,otln_cont,ddlb_yn,ddlbgroup_code,sort_seq";
+      "id,seq,otln_gseq,otln_lseq,cate_code,subcate_code,cate_name,subcate_name,subcate_unit,otln_cont,sort_seq";
 
   @Override
   public List<CompanyPerformanceOutlineResponse> findByPerformanceSeq(Long seq) {
@@ -45,9 +45,9 @@ public class CompanyPerformanceOutlineRepositoryAdapter
     return jdbcClient
         .sql(
             "INSERT INTO company_performance_outlines"
-                + " (seq,otln_gseq,otln_lseq,cate_code,subcate_code,cate_name,subcate_name,subcate_unit,otln_cont,ddlb_yn,ddlbgroup_code,sort_seq)"
+                + " (seq,otln_gseq,otln_lseq,cate_code,subcate_code,cate_name,subcate_name,subcate_unit,otln_cont,sort_seq)"
                 + " VALUES"
-                + " (:seq,:otlnGseq,:otlnLseq,:cateCode,:subcateCode,:cateName,:subcateName,:subcateUnit,:otlnCont,:ddlbYn,:ddlbGroupCode,:sortSeq)"
+                + " (:seq,:otlnGseq,:otlnLseq,:cateCode,:subcateCode,:cateName,:subcateName,:subcateUnit,:otlnCont,:sortSeq)"
                 + " RETURNING id")
         .param("seq", seq)
         .param("otlnGseq", r.outlineGroupSeq())
@@ -58,8 +58,6 @@ public class CompanyPerformanceOutlineRepositoryAdapter
         .param("subcateName", r.subcategoryName())
         .param("subcateUnit", r.subcategoryUnit())
         .param("otlnCont", r.outlineContent())
-        .param("ddlbYn", r.ddlbYn())
-        .param("ddlbGroupCode", r.ddlbGroupCode())
         .param("sortSeq", r.sortSeq())
         .query(Long.class)
         .single();
@@ -70,7 +68,7 @@ public class CompanyPerformanceOutlineRepositoryAdapter
     return jdbcClient
         .sql(
             "UPDATE company_performance_outlines SET"
-                + " otln_gseq=:otlnGseq,otln_lseq=:otlnLseq,cate_code=:cateCode,subcate_code=:subcateCode,cate_name=:cateName,subcate_name=:subcateName,subcate_unit=:subcateUnit,otln_cont=:otlnCont,ddlb_yn=:ddlbYn,ddlbgroup_code=:ddlbGroupCode,sort_seq=:sortSeq,last_changed_at=CURRENT_TIMESTAMP"
+                + " otln_gseq=:otlnGseq,otln_lseq=:otlnLseq,cate_code=:cateCode,subcate_code=:subcateCode,cate_name=:cateName,subcate_name=:subcateName,subcate_unit=:subcateUnit,otln_cont=:otlnCont,sort_seq=:sortSeq,last_changed_at=CURRENT_TIMESTAMP"
                 + " WHERE id=:id AND seq=:seq")
         .param("id", id)
         .param("seq", seq)
@@ -82,8 +80,6 @@ public class CompanyPerformanceOutlineRepositoryAdapter
         .param("subcateName", r.subcategoryName())
         .param("subcateUnit", r.subcategoryUnit())
         .param("otlnCont", r.outlineContent())
-        .param("ddlbYn", r.ddlbYn())
-        .param("ddlbGroupCode", r.ddlbGroupCode())
         .param("sortSeq", r.sortSeq())
         .update();
   }
@@ -110,8 +106,6 @@ public class CompanyPerformanceOutlineRepositoryAdapter
         rs.getString("subcate_name"),
         rs.getString("subcate_unit"),
         rs.getString("otln_cont"),
-        rs.getString("ddlb_yn"),
-        rs.getString("ddlbgroup_code"),
         rs.getObject("sort_seq", Integer.class));
   }
 }
