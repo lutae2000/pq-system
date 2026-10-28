@@ -25,6 +25,8 @@ export type BidNoticeApiRecord = {
   departmentName?: string | null;
   designAmt: number | null;
   fieldOfWorkCode: string | null;
+  g2bBidNtceNo: string | null;
+  g2bBidNtceOrd: string | null;
   fieldOfWorkLabel?: string | null;
   lastChangedAt: string | null;
   lastChangedId: string | null;

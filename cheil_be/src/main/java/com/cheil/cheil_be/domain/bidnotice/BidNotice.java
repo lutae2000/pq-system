@@ -43,6 +43,8 @@ public record BidNotice(
         String primeContractor,
         String remark,
         String refmatYn,
+        String g2bBidNtceNo,
+        String g2bBidNtceOrd,
         Instant createdAt,
         String createdId,
         Instant lastChangedAt,

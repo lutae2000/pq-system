@@ -417,7 +417,7 @@ export function G2bBidNoticeCandidateDetailDialog({ comparisonRecord = null, ope
         <Button color="error" disabled={!onDeleteCandidate} onClick={onDeleteCandidate} startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button>
         <Box sx={{ flex: 1 }} />
         {record.bidNtceUrl ? <Button component="a" href={record.bidNtceUrl} rel="noreferrer" startIcon={<OpenInNewIcon />} target="_blank" variant="outlined">나라장터 바로가기</Button> : null}
-        <Button disabled={!onEnterBidNoticeInput} onClick={onEnterBidNoticeInput} variant="contained">{bidNoticeInputLabel}</Button>
+        <Button disabled={!onEnterBidNoticeInput || record.importedBidSeq != null} onClick={onEnterBidNoticeInput} variant="contained">{bidNoticeInputLabel}</Button>
       </DialogActions>
       </Dialog>
       {historyDetailRecord ? (

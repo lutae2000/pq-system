@@ -47,6 +47,8 @@ export type BidNoticeRecord = {
   onSiteMeetingDate: string;
   participationStatus: ParticipationStatus;
   finalParticipationStatus: string;
+  g2bBidNtceNo: string;
+  g2bBidNtceOrd: string;
   pqRegistrationDate: string;
   pqSubmissionDate: string;
   pqDecideEmpno: string;

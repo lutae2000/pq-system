@@ -45,6 +45,8 @@ public record BidNoticeRequest(
         String primeContractor,
         String remark,
         String refmatYn,
+        String g2bBidNtceNo,
+        String g2bBidNtceOrd,
         String createdId,
         String lastChangedId
 ) {
@@ -82,6 +84,8 @@ public record BidNoticeRequest(
                 primeContractor,
                 remark,
                 refmatYn,
+                g2bBidNtceNo,
+                g2bBidNtceOrd,
                 createdId,
                 lastChangedId
         );

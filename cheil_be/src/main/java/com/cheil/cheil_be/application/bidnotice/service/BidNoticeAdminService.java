@@ -133,6 +133,8 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
                 StringValues.normalize(command.primeContractor()),
                 StringValues.normalize(command.remark()),
                 normalizeYn(command.refmatYn()),
+                optional(command.g2bBidNtceNo(), existing == null ? null : existing.g2bBidNtceNo()),
+                optional(command.g2bBidNtceOrd(), existing == null ? null : existing.g2bBidNtceOrd()),
                 createdId,
                 lastChangedId
         );
@@ -168,6 +170,8 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         validateMaxLength(value.primeContractor(), PRIME_CONTRACTOR_MAX_LENGTH, "primeContractor");
         validateMaxLength(value.remark(), REMARK_MAX_LENGTH, "remark");
         validateMaxLength(value.refmatYn(), 1, "refmatYn");
+        validateMaxLength(value.g2bBidNtceNo(), 100, "g2bBidNtceNo");
+        validateMaxLength(value.g2bBidNtceOrd(), 20, "g2bBidNtceOrd");
         validateMaxLength(value.createdId(), AUDIT_ID_MAX_LENGTH, "createdId");
         validateMaxLength(value.lastChangedId(), AUDIT_ID_MAX_LENGTH, "lastChangedId");
     }
@@ -205,6 +209,8 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
                 normalized.primeContractor(),
                 normalized.remark(),
                 normalized.refmatYn(),
+                normalized.g2bBidNtceNo(),
+                normalized.g2bBidNtceOrd(),
                 createdAt,
                 createdId,
                 lastChangedAt,
@@ -245,6 +251,8 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
             String primeContractor,
             String remark,
             String refmatYn,
+            String g2bBidNtceNo,
+            String g2bBidNtceOrd,
             String createdId,
             String lastChangedId
     ) {

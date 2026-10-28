@@ -36,6 +36,8 @@ export const emptyDraft = (): BidNoticeRecord => ({
   onSiteMeetingDate: "",
   participationStatus: "",
   finalParticipationStatus: "",
+  g2bBidNtceNo: "",
+  g2bBidNtceOrd: "",
   pqRegistrationDate: "",
   pqSubmissionDate: "",
   pqDecideEmpno: "",

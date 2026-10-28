@@ -103,6 +103,8 @@ const emptyBidNoticeDraft = (): BidNoticeRecord => ({
   onSiteMeetingDate: "",
   participationStatus: "",
   finalParticipationStatus: "",
+  g2bBidNtceNo: "",
+  g2bBidNtceOrd: "",
   pqRegistrationDate: "",
   pqSubmissionDate: "",
   pqDecideEmpno: "",
@@ -143,6 +145,8 @@ const toEditableBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord =>
   draftNote: text(item.remark),
   estimateAmount: Number(item.designAmt ?? 0),
   finalParticipationStatus: text(item.participateYn),
+  g2bBidNtceNo: text(item.g2bBidNtceNo),
+  g2bBidNtceOrd: text(item.g2bBidNtceOrd),
   id: item.bidSeq ? String(item.bidSeq) : "",
   managerConfirmed: item.bidSuccessYn === "Y",
   noticeDate: dateOnly(item.announceDate),
@@ -175,6 +179,8 @@ const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => (
   interviewDate: apiDate(draft.interviewDate) || null,
   bidSuccessYn: draft.bidSuccessYn.trim() || boolToYn(draft.managerConfirmed),
   participateYn: draft.finalParticipationStatus.trim(),
+  g2bBidNtceNo: draft.g2bBidNtceNo.trim() || null,
+  g2bBidNtceOrd: draft.g2bBidNtceOrd.trim() || null,
   pqDecideEmpno: "",
   pqDecideDate: null,
   superDecideEmpno: draft.writerName.trim(),
@@ -200,6 +206,8 @@ const toCandidateBidNoticeDraft = (record: ReturnType<typeof toG2bBidNoticeCandi
 
   return {
     ...emptyBidNoticeDraft(),
+    g2bBidNtceNo: record.bidNtceNo,
+    g2bBidNtceOrd: record.bidNtceOrd,
     bidDate: dateTimeText(record.bidDate),
     bidClosingDate: dateTimeText(record.pqApplDocRcptDt),
     bidSubmissionDate: dateTimeText(record.bidSubmissionDate),
@@ -464,6 +472,8 @@ export function G2bBidNoticeCandidatePage() {
     const baseDraft = existingRecord ? toEditableBidNoticeRecord(existingRecord) : emptyBidNoticeDraft();
     const mergedDraft = existingRecord ? {
       ...baseDraft,
+      g2bBidNtceNo: candidateDraft.g2bBidNtceNo,
+      g2bBidNtceOrd: candidateDraft.g2bBidNtceOrd,
       bidClosingDate: candidateDraft.bidClosingDate || baseDraft.bidClosingDate,
       bidDate: candidateDraft.bidDate || baseDraft.bidDate,
       bidSubmissionDate: candidateDraft.bidSubmissionDate || baseDraft.bidSubmissionDate,
@@ -551,7 +561,7 @@ export function G2bBidNoticeCandidatePage() {
                     {[
                       { color: g2bNoticeKindRowColors.changed.legend, label: "변경공고" },
                       { color: g2bNoticeKindRowColors.cancelled.legend, label: "취소공고" },
-                      { color: g2bNoticeKindRowColors.reposted.legend, label: "재공고(이전 입찰번호 있음)" },
+                      { color: g2bNoticeKindRowColors.reposted.legend, label: "재공고(이전 입찰번호 존재)" },
                     ].map(({ color, label }) => (
                       <Box key={label} sx={{ alignItems: "center", display: "flex", gap: 0.5, whiteSpace: "nowrap" }}>
                         <Box component="span" sx={{ backgroundColor: color, borderRadius: 0.5, flexShrink: 0, height: 16, width: 24 }} />

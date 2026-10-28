@@ -71,7 +71,7 @@ class BidNoticeControllerRestDocsTest {
                 LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", LocalDateTime.of(2026, 7, 1, 10, 0), LocalDate.of(2026, 7, 2),
                 "Y", "150801", LocalDate.of(2026, 6, 19), "150801", "Y", "CA",
                 LocalDateTime.of(2026, 6, 20, 10, 0), "A", LocalDateTime.of(2026, 6, 30, 18, 0),
-                "DA", "T2A", null, null, null, "Y", "Prime contractor", "Remark", "Y",
+                "DA", "T2A", null, null, null, "Y", "Prime contractor", "Remark", "Y", "G2B-123", "1",
                 java.time.Instant.parse("2026-06-18T00:00:00Z"), "system",
                 java.time.Instant.parse("2026-06-18T00:00:00Z"), "system");
         when(bidNoticeAdminUseCase.findByBidSeq(20261072L)).thenReturn(bidNotice);
@@ -122,6 +122,8 @@ class BidNoticeControllerRestDocsTest {
                                 fieldWithPath("primeContractor").description("Prime contractor."),
                                 fieldWithPath("remark").description("Remark."),
                                 fieldWithPath("refmatYn").description("Reference material flag."),
+                                fieldWithPath("g2bBidNtceNo").description("G2B bid notice number."),
+                                fieldWithPath("g2bBidNtceOrd").description("G2B bid notice order."),
                                 fieldWithPath("departmentName").description("Department name."),
                                 fieldWithPath("orderClientName").description("Ordering client name."),
                                 fieldWithPath("bidTypeLabel").description("Bid type label."),
@@ -140,7 +142,7 @@ class BidNoticeControllerRestDocsTest {
                 LocalDateTime.of(2026, 6, 20, 9, 0), "FAK", "Ordering", LocalDateTime.of(2026, 7, 1, 10, 0), LocalDate.of(2026, 7, 2),
                 "Y", "Success", "150801", LocalDate.of(2026, 6, 19), "150801", "Y", "Yes", "CA", "Construction",
                 LocalDateTime.of(2026, 6, 20, 10, 0), "A", LocalDateTime.of(2026, 6, 30, 18, 0), "DA", "Road",
-                "T2A", "Construction management", null, null, null, "Y", "Prime contractor", "Remark", "Y",
+                "T2A", "Construction management", null, null, null, "Y", "Prime contractor", "Remark", "Y", "G2B-123", "1",
                 "Department", "Client", "Bid type", "Bid method", null, "system", null, null);
     }
 }

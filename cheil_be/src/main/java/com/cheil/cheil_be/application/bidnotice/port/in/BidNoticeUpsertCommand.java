@@ -39,6 +39,8 @@ public record BidNoticeUpsertCommand(
         String primeContractor,
         String remark,
         String refmatYn,
+        String g2bBidNtceNo,
+        String g2bBidNtceOrd,
         String createdId,
         String lastChangedId
 ) {

@@ -127,6 +127,12 @@ class BidNoticeEntity {
     @Column(name = "refmat_yn", length = 1)
     private String refmatYn;
 
+    @Column(name = "g2b_bid_ntce_no", length = 100)
+    private String g2bBidNtceNo;
+
+    @Column(name = "g2b_bid_ntce_ord", length = 20)
+    private String g2bBidNtceOrd;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -171,6 +177,8 @@ class BidNoticeEntity {
                 .primeContractor(bidNotice.primeContractor())
                 .remark(bidNotice.remark())
                 .refmatYn(bidNotice.refmatYn())
+                .g2bBidNtceNo(bidNotice.g2bBidNtceNo())
+                .g2bBidNtceOrd(bidNotice.g2bBidNtceOrd())
                 .createdAt(bidNotice.createdAt())
                 .createdId(bidNotice.createdId())
                 .lastChangedAt(bidNotice.lastChangedAt())
@@ -208,6 +216,8 @@ class BidNoticeEntity {
         primeContractor = bidNotice.primeContractor();
         remark = bidNotice.remark();
         refmatYn = bidNotice.refmatYn();
+        g2bBidNtceNo = bidNotice.g2bBidNtceNo();
+        g2bBidNtceOrd = bidNotice.g2bBidNtceOrd();
         createdAt = bidNotice.createdAt();
         createdId = bidNotice.createdId();
         lastChangedAt = bidNotice.lastChangedAt();
@@ -247,6 +257,8 @@ class BidNoticeEntity {
                 primeContractor,
                 remark,
                 refmatYn,
+                g2bBidNtceNo,
+                g2bBidNtceOrd,
                 createdAt,
                 createdId,
                 lastChangedAt,
