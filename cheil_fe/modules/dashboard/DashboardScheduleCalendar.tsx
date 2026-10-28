@@ -3,7 +3,7 @@
 import dayjs from "dayjs";
 import koLocale from "@fullcalendar/react/locales/ko";
 import EventCalendar from "@fullcalendar/mui/monarch/EventCalendar";
-import { Box, Chip, GlobalStyles, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -12,6 +12,11 @@ import { useTabActivity } from "@/components/layout/TabActivityContext";
 import { useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 
 import { listDashboardBidNoticeCalendar } from "./dashboard.api";
+import {
+  DashboardSchedulePopoverStyles,
+  mountDashboardSchedulePopoverEvent,
+  mountDashboardSchedulePopoverHeader,
+} from "./DashboardSchedulePopover";
 import {
   scheduleLabelByType,
   scheduleLabels as defaultScheduleLabels,
@@ -33,10 +38,6 @@ const categoryOrder: Record<DashboardScheduleEventType, number> = {
   BID_DATE: 1,
   INTERVIEW_DATE: 2,
 };
-
-const categoryHeaderSelector = (Object.keys(categoryOrder) as DashboardScheduleEventType[])
-  .map((type) => `.dashboard-calendar-category-popover [role="listitem"][data-schedule-category="${type}"]:not([data-schedule-category="${type}"] ~ [data-schedule-category="${type}"])::before`)
-  .join(", ");
 
 const toDashboardScheduleEvent = (item: Awaited<ReturnType<typeof listDashboardBidNoticeCalendar>>[number]): DashboardScheduleEvent => {
   const label = scheduleLabelByType[item.eventType];
@@ -83,25 +84,7 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
 
   return (
     <Stack spacing={2}>
-      <GlobalStyles
-        styles={{
-          ".dashboard-calendar-category-popover": {
-            maxHeight: "min(70vh, 560px)",
-            overflowY: "auto",
-          },
-          [categoryHeaderSelector]: {
-            backgroundColor: "color-mix(in srgb, var(--schedule-category-color) 9%, white)",
-            borderLeft: "3px solid var(--schedule-category-color)",
-            color: "var(--schedule-category-color)",
-            content: "attr(data-category-label)",
-            display: "block",
-            fontSize: "0.8rem",
-            fontWeight: 700,
-            margin: "10px 0 5px",
-            padding: "6px 8px",
-          },
-        }}
-      />
+      <DashboardSchedulePopoverStyles />
       <Box
         sx={{
           alignItems: "flex-start",
@@ -218,17 +201,7 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           dayMaxEventRows={4}
           dayHeaderDidMount={(info) => {
             if (!info.inPopover) return;
-
-            for (const child of info.el.children) {
-              (child as HTMLElement).style.display = "none";
-            }
-
-            const dateLabel = document.createElement("span");
-            dateLabel.textContent = `${info.dayNumberText}일(${info.weekdayText})`;
-            dateLabel.style.fontSize = "1rem";
-            dateLabel.style.fontWeight = "700";
-            dateLabel.style.whiteSpace = "nowrap";
-            info.el.appendChild(dateLabel);
+            mountDashboardSchedulePopoverHeader(info.el, info.dayNumberText, info.weekdayText);
           }}
           datesSet={(arg) => {
             setYearMonth(dayjs(arg.view.currentStart).format("YYYYMM"));
@@ -244,16 +217,8 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
               info.el.classList.add("dashboard-calendar-month-event");
             }
 
-            const popover = info.el.closest('[role="dialog"][data-date]');
-            const listItem = info.el.closest('[role="listitem"]') as HTMLElement | null;
             const type = info.event.extendedProps.eventType as DashboardScheduleEventType | undefined;
-            const category = scheduleLabels.find((item) => item.type === type);
-            if (popover && listItem && category) {
-              popover.classList.add("dashboard-calendar-category-popover");
-              listItem.dataset.scheduleCategory = category.type;
-              listItem.dataset.categoryLabel = category.label;
-              listItem.style.setProperty("--schedule-category-color", category.color);
-            }
+            mountDashboardSchedulePopoverEvent(info.el, type, scheduleLabels);
           }}
           eventClick={(info) => {
             if (!onScheduleClick) {
