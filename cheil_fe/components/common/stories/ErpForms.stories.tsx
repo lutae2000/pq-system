@@ -3,11 +3,10 @@ import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
 
 import { AuditFields } from "../AuditFields";
-import { CodeSelectField } from "../CodeSelectField";
+import { AutoCompleteField } from "../AutoCompleteField";
 import { DateRangeField } from "../DateRangeField";
 import { DetailFormSection } from "../DetailFormSection";
 import { standardFieldSx } from "../FormControls";
-import { StatusChip } from "../StatusChip";
 
 const projectTypeOptions = [
   { label: "설계", value: "DESIGN" },
@@ -24,27 +23,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 function FormsExample() {
-  const [projectType, setProjectType] = useState<"" | "DESIGN" | "SUPERVISION" | "OPERATION">("");
+  const [projectType, setProjectType] = useState("");
   const [startDate, setStartDate] = useState("2026-01-01");
   const [endDate, setEndDate] = useState("2026-12-31");
 
   return (
     <Stack spacing={3}>
       <DetailFormSection
-        actions={
-          <StatusChip
-            options={{
-              APPROVED: { color: "success", label: "승인" },
-            }}
-            value="APPROVED"
-          />
-        }
         columns={3}
         title="기본 정보"
       >
         <TextField fullWidth label="프로젝트 코드" size="small" sx={standardFieldSx} value="PJ-2026-001" />
         <TextField fullWidth label="프로젝트명" size="small" sx={standardFieldSx} value="하수처리장 증설" />
-        <CodeSelectField
+        <AutoCompleteField mode="select" placeholderDisabled={false}
           label="사업구분"
           onChange={setProjectType}
           options={projectTypeOptions}

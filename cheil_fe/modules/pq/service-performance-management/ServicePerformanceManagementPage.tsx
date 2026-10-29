@@ -29,11 +29,11 @@ import type {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
-import { ClientSelect } from "@/components/common/reference-selects";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { todayLocalDate } from "@/modules/common/formatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
@@ -543,10 +543,9 @@ export function ServicePerformanceManagementPage() {
         resetLabel="초기화"
         searchLabel="조회"
       >
-        <ClientSelect
+        <AutoCompleteField source={{ type: "client", params: CLIENT_SELECT_PARAMS }}
           label="발주처"
           onChange={(value) => updateSearchFilter("clientCode", value)}
-          params={CLIENT_SELECT_PARAMS}
           placeholder="전체"
           placeholderDisabled={false}
           sx={{

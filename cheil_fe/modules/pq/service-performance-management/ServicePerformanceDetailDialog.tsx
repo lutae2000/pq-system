@@ -20,7 +20,7 @@ import { AuditFields } from "@/components/common/AuditFields";
 import { DetailFormSection } from "@/components/common/DetailFormSection";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { ClientSelect } from "@/components/common/reference-selects";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import {
   SERVICE_PERFORMANCE_ATTACHMENT_OWNER_TYPE,
   SERVICE_PERFORMANCE_ATTACHMENT_TYPE,
@@ -148,11 +148,10 @@ export function ServicePerformanceDetailDialog({
                   sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 12" } }}
                   value={text(draft.siteName)}
                 />
-                <ClientSelect
+                <AutoCompleteField source={{ type: "client", params: clientSelectParams }}
                   disabled={!isEditable}
                   label="발주처"
                   onChange={(value) => onDraftChange("clientCode", value)}
-                  params={clientSelectParams}
                   required
                   sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   value={text(draft.clientCode)}

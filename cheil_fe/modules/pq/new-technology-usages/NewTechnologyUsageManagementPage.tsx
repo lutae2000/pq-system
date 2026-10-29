@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";

@@ -100,7 +100,7 @@ return apiRequest(
 | --- | --- |
 | `modules/common/reference/referenceApi.ts` | 공통 조회 API 호출과 `{ items, options, labelByValue }` 변환 |
 | `modules/common/reference/useReferenceOptions.ts` | React Query hook과 캐시 정책 |
-| `components/common/reference-selects/ReferenceSelects.tsx` | 업무용 셀렉트 컴포넌트 |
+| `components/common/AutoCompleteField.tsx` | 자동완성과 일반 선택을 제공하는 단일 컴포넌트 |
 
 ### 사용할 수 있는 Hook
 
@@ -127,18 +127,21 @@ const { items, options, labelByValue, isLoading, isError } = useDepartmentOption
 
 ### 셀렉트 컴포넌트 사용
 
-단순 셀렉트는 `components/common/reference-selects`의 컴포넌트를 사용합니다.
+정해진 참조 데이터는 `source`로 선택합니다. 일반 선택 UI가 필요하면 `mode="select"`를 지정합니다.
 
 ```tsx
-import { DepartmentSelect, RoleSelect } from "@/components/common/reference-selects";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 
-<DepartmentSelect
+<AutoCompleteField
+  source={{ type: "department" }}
   label="부서"
   value={draft.deptCode}
   onChange={(value) => updateDraft("deptCode", value)}
 />
 
-<RoleSelect
+<AutoCompleteField
+  source={{ type: "role" }}
+  mode="select"
   label="역할"
   value={draft.groupCode}
   onChange={(value) => updateDraft("groupCode", value)}
@@ -148,8 +151,11 @@ import { DepartmentSelect, RoleSelect } from "@/components/common/reference-sele
 검색 조건처럼 "전체" 옵션이 필요하면 `includeAll`을 사용합니다.
 
 ```tsx
-<DepartmentSelect
+<AutoCompleteField
+  source={{ type: "department" }}
+  mode="select"
   includeAll
+  allValue="All"
   label="부서"
   value={filters.deptCode}
   onChange={(value) => setFilters((current) => ({ ...current, deptCode: value || "All" }))}
@@ -159,22 +165,34 @@ import { DepartmentSelect, RoleSelect } from "@/components/common/reference-sele
 특정 조건으로 조회해야 하면 `params`를 넘깁니다.
 
 ```tsx
-<UserSelect
+<AutoCompleteField
+  source={{ type: "user", params: { deptCode: selectedDeptCode, useYn: "Y" } }}
   label="담당자"
-  params={{ deptCode: selectedDeptCode, useYn: "Y" }}
-  value={draft.loginId}
-  onChange={(value) => updateDraft("loginId", value)}
+  value={draft.employeeNo}
+  onChange={(value) => updateDraft("employeeNo", value)}
 />
 ```
 
 공통코드 2레벨은 기준 1레벨 코드를 넘겨 사용합니다.
 
 ```tsx
-<CommonCodeLevel2Select
+<AutoCompleteField
+  source={{ type: "common-code-level2", level1Code: "QA" }}
   label="거래처 분류"
-  level1Code="QA"
   value={draft.orderClass}
   onChange={(value) => updateDraft("orderClass", value)}
+/>
+```
+
+이미 조회한 API 응답은 `items`와 `mapOption`으로 연결합니다. `value`에는 저장할 코드, `label`에는 화면에 보일 이름을 지정합니다.
+
+```tsx
+<AutoCompleteField
+  items={usersQuery.data?.content ?? []}
+  mapOption={(user) => ({ label: user.userName, value: user.employeeNo })}
+  label="담당자"
+  value={draft.employeeNo}
+  onChange={(value) => updateDraft("employeeNo", value)}
 />
 ```
 
@@ -234,22 +252,15 @@ export function useClientOptions(params: ClientReferenceSearchParams = {}, optio
 }
 ```
 
-4. 셀렉트가 자주 필요하면 `ReferenceSelects.tsx`에 래퍼 컴포넌트를 추가하고 `index.ts`에서 export합니다.
+4. 셀렉트에서 반복 사용할 데이터라면 `AutoCompleteField.tsx`의 `source` 종류와 조회 분기에 추가합니다. 화면 한 곳에서만 쓰는 응답은 `items`와 `mapOption`으로 전달합니다.
 
 ```tsx
-export function ClientSelect({ params = {}, ...props }: ReferenceSelectProps & { params?: ClientReferenceSearchParams }) {
-  const { isLoading, options } = useClientOptions(params);
-
-  return (
-    <ReferenceSelect {...props} isLoading={isLoading}>
-      {options.map((option) => (
-        <MenuItem key={option.value} value={option.value}>
-          {option.label}
-        </MenuItem>
-      ))}
-    </ReferenceSelect>
-  );
-}
+<AutoCompleteField
+  source={{ type: "client", params: { size: 50 }, searchOnInput: true }}
+  label="발주처"
+  value={draft.clientCode}
+  onChange={(value) => updateDraft("clientCode", value)}
+/>
 ```
 
 ### 작성 기준

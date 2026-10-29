@@ -24,8 +24,16 @@ function normalizeJobName(value: string) {
   return value.normalize("NFKC").replace(/\s+/gu, "").toLocaleLowerCase();
 }
 
+function normalizeProjectHistoryJobClass(row: EngineerPdfExtractionRow): EngineerPdfExtractionRow {
+  const current = row.values.jobclass;
+  if (current === undefined) return row;
+
+  const normalized = current.normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s{2,}/gu, " ");
+  return normalized === current ? row : { ...row, values: { ...row.values, jobclass: normalized } };
+}
+
 export function EngineerPdfExtractionProjectHistoryStep({ active, companyPerformances, disabled = false, engineerId, excludedCompanyPerformanceRowNumbers, mode = "new", onRegister, result }: Props) {
-  const [rows, setRows] = useState<EngineerPdfExtractionRow[]>(result.sections.projectHistories ?? []);
+  const [rows, setRows] = useState<EngineerPdfExtractionRow[]>(() => (result.sections.projectHistories ?? []).map(normalizeProjectHistoryJobClass));
   const [confirmed, setConfirmed] = useState(false);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const linkedRows = useMemo(() => {
@@ -59,7 +67,7 @@ export function EngineerPdfExtractionProjectHistoryStep({ active, companyPerform
   const uncertainCompanyCount = linkedRows.filter((row) => row.values.compname_uncertain === "Y").length;
   const changedCount = linkedRows.filter((row) => ["insert", "update"].includes(row.values[PDF_MERGE_STATUS_FIELD] ?? "")).length;
   const missingCompanyPerformanceCount = linkedRows.filter((row) => !/^\d+$/.test(row.values.seq ?? "")).length;
-  const normalizedRows = () => normalizeExtractionSections({ projectHistories: linkedRows }).projectHistories ?? [];
+  const normalizedRows = () => normalizeExtractionSections({ projectHistories: linkedRows.map(normalizeProjectHistoryJobClass) }).projectHistories ?? [];
   const deleteRows = (rowNumbers: number[]) => {
     const deleted = new Set(rowNumbers);
     setRows((current) => {
@@ -103,7 +111,7 @@ export function EngineerPdfExtractionProjectHistoryStep({ active, companyPerform
         height={500}
         onDeleteRow={(rowNumber) => deleteRows([rowNumber])}
         onDeleteRows={deleteRows}
-        onRowsChange={setRows}
+        onRowsChange={(nextRows) => setRows(nextRows.map(normalizeProjectHistoryJobClass))}
         sectionKey="projectHistories"
         rows={linkedRows}
       />

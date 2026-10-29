@@ -21,7 +21,7 @@ import {
 import type { GridColDef } from "@mui/x-data-grid";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { SearchPanel } from "@/components/common/SearchPanel";
@@ -458,7 +458,7 @@ export function DepartmentManagementPage() {
         }}
         searchDisabled={!canRead}
       >
-        <CommonSelectField
+        <AutoCompleteField mode="select"
           label="사용 여부"
           onChange={(value) => setFilters((current) => ({ ...current, useYn: value || "All" }))}
           options={useYnOptions}

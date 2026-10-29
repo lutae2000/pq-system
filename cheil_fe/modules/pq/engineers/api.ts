@@ -344,7 +344,7 @@ function mapProfile(profile: BackendEngineerProfile): EngineerProfileView {
       compName: text(item.compName),
       deptName: text(item.deptName),
       duty: text(item.duty),
-      engLevel: item.engLevel ?? 0,
+      engLevel: item.engLevel,
       endDate: text(item.endDt),
       grade: text(item.grade),
       id: item.recordId != null ? String(item.recordId) : `PC-${String(item.seq ?? 0).padStart(3, "0")}`,
@@ -493,7 +493,7 @@ function mapCareerDetailRowsToRequest(engrId: string, rows: EngineerProfileView[
     compName: row.compName || null,
     deptName: row.deptName || null,
     duty: row.duty || null,
-    engLevel: row.engLevel || null,
+    engLevel: row.engLevel,
     engrId,
     endDt: normalizeRequestDate(row.endDate),
     grade: row.grade || null,
@@ -598,7 +598,7 @@ export async function saveEngineerMaster(
   const requestBody = mapProfileToRequest(profile);
   const saved = profile.summary?.isNew
     ? await apiRequest<BackendEngineerProfile>(
-        apiClient.post("/pq/engineers", requestBody, { params: { allowDuplicate: Boolean(options.allowDuplicate) } }),
+        apiClient.post("/pq/engineers", { ...requestBody, basic: { ...requestBody.basic, engrId: "" } }, { params: { allowDuplicate: Boolean(options.allowDuplicate) } }),
         "Failed to save engineer profile.",
       )
     : await apiRequest<BackendEngineerProfile>(

@@ -7,10 +7,11 @@ import MonetizationOnOutlinedIcon from "@mui/icons-material/MonetizationOnOutlin
 import PauseCircleOutlineOutlinedIcon from "@mui/icons-material/PauseCircleOutlineOutlined";
 import HighlightOffOutlinedIcon from "@mui/icons-material/HighlightOffOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
-import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRenderCellParams, GridRowParams } from "@mui/x-data-grid";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 
 import { ConfirmActionDialog, ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
@@ -538,23 +539,23 @@ export function WorkOverlapContractManagementPage() {
               sx={standardFieldSx}
               value={filters.clientName}
             />
-            <Autocomplete<WorkOverlapContractEngineerCandidate, false, false, true>
+            <AutoCompleteField
               freeSolo
-              getOptionLabel={engineerOptionLabel}
               inputValue={filters.engineerName}
-              isOptionEqualToValue={(option, value) => typeof value !== "string" && option.engineerId === value.engineerId}
+              items={engineerOptions}
+              label="기술인"
               loading={engineerCandidatesQuery.isFetching}
-              onChange={(_event, nextValue) => {
-                const nextEngineerName = typeof nextValue === "string" ? nextValue : nextValue?.name ?? nextValue?.engineerId ?? "";
-                setFilters((current) => ({ ...current, engineerName: nextEngineerName }));
-                setEngineerKeyword(nextEngineerName);
+              mapOption={(engineer) => ({ label: engineerOptionLabel(engineer), value: engineer.name || engineer.engineerId })}
+              onChange={(value) => {
+                setFilters((current) => ({ ...current, engineerName: value }));
+                setEngineerKeyword(value);
               }}
-              onInputChange={(_event, nextInputValue) => {
-                setFilters((current) => ({ ...current, engineerName: nextInputValue }));
-                setEngineerKeyword(nextInputValue);
+              onInputValueChange={(value) => {
+                setFilters((current) => ({ ...current, engineerName: value }));
+                setEngineerKeyword(value);
               }}
-              options={engineerOptions}
-              renderInput={(params) => <TextField {...params} label="기술인" size="small" sx={{ ...standardFieldSx, flex: "1 1 160px", minWidth: 160, width: "100%" }} />}
+              sx={{ ...standardFieldSx, flex: "1 1 160px", minWidth: 160, width: "100%" }}
+              value={filters.engineerName}
             />
             <Box sx={{ flexBasis: "100%", height: 0, m: 0, p: 0 }} />
             <TextField

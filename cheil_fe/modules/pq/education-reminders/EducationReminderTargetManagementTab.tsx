@@ -20,7 +20,7 @@ import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";

@@ -20,6 +20,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { DateRangeField } from "@/components/common/DateRangeField";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -412,22 +413,8 @@ export function CompanyPerformanceManagementPage() {
           </Button>
         }
       >
-        <TextField label="사업 유형" onChange={(event) => setBusinessType(event.target.value)} select size="small" sx={{ ...standardFieldSx, minWidth: 160 }} value={businessType}>
-          <MenuItem value="">전체</MenuItem>
-          {businessTypeOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.value} - {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField label="발주처 구분" onChange={(event) => setClientKind(event.target.value)} select size="small" sx={{ ...standardFieldSx, minWidth: 180 }} value={clientKind}>
-          <MenuItem value="">전체</MenuItem>
-          {clientKindOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.value} - {option.label}
-            </MenuItem>
-          ))}
-        </TextField>
+        <AutoCompleteField mode="select" label="사업 유형" onChange={setBusinessType} options={businessTypeOptions} placeholder="전체" placeholderDisabled={false} showCode sx={{ ...standardFieldSx, minWidth: 160 }} value={businessType} />
+        <AutoCompleteField mode="select" label="발주처 구분" onChange={setClientKind} options={clientKindOptions} placeholder="전체" placeholderDisabled={false} showCode sx={{ ...standardFieldSx, minWidth: 180 }} value={clientKind} />
         <TextField label="자사 여부" onChange={(event) => setJobOwnFilter(event.target.value as "All" | "Y" | "N")} select size="small" sx={{ ...standardFieldSx, minWidth: 120 }} value={jobOwnFilter}>
           {yesNoOptions.map((option) => (
             <MenuItem key={option.value} value={option.value}>

@@ -7,9 +7,8 @@ import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
-import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
-import { useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 
 import { listDashboardBidNoticeCalendar } from "./dashboard.api";
 import {
@@ -62,7 +61,6 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
   const [activeStatuses, setActiveStatuses] = useState<DashboardScheduleEventType[]>(() => scheduleLabels.map((item) => item.type));
   const [yearMonth, setYearMonth] = useState(dayjs().format("YYYYMM"));
   const [departmentCode, setDepartmentCode] = useState("");
-  const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: isTabActive });
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["dashboard-bid-notice-calendar", yearMonth, departmentCode],
@@ -133,10 +131,10 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           <Typography sx={{ color: "text.secondary", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap" }}>
             부서
           </Typography>
-          <CommonSelectField
+          <AutoCompleteField mode="select"
             label=""
             onChange={(value) => setDepartmentCode(value)}
-            options={departmentOptions.options}
+            source={{ type: "department" }} enabled={isTabActive}
             placeholder="전체"
             placeholderDisabled={false}
             size="small"

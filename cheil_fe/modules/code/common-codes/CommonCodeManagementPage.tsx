@@ -22,7 +22,7 @@ import {
 import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
-import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -362,7 +362,7 @@ export function CommonCodeManagementPage() {
         onSearch={handleSearch}
         searchDisabled={!canRead}
       >
-        <CommonSelectField
+        <AutoCompleteField mode="select"
           label="레벨"
           onChange={(value) =>
             setFilters((current) => ({
@@ -381,7 +381,7 @@ export function CommonCodeManagementPage() {
           sx={{ ...fieldSx, minWidth: 140 }}
           value={String(filters.codeLevel) as "All" | "1" | "2" | "3"}
         />
-        <CommonSelectField
+        <AutoCompleteField mode="select"
           label="사용 여부"
           onChange={(value) => setFilters((current) => ({ ...current, useYn: (value || "All") as FilterState["useYn"] }))}
           options={[

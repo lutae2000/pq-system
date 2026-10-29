@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
-import { CommonSelectField } from "../CommonSelectField";
+import { AutoCompleteField } from "../AutoCompleteField";
 import { SearchPanel } from "../SearchPanel";
 
 const meta = {
@@ -14,11 +14,11 @@ type Story = StoryObj<typeof meta>;
 
 function SearchPanelWithFilter() {
   const [keyword, setKeyword] = useState("홍길동");
-  const [status, setStatus] = useState<"" | "Y" | "N">("");
+  const [status, setStatus] = useState("");
 
   return (
     <SearchPanel keyword={keyword} onKeywordChange={setKeyword} onReset={() => setKeyword("")} onSearch={() => undefined}>
-      <CommonSelectField
+      <AutoCompleteField mode="select"
         label="상태"
         onChange={setStatus}
         options={[

@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import WorkOutlineOutlinedIcon from "@mui/icons-material/WorkOutlineOutlined";
-import { Alert, Autocomplete, Box, Card, CardContent, Chip, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, Card, CardContent, Chip, FormControlLabel, IconButton, MenuItem, Stack, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import type {
   GridColDef,
   GridPaginationModel,
@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
@@ -830,25 +831,19 @@ export function WorkOverlapEngineerListPage() {
             searchDisabled={!canRead || !isQueryValid}
             searchLabel="조회"
           >
-            <Autocomplete<CodeOption>
-              autoHighlight
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, specialtyField: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="전문분야"
+              onChange={(value) => setFilters((current) => ({ ...current, specialtyField: value }))}
               options={specialtyFieldOptions}
               sx={{ flex: "0 1 220px", maxWidth: 240, minWidth: 210, width: "auto" }}
-              value={specialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null}
-              renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={standardFieldSx} />}
+              value={filters.specialtyField}
             />
-            <Autocomplete<CodeOption>
-              autoHighlight
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, jobField: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="직무분야"
+              onChange={(value) => setFilters((current) => ({ ...current, jobField: value }))}
               options={jobFieldOptions}
               sx={{ flex: "0 1 220px", maxWidth: 240, minWidth: 210, width: "auto" }}
-              value={jobFieldOptions.find((option) => option.value === filters.jobField) ?? null}
-              renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={standardFieldSx} />}
+              value={filters.jobField}
             />
             <TextField
               select

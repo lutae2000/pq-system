@@ -55,6 +55,25 @@ class EngineerAdminServiceTest {
     private ArgumentCaptor<Iterable<Long>> deleteIdsCaptor;
 
     @Test
+    void createUsesDatabaseAllocatedIdInsteadOfSubmittedId() {
+        EngineerDtos.Basic submitted = new EngineerDtos.Basic(
+                "E0000001", "new-name", "19800101", "planning", "manager",
+                "design-grade", "construction-management-grade", false, "N", "design", "construction"
+        );
+        when(masterRepository.allocateEngineerId()).thenReturn("E0000002");
+        when(masterRepository.findById("E0000002"))
+                .thenReturn(Optional.of(EngineerMasterEntity.from(submitted, "E0000002")));
+        stubEmptyRelatedProfiles("E0000002");
+
+        EngineerDtos.Profile created = service.create(new EngineerDtos.Profile(submitted, null, null, null, null, null, null));
+
+        ArgumentCaptor<EngineerMasterEntity> savedCaptor = ArgumentCaptor.forClass(EngineerMasterEntity.class);
+        verify(masterRepository).save(savedCaptor.capture());
+        assertThat(savedCaptor.getValue().engrId).isEqualTo("E0000002");
+        assertThat(created.basic().engrId()).isEqualTo("E0000002");
+    }
+
+    @Test
     void saveBasicUpdatesExistingMasterWithoutRecreatingRow() {
         EngineerMasterEntity master = new EngineerMasterEntity();
         master.engrId = "ENG-1";

@@ -25,6 +25,7 @@ import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeUpsertCommand;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeAttachmentRepository;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 @Service
@@ -43,13 +44,19 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    public Page<BidNotice> findAll(BidNoticeSearchCondition condition, Pageable pageable) {
+    public Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable) {
         return bidNoticeRepository.findAll(condition, pageable);
     }
 
     @Transactional(readOnly = true)
     public BidNotice findByBidSeq(Long bidSeq) {
         return bidNoticeRepository.findByBidSeq(requiredPositive(bidSeq, "bidSeq"))
+                .orElseThrow(() -> ApplicationException.notFound("공고문을 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public BidNoticeListRow findDetailByBidSeq(Long bidSeq) {
+        return bidNoticeRepository.findWithClientNameByBidSeq(requiredPositive(bidSeq, "bidSeq"))
                 .orElseThrow(() -> ApplicationException.notFound("공고문을 찾을 수 없습니다."));
     }
 

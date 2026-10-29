@@ -15,9 +15,8 @@ import { MonthlyCategoryStackedChart } from "./MonthlyCategoryStackedChart";
 import type { CategoryMonthlySeries, DashboardCategory, MonthlyAwardAmountRecord, MonthlyBidRecord } from "./dashboard.types";
 import type { DashboardScheduleEvent } from "./dashboardSchedule.data";
 import type { BidNoticeAttachmentState, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
-import type { BidNoticeDetailOptions, BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { useDashboardBidNoticeQuery } from "@/modules/dashboard/application/useDashboardBidNoticeQuery";
-import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
 
 const DashboardScheduleCalendar = dynamic(
@@ -277,40 +276,6 @@ const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
 export function DashboardPage() {
   const isTabActive = useTabActivity();
   const [selectedSchedule, setSelectedSchedule] = useState<DashboardScheduleEvent | null>(null);
-  const bidMethodOptions = useCommonCodeLevel2Options("ZA", { useYn: "Y" }, { enabled: isTabActive });
-  const businessFieldOptions = useCommonCodeLevel2Options("DA", { useYn: "Y" }, { enabled: isTabActive });
-  const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, { enabled: isTabActive }, "level2Code");
-  const bidTypeOptions = useCommonCodeLevel2Options("MB", { useYn: "Y" }, { enabled: isTabActive });
-  const businessTypeOptions = useCommonCodeLevel2Options("CA", { useYn: "Y" }, { enabled: isTabActive });
-  const businessScopeOptions = useCommonCodeLevel2Options("T2", { useYn: "Y" }, { enabled: isTabActive });
-  const finalParticipationOptions = useCommonCodeLevel2Options("YA", { useYn: "Y" }, { enabled: isTabActive });
-  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3", { useYn: "Y" }, { enabled: isTabActive });
-  const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: isTabActive });
-  const detailOptions = useMemo<BidNoticeDetailOptions>(
-    () => ({
-      bidMethods: bidMethodOptions.options,
-      businessFields: businessFieldOptions.options,
-      orderMethods: orderMethodOptions.options,
-      bidTypes: bidTypeOptions.options,
-      businessTypes: businessTypeOptions.options,
-      businessScopes: businessScopeOptions.options,
-      finalParticipationStatuses: finalParticipationOptions.options,
-      reasonsOfAbsence: reasonOfAbsenceOptions.options,
-      clients: [],
-      departments: departmentOptions.options,
-    }),
-    [
-      bidMethodOptions.options,
-      businessFieldOptions.options,
-      orderMethodOptions.options,
-      bidTypeOptions.options,
-      businessTypeOptions.options,
-      businessScopeOptions.options,
-      finalParticipationOptions.options,
-      reasonOfAbsenceOptions.options,
-      departmentOptions.options,
-    ],
-  );
   const detailQuery = useDashboardBidNoticeQuery(isTabActive, selectedSchedule?.bidSeq);
 
   const selectedRecord = useMemo(
@@ -455,7 +420,6 @@ export function DashboardPage() {
         onFieldChange={() => {}}
         onSave={() => {}}
         open={selectedSchedule !== null}
-        options={detailOptions}
         record={selectedRecord}
         saveDisabled
       />

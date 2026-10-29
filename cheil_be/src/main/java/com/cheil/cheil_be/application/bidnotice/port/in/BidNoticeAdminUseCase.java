@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 
 /**
  * 입찰 공고 관리 use case의 inbound port입니다.
@@ -11,9 +12,11 @@ import com.cheil.cheil_be.domain.bidnotice.BidNotice;
  */
 public interface BidNoticeAdminUseCase {
 
-    Page<BidNotice> findAll(BidNoticeSearchCondition condition, Pageable pageable);
+    Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable);
 
     BidNotice findByBidSeq(Long bidSeq);
+
+    BidNoticeListRow findDetailByBidSeq(Long bidSeq);
 
     BidNotice create(BidNoticeUpsertCommand command);
 

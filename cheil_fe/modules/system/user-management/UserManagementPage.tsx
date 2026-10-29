@@ -17,7 +17,6 @@ import {
   FormControlLabel,
   IconButton,
   InputAdornment,
-  MenuItem,
   Tab,
   Tabs,
   Switch,
@@ -27,7 +26,7 @@ import {
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CommonSelectField, defineCommonSelectDataSource } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -87,15 +86,6 @@ const toDeptOption = (dept: DepartmentRecord) => ({
 const toRoleOption = (role: SystemRoleRecord) => ({
   label: role.roleName,
   value: role.roleCode,
-});
-
-const activeRoleSelectDataSource = defineCommonSelectDataSource<SystemRoleRecord, string>({
-  labelKey: "roleName",
-  loadingLabel: "그룹을 불러오는 중입니다.",
-  params: { use_yn: true },
-  queryKey: ["system-roles", "use_yn=true"],
-  uri: "/system/permissions/roles",
-  valueKey: "roleCode",
 });
 
 const EMPTY_USERS: AuthUserAccount[] = [];
@@ -225,14 +215,6 @@ export function UserManagementPage() {
         .map(toRoleOption),
     [rolesQuery.data],
   );
-
-  const draftGroupFallbackOptions = useMemo(() => {
-    if (!draftUser.groupCode || groupOptions.some((option) => option.value === draftUser.groupCode)) {
-      return [];
-    }
-
-    return [{ label: draftUser.groupCode, value: draftUser.groupCode }];
-  }, [draftUser.groupCode, groupOptions]);
 
   const menus = useMemo(() => menuQuery.data ?? [], [menuQuery.data]);
   const menuTree = useMemo(() => buildMenuTree(menus), [menus]);
@@ -569,7 +551,7 @@ export function UserManagementPage() {
           }}
           searchDisabled={!canRead}
         >
-          <CommonSelectField
+          <AutoCompleteField mode="select"
             label="사용 상태"
             onChange={(value) => setUseYnFilter((value || "All") as "All" | "Y" | "N")}
             options={[
@@ -582,17 +564,16 @@ export function UserManagementPage() {
             sx={{ ...standardFieldSx, minWidth: 150 }}
             value={useYnFilter}
           />
-          <CommonSelectField<SystemRoleRecord, string>
-            {...activeRoleSelectDataSource}
+          <AutoCompleteField mode="select" source={{ type: "role" }}
             label="그룹"
-            leadingOptions={[{ label: "전체", value: "All" }]}
+            includeAll allValue="All"
             onChange={(value) => setGroupFilter(value || "All")}
             placeholder="전체"
             placeholderDisabled={false}
             sx={{ ...standardFieldSx, minWidth: 170 }}
             value={groupFilter}
           />
-          <CommonSelectField
+          <AutoCompleteField mode="select"
             label="부서"
             onChange={(value) => setDeptFilter(value || "All")}
             options={[{ label: "전체", value: "All" }, ...deptOptions]}
@@ -759,31 +740,22 @@ export function UserManagementPage() {
                             sx={standardFieldSx}
                             value={draftUser.email}
                           />
-                          <CommonSelectField<SystemRoleRecord, string>
-                            {...activeRoleSelectDataSource}
-                            label="그룹"
+                          <AutoCompleteField mode="select" source={{ type: "role" }}
+                                            label="그룹"
                             onChange={(value) => updateDraft("groupCode", value)}
                             placeholder="선택"
                             sx={standardFieldSx}
-                            trailingOptions={draftGroupFallbackOptions}
                             value={draftUser.groupCode}
                           />
-                          <TextField
-                            fullWidth
+                          <AutoCompleteField
                             label="부서"
-                            onChange={(event) => updateDraft("deptCode", event.target.value)}
-                            select
-                            size="small"
+                            mode="select"
+                            onChange={(value) => updateDraft("deptCode", value)}
+                            options={deptOptions}
+                            placeholderDisabled={false}
                             sx={standardFieldSx}
                             value={draftUser.deptCode}
-                          >
-                            <MenuItem value="">선택</MenuItem>
-                            {deptOptions.map((option) => (
-                              <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+                          />
                           <Box sx={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 2 }}>
                             <FormControlLabel
                               control={<Switch checked={draftUser.useYn} onChange={(_, checked) => updateDraft("useYn", checked)} size="small" />}

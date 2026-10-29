@@ -113,7 +113,7 @@ export type CareerDetailRecord = {
   compName: string;
   deptName: string;
   duty: string;
-  engLevel: number;
+  engLevel: number | null;
   endDate: string;
   grade: string;
   id: string;

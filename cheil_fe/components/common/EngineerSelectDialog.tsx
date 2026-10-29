@@ -3,7 +3,6 @@
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
-  Autocomplete,
   Box,
   Button,
   Chip,
@@ -21,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
-import { DepartmentSelect } from "@/components/common/reference-selects/ReferenceSelects";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { listEngineerProfiles, type EngineerProfileListFilters } from "@/modules/pq/engineers/api";
@@ -233,43 +232,35 @@ export function EngineerSelectDialog({
           />
 
           <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "repeat(5, minmax(0, 1fr))" } }}>
-            <DepartmentSelect
+            <AutoCompleteField source={{ type: "department" }} mode="select"
               includeAll
               label="부서"
               onChange={(value) => setFilters((current) => ({ ...current, department: value === "All" ? "" : value }))}
               value={filters.department}
             />
-            <Autocomplete<CodeOption>
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, jobField: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="직무분야"
+              onChange={(value) => setFilters((current) => ({ ...current, jobField: value }))}
               options={jobFieldOptions}
-              value={jobFieldOptions.find((option) => option.value === filters.jobField) ?? null}
-              renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={standardFieldSx} />}
+              value={filters.jobField}
             />
-            <Autocomplete<CodeOption>
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, specialtyField: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="전문분야"
+              onChange={(value) => setFilters((current) => ({ ...current, specialtyField: value }))}
               options={specialtyFieldOptions}
-              value={specialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null}
-              renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={standardFieldSx} />}
+              value={filters.specialtyField}
             />
-            <Autocomplete<CodeOption>
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, designGrade: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="설계등급"
+              onChange={(value) => setFilters((current) => ({ ...current, designGrade: value }))}
               options={gradeOptions}
-              value={gradeOptions.find((option) => option.value === filters.designGrade) ?? null}
-              renderInput={(params) => <TextField {...params} label="설계등급" size="small" sx={standardFieldSx} />}
+              value={filters.designGrade}
             />
-            <Autocomplete<CodeOption>
-              getOptionLabel={(option) => option.label}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              onChange={(_, option) => setFilters((current) => ({ ...current, constructionManagementGrade: option?.value ?? "" }))}
+            <AutoCompleteField
+              label="건설사업관리 등급"
+              onChange={(value) => setFilters((current) => ({ ...current, constructionManagementGrade: value }))}
               options={gradeOptions}
-              value={gradeOptions.find((option) => option.value === filters.constructionManagementGrade) ?? null}
-              renderInput={(params) => <TextField {...params} label="건설사업관리 등급" size="small" sx={standardFieldSx} />}
+              value={filters.constructionManagementGrade}
             />
           </Box>
 

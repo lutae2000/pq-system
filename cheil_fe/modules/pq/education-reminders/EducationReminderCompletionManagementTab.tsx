@@ -7,7 +7,7 @@ import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";

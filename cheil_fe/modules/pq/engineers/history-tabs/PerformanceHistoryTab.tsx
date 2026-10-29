@@ -65,7 +65,7 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         width: 80,
         align: "right",
         headerAlign: "right",
-        valueFormatter: (value) => formatPaddedLevel2CodeLabel(technicalGradeLabelByCode, value),
+        valueFormatter: (value) => value == null ? "" : formatPaddedLevel2CodeLabel(technicalGradeLabelByCode, value),
       },
       { field: "compName", headerName: "참여회사", width: 150, align: "center", headerAlign: "center"},
       { field: "deptName", headerName: "참여부서", width: 130, align: "center", headerAlign: "center" },

@@ -2,12 +2,9 @@
 
 import { TextField } from "@mui/material";
 import { DateRangeField } from "@/components/common/DateRangeField";
+import { CheckboxSelectInput, type CheckboxOption } from "@/components/common/CheckboxSelectInput";
 
-import {
-  CheckboxListInput,
-  standardFieldSx,
-  type CheckboxOption,
-} from "@/components/common/FormControls";
+import { standardFieldSx } from "@/components/common/FormControls";
 import type { G2bBidNoticeCandidateSearchFilters } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 
 type Props = {
@@ -54,28 +51,28 @@ export function G2bBidNoticeCandidateFilters({ filters, onChange }: Props) {
         sx={standardFieldSx}
         value={filters.bidNtceNm}
       />
-      <CheckboxListInput
+      <CheckboxSelectInput labelPlacement="inside" placeholder="선택"
         label="공고구분"
         name="ntceKindNm"
         onChange={(name, value) => onChange(name as "ntceKindNm", value)}
         options={noticeKindOptions}
         value={filters.ntceKindNm}
       />
-      <CheckboxListInput
+      <CheckboxSelectInput labelPlacement="inside" placeholder="선택"
         label="공고문 반영"
         name="importedYn"
         onChange={(name, value) => onChange(name as "importedYn", value)}
         options={importedOptions}
         value={filters.importedYn}
       />
-      <CheckboxListInput
+      <CheckboxSelectInput labelPlacement="inside" placeholder="선택"
         label="용역구분"
         name="srvceDivNm"
         onChange={(name, value) => onChange(name as "srvceDivNm", value)}
         options={serviceDivisionOptions}
         value={filters.srvceDivNm}
       />
-      <CheckboxListInput
+      <CheckboxSelectInput labelPlacement="inside" placeholder="선택"
         label="계약구분"
         name="cntrctCnclsMthdNm"
         onChange={(name, value) => onChange(name as "cntrctCnclsMthdNm", value)}

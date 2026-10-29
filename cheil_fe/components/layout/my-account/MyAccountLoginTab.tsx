@@ -3,15 +3,16 @@
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import { Alert, Autocomplete, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, IconButton, InputAdornment, Stack, TextField, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { readAuthSession, writeAuthSession } from "@/lib/auth/authSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { getMyAccount, updateMyAccount, type MyAccountUpdateRequest } from "@/modules/auth/authApi";
-import { useDepartmentOptions, useRoleOptions } from "@/modules/common/reference/useReferenceOptions";
+import { useRoleOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type FormState = MyAccountUpdateRequest & { confirmPassword: string };
 const emptyForm: FormState = { confirmPassword: "", deptCode: "", email: "", employeeNo: "", currentPassword: "", newPassword: "" };
@@ -30,7 +31,6 @@ export function MyAccountLoginTab({ active, onClose }: { active: boolean; onClos
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: active });
   const roleOptions = useRoleOptions({ useYn: true }, { enabled: active });
   const accountQuery = useQuery({ queryKey: ["auth", "me"], queryFn: getMyAccount, enabled: active });
 
@@ -82,7 +82,7 @@ export function MyAccountLoginTab({ active, onClose }: { active: boolean; onClos
         <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
           <TextField disabled label="이름" value={accountQuery.data?.userName ?? ""} />
           <TextField label="사번" onChange={(event) => updateForm("employeeNo", event.target.value)} value={form.employeeNo} />
-          <Autocomplete autoHighlight disabled={departmentOptions.isLoading} fullWidth getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, selected) => option.value === selected.value} loading={departmentOptions.isLoading} noOptionsText="부서가 없습니다." onChange={(_, nextValue) => updateForm("deptCode", nextValue?.value ?? "")} options={departmentOptions.options} value={departmentOptions.options.find((option) => option.value === form.deptCode) ?? null} renderInput={(params) => <TextField {...params} label="부서" placeholder="부서 검색" size="small" />} />
+          <AutoCompleteField source={{ type: "department" }} enabled={active} label="부서" noOptionsText="부서가 없습니다." onChange={(value) => updateForm("deptCode", value)} placeholder="부서 검색" value={form.deptCode} />
           <TextField label="이메일" onChange={(event) => updateForm("email", event.target.value)} type="email" value={form.email} />
           <TextField disabled label="역할" value={roleOptions.labelByValue[accountQuery.data?.groupCode ?? ""] ?? ""} />
           <TextField disabled label="패스워드 초기화 날짜" value={formatDate(accountQuery.data?.passwordResetDt)} />

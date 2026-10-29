@@ -86,7 +86,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     @Transactional
     public EngineerDtos.Profile create(EngineerDtos.Profile request, boolean allowDuplicate) {
         EngineerDtos.Basic basic = requireBasic(request);
-        String engrId = requireEngrId(basic.engrId());
+        String engrId = masterRepository.allocateEngineerId();
         if (masterRepository.existsById(engrId)) {
             throw ApplicationException.conflict("Engineer already exists.");
         }

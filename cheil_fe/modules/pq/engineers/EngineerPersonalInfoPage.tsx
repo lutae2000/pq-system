@@ -42,6 +42,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
@@ -411,6 +412,13 @@ function isTemporaryRecordId(id: unknown) {
   return String(id ?? "").startsWith("tmp-");
 }
 
+function parseNullableEngLevel(value: string | undefined): number | null {
+  const normalized = value?.trim();
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function createAttachmentItems(files: File[]): AttachmentItem[] {
   return files.map((file, index) => ({
     id: `${file.name}-${file.lastModified}-${index}`,
@@ -471,18 +479,8 @@ const createEmptyTrainingRecord = (nextId = ""): TrainingRecord => ({
   attachments: [],
 });
 
-function createNewEngineerId(existingIds: string[]) {
-  const nextNumber =
-    existingIds.reduce((max, id) => {
-      const match = id.match(/^E(\d{7})$/);
-      if (!match) {
-        return max;
-      }
-
-      return Math.max(max, Number(match[1]));
-    }, 0) + 1;
-
-  return `E${String(nextNumber).padStart(7, "0")}`;
+function createDraftEngineerId() {
+  return `draft-${crypto.randomUUID()}`;
 }
 
 function createEmptyEngineerProfile(nextId: string, filters: EngineerFilterState): EngineerProfile {
@@ -912,7 +910,7 @@ export function EngineerPersonalInfoPage() {
       return;
     }
 
-    const nextId = createNewEngineerId(profiles.map((profile) => profile.summary.id));
+    const nextId = createDraftEngineerId();
     const nextProfile = createEmptyEngineerProfile(nextId, filters);
 
     setProfiles((current) => [nextProfile, ...current]);
@@ -940,7 +938,7 @@ export function EngineerPersonalInfoPage() {
   };
 
   const createProfileFromPdfExtraction = (extraction: EngineerPdfExtraction) => {
-    const nextId = createNewEngineerId(profiles.map((profile) => profile.summary.id));
+    const nextId = createDraftEngineerId();
     const nextProfile = createEmptyEngineerProfile(nextId, filters);
     const birthDate = formatDate8(extraction.basic.birthDate);
     nextProfile.summary.name = extraction.basic.name || nextProfile.summary.name;
@@ -1018,7 +1016,7 @@ export function EngineerPersonalInfoPage() {
         compName: values.compname ?? "",
         deptName: values.deptname ?? "",
         duty: values.duty ?? "",
-        engLevel: Number(values.englevel) || 0,
+        engLevel: parseNullableEngLevel(values.englevel),
         endDate: formatDate8(values.enddt),
         grade: values.grade ?? "",
         id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,
@@ -1116,7 +1114,7 @@ export function EngineerPersonalInfoPage() {
         compName: values.compname ?? "",
         deptName: values.deptname ?? "",
         duty: values.duty ?? "",
-        engLevel: Number(values.englevel) || 0,
+        engLevel: parseNullableEngLevel(values.englevel),
         endDate: formatDate8(values.enddt),
         grade: values.grade ?? "",
         id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,
@@ -1189,7 +1187,13 @@ export function EngineerPersonalInfoPage() {
 
     try {
       const saved = await engineerCommands.saveEngineerMaster(selectedEngineer.summary.id, selectedEngineer);
-      replaceProfile(saved);
+      if (selectedEngineer.summary.isNew) {
+        setProfiles((current) => [saved, ...current.filter((profile) =>
+          profile.summary.id !== selectedEngineer.summary.id && profile.summary.id !== saved.summary.id,
+        )]);
+      } else {
+        replaceProfile(saved);
+      }
       setSelectedEngineerId(saved.summary.id);
     } catch (error) {
       showError(error instanceof Error && error.message === "중복된 기술인이 있습니다." ? error.message : "기술인 정보 저장에 실패했습니다.");
@@ -2081,85 +2085,61 @@ export function EngineerPersonalInfoPage() {
           <MenuItem value="휴직">휴직</MenuItem>
           <MenuItem value="퇴직">퇴직</MenuItem>
         </TextField>
-        <Autocomplete
-          disableClearable={false}
-          fullWidth
-          getOptionLabel={(option) => option.certName}
-          isOptionEqualToValue={(option, value) => option.certCode === value.certCode}
-          options={certificationOptions}
+        <AutoCompleteField
+          items={certificationOptions}
+          label="보유 자격증"
+          mapOption={(option) => ({ label: option.certName, value: option.certCode })}
+          onChange={(value) => setFilters((current) => ({ ...current, certificationCode: value }))}
           sx={{ flex: "1 1 200px", minWidth: 200, maxWidth: 240, width: "auto" }}
-          value={certificationOptions.find((option) => option.certCode === filters.certificationCode) ?? null}
-          onChange={(_, option) =>
-            setFilters((current) => ({
-              ...current,
-              certificationCode: option?.certCode ?? "",
-            }))
-          }
-          renderInput={(params) => <TextField {...params} label="보유 자격증" size="small" sx={fieldSx} />}
+          value={filters.certificationCode}
         />
-        <Autocomplete
-          disableClearable={false}
-          fullWidth
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
+        <AutoCompleteField
+          label="설계등급"
           options={designGradeOptions}
           sx={{ flex: "1 1 170px", minWidth: 170, maxWidth: 210, width: "auto" }}
-          value={designGradeOptions.find((option) => option.value === filters.designGrade) ?? null}
-          onChange={(_, option) =>
+          value={filters.designGrade}
+          onChange={(value) =>
             setFilters((current) => ({
               ...current,
-              designGrade: option?.value ?? "",
+              designGrade: value,
             }))
           }
-          renderInput={(params) => <TextField {...params} label="설계등급" size="small" sx={fieldSx} />}
         />
-        <Autocomplete
-          disableClearable={false}
-          fullWidth
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
+        <AutoCompleteField
+          label="건설사업 관리 등급"
           options={constructionManagementGradeOptions}
           sx={{ flex: "1 1 210px", minWidth: 190, maxWidth: 240, width: "auto" }}
-          value={constructionManagementGradeOptions.find((option) => option.value === filters.supervisionGrade) ?? null}
-          onChange={(_, option) =>
+          value={filters.supervisionGrade}
+          onChange={(value) =>
             setFilters((current) => ({
               ...current,
-              supervisionGrade: option?.value ?? "",
+              supervisionGrade: value,
             }))
           }
-          renderInput={(params) => <TextField {...params} label="건설사업 관리 등급" size="small" sx={fieldSx} />}
         />
-        <Autocomplete<CodeOption>
-          disableClearable={false}
-          fullWidth
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
+        <AutoCompleteField
+          label="전문분야"
           options={searchSpecialtyFieldOptions}
           sx={{ flex: "0 1 180px", minWidth: 180, maxWidth: 210, width: "auto" }}
-          value={searchSpecialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null}
-          onChange={(_, option) =>
+          value={filters.specialtyField}
+          onChange={(value) =>
             setFilters((current) => ({
               ...current,
-              specialtyField: option?.value ?? "",
+              specialtyField: value,
             }))
           }
-          renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={fieldSx} />}
         />
-        <Autocomplete<CodeOption>
-          disableClearable={false}
-          fullWidth
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
+        <AutoCompleteField
+          label="직무분야"
           options={searchJobFieldOptions}
           sx={{ flex: "0 1 180px", minWidth: 180, maxWidth: 210, width: "auto" }}
-          value={searchJobFieldOptions.find((option) => option.value === filters.jobField) ?? null}
-          onChange={(_, option) =>
+          value={filters.jobField}
+          onChange={(value) =>
             setFilters((current) => ({
               ...current,
-              jobField: option?.value ?? "",
+              jobField: value,
             }))
           }
-          renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={fieldSx} />}
         />
       </SearchPanel>
 
@@ -2349,51 +2329,39 @@ export function EngineerPersonalInfoPage() {
                     <Divider sx={{ my: 1 }} />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
-                    <Autocomplete<CodeOption>
-                      fullWidth
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) => option.value === value.value}
+                    <AutoCompleteField
+                      label="직무분야"
                       options={jobFieldSelectOptions}
-                      value={jobFieldSelectOptions.find((option) => option.value === selectedJobField) ?? null}
-                      onChange={(_, nextValue) => updateSelectedEngineerDetailField("jobField", nextValue?.value ?? "")}
-                      renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={fieldSx} />}
+                      value={selectedJobField}
+                      onChange={(value) => updateSelectedEngineerDetailField("jobField", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
-                    <Autocomplete<CodeOption>
-                      fullWidth
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) => option.value === value.value}
+                    <AutoCompleteField
+                      label="전문분야"
                       options={specialtyFieldSelectOptions}
-                      value={specialtyFieldSelectOptions.find((option) => option.value === selectedSpecialtyField) ?? null}
-                      onChange={(_, nextValue) =>
-                        updateSelectedEngineerDetailField("specialtyField", nextValue?.value ?? "")
+                      value={selectedSpecialtyField}
+                      onChange={(value) =>
+                        updateSelectedEngineerDetailField("specialtyField", value)
                       }
-                      renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={fieldSx} />}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
-                    <Autocomplete
-                      fullWidth
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) => option.value === value.value}
+                    <AutoCompleteField
+                      label="설계 등급"
                       options={gradeOptions}
-                      value={gradeOptions.find((option) => option.value === selectedTechnicalField) ?? null}
-                      onChange={(_, nextValue) => updateSelectedEngineerDetailField("technicalField", nextValue?.value ?? "")}
-                      renderInput={(params) => <TextField {...params} label="설계 등급" size="small" sx={fieldSx} />}
+                      value={selectedTechnicalField}
+                      onChange={(value) => updateSelectedEngineerDetailField("technicalField", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 3 }}>
-                    <Autocomplete
-                      fullWidth
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) => option.value === value.value}
+                    <AutoCompleteField
+                      label="건설사업 관리 등급"
                       options={constructionManagementGradeOptions}
-                      value={constructionManagementGradeOptions.find((option) => option.value === selectedSupervisionQualification) ?? null}
-                      onChange={(_, nextValue) =>
-                        updateSelectedEngineerDetailField("supervisionQualification", nextValue?.value ?? "")
+                      value={selectedSupervisionQualification}
+                      onChange={(value) =>
+                        updateSelectedEngineerDetailField("supervisionQualification", value)
                       }
-                      renderInput={(params) => <TextField {...params} label="건설사업 관리 등급" size="small" sx={fieldSx} />}
                     />
                   </Grid>
                 </Grid>

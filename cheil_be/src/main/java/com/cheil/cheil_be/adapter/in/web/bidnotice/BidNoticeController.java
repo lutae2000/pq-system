@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
@@ -54,8 +55,8 @@ public class BidNoticeController {
             @RequestParam(required = false) String bidSuccessYn,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshot();
-        Page<BidNotice> result = bidNoticeAdminUseCase.findAll(
+        BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshotForList();
+        Page<BidNoticeListRow> result = bidNoticeAdminUseCase.findAll(
                 new BidNoticeSearchCondition(
                         keyword,
                         departmentCode,
@@ -92,7 +93,8 @@ public class BidNoticeController {
      */
     @GetMapping("/pq/bid-notice/{bidSeq}")
     public ResponseEntity<BidNoticeResponse> get(@PathVariable Long bidSeq) {
-        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminUseCase.findByBidSeq(bidSeq)));
+        BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshotForList();
+        return ResponseEntity.ok(bidNoticeResponseMapper.toResponse(bidNoticeAdminUseCase.findDetailByBidSeq(bidSeq), lookup));
     }
 
     /**

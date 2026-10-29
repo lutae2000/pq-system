@@ -19,12 +19,16 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
+import com.cheil.cheil_be.adapter.out.persistence.client.QClientEntity;
+import com.cheil.cheil_be.adapter.out.persistence.department.QDepartmentEntity;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 @Repository
@@ -39,10 +43,15 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<BidNotice> findAll(BidNoticeSearchCondition condition, Pageable pageable) {
+    public Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable) {
         BooleanBuilder predicate = toPredicate(condition);
+        QClientEntity client = new QClientEntity("client");
+        QDepartmentEntity department = new QDepartmentEntity("department");
         var query = queryFactory
-                .selectFrom(bidNoticeEntity)
+                .select(bidNoticeEntity, client.orderName, department.deptName)
+                .from(bidNoticeEntity)
+                .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
+                .leftJoin(department).on(department.deptCode.eq(bidNoticeEntity.departmentCode))
                 .where(predicate)
                 .orderBy(
                         bidNoticeEntity.bidDate.desc().nullsLast(),
@@ -53,8 +62,8 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
             query.offset(pageable.getOffset()).limit(pageable.getPageSize());
         }
 
-        List<BidNotice> content = query.fetch().stream()
-                .map(BidNoticeEntity::toDomain)
+        List<BidNoticeListRow> content = query.fetch().stream()
+                .map(row -> toRow(row, client, department))
                 .toList();
 
         return PageableExecutionUtils.getPage(
@@ -90,6 +99,29 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
     @Override
     public Optional<BidNotice> findByBidSeq(Long bidSeq) {
         return bidNoticeJpaRepository.findById(bidSeq).map(BidNoticeEntity::toDomain);
+    }
+
+    @Override
+    public Optional<BidNoticeListRow> findWithClientNameByBidSeq(Long bidSeq) {
+        QClientEntity client = new QClientEntity("client");
+        QDepartmentEntity department = new QDepartmentEntity("department");
+        Tuple row = queryFactory
+                .select(bidNoticeEntity, client.orderName, department.deptName)
+                .from(bidNoticeEntity)
+                .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
+                .leftJoin(department).on(department.deptCode.eq(bidNoticeEntity.departmentCode))
+                .where(bidNoticeEntity.bidSeq.eq(bidSeq))
+                .fetchOne();
+        return Optional.ofNullable(row).map(result -> toRow(result, client, department));
+    }
+
+    private BidNoticeListRow toRow(Tuple row, QClientEntity client, QDepartmentEntity department) {
+        BidNotice bidNotice = row.get(bidNoticeEntity).toDomain();
+        String clientName = row.get(client.orderName);
+        String orderClientName = StringUtils.hasText(clientName) ? clientName : bidNotice.orderClient();
+        String departmentName = row.get(department.deptName);
+        return new BidNoticeListRow(bidNotice, orderClientName,
+                StringUtils.hasText(departmentName) ? departmentName : bidNotice.departmentCode());
     }
 
     @Override

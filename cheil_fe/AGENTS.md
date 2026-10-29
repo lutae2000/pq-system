@@ -8,12 +8,12 @@
 - 요청 경로는 Next.js가 노출하는 `/api` 기준으로 작성한다. 예: `apiClient.get("/auth/users")`
 - HTTP 타입은 한 곳에서 공통으로 관리하고, 각 모듈은 필요한 타입만 재사용한다.
 - 여러 화면에서 반복 조회하는 역할, 사용자, 부서, 공사종류, 공통코드 옵션은 `modules/common/reference`의 reference API와 hook을 우선 사용한다.
-- 셀렉트 UI가 필요하면 `components/common/reference-selects`의 `RoleSelect`, `UserSelect`, `DepartmentSelect`, `ConstructionTypeSelect`, `CommonCodeLevel1Select`, `CommonCodeLevel2Select`를 우선 사용한다.
+- 참조 선택 UI는 `components/common/AutoCompleteField.tsx`의 `AutoCompleteField`를 사용한다. 부서·발주처·사용자·기술인·역할·공통코드 등 정해진 조회는 `source`, 이미 조회한 API 응답은 `items`와 `mapOption`을 전달한다. 일반 선택 목록은 `mode="select"`를 사용한다.
 - 화면마다 `useQuery`와 옵션 변환 함수를 새로 만들지 않는다. 특수 필터가 필요하면 reference hook의 `params`로 전달하고, 공통화가 필요한 새 조회 API는 `referenceApi.ts`와 `useReferenceOptions.ts`에 추가한다.
 - reference 조회는 조회 전용 공통 데이터에만 사용한다. 저장/수정/삭제가 필요한 관리 화면 API는 각 업무 모듈의 `api.ts`에 둔다.
 - reference hook은 `{ items, options, labelByValue }`를 반환한다. 셀렉트는 `options`, 그리드/상세의 코드명 변환은 `labelByValue`, 원본 레코드가 필요하면 `items`를 사용한다.
 - reference hook의 query key는 `["references", 도메인명, params]` 형식을 유지하고, 기본 캐시 시간은 `REFERENCE_STALE_TIME`을 사용한다.
-- 새 공통 reference를 추가할 때는 `referenceApi.ts`에 `get...References()`, `useReferenceOptions.ts`에 `use...Options()`, 필요하면 `components/common/reference-selects/ReferenceSelects.tsx`에 `...Select`를 함께 추가한다.
+- 새 공통 reference를 추가할 때는 `referenceApi.ts`에 `get...References()`, `useReferenceOptions.ts`에 `use...Options()`, 필요하면 `AutoCompleteField.tsx`의 `source` 종류를 추가한다.
 - reference option의 `value`는 화면 저장값과 동일한 코드 값을 사용하고, `label`은 사용자가 볼 이름으로 만든다. 중복 value는 `referenceApi.ts`의 공통 변환 로직에서 제거되므로 임의로 중복 option을 만들지 않는다.
 - 로컬에서 `x-api-key`가 바뀌면 `.env.local`과 `.env.development`, 백엔드의 `APP_APPLICATION_API_KEY` 값을 같은 값으로 맞춘다.
 - `next.config.ts`에는 API 인증 헤더를 직접 주입하지 않는다. 요청 헤더 관리는 `apiClient`에서만 처리한다.
@@ -182,7 +182,7 @@ modules/<area>/<feature>/
 - 금액 입력은 `components/common/MoneyInputField.tsx`를 우선 사용한다. DB/API의 미입력 값이 `null`인지 `0`인지 확인하고 `onChange`에서 명시적으로 변환한다. 읽기 전용 상태를 포커스 가능하게 유지할지, `disabled`로 처리할지도 화면별로 지정한다.
 - 테두리와 제목 헤더가 있는 상세 카드에는 `DetailSectionCard`를, 제목·설명·필드 그리드가 필요한 섹션에는 `DetailFormSection`을 사용한다. 기존 화면을 전환할 때 제목 우측 액션, 본문 여백, 높이 계산을 함께 확인한다.
 - 첨부파일 업로드·삭제·정렬에는 `FileActionCard`를 사용한다. 기존 읽기 전용 첨부파일 표시와 다운로드 동작은 해당 화면 요구가 같을 때만 공통화한다.
-- 업체 선택은 `useClientOptions` 또는 `ClientSelect`를 우선 사용한다. 검색 결과 밖에 있는 기존 선택 코드의 표시가 필요하면 `useClientByCode`를 함께 사용하고, 화면마다 별도의 업체 조회 query key를 만들지 않는다.
+- 업체 선택은 `AutoCompleteField`의 `source={{ type: "client" }}` 또는 `useClientOptions`를 사용한다. 검색 결과 밖에 있는 기존 선택 코드의 표시가 필요하면 `useClientByCode`를 함께 사용하고, 화면마다 별도의 업체 조회 query key를 만들지 않는다.
 
 ## 화면 단위 개선과 병렬 작업
 

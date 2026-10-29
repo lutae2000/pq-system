@@ -2,9 +2,10 @@
 
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Autocomplete, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, Stack, TextField, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, Stack, TextField, Typography } from "@mui/material";
+import { memo, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { toSelectOptions, type SelectOption } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import {
@@ -28,6 +29,52 @@ type Props = {
   open: boolean;
   result: EngineerPdfExtraction;
 };
+
+type PendingUpdate = { key: string; label: string; rows?: EngineerPdfExtractionRow[] };
+
+const PersonnelSectionGrids = memo(function PersonnelSectionGrids({
+  certificationNameByCode,
+  degreeNameByCode,
+  disabled,
+  mode,
+  savingSection,
+  sectionEdits,
+  sections,
+  setPendingUpdate,
+  setSectionEdits,
+}: {
+  certificationNameByCode: ReadonlyMap<string, string>;
+  degreeNameByCode: ReadonlyMap<string, string>;
+  disabled: boolean;
+  mode: "new" | "update";
+  savingSection: string;
+  sectionEdits: Record<string, EngineerPdfExtractionRow[]>;
+  sections: EngineerPdfExtraction["sections"];
+  setPendingUpdate: Dispatch<SetStateAction<PendingUpdate | null>>;
+  setSectionEdits: Dispatch<SetStateAction<Record<string, EngineerPdfExtractionRow[]>>>;
+}) {
+  return <Grid container spacing={1.25} sx={{ mt: 0 }}>
+    {personnelSections.map(({ key, label }) => {
+      const rows = sectionEdits[key] ?? sections[key] ?? [];
+      const changedCount = rows.filter((row) => ["insert", "update"].includes(row.values[PDF_MERGE_STATUS_FIELD] ?? "")).length;
+      return <Grid key={key} size={{ xs: 12, md: 6 }}><SectionFrame
+        title={label}
+        count={rows.length}
+        actions={mode === "update" && key !== "sanctions"
+          ? <Button disabled={disabled || savingSection !== "" || changedCount === 0} size="small" startIcon={<SaveOutlinedIcon />} variant="contained" onClick={() => setPendingUpdate({ key, label, rows })}>{label} 업데이트</Button>
+          : mode === "update" ? <Typography color="text.secondary" variant="caption">검토 전용</Typography> : undefined}
+      ><ExtractionGrid
+        onDeleteRow={mode === "update" ? (rowNumber) => setSectionEdits((current) => ({ ...current, [key]: discardMergedExtractionRow(rows, rowNumber) })) : undefined}
+        onRowsChange={(nextRows) => setSectionEdits((current) => ({ ...current, [key]: nextRows }))}
+        sectionKey={key}
+        rows={rows}
+        valueLabel={key === "licenses"
+          ? { field: "license_code", labels: certificationNameByCode }
+          : key === "education" ? { field: "career", labels: degreeNameByCode } : undefined}
+      /></SectionFrame></Grid>;
+    })}
+  </Grid>;
+});
 
 const emptyBasic: EngineerPdfExtraction["basic"] = {
   name: "",
@@ -55,7 +102,7 @@ export function EngineerPdfExtractionPersonnelStep({ active, certificationNameBy
   const [sectionEdits, setSectionEdits] = useState<Record<string, EngineerPdfExtractionRow[]>>({});
   const [confirmed, setConfirmed] = useState(false);
   const [savingSection, setSavingSection] = useState("");
-  const [pendingUpdate, setPendingUpdate] = useState<{ key: string; label: string; rows?: EngineerPdfExtractionRow[] } | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate | null>(null);
   const gradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: open });
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: open });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: open });
@@ -136,35 +183,34 @@ export function EngineerPdfExtractionPersonnelStep({ active, certificationNameBy
       <Grid container spacing={0.75} sx={{ p: 0.75 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="성명" size="small" value={displayBasic.name} onChange={(event) => updateBasic("name", event.target.value)} /></Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="생년월일" size="small" type="date" value={displayBasic.birthDate} onChange={(event) => updateBasic("birthDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="부서" size="small" value={displayBasic.department} onChange={(event) => updateBasic("department", event.target.value)} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField
+          enabled={open && active}
+          freeSolo
+          inputValue={displayBasic.department}
+          label="부서"
+          onChange={(value) => updateBasic("department", value)}
+          onInputValueChange={(value) => updateBasic("department", value)}
+          source={{ type: "department", valueMode: "name" }}
+          value={displayBasic.department}
+        /></Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="직위" size="small" value={displayBasic.position} onChange={(event) => updateBasic("position", event.target.value)} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={jobFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedJobField} onChange={(_, option) => updateBasic("workField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.workField && !matchedJobField)} helperText={displayBasic.workField && !matchedJobField ? `추출값: ${displayBasic.workField}` : undefined} label="직무분야" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={specialtyFieldOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedSpecialtyField} onChange={(_, option) => updateBasic("specialtyField", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.specialtyField && !matchedSpecialtyField)} helperText={displayBasic.specialtyField && !matchedSpecialtyField ? `추출값: ${displayBasic.specialtyField}` : undefined} label="전문분야" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedDesignGrade} onChange={(_, option) => updateBasic("designGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.designGrade && !matchedDesignGrade)} helperText={displayBasic.designGrade && !matchedDesignGrade ? `추출값: ${displayBasic.designGrade}` : undefined} label="설계 등급" size="small" />} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><Autocomplete fullWidth options={gradeOptions} getOptionLabel={(option) => option.label} isOptionEqualToValue={(option, value) => option.value === value.value} value={matchedConstructionManagementGrade} onChange={(_, option) => updateBasic("constructionManagementGrade", option?.value ?? "")} renderInput={(params) => <TextField {...params} error={Boolean(displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade)} helperText={displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade ? `추출값: ${displayBasic.constructionManagementGrade}` : undefined} label="건설사업관리 등급" size="small" />} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField error={Boolean(displayBasic.workField && !matchedJobField)} helperText={displayBasic.workField && !matchedJobField ? `추출값: ${displayBasic.workField}` : undefined} label="직무분야" onChange={(value) => updateBasic("workField", value)} options={jobFieldOptions} value={matchedJobField?.value ?? ""} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField error={Boolean(displayBasic.specialtyField && !matchedSpecialtyField)} helperText={displayBasic.specialtyField && !matchedSpecialtyField ? `추출값: ${displayBasic.specialtyField}` : undefined} label="전문분야" onChange={(value) => updateBasic("specialtyField", value)} options={specialtyFieldOptions} value={matchedSpecialtyField?.value ?? ""} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField error={Boolean(displayBasic.designGrade && !matchedDesignGrade)} helperText={displayBasic.designGrade && !matchedDesignGrade ? `추출값: ${displayBasic.designGrade}` : undefined} label="설계 등급" onChange={(value) => updateBasic("designGrade", value)} options={gradeOptions} value={matchedDesignGrade?.value ?? ""} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField error={Boolean(displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade)} helperText={displayBasic.constructionManagementGrade && !matchedConstructionManagementGrade ? `추출값: ${displayBasic.constructionManagementGrade}` : undefined} label="건설사업관리 등급" onChange={(value) => updateBasic("constructionManagementGrade", value)} options={gradeOptions} value={matchedConstructionManagementGrade?.value ?? ""} /></Grid>
       </Grid>
     </SectionFrame>
-    <Grid container spacing={1.25} sx={{ mt: 0 }}>
-      {personnelSections.map(({ key, label }) => {
-        const rows = sectionEdits[key] ?? result.sections[key] ?? [];
-        const changedCount = rows.filter((row) => ["insert", "update"].includes(row.values[PDF_MERGE_STATUS_FIELD] ?? "")).length;
-        return <Grid key={key} size={{ xs: 12, md: 6 }}><SectionFrame
-          title={label}
-          count={rows.length}
-          actions={mode === "update" && key !== "sanctions"
-            ? <Button disabled={disabled || savingSection !== "" || changedCount === 0} size="small" startIcon={<SaveOutlinedIcon />} variant="contained" onClick={() => setPendingUpdate({ key, label, rows })}>{label} 업데이트</Button>
-            : mode === "update" ? <Typography color="text.secondary" variant="caption">검토 전용</Typography> : undefined}
-        ><ExtractionGrid
-          onDeleteRow={mode === "update" ? (rowNumber) => setSectionEdits((current) => ({ ...current, [key]: discardMergedExtractionRow(rows, rowNumber) })) : undefined}
-          onRowsChange={(nextRows) => setSectionEdits((current) => ({ ...current, [key]: nextRows }))}
-          sectionKey={key}
-          rows={rows}
-          valueLabel={key === "licenses"
-            ? { field: "license_code", labels: certificationNameByCode }
-            : key === "education" ? { field: "career", labels: degreeNameByCode } : undefined}
-        /></SectionFrame></Grid>;
-      })}
-    </Grid>
+    <PersonnelSectionGrids
+      certificationNameByCode={certificationNameByCode}
+      degreeNameByCode={degreeNameByCode}
+      disabled={disabled}
+      mode={mode}
+      savingSection={savingSection}
+      sectionEdits={sectionEdits}
+      sections={result.sections}
+      setPendingUpdate={setPendingUpdate}
+      setSectionEdits={setSectionEdits}
+    />
     {mode === "new" ? <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mt: 1 }}>
       <FormControlLabel control={<Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />} label="기술인 pdf와 기초정보 추출 결과를 직접 확인했습니다." />
       <Button disabled={disabled || !confirmed || hasReferenceMismatch || !displayBasic.name || !displayBasic.birthDate} variant="contained" startIcon={<CheckCircleOutlineOutlinedIcon />} onClick={() => void register()}>기술인 인사정보 등록</Button>

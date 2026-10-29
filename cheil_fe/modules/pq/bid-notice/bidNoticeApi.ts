@@ -57,31 +57,6 @@ export type BidNoticeApiRecord = {
 // 조회/선택 화면에서 사용하는 API 응답 레코드의 호환 별칭이다.
 export type BidNoticeRecord = BidNoticeApiRecord;
 
-export type BidNoticeOption = {
-  clientCode?: string;
-  deptCode?: string;
-  deptName?: string | null;
-  label: string;
-  level1Code?: string;
-  level2Code?: string;
-  orderName?: string | null;
-  sortOrder?: number | null;
-  value: string;
-};
-
-export type BidNoticeDetailOptions = {
-  bidMethods: BidNoticeOption[];
-  bidTypes: BidNoticeOption[];
-  businessFields: BidNoticeOption[];
-  businessScopes: BidNoticeOption[];
-  businessTypes: BidNoticeOption[];
-  clients: BidNoticeOption[];
-  departments: BidNoticeOption[];
-  finalParticipationStatuses: BidNoticeOption[];
-  reasonsOfAbsence: BidNoticeOption[];
-  orderMethods: BidNoticeOption[];
-};
-
 export type BidNoticePageResponse = {
   content: BidNoticeApiRecord[];
   first?: boolean;

@@ -18,10 +18,9 @@ import {
 } from "@mui/material";
 import { useState, type FormEvent } from "react";
 
-import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useSignupMutation } from "@/modules/auth/authMutations";
-import { useDepartmentOptions, useRoleOptions } from "@/modules/common/reference/useReferenceOptions";
 
 type SignupDialogProps = {
   onClose: () => void;
@@ -37,8 +36,6 @@ export function SignupDialog({ onClose, onSuccess, open }: SignupDialogProps) {
   const [completionOpen, setCompletionOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const signupMutation = useSignupMutation();
-  const departmentOptions = useDepartmentOptions({ useYn: true });
-  const roleOptions = useRoleOptions({ useYn: true });
   const [form, setForm] = useState({
     deptCode: "",
     employeeNo: "",
@@ -151,19 +148,19 @@ export function SignupDialog({ onClose, onSuccess, open }: SignupDialogProps) {
                   />
                 </Box>
                 <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
-                  <CommonSelectField
+                  <AutoCompleteField mode="select"
                     label="부서"
                     onChange={(value) => setForm((current) => ({ ...current, deptCode: value }))}
-                    options={departmentOptions.options}
+                    source={{ type: "department" }}
                     placeholder=""
                     required
                     size="small"
                     value={form.deptCode}
                   />
-                  <CommonSelectField
+                  <AutoCompleteField mode="select"
                     label="역할"
                     onChange={(value) => setForm((current) => ({ ...current, groupCode: value }))}
-                    options={roleOptions.options}
+                    source={{ type: "role" }}
                     placeholder=""
                     required
                     size="small"

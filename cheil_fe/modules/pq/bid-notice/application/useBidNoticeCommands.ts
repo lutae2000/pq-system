@@ -23,7 +23,6 @@ export function useBidNoticeCommands({ canCreate, canDelete, canRead, canUpdate,
   const loadDetail = async (bidSeq: number) => {
     if (!canRead) throw new Error("조회 권한이 없습니다.");
     const detail = await getBidNotice(bidSeq);
-    void queryClient.invalidateQueries({ queryKey: bidNoticeQueryKeys.all });
     return toBidNoticeRecord(detail);
   };
 

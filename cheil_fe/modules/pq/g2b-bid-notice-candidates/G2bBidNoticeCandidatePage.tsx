@@ -14,9 +14,9 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { readAuthSession } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
+import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text } from "@/modules/common/formatters";
-import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeDetailOptions, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
   G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
@@ -283,34 +283,9 @@ export function G2bBidNoticeCandidatePage() {
   const bidMethodOptions = useCommonCodeLevel2Options("ZA", undefined, { enabled: inputOpen });
   const businessFieldOptions = useCommonCodeLevel2Options("DA", undefined, { enabled: inputOpen });
   const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, { enabled: inputOpen }, "level2Code");
-  const bidTypeOptions = useCommonCodeLevel2Options("MB", undefined, { enabled: inputOpen });
   const businessTypeOptions = useCommonCodeLevel2Options("CA", undefined, { enabled: inputOpen });
   const businessScopeOptions = useCommonCodeLevel2Options("T2", undefined, { enabled: inputOpen });
   const finalParticipationOptions = useCommonCodeLevel2Options("YA", undefined, { enabled: inputOpen });
-  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3", undefined, { enabled: inputOpen });
-  const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: inputOpen });
-  const inputOptions = useMemo<BidNoticeDetailOptions>(() => ({
-    bidMethods: bidMethodOptions.options,
-    businessFields: businessFieldOptions.options,
-    orderMethods: orderMethodOptions.options,
-    bidTypes: bidTypeOptions.options,
-    businessTypes: businessTypeOptions.options,
-    businessScopes: businessScopeOptions.options,
-    finalParticipationStatuses: finalParticipationOptions.options,
-    reasonsOfAbsence: reasonOfAbsenceOptions.options,
-    clients: [],
-    departments: departmentOptions.options,
-  }), [
-    bidMethodOptions.options,
-    businessFieldOptions.options,
-    orderMethodOptions.options,
-    bidTypeOptions.options,
-    businessTypeOptions.options,
-    businessScopeOptions.options,
-    finalParticipationOptions.options,
-    reasonOfAbsenceOptions.options,
-    departmentOptions.options,
-  ]);
 
   const autoMappedInputFields = useMemo(() => ({
     bidMethod: findAutoMappedOptionValue(bidMethodOptions.options, inputMappingSource.bidMethod, true),
@@ -625,7 +600,6 @@ export function G2bBidNoticeCandidatePage() {
           onFieldChange={updateInputDraft}
           onSave={(draft) => inputCandidateId && inputSaveMutation.mutate({ candidateId: inputCandidateId, draft })}
           open
-          options={inputOptions}
           record={inputDraft}
           readOnly={false}
           saveDisabled={inputSaveMutation.isPending || (inputDraft.seqNo ? !canUpdate : !canCreate)}

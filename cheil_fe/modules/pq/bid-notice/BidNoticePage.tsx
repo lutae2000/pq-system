@@ -3,13 +3,13 @@
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import { Autocomplete, Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
 import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRowParams } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
-import { CommonSelectField } from "@/components/common/CommonSelectField";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ResizeHandle } from "@/components/common/ResizeHandle";
@@ -28,7 +28,6 @@ import {
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
-import type { BidNoticeDetailOptions } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { useBidNoticeCommands } from "@/modules/pq/bid-notice/application/useBidNoticeCommands";
 import { useBidNoticeList, useImportedBidNoticeAttachments } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 import { toBidNoticeRecord, toSearchParams } from "@/modules/pq/bid-notice/application/mapper";
@@ -100,11 +99,12 @@ export function BidNoticePage() {
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
-  const sourceAttachmentsQuery = useImportedBidNoticeAttachments(draft.seqNo, open);
+  const hasG2bNotice = Boolean(draft.g2bBidNtceNo.trim() && draft.g2bBidNtceOrd.trim());
+  const sourceAttachmentsQuery = useImportedBidNoticeAttachments(draft.seqNo, open && hasG2bNotice);
+  const sourceCandidate = hasG2bNotice ? sourceAttachmentsQuery.data : null;
   const searchParams = useMemo(() => toSearchParams(filters, paginationModel), [filters, paginationModel]);
   const bidNoticesQuery = useBidNoticeList(searchParams, searchRevision, tabQueryEnabled);
   const bidMethodOptions = useCommonCodeLevel2Options("ZA");
-  const businessFieldOptions = useCommonCodeLevel2Options("DA");
   const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, undefined, "level2Code");
   const bidTypeOptions = useCommonCodeLevel2Options("MB");
   const businessTypeOptions = useCommonCodeLevel2Options("CA");
@@ -112,39 +112,12 @@ export function BidNoticePage() {
     () => businessTypeOptions.options.map((option) => ({ label: option.label, value: option.label })),
     [businessTypeOptions.options],
   );
-  const businessScopeOptions = useCommonCodeLevel2Options("T2");
   const finalParticipationOptions = useCommonCodeLevel2Options("YA");
-  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3");
   const departmentOptions = useDepartmentOptions({ useYn: true });
   const registrantOptions = useUserOptions({ useYn: "Y" });
   const userNameByEmployeeNo = useMemo(
     () => Object.fromEntries(registrantOptions.items.map((user) => [user.employeeNo, user.userName || user.employeeNo])),
     [registrantOptions.items],
-  );
-  const detailOptions = useMemo<BidNoticeDetailOptions>(
-    () => ({
-      bidMethods: bidMethodOptions.options,
-      businessFields: businessFieldOptions.options,
-      orderMethods: orderMethodOptions.options,
-      bidTypes: bidTypeOptions.options,
-      businessTypes: businessTypeOptions.options,
-      businessScopes: businessScopeOptions.options,
-      finalParticipationStatuses: finalParticipationOptions.options,
-      reasonsOfAbsence: reasonOfAbsenceOptions.options,
-      clients: [],
-      departments: departmentOptions.options,
-    }),
-    [
-      bidMethodOptions.options,
-      businessFieldOptions.options,
-      orderMethodOptions.options,
-      bidTypeOptions.options,
-      businessTypeOptions.options,
-      businessScopeOptions.options,
-      finalParticipationOptions.options,
-      reasonOfAbsenceOptions.options,
-      departmentOptions.options,
-    ],
   );
 
   const records = useMemo(
@@ -443,7 +416,7 @@ export function BidNoticePage() {
                 sx={[compactFieldSx, { gridColumn: { xs: "auto", xl: "span 2" } }]}
               />
 
-              <CommonSelectField
+              <AutoCompleteField mode="select"
                 label="업무부서"
                 labelPlacement="top"
                 onChange={(value) => setSearchDraft((current) => ({ ...current, department: value as BidNoticeFilters["department"] }))}
@@ -456,22 +429,18 @@ export function BidNoticePage() {
 
               <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
                 <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>작성자</Typography>
-                <Autocomplete
-                  disableClearable={false}
-                  fullWidth
-                  getOptionLabel={(option) => option.label}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
+                <AutoCompleteField
                   loading={registrantOptions.isLoading}
-                  options={registrantOptions.options}
+                  items={registrantOptions.items}
+                  mapOption={(user) => ({ label: user.userName ? `${user.userName} (${user.loginId})` : user.loginId, value: user.employeeNo })}
                   sx={compactFieldSx}
-                  value={registrantOptions.options.find((option) => option.value === searchDraft.superDecideEmpno) ?? null}
-                  onChange={(_, option) =>
+                  value={searchDraft.superDecideEmpno}
+                  onChange={(value) =>
                     setSearchDraft((current) => ({
                       ...current,
-                      superDecideEmpno: option?.value ?? "",
+                      superDecideEmpno: value,
                     }))
                   }
-                  renderInput={(params) => <TextField {...params} size="small" sx={compactFieldSx} />}
                 />
               </Box>
 
@@ -484,7 +453,7 @@ export function BidNoticePage() {
                 value={searchDraft.participationStatuses}
               />
 
-              <CommonSelectField
+              <AutoCompleteField mode="select"
                 label="낙찰여부"
                 labelPlacement="top"
                 onChange={(value) => setSearchDraft((current) => ({ ...current, bidSuccessYn: value as BidNoticeFilters["bidSuccessYn"] }))}
@@ -495,7 +464,7 @@ export function BidNoticePage() {
                 value={searchDraft.bidSuccessYn}
               />
 
-              <CommonSelectField
+              <AutoCompleteField mode="select"
                 label="사업구분"
                 labelPlacement="top"
                 onChange={(value) => setSearchDraft((current) => ({ ...current, businessType: value }))}
@@ -506,7 +475,7 @@ export function BidNoticePage() {
                 value={searchDraft.businessType}
               />
 
-              <CommonSelectField
+              <AutoCompleteField mode="select"
                 label="입찰방식"
                 labelPlacement="top"
                 onChange={(value) => setSearchDraft((current) => ({ ...current, bidMethod: value as BidNoticeFilters["bidMethod"] }))}
@@ -590,14 +559,13 @@ export function BidNoticePage() {
           onDeleteRequest={requestDeleteRecord}
           onFieldChange={updateDraft}
           onSave={saveRecord}
-          options={detailOptions}
           open
           record={draft}
           saveDisabled={saveMutation.isPending || (draft.seqNo ? !canUpdate : !canCreate)}
           deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
-          g2bBidNoticeNumber={sourceAttachmentsQuery.data?.bidNtceNo ?? ""}
-          g2bBidNoticeUrl={sourceAttachmentsQuery.data?.bidNtceUrl ?? ""}
-          sourceAttachments={sourceAttachmentsQuery.data?.attachments?.map((attachment) => ({
+          g2bBidNoticeNumber={sourceCandidate?.bidNtceNo ?? ""}
+          g2bBidNoticeUrl={sourceCandidate?.bidNtceUrl ?? ""}
+          sourceAttachments={sourceCandidate?.attachments?.map((attachment) => ({
             downloadUrl: attachment.downloadUrl ?? "",
             fileName: attachment.fileName ?? "첨부파일",
           })) ?? []}

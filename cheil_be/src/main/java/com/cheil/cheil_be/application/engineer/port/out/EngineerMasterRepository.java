@@ -37,6 +37,8 @@ public interface EngineerMasterRepository {
 
     boolean existsDuplicate(String nameKor, String birthday, String excludeEngineerId);
 
+    String allocateEngineerId();
+
     EngineerMasterEntity save(EngineerMasterEntity engineer);
 
     void deleteById(String engineerId);

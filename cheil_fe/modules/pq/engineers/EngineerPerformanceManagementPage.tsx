@@ -30,7 +30,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { useEngineerPerformanceManagement } from "@/modules/pq/engineers/application/useEngineerPerformanceManagement";
 
 type EngineerStatus = "재직" | "휴직" | "퇴직";

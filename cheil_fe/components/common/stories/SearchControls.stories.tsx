@@ -2,8 +2,7 @@ import { Box, Stack } from "@mui/material";
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
 import { CheckboxSelectInput } from "../CheckboxSelectInput";
-import { CommonSelectField } from "../CommonSelectField";
-import { SearchSelectInput } from "../SearchSelectInput";
+import { AutoCompleteField } from "../AutoCompleteField";
 
 const categoryOptions = [
   { label: "건축", value: "architecture" },
@@ -21,19 +20,22 @@ type Story = StoryObj<typeof meta>;
 
 function SearchControlsExample() {
   const [company, setCompany] = useState("");
-  const [category, setCategory] = useState<"" | "architecture" | "civil" | "electric">("");
+  const [category, setCategory] = useState("");
   const [selected, setSelected] = useState<Array<"architecture" | "civil" | "electric">>(["architecture"]);
 
   return (
     <Box sx={{ width: 360 }}>
       <Stack spacing={2}>
-        <SearchSelectInput
+        <AutoCompleteField
+          freeSolo
+          inputValue={company}
           label="업체명"
           onChange={setCompany}
-          options={["제일엔지니어링", "서울건축", "한강토목"]}
+          onInputValueChange={setCompany}
+          options={["제일엔지니어링", "서울건축", "한강토목"].map((name) => ({ label: name, value: name }))}
           value={company}
         />
-        <CommonSelectField
+        <AutoCompleteField mode="select"
           label="분야"
           labelPlacement="top"
           onChange={setCategory}

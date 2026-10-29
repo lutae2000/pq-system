@@ -99,7 +99,7 @@ ORDER BY c.SEQ, c.CONKINDBCODE, c.CONKINDMCODE, c.CONKINDSCODE;
 SELECT ROW_NUMBER() OVER (ORDER BY COMPANY_CODE, BID_SEQ, ROWID) bid_seq,
        DEPT_CODE department_code,
        COALESCE(PROJ_NAME, SNAME, '(제목 없음)') project_name,
-       ORDER_NAME order_client, DESIGN_AMT design_amt, BID_TAG bid_type,
+       ORDER_NO order_client, DESIGN_AMT design_amt, BID_TAG bid_type,
        SUBSTR(ANNOUNCE_DATE,1,8) announce_date,
        SUBSTR(ENTER_DATE,1,12) pq_regist_date,
        SUBSTR(PQ_DATE,1,12) pq_submit_date,

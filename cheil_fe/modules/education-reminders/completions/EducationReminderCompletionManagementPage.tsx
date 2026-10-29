@@ -3,7 +3,6 @@
 import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -24,7 +23,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -451,15 +450,6 @@ function EducationReminderCompletionManagementContent() {
     [saveMutation, savePhoneMutation],
   );
 
-  const specialtyFieldValue = useMemo(
-    () => specialtyFieldOptions.find((option) => option.value === filters.specialtyField) ?? null,
-    [filters.specialtyField, specialtyFieldOptions],
-  );
-  const jobFieldValue = useMemo(
-    () => jobFieldOptions.find((option) => option.value === filters.jobField) ?? null,
-    [filters.jobField, jobFieldOptions],
-  );
-
   const handleReset = useCallback(() => {
     const next = emptyFilterState();
     setFilters(next);
@@ -691,23 +681,19 @@ function EducationReminderCompletionManagementContent() {
           value={filters.scheduledEducationYear}
         />
 
-        <Autocomplete<CodeOption, false, false, false>
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
-          onChange={(_event, value) => setFilters((current) => ({ ...current, specialtyField: value?.value ?? "" }))}
+        <AutoCompleteField
+          label="전문분야"
+          onChange={(value) => setFilters((current) => ({ ...current, specialtyField: value }))}
           options={specialtyFieldOptions}
-          renderInput={(params) => <TextField {...params} label="전문분야" size="small" sx={standardFieldSx} />}
           sx={{ minWidth: 220 }}
-          value={specialtyFieldValue}
+          value={filters.specialtyField}
         />
-        <Autocomplete<CodeOption, false, false, false>
-          getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
-          onChange={(_event, value) => setFilters((current) => ({ ...current, jobField: value?.value ?? "" }))}
+        <AutoCompleteField
+          label="직무분야"
+          onChange={(value) => setFilters((current) => ({ ...current, jobField: value }))}
           options={jobFieldOptions}
-          renderInput={(params) => <TextField {...params} label="직무분야" size="small" sx={standardFieldSx} />}
           sx={{ minWidth: 220 }}
-          value={jobFieldValue}
+          value={filters.jobField}
         />
 
         <CheckboxSelectInput

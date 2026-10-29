@@ -1,9 +1,10 @@
 "use client";
 
 import { SearchOutlined as SearchOutlinedIcon } from "@mui/icons-material";
-import { Autocomplete, Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import type { SelectOption } from "@/modules/common/reference/referenceFormat";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
@@ -77,15 +78,13 @@ export function PqParticipatingEngineerFilterFields({
     patchKey: keyof PqParticipatingEngineerFilterValues,
     sx = filterAutocompleteSx,
   ) => (
-    <Autocomplete
+    <AutoCompleteField
       disabled={disabled}
-      getOptionLabel={(option) => option.label}
-      isOptionEqualToValue={(option, selected) => option.value === selected.value}
-      onChange={(_, option) => onChange({ [patchKey]: option?.value ?? "" })}
+      label={label}
+      onChange={(nextValue) => onChange({ [patchKey]: nextValue })}
       options={options}
       sx={sx}
-      value={options.find((option) => option.value === value) ?? null}
-      renderInput={(params) => <TextField {...params} label={label} size="small" sx={standardFieldSx} />}
+      value={value}
     />
   );
 
@@ -114,15 +113,13 @@ export function PqParticipatingEngineerFilterFields({
           </Button>
         </Stack>
       </Stack>
-      <Autocomplete
+      <AutoCompleteField
         disabled={disabled}
-        getOptionLabel={(option) => option.label}
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        onChange={(_, option) => onChange({ certificationCode: option?.value ?? "" })}
+        label="보유 자격증"
+        onChange={(value) => onChange({ certificationCode: value })}
         options={certificationOptions}
         sx={certificationFilterSx}
-        value={certificationOptions.find((option) => option.value === filters.certificationCode) ?? null}
-        renderInput={(params) => <TextField {...params} label="보유 자격증" size="small" sx={standardFieldSx} />}
+        value={filters.certificationCode}
       />
       {renderAutocomplete("전문분야", specialtyFieldOptions, filters.specialtyField, "specialtyField")}
       {renderAutocomplete("직무분야", jobFieldOptions, filters.jobField, "jobField")}

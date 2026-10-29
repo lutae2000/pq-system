@@ -6,7 +6,6 @@ import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
   Box,
-  Autocomplete,
   Button,
   Card,
   CardContent,
@@ -22,19 +21,18 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DateTimeInput } from "@/components/common/DateTimeInput";
 import { DetailSectionCard } from "@/components/common/DetailSectionCard";
 import { FileActionCard, type FileActionCardFileItem } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { MoneyInputField } from "@/components/common/MoneyInputField";
 import { formatMoney, toCompactDate, toDateInputValue } from "@/modules/common/formatters";
-import { CLIENT_CODE_PAGE_SIZE } from "@/modules/code/clients/api";
 import type { BidNoticeAttachmentState, BidNoticeRecord, AttachmentKey } from "@/modules/pq/bid-notice/bidNotice.types";
-import type { BidNoticeDetailOptions, BidNoticeOption } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 import { ScheduleTable as G2bScheduleTable } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateDetailDialog";
-import { useClientByCode, useClientOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
+import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 
 type BidNoticeDetailDialogProps = {
   attachments?: BidNoticeAttachmentState;
@@ -51,7 +49,6 @@ type BidNoticeDetailDialogProps = {
   onFieldChange: <K extends keyof BidNoticeRecord>(field: K, value: BidNoticeRecord[K]) => void;
   onSave: (record: BidNoticeRecord) => void;
   open: boolean;
-  options: BidNoticeDetailOptions | null;
   record: BidNoticeRecord;
   readOnly?: boolean;
   saveDisabled?: boolean;
@@ -130,218 +127,6 @@ function TextInputField({
           },
         }}
         value={value}
-      />
-    </LabeledField>
-  );
-}
-
-function SelectField({
-  label,
-  onChange,
-  options,
-  required = false,
-  readOnly = false,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  options: readonly BidNoticeOption[];
-  required?: boolean;
-  readOnly?: boolean;
-  value: string;
-}) {
-  const autocompleteOptions = value && !options.some((option) => option.value === value)
-    ? [{ label: value, value }, ...options]
-    : options;
-  const selectedOption = autocompleteOptions.find((option) => option.value === value) ?? null;
-
-  return (
-    <LabeledField label={label}>
-      <Autocomplete
-        autoHighlight
-        clearOnEscape
-        disabled={readOnly}
-        getOptionLabel={(option) => option.label}
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        onChange={(_, nextValue) => {
-          onChange(nextValue?.value ?? "");
-        }}
-        options={autocompleteOptions}
-        value={selectedOption}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            fullWidth
-            placeholder="선택"
-            required={required}
-            size="small"
-            sx={standardFieldSx}
-          />
-        )}
-      />
-    </LabeledField>
-  );
-}
-
-function ClientAutocompleteField({
-  initialSearchKeyword = "",
-  label = "발주처",
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  initialSearchKeyword?: string;
-  label?: string;
-  onChange: (value: string) => void;
-  readOnly?: boolean;
-  value: string;
-}) {
-  const [keyword, setKeyword] = useState("");
-  const searchKeyword = keyword || value || initialSearchKeyword;
-  const selectedClientQuery = useClientByCode(value);
-  const clientsQuery = useClientOptions(
-    {
-      businessName: searchKeyword,
-      companyType: "",
-      orderClass: "",
-      page: 0,
-      size: CLIENT_CODE_PAGE_SIZE,
-    },
-    { enabled: !readOnly || Boolean(value || initialSearchKeyword.trim()) },
-  );
-  const options = useMemo(() => {
-    const mapped = clientsQuery.items.map((client) => ({
-      label: client.orderName ? `${client.orderName} (${client.clientCode})` : client.clientCode,
-      value: client.clientCode,
-    }));
-    const selectedClient = selectedClientQuery.data
-      ? {
-          label: selectedClientQuery.data.orderName
-            ? `${selectedClientQuery.data.orderName} (${selectedClientQuery.data.clientCode})`
-            : selectedClientQuery.data.clientCode,
-          value: selectedClientQuery.data.clientCode,
-        }
-      : null;
-    const withSelected = selectedClient ? [selectedClient, ...mapped] : mapped;
-    const uniqueOptions = new Map<string, { label: string; value: string }>();
-
-    withSelected.forEach((option) => {
-      if (!uniqueOptions.has(option.value)) {
-        uniqueOptions.set(option.value, option);
-      }
-    });
-
-    if (value && !uniqueOptions.has(value)) {
-      uniqueOptions.set(value, { label: value, value });
-    }
-
-    return [...uniqueOptions.values()];
-  }, [clientsQuery.items, selectedClientQuery.data, value]);
-  const selectedOption = options.find((option) => option.value === value) ?? null;
-
-  useEffect(() => {
-    if (readOnly || value || !initialSearchKeyword.trim() || clientsQuery.isLoading) return;
-    const normalizedKeyword = initialSearchKeyword.trim().toLowerCase();
-    const matchedClient = clientsQuery.items.find(
-      (client) => client.orderName?.trim().toLowerCase() === normalizedKeyword,
-    );
-    if (matchedClient) {
-      onChange(matchedClient.clientCode);
-    }
-  }, [clientsQuery.items, clientsQuery.isLoading, initialSearchKeyword, onChange, readOnly, value]);
-
-  return (
-    <LabeledField label={label}>
-      <Autocomplete
-        autoHighlight
-        filterOptions={(items) => items}
-        getOptionLabel={(option) => option.label}
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        loading={clientsQuery.isLoading || selectedClientQuery.isLoading}
-        readOnly={readOnly}
-        onChange={(_, nextValue) => {
-          onChange(nextValue?.value ?? "");
-          setKeyword("");
-        }}
-        onInputChange={(_, nextInputValue, reason) => {
-          if (reason === "input") {
-            setKeyword(nextInputValue);
-          } else if (reason === "clear") {
-            setKeyword("");
-          }
-        }}
-        options={options}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            fullWidth
-            placeholder="발주처명 또는 코드 검색"
-            size="small"
-            slotProps={{
-              ...params.slotProps,
-              htmlInput: {
-                ...params.slotProps.htmlInput,
-                readOnly,
-              },
-            }}
-            sx={standardFieldSx}
-          />
-        )}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.value}>
-            {option.label}
-          </Box>
-        )}
-        value={selectedOption}
-      />
-    </LabeledField>
-  );
-}
-
-function UserAutocompleteField({
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  onChange: (value: string) => void;
-  readOnly?: boolean;
-  value: string;
-}) {
-  const [keyword, setKeyword] = useState("");
-  const searchKeyword = keyword || value;
-  const { isLoading, options } = useUserOptions({ deptCode: "All", keyword: searchKeyword, useYn: "Y" });
-  const autocompleteOptions = value && !options.some((option) => option.value === value)
-    ? [{ label: `사번 ${value}`, value }, ...options]
-    : options;
-  const selectedOption = autocompleteOptions.find((option) => option.value === value) ?? null;
-
-  return (
-    <LabeledField label="작성자">
-      <Autocomplete
-        autoHighlight
-        disabled={readOnly || isLoading}
-        getOptionLabel={(option) => option.label}
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
-        loading={isLoading}
-        onChange={(_, nextValue) => {
-          onChange(nextValue?.value ?? "");
-          setKeyword("");
-        }}
-        onInputChange={(_, nextInputValue, reason) => {
-          if (reason === "input") setKeyword(nextInputValue);
-          if (reason === "clear") setKeyword("");
-        }}
-        options={autocompleteOptions}
-        value={selectedOption}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            fullWidth
-            placeholder="선택"
-            size="small"
-            sx={standardFieldSx}
-          />
-        )}
       />
     </LabeledField>
   );
@@ -510,7 +295,6 @@ export function BidNoticeDetailDialog({
   onFieldChange: onFieldChangeProp,
   onSave,
   open,
-  options,
   record: initialRecord,
   readOnly = false,
   saveDisabled = false,
@@ -520,7 +304,7 @@ export function BidNoticeDetailDialog({
   sourceNotice,
 }: BidNoticeDetailDialogProps) {
   const [localRecord, setLocalRecord] = useState(initialRecord);
-  const emptyOptions: BidNoticeOption[] = [];
+  const finalParticipationOptions = useCommonCodeLevel2Options("YA", { useYn: "Y" }, { enabled: open });
 
   useEffect(() => {
     // 부모 draft는 저장 완료 후 갱신되므로, 저장 결과를 다이얼로그에 반영한다.
@@ -540,7 +324,7 @@ export function BidNoticeDetailDialog({
   };
 
   const handleSave = () => onSave(deferChanges ? localRecord : initialRecord);
-  const participationOption = options?.finalParticipationStatuses.find((option) => option.value === record.finalParticipationStatus);
+  const participationOption = finalParticipationOptions.options.find((option) => option.value === record.finalParticipationStatus);
   const isAbsent = record.finalParticipationStatus === "N"
     || participationOption?.label.includes("\uBD88\uCC38") === true
     || Boolean(record.reasonOfAbsenceCode);
@@ -624,18 +408,25 @@ export function BidNoticeDetailDialog({
                   </Box>
 
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
-                    <ClientAutocompleteField initialSearchKeyword={clientSearchHint} label="수요기관" onChange={(value) => onFieldChange("client", value)} readOnly={readOnly} value={record.client} />
-                    <SelectField
+                    <LabeledField label="수요기관">
+                      <AutoCompleteField source={{ type: "client", searchOnInput: true, initialSearchKeyword: clientSearchHint }}
+                        freeSolo
+                        onChange={(value) => onFieldChange("client", value)}
+                        placeholder="발주처명 또는 코드 검색"
+                        readOnly={readOnly}
+                        value={record.client}
+                        valueLabel={record.orderClientName}
+                      />
+                    </LabeledField>
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "MB" }} labelPlacement="top" enabled={open}
                       label="입찰구분"
                       onChange={(value) => onFieldChange("bidType", value)}
-                      options={options?.bidTypes ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.bidType}
                     />
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "ZA" }} labelPlacement="top" enabled={open}
                       label="입찰방식"
                       onChange={(value) => onFieldChange("bidMethod", value)}
-                      options={options?.bidMethods ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.bidMethod}
                     />
@@ -645,22 +436,20 @@ export function BidNoticeDetailDialog({
                     <LabeledField label="설계금액">
                       <MoneyInputField hideZero integerOnly onChange={(value) => onFieldChange("estimateAmount", value ?? 0)} placeholder="0" readOnly={readOnly} value={record.estimateAmount} />
                     </LabeledField>
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "FA", sort: "level2Code" }} labelPlacement="top" enabled={open}
                       label="발주방법"
                       onChange={(value) => onFieldChange("procurementMethod", value)}
-                      options={options?.orderMethods ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.procurementMethod}
                     />
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "YA" }} labelPlacement="top" enabled={open}
                       label="최종참여 여부"
                       onChange={(value) => {
                         onFieldChange("finalParticipationStatus", value);
-                        const nextOption = options?.finalParticipationStatuses.find((option) => option.value === value);
+                        const nextOption = finalParticipationOptions.options.find((option) => option.value === value);
                         const nextIsAbsent = value === "N" || nextOption?.label.includes("\uBD88\uCC38") === true;
                         if (!nextIsAbsent) onFieldChange("reasonOfAbsenceCode", "");
                       }}
-                      options={options?.finalParticipationStatuses ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.finalParticipationStatus}
                     />
@@ -668,10 +457,9 @@ export function BidNoticeDetailDialog({
 
                   {isAbsent ? (
                     <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
-                      <SelectField
+                      <AutoCompleteField source={{ type: "common-code-level2", level1Code: "T3" }} labelPlacement="top" enabled={open}
                         label="불참 사유"
                         onChange={(value) => onFieldChange("reasonOfAbsenceCode", value)}
-                        options={options?.reasonsOfAbsence ?? emptyOptions}
                         readOnly={readOnly}
                         required
                         value={record.reasonOfAbsenceCode}
@@ -683,24 +471,21 @@ export function BidNoticeDetailDialog({
                 <CategoryDivider title="사업 정보" />
                 <Stack spacing={1}>
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" } }}>
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "CA" }} labelPlacement="top" enabled={open}
                       label="사업구분"
                       onChange={(value) => onFieldChange("businessType", value)}
-                      options={options?.businessTypes ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.businessType}
                     />
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "DA" }} labelPlacement="top" enabled={open}
                       label="사업분야"
                       onChange={(value) => onFieldChange("businessField", value)}
-                      options={options?.businessFields ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.businessField}
                     />
-                    <SelectField
+                    <AutoCompleteField source={{ type: "common-code-level2", level1Code: "T2" }} labelPlacement="top" enabled={open}
                       label="사업범위"
                       onChange={(value) => onFieldChange("businessScope", value)}
-                      options={options?.businessScopes ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.businessScope}
                     />
@@ -713,17 +498,20 @@ export function BidNoticeDetailDialog({
                       readOnly={readOnly}
                       value={record.representativeVendor}
                     />
-                    <SelectField
+                    <AutoCompleteField source={{ type: "department" }} labelPlacement="top" enabled={open}
                       label="부서"
                       onChange={(value) => onFieldChange("department", value)}
-                      options={options?.departments ?? emptyOptions}
                       readOnly={readOnly}
                       value={record.department}
                     />
-                    <UserAutocompleteField
+                    <AutoCompleteField source={{ type: "user", params: { deptCode: "All", useYn: "Y" }, searchOnInput: true }}
+                      enabled={open}
+                      label="작성자"
+                      labelPlacement="top"
                       onChange={(value) => onFieldChange("writerName", value)}
                       readOnly={readOnly}
                       value={record.writerName}
+                      valueLabel={`사번 ${record.writerName}`}
                     />
                   </Box>
                 </Stack>

@@ -8,7 +8,7 @@ import { Box, Button, Checkbox, CircularProgress, IconButton, LinearProgress, St
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { fileUploadConfig } from "@/lib/config/fileUpload";
 import { apiClient } from "@/lib/http/apiClient";

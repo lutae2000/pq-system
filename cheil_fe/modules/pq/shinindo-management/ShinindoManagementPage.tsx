@@ -8,17 +8,18 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
-import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, type ChipProps } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, type ChipProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
@@ -134,48 +135,19 @@ function ClientAutocompleteField({
 }) {
   const [keyword, setKeyword] = useState("");
   const { isLoading, options } = useShinindoClientOptions({ enabled, keyword, value });
-  const selectedOption = options.find((option) => option.value === value) ?? null;
 
   return (
     <Box>
-      <Autocomplete
-        autoHighlight
+      <AutoCompleteField
         disabled={disabled}
-        filterOptions={(items) => items}
-        getOptionLabel={(option) => option.label}
-        fullWidth
-        isOptionEqualToValue={(option, selected) => option.value === selected.value}
+        label={T.client}
         loading={isLoading}
-        onChange={(_, nextValue) => {
-          onChange(nextValue?.value ?? "");
-          setKeyword("");
-        }}
-        onInputChange={(_, nextInputValue, reason) => {
-          if (reason === "input") {
-            setKeyword(nextInputValue);
-          } else if (reason === "clear") {
-            setKeyword("");
-          }
-        }}
+        onChange={onChange}
+        onSearchChange={setKeyword}
         options={options}
+        placeholder="발주청명 또는 코드 검색"
         sx={sx}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            fullWidth
-            label={T.client}
-            placeholder="발주청명 또는 코드 검색"
-            size="small"
-            sx={standardFieldSx}
-            slotProps={{
-              ...params.slotProps,
-              htmlInput: {
-                ...params.slotProps.htmlInput,
-              },
-            }}
-          />
-        )}
-        value={selectedOption}
+        value={value}
       />
     </Box>
   );

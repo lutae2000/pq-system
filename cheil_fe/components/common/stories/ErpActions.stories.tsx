@@ -3,7 +3,6 @@ import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
 
 import { ConfirmActionDialog, ConfirmDeleteDialog } from "../ConfirmActionDialog";
-import { CrudActionBar } from "../CrudActionBar";
 
 const meta = {
   title: "Common/ERP Actions",
@@ -19,14 +18,6 @@ function ActionsExample() {
 
   return (
     <Stack spacing={3}>
-      <CrudActionBar
-        onClose={() => undefined}
-        onDelete={() => setDeleteOpen(true)}
-        onExport={() => undefined}
-        onNew={() => undefined}
-        onSave={() => setConfirmOpen(true)}
-      />
-
       <Box sx={{ display: "flex", gap: 1 }}>
         <Button onClick={() => setConfirmOpen(true)} variant="contained">
           저장 확인 열기

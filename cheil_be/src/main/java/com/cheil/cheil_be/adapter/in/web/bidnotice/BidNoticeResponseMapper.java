@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.cheil.cheil_be.application.client.port.out.ClientRepository;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
 import com.cheil.cheil_be.application.commoncode.service.CommonCodeCacheService;
 import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
@@ -48,9 +49,17 @@ public class BidNoticeResponseMapper {
     private final CommonCodeCacheService commonCodeCacheService;
 
     public BidNoticeResponseLookup snapshot() {
+        return snapshot(true, true);
+    }
+
+    public BidNoticeResponseLookup snapshotForList() {
+        return snapshot(false, false);
+    }
+
+    private BidNoticeResponseLookup snapshot(boolean includeDepartments, boolean includeClients) {
         return new BidNoticeResponseLookup(
-                toLabelMap(departmentRepository.findAll(), Department::deptCode, Department::deptName),
-                toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderName),
+                includeDepartments ? toLabelMap(departmentRepository.findAll(), Department::deptCode, Department::deptName) : Map.of(),
+                includeClients ? toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderName) : Map.of(),
                 BID_NOTICE_CODE_GROUPS.stream()
                         .flatMap(level1Code -> commonCodeCacheService.getOrLoadByLevel1Code(
                                 level1Code,
@@ -76,9 +85,20 @@ public class BidNoticeResponseMapper {
     }
 
     public BidNoticeResponse toResponse(BidNotice bidNotice, BidNoticeResponseLookup lookup) {
-        return BidNoticeResponse.from(bidNotice, new BidNoticeLabels(
+        return toResponse(bidNotice, lookup,
                 labelOf(lookup.departmentLabels(), bidNotice.departmentCode()),
-                labelOf(lookup.clientLabels(), bidNotice.orderClient()),
+                orderClientName(lookup.clientLabels(), bidNotice));
+    }
+
+    public BidNoticeResponse toResponse(BidNoticeListRow row, BidNoticeResponseLookup lookup) {
+        return toResponse(row.bidNotice(), lookup, row.departmentName(), row.orderClientName());
+    }
+
+    private BidNoticeResponse toResponse(BidNotice bidNotice, BidNoticeResponseLookup lookup,
+                                         String departmentName, String orderClientName) {
+        return BidNoticeResponse.from(bidNotice, new BidNoticeLabels(
+                departmentName,
+                orderClientName,
                 labelOf(lookup.commonCodeLabels(), BID_TYPE_GROUP, bidNotice.bidType()),
                 labelOf(lookup.commonCodeLabels(), BID_METHOD_GROUP, bidNotice.bidMethod()),
                 labelOf(lookup.commonCodeLabels(), ORDER_METHOD_GROUP, bidNotice.orderMethod()),
@@ -106,6 +126,15 @@ public class BidNoticeResponseMapper {
             return key;
         }
         return labels.getOrDefault(normalizeKey(key), key);
+    }
+
+    private static String orderClientName(Map<String, String> clientLabels, BidNotice bidNotice) {
+        String orderClient = bidNotice.orderClient();
+        if (StringUtils.hasText(orderClient)) {
+            String name = clientLabels.get(normalizeKey(orderClient));
+            return StringUtils.hasText(name) ? name : orderClient;
+        }
+        return orderClient;
     }
 
     private static String labelOf(Map<String, Map<String, String>> labels, String groupKey, String valueKey) {

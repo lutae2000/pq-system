@@ -136,7 +136,7 @@ function existingRows(
       jobclass: item.jobClass,
       jobpart: item.jobPart,
       propart: item.proPart,
-      englevel: String(item.engLevel || ""),
+      englevel: item.engLevel == null ? "" : String(item.engLevel),
       compname: item.compName,
       deptname: item.deptName,
       grade: item.grade,

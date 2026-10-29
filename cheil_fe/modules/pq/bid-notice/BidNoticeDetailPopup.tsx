@@ -2,11 +2,7 @@
 
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import { Alert, Box, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, Typography } from "@mui/material";
-import { useMemo } from "react";
-
-import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
 import { BidNoticeDetailDialog } from "@/modules/pq/bid-notice/BidNoticeDetailDialog";
-import type { BidNoticeDetailOptions } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { useBidNoticeDetail } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 
 type BidNoticeDetailPopupProps = {
@@ -19,42 +15,6 @@ type BidNoticeDetailPopupProps = {
 export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }: BidNoticeDetailPopupProps) {
   const detailQuery = useBidNoticeDetail(bidSeq, open);
 
-  const bidMethodOptions = useCommonCodeLevel2Options("ZA", undefined, { enabled: open });
-  const businessFieldOptions = useCommonCodeLevel2Options("DA", undefined, { enabled: open });
-  const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, { enabled: open }, "level2Code");
-  const bidTypeOptions = useCommonCodeLevel2Options("MB", undefined, { enabled: open });
-  const businessTypeOptions = useCommonCodeLevel2Options("CA", undefined, { enabled: open });
-  const businessScopeOptions = useCommonCodeLevel2Options("T2", undefined, { enabled: open });
-  const finalParticipationOptions = useCommonCodeLevel2Options("YA", undefined, { enabled: open });
-  const reasonOfAbsenceOptions = useCommonCodeLevel2Options("T3", undefined, { enabled: open });
-  const departmentOptions = useDepartmentOptions({ useYn: true }, { enabled: open });
-
-  const detailOptions = useMemo<BidNoticeDetailOptions>(
-    () => ({
-      bidMethods: bidMethodOptions.options,
-      businessFields: businessFieldOptions.options,
-      orderMethods: orderMethodOptions.options,
-      bidTypes: bidTypeOptions.options,
-      businessTypes: businessTypeOptions.options,
-      businessScopes: businessScopeOptions.options,
-      finalParticipationStatuses: finalParticipationOptions.options,
-      reasonsOfAbsence: reasonOfAbsenceOptions.options,
-      clients: [],
-      departments: departmentOptions.options,
-    }),
-    [
-      bidMethodOptions.options,
-      businessFieldOptions.options,
-      orderMethodOptions.options,
-      bidTypeOptions.options,
-      businessTypeOptions.options,
-      businessScopeOptions.options,
-      finalParticipationOptions.options,
-      reasonOfAbsenceOptions.options,
-      departmentOptions.options,
-    ],
-  );
-
   if (!open || !bidSeq) {
     return null;
   }
@@ -66,7 +26,6 @@ export function BidNoticeDetailPopup({ bidSeq, onClose, open, readOnly = true }:
         onDeleteRequest={() => undefined}
         onFieldChange={() => undefined}
         onSave={() => undefined}
-        options={detailOptions}
         open={open}
         readOnly={readOnly}
         record={detailQuery.data}

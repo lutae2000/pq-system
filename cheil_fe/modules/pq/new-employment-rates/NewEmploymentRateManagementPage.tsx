@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
@@ -6,7 +6,6 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -18,7 +17,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import type { SxProps, Theme } from "@mui/material/styles";
 import {
   type GridColDef,
   type GridPaginationModel,
@@ -27,11 +25,12 @@ import {
 import { useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
@@ -56,11 +55,6 @@ import { useNewEmploymentRateMutations } from "@/modules/pq/new-employment-rates
 import { useNewEmploymentRateQueries } from "@/modules/pq/new-employment-rates/application/useNewEmploymentRateQueries";
 
 const EMPTY_EMPLOYEES: NewEmploymentEmployeeRecord[] = [];
-
-type AutocompleteOption = {
-  label: string;
-  value: string;
-};
 
 type MonthlyStatusPivotRow = {
   id: string;
@@ -448,7 +442,8 @@ export function NewEmploymentRateManagementPage() {
         onSearch={handleSearch}
         searchDisabled={!canRead}
       >
-        <ReferenceAutocompleteField
+        <AutoCompleteField
+          allValue="All"
           includeAll
           label="부서"
           loading={departmentReferences.isLoading}
@@ -634,14 +629,14 @@ export function NewEmploymentRateManagementPage() {
                 <TextField label="이름" onChange={(event) => updateDraft("employeeName", event.target.value)} required size="small" sx={standardFieldSx} value={text(draft.employeeName)} />
                 <TextField label="생년월일" onChange={(event) => updateDraft("birthDate", event.target.value)} size="small" sx={standardFieldSx} type="date" value={dashedDate(draft.birthDate)} slotProps={{ inputLabel: { shrink: true } }} />
                 <TextField label="입사일" onChange={(event) => updateDraft("hireDate", event.target.value)} required size="small" sx={standardFieldSx} type="date" value={dashedDate(draft.hireDate)} slotProps={{ inputLabel: { shrink: true } }} />
-                <ReferenceAutocompleteField
+                <AutoCompleteField
                   label="부서"
                   loading={departmentReferences.isLoading}
                   onChange={(value) => updateDraft("departmentCode", value)}
                   options={departmentOptions}
                   value={text(draft.departmentCode)}
                 />
-                <ReferenceAutocompleteField
+                <AutoCompleteField
                   label="직무분야"
                   loading={jobCategoryReferences.isLoading}
                   noOptionsText="PQ / QA 직무분야가 없습니다."
@@ -730,46 +725,5 @@ export function NewEmploymentRateManagementPage() {
         title="삭제 확인"
       />
     </Box>
-  );
-}
-
-function ReferenceAutocompleteField({
-  includeAll = false,
-  label,
-  loading = false,
-  noOptionsText = "조회 결과가 없습니다.",
-  onChange,
-  options,
-  sx,
-  value,
-}: {
-  includeAll?: boolean;
-  label: string;
-  loading?: boolean;
-  noOptionsText?: string;
-  onChange: (value: string) => void;
-  options: AutocompleteOption[];
-  sx?: SxProps<Theme>;
-  value: string;
-}) {
-  const resolvedOptions = useMemo(
-    () => (includeAll ? [{ label: "전체", value: "All" }, ...options] : options),
-    [includeAll, options],
-  );
-  const selectedOption = resolvedOptions.find((option) => option.value === value) ?? null;
-
-  return (
-    <Autocomplete<AutocompleteOption>
-      autoHighlight
-      getOptionLabel={(option) => option.label}
-      isOptionEqualToValue={(option, selected) => option.value === selected.value}
-      loading={loading}
-      noOptionsText={noOptionsText}
-      onChange={(_, option) => onChange(option?.value ?? "")}
-      options={resolvedOptions}
-      sx={sx}
-      value={selectedOption}
-      renderInput={(params) => <TextField {...params} label={label} size="small" sx={standardFieldSx} />}
-    />
   );
 }

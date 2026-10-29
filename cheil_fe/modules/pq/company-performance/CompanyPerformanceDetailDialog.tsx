@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, type ReactNode } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { MoneyInputField } from "@/components/common/MoneyInputField";
 import { toDateInputValue } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
@@ -120,33 +121,6 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
       <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap" }}>{label}</Typography>
       {children}
     </Box>
-  );
-}
-
-function CodeSelect({
-  onChange,
-  options,
-  readOnly = false,
-  value,
-}: {
-  onChange: (value: string) => void;
-  options: CompanyPerformanceCodeOption[];
-  readOnly?: boolean;
-  value: string;
-}) {
-  const hasValue = !value || options.some((option) => option.value === value);
-  const optionLabel = (option: CompanyPerformanceCodeOption) => (showCodeLabel ? `${option.value} - ${option.label}` : option.label);
-
-  return (
-    <TextField disabled={readOnly} onChange={(event) => onChange(event.target.value)} select size="small" sx={standardFieldSx} value={value}>
-      <MenuItem value="">선택</MenuItem>
-      {!hasValue ? <MenuItem value={value}>{value}</MenuItem> : null}
-      {options.map((option) => (
-        <MenuItem key={option.value} value={option.value}>
-          {optionLabel(option)}
-        </MenuItem>
-      ))}
-    </TextField>
   );
 }
 
@@ -272,7 +246,7 @@ export function CompanyPerformanceDetailDialog({
                     </Box>
                   </Field>
                   <Field label="진행상태">
-                    <CodeSelect onChange={(value) => onFieldChange("jobFinishYn", value)} options={jobFinishOptions} readOnly={readOnly} value={text(record.jobFinishYn)} />
+                    <AutoCompleteField mode="select" disabled={readOnly} onChange={(value) => onFieldChange("jobFinishYn", value)} options={jobFinishOptions} placeholderDisabled={false} showCode={showCodeLabel} value={text(record.jobFinishYn)} />
                   </Field>
                   {showStopDate ? (
                     <Field label="중지일">
@@ -314,19 +288,25 @@ export function CompanyPerformanceDetailDialog({
               <Group title="분류">
                 <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
                   <Field label="사업유형">
-                    <CodeSelect onChange={(value) => onFieldChange("businessType", value)} options={businessTypeOptions} readOnly={readOnly} value={text(record.businessType)} />
+                    <AutoCompleteField mode="select" disabled={readOnly} onChange={(value) => onFieldChange("businessType", value)} options={businessTypeOptions} placeholderDisabled={false} showCode={showCodeLabel} value={text(record.businessType)} />
                   </Field>
                   <Field label="용역구분">
-                    <CodeSelect onChange={(value) => onFieldChange("jobType", value)} options={serviceTypeReferences.options} readOnly={readOnly} value={text(record.jobType)} />
+                    <AutoCompleteField mode="select" disabled={readOnly} onChange={(value) => onFieldChange("jobType", value)} options={serviceTypeReferences.options} placeholderDisabled={false} showCode={showCodeLabel} value={text(record.jobType)} />
                   </Field>
                 </Box>
 
                 <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" } }}>
                   <Field label="발주처">
-                    <TextField disabled={readOnly} onChange={(event) => onFieldChange("orderClient", event.target.value)} size="small" sx={standardFieldSx} value={text(record.orderClient)} />
+                    <AutoCompleteField source={{ type: "client", searchOnInput: true, valueMode: "name" }}
+                      freeSolo
+                      onChange={(value) => onFieldChange("orderClient", value)}
+                      placeholder="발주처명 검색 또는 직접 입력"
+                      readOnly={readOnly}
+                      value={text(record.orderClient)}
+                    />
                   </Field>
                   <Field label="발주처구분">
-                    <CodeSelect onChange={(value) => onFieldChange("clientKind", value)} options={clientKindOptions} readOnly={readOnly} value={text(record.clientKind)} />
+                    <AutoCompleteField mode="select" disabled={readOnly} onChange={(value) => onFieldChange("clientKind", value)} options={clientKindOptions} placeholderDisabled={false} showCode={showCodeLabel} value={text(record.clientKind)} />
                   </Field>
                 </Box>
               </Group>

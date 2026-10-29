@@ -7,7 +7,7 @@ import type { GridColDef, GridPaginationModel, GridRowParams, GridRowSelectionMo
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmDeleteDialog";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";

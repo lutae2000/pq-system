@@ -1,13 +1,16 @@
 "use client";
 
-import { Box, Checkbox, ListItemText, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Checkbox, FormControl, InputLabel, ListItemText, MenuItem, Select, Typography } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 
-import { standardFieldSx, type CheckboxOption } from "@/components/common/FormControls";
+import { standardFieldSx } from "@/components/common/FormControls";
+
+export type CheckboxOption<TValue extends string> = { label: string; value: TValue };
 
 export type CheckboxSelectInputProps<TValue extends string> = {
   label: string;
+  labelPlacement?: "inside" | "top";
   name: string;
   onChange: (name: string, value: TValue[]) => void;
   options: CheckboxOption<TValue>[];
@@ -18,6 +21,7 @@ export type CheckboxSelectInputProps<TValue extends string> = {
 
 export function CheckboxSelectInput<TValue extends string>({
   label,
+  labelPlacement = "top",
   name,
   onChange,
   options,
@@ -25,11 +29,11 @@ export function CheckboxSelectInput<TValue extends string>({
   sx,
   value,
 }: CheckboxSelectInputProps<TValue>) {
-  return (
-    <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
-      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</Typography>
-      <Select
+  const select = (
+    <Select
         multiple
+        label={labelPlacement === "inside" ? label : undefined}
+        labelId={labelPlacement === "inside" ? `${name}-label` : undefined}
         name={name}
         onChange={((event: SelectChangeEvent<string[]>) => {
           const rawValue = event.target.value as unknown as string | string[];
@@ -61,6 +65,17 @@ export function CheckboxSelectInput<TValue extends string>({
           </MenuItem>
         ))}
       </Select>
+  );
+
+  return labelPlacement === "inside" ? (
+    <FormControl fullWidth size="small">
+      <InputLabel id={`${name}-label`}>{label}</InputLabel>
+      {select}
+    </FormControl>
+  ) : (
+    <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
+      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</Typography>
+      {select}
     </Box>
   );
 }
