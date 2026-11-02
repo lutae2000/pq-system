@@ -188,6 +188,7 @@ function FieldControl({
       disabled={disabled || loading || readOnly} label={labelPlacement === "inside" ? label : undefined}
       onChange={(event) => onChange(event.target.value)} value={value || (includeAll ? allValue || "All" : "")}
       slotProps={{
+        inputLabel: { shrink: true },
         select: {
           displayEmpty: true,
           renderValue: (selected) => {
