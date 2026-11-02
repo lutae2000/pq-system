@@ -818,10 +818,12 @@ public class HwpxDocumentGenerationService {
       case "code" -> string(performance.jobName()) + string(performance.seq());
       case "jobName" -> string(performance.jobName());
       case "orderClient" -> string(performance.orderClient());
-      case "contractPeriod" ->
-          StringUtils.hasText(contractPeriods.get(performance.seq()))
-              ? formatCompanyPeriodText(contractPeriods.get(performance.seq()), fieldName)
-              : formatCompanyContractPeriod(performance, fieldName);
+      case "contractPeriod", "contractPeriods" ->
+          "row.contractPeriods".equals(path) || fieldName.contains("용역차수기간")
+              ? formatCompanyContractPeriods(performance, contractPeriods.get(performance.seq()), fieldName)
+              : StringUtils.hasText(contractPeriods.get(performance.seq()))
+                  ? formatCompanyPeriodText(contractPeriods.get(performance.seq()), fieldName)
+                  : formatCompanyContractPeriod(performance, fieldName);
       case "contractFromDate" -> formatCompanyDate(performance.contractFromDate(), fieldName);
       case "contractToDate" -> formatCompanyDate(performance.contractToDate(), fieldName);
       case "contractAmt" -> formatCompanyAmount(performance.contractAmt(), fieldName);
@@ -868,6 +870,25 @@ public class HwpxDocumentGenerationService {
     String to = formatCompanyDate(performance.contractToDate(), fieldName);
     return formatCompanyPeriodRange(
         performance.contractFromDate(), performance.contractToDate(), fieldName, from, to);
+  }
+
+  private String formatCompanyContractPeriods(
+      CompanyPerformance performance, String periodText, String fieldName) {
+    List<HwpxFieldFormatter.ContractPeriod> periods = new java.util.ArrayList<>();
+    if (StringUtils.hasText(periodText)) {
+      for (String line : periodText.split("\\R")) {
+        String[] dates = line.split(" ~ ", -1);
+        if (dates.length == 2) {
+          periods.add(new HwpxFieldFormatter.ContractPeriod(dates[0], dates[1]));
+        }
+      }
+    }
+    if (periods.isEmpty() && StringUtils.hasText(performance.contractFromDate())
+        && StringUtils.hasText(performance.contractToDate())) {
+      periods.add(new HwpxFieldFormatter.ContractPeriod(
+          performance.contractFromDate(), performance.contractToDate()));
+    }
+    return HwpxFieldFormatter.formatContractPeriods(fieldName, periods);
   }
 
   private String formatCompanyPeriodText(String value, String fieldName) {

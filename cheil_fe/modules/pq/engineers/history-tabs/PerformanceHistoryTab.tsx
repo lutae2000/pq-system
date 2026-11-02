@@ -108,15 +108,20 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         enableCellSelection={false}
         getRowId={(row) => `${row.seq}-${row.id}`}
         hideFooterSelectedRowCount
+        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
         onRowDoubleClick={(params: GridRowParams<CareerDetailRecord>) => {
           if (params.row.seq) {
             setDetailSeq(params.row.seq);
           }
         }}
         showPageNumbers
+        pageSizeOptions={[25, 50, 100]}
         rows={rows}
+        wrapperMinHeight={600}
         sx={{
           ...historyGridSx,
+          height: 600,
+          minHeight: 600,
           "& .MuiDataGrid-row:hover": { cursor: "pointer" },
         }}
       />

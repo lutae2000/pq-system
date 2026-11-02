@@ -6,6 +6,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -528,24 +529,28 @@ export function MenuManagementPage() {
                 sx={standardFieldSx}
                 value={draft.menuName}
               />
-              <TextField
+              <Autocomplete
+                autoHighlight
                 fullWidth
-                label="상위 메뉴"
-                onChange={(event) => setDraft((current) => ({ ...current, parentMenuCode: event.target.value }))}
-                select
-                size="small"
-                sx={standardFieldSx}
-                value={draft.parentMenuCode}
-              >
-                <MenuItem value="">최상위</MenuItem>
-                {records
-                  .filter((option) => option.menuCode !== draft.menuCode)
-                  .map((option) => (
-                  <MenuItem key={option.menuCode} value={option.menuCode}>
-                    {option.menuName} ({option.menuCode})
-                  </MenuItem>
-                  ))}
-              </TextField>
+                getOptionLabel={(option) => option.menuCode ? `${option.menuName} (${option.menuCode})` : option.menuName}
+                isOptionEqualToValue={(option, value) => option.menuCode === value.menuCode}
+                onChange={(_, option) => setDraft((current) => ({ ...current, parentMenuCode: option?.menuCode ?? "" }))}
+                options={[
+                  { menuCode: "", menuName: "최상위" },
+                  ...records
+                    .filter((option) => option.menuCode !== draft.menuCode)
+                    .map(({ menuCode, menuName }) => ({ menuCode, menuName })),
+                ]}
+                renderInput={(params) => (
+                  <TextField {...params} label="상위 메뉴" size="small" sx={standardFieldSx} />
+                )}
+                value={[
+                  { menuCode: "", menuName: "최상위" },
+                  ...records
+                    .filter((option) => option.menuCode !== draft.menuCode)
+                    .map(({ menuCode, menuName }) => ({ menuCode, menuName })),
+                ].find((option) => option.menuCode === draft.parentMenuCode) ?? null}
+              />
               <TextField
                 fullWidth
                 label="메뉴 경로"

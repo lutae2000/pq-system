@@ -11,7 +11,7 @@ const SearchTab = dynamic(() => import("./PqEngineerPerformanceSearchTab").then(
 const AllTab = dynamic(() => import("./PqEngineerPerformanceAllTab").then((module) => module.PqEngineerPerformanceAllTab), { ssr: false });
 const WorkOverlapTab = dynamic(() => import("./PqEngineerWorkOverlapTab").then((module) => module.PqEngineerWorkOverlapTab), { ssr: false });
 
-const PERFORMANCE_TAB_HEADER_HEIGHT = 100;
+const PERFORMANCE_TAB_HEADER_HEIGHT = 75;
 const WORK_OVERLAP_SUMMARY_HEIGHT = 60;
 const WORK_OVERLAP_MIN_GRID_HEIGHT = 260;
 

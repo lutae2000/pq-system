@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   getCompanyPerformance,
@@ -25,7 +25,6 @@ export function useCompanyPerformanceDocumentsQueries({
     queryKey: companyPerformanceDocumentsQueryKeys.performances(searchParams),
     queryFn: () => listCompanyPerformances(searchParams),
     enabled: enabled && canRead && Boolean(selectedBidSeq),
-    placeholderData: keepPreviousData,
   });
   const documentTargetsQuery = useQuery({
     queryKey: companyPerformanceDocumentsQueryKeys.targets(selectedBidSeq),

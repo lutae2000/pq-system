@@ -2061,11 +2061,11 @@ export function EngineerPersonalInfoPage() {
       ) : null}
 
       <SearchPanel
-        keywordIndex={1}
+        keywordIndex={0}
         keyword={filters.keyword}
         keywordLabel="성명"
         keywordPlaceholder="성명 검색"
-        keywordSx={{ flex: "1 1 220px", maxWidth: 240, minWidth: 190, width: "auto" }}
+        keywordSx={{ flex: "1 1 180px", maxWidth: 240, minWidth: 180, width: "auto" }}
         onKeywordChange={(keyword) => setFilters((current) => ({ ...current, keyword }))}
         onReset={handleReset}
         onSearch={handleSearch}
@@ -2076,7 +2076,7 @@ export function EngineerPersonalInfoPage() {
           label="재직상태"
           select
           size="small"
-          sx={[fieldSx, { flex: "0 1 160px", minWidth: 160, maxWidth: 180, width: "auto" }]}
+          sx={[fieldSx, { flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }]}
           value={filters.status}
           onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value as EngineerFilterState["status"] }))}
           >
@@ -2090,13 +2090,13 @@ export function EngineerPersonalInfoPage() {
           label="보유 자격증"
           mapOption={(option) => ({ label: option.certName, value: option.certCode })}
           onChange={(value) => setFilters((current) => ({ ...current, certificationCode: value }))}
-          sx={{ flex: "1 1 200px", minWidth: 200, maxWidth: 240, width: "auto" }}
+          sx={{ flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }}
           value={filters.certificationCode}
         />
         <AutoCompleteField
           label="설계등급"
           options={designGradeOptions}
-          sx={{ flex: "1 1 170px", minWidth: 170, maxWidth: 210, width: "auto" }}
+          sx={{ flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }}
           value={filters.designGrade}
           onChange={(value) =>
             setFilters((current) => ({
@@ -2108,7 +2108,7 @@ export function EngineerPersonalInfoPage() {
         <AutoCompleteField
           label="건설사업 관리 등급"
           options={constructionManagementGradeOptions}
-          sx={{ flex: "1 1 210px", minWidth: 190, maxWidth: 240, width: "auto" }}
+          sx={{ flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }}
           value={filters.supervisionGrade}
           onChange={(value) =>
             setFilters((current) => ({
@@ -2120,7 +2120,7 @@ export function EngineerPersonalInfoPage() {
         <AutoCompleteField
           label="전문분야"
           options={searchSpecialtyFieldOptions}
-          sx={{ flex: "0 1 180px", minWidth: 180, maxWidth: 210, width: "auto" }}
+          sx={{ flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }}
           value={filters.specialtyField}
           onChange={(value) =>
             setFilters((current) => ({
@@ -2132,7 +2132,7 @@ export function EngineerPersonalInfoPage() {
         <AutoCompleteField
           label="직무분야"
           options={searchJobFieldOptions}
-          sx={{ flex: "0 1 180px", minWidth: 180, maxWidth: 210, width: "auto" }}
+          sx={{ flex: "1 1 180px", minWidth: 180, maxWidth: 240, width: "auto" }}
           value={filters.jobField}
           onChange={(value) =>
             setFilters((current) => ({

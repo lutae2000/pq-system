@@ -92,8 +92,8 @@ const emptyFilters = (): CandidateFilters => ({
 });
 
 const keywordFilterSx = {
-  flex: "0 1 220px",
-  maxWidth: 240,
+  flex: "1 1 200px",
+  maxWidth: 260,
   minWidth: 190,
   width: "auto",
 } as const;
@@ -572,6 +572,10 @@ export function PqParticipatingEngineersPage() {
       <PageHeader title="PQ참여 기술인 관리" />
 
       <SearchPanel
+        fieldGap={0.5}
+        fieldContainerSx={{
+          "& > .MuiAutocomplete-root .MuiFormControl-root": { width: "100%" },
+        }}
         keyword={filters.keyword}
         keywordLabel="기술인명"
         keywordPlaceholder="성명, 부서, 직위"
@@ -709,7 +713,9 @@ export function PqParticipatingEngineersPage() {
                     minHeight: 0,
                     overflowY: "auto",
                     overscrollBehavior: "contain",
-                    p: 2,
+                    p: 1,
+                    pb: 0,
+                    "&:last-child": { pb: 0 },
                   }}
                 >
                   {historyEngineerId ? <PqEngineerPerformanceTabs

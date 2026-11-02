@@ -37,17 +37,17 @@ type PqParticipatingEngineerFilterFieldsProps = {
 };
 
 const filterAutocompleteSx = {
-  flex: "0 1 140px",
-  maxWidth: 155,
-  minWidth: 125,
+  flex: "1 1 200px",
+  maxWidth: 260,
+  minWidth: 190,
   width: "auto",
 } as const;
 
 const certificationFilterSx = {
   ...filterAutocompleteSx,
-  flex: "0 1 220px",
-  maxWidth: 240,
-  minWidth: 190,
+  flex: "1 1 220px",
+  maxWidth: 280,
+  minWidth: 200,
 } as const;
 
 const fullWidthRowSx = {

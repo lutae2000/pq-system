@@ -4,6 +4,7 @@ import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Card, CardContent, InputAdornment, TextField } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
+import type { SystemStyleObject } from "@mui/system";
 import { Children, useState, type ReactNode } from "react";
 
 import { standardFieldSx } from "@/components/common/FormControls";
@@ -11,6 +12,8 @@ import { standardFieldSx } from "@/components/common/FormControls";
 export type SearchPanelProps = {
   actions?: ReactNode;
   children?: ReactNode;
+  fieldGap?: number;
+  fieldContainerSx?: SystemStyleObject<Theme>;
   keyword: string;
   keywordLabel?: string;
   keywordPlaceholder?: string;
@@ -28,6 +31,8 @@ export type SearchPanelProps = {
 export function SearchPanel({
   actions,
   children,
+  fieldGap = 1.25,
+  fieldContainerSx,
   keyword,
   keywordLabel = "검색어",
   keywordPlaceholder = "검색어를 입력하세요.",
@@ -67,24 +72,27 @@ export function SearchPanel({
           }}
         >
           <Box
-            sx={{
-              alignItems: "center",
-              display: "flex",
-              flex: "1 1 auto",
-              flexWrap: "wrap",
-              gap: 1.25,
-              minWidth: 0,
-              "& > .MuiFormControl-root": {
-                flex: "0 1 180px",
-                maxWidth: "100%",
-                width: "auto",
+            sx={[
+              {
+                alignItems: "center",
+                display: "flex",
+                flex: "1 1 auto",
+                flexWrap: "wrap",
+                gap: fieldGap,
+                minWidth: 0,
+                "& > .MuiFormControl-root": {
+                  flex: "0 1 180px",
+                  maxWidth: "100%",
+                  width: "auto",
+                },
+                "& > .MuiBox-root": {
+                  flex: "0 1 180px",
+                  maxWidth: "100%",
+                  width: "auto",
+                },
               },
-              "& > .MuiBox-root": {
-                flex: "0 1 180px",
-                maxWidth: "100%",
-                width: "auto",
-              },
-            }}
+              fieldContainerSx ?? {},
+            ]}
           >
             {(() => {
               const items = Children.toArray(children);
