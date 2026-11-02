@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -88,14 +88,14 @@ export function useEngineerPerformanceDocuments({
 
   const saveInlineDocumentValueMutation = useMutation({
     mutationFn: (change: InlineDocumentValueChange) => {
-      if (!bidSeq) throw new Error("怨듦퀬瑜?癒쇱? ?좏깮?섏꽭??");
+      if (!bidSeq) throw new Error("공고를 먼저 선택하세요.");
       return saveEngineerDocumentValueSetting({ bidSeq, ...change });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: engineerPerformanceDocumentsQueryKeys.documentValueSettings(bidSeq) });
-      showSuccess("?좏깮 ?숇젰쨌?먭꺽????λ릺?덉뒿?덈떎.");
+      showSuccess("선택 학력과 자격이 저장되었습니다.");
     },
-    onError: (error) => showError(error instanceof Error ? error.message : "?좏깮 ?숇젰쨌?먭꺽????ν븯吏 紐삵뻽?듬땲??"),
+    onError: (error) => showError(error instanceof Error ? error.message : "선택 학력과 자격을 저장하지 못했습니다."),
   });
 
   const downloadReviewWorkbookMutation = useMutation({
@@ -128,16 +128,16 @@ export function useEngineerPerformanceDocuments({
     try {
       await Promise.all(profiles.map((profile) => syncEngineerProjectHistoryReviewResults({ bidSeq, engineerId: profile.summary.id, relatedProjectHistoryConditions: conditions })));
       await invalidateReviewResults(queryClient);
-      showSuccess("愿??怨듭궗 李몄뿬 ?대젰??寃?좉껐怨쇱뿉 諛섏쁺?덉뒿?덈떎.");
+      showSuccess("관련 공사 참여 이력을 검토 결과에 반영했습니다.");
     } catch (error) {
-      showError(error instanceof Error ? error.message : "愿??怨듭궗 李몄뿬 ?대젰??寃?좉껐怨쇱뿉 諛섏쁺?섏? 紐삵뻽?듬땲??");
+      showError(error instanceof Error ? error.message : "관련 공사 참여 이력을 검토 결과에 반영하지 못했습니다.");
       throw error;
     }
   };
 
   const addReviewMutation = useMutation({
     mutationFn: async () => {
-      if (!canCreate || !bidSeq) throw new Error("怨듦퀬臾몄쓣 癒쇱? ?좏깮?섏꽭??");
+      if (!canCreate || !bidSeq) throw new Error("공고문을 먼저 선택하세요.");
       const uniqueRows = Array.from(new Map(selectedHistoryRows.map((row) => [text(row.id), row])).values()).sort(compareHistoryRowsForDisplayOrder);
       const nextDisplayOrder = Math.max(0, ...reviewRows.map((row) => row.displayOrder ?? 0)) + 1;
       return createEngineerProjectHistoryReviewResults(uniqueRows.map((row, index) => ({ bidSeq, engineerId: activeEngineerId, sourceSeq: Number(row.id), displayOrder: nextDisplayOrder + index, sourceRow: row })));
@@ -147,9 +147,9 @@ export function useEngineerPerformanceDocuments({
 
   const deleteReviewMutation = useMutation({
     mutationFn: async () => {
-      if (!canDelete || !bidSeq) throw new Error("??젣??寃?좉껐怨쇨? ?놁뒿?덈떎.");
+      if (!canDelete || !bidSeq) throw new Error("삭제할 검토 결과가 없습니다.");
       const targetRows = (pendingBulkDeleteReviewIds ?? []).map((id) => reviewRowById.get(id)).filter((row): row is EngineerProjectHistoryReviewRecord & { reviewId: number } => Boolean(row?.reviewId));
-      if (!targetRows.length) throw new Error("??젣??寃?좉껐怨쇨? ?놁뒿?덈떎.");
+      if (!targetRows.length) throw new Error("삭제할 검토 결과가 없습니다.");
       await Promise.all(targetRows.map((row) => deleteEngineerProjectHistoryReviewResult({ bidSeq, engineerId: row.engineerId, reviewId: row.reviewId })));
     },
     onSuccess: async () => { onReviewDeleted(); await invalidateReviewResults(queryClient); },
@@ -159,35 +159,35 @@ export function useEngineerPerformanceDocuments({
     mutationFn: async () => {
       await Promise.all(getSortedReviewRows().filter((row) => row.reviewId != null).map((row, index) => updateEngineerProjectHistoryReviewResult({ bidSeq: row.bidSeq ?? bidSeq ?? 0, engineerId: row.engineerId, sourceSeq: row.sourceSeq, displayOrder: index + 1, sourceRow: row }, row.reviewId!)));
     },
-    onSuccess: async () => { onReviewRenumbered(); await invalidateReviewResults(queryClient); showSuccess("?꾩옱 ?뺣젹 ?쒖꽌濡??쒕쾲????ν뻽?듬땲??"); },
-    onError: (error) => showError(error instanceof Error ? error.message : "?꾩옱 ?뺣젹 ?쒖꽌濡??쒕쾲????ν븯吏 紐삵뻽?듬땲??"),
+    onSuccess: async () => { onReviewRenumbered(); await invalidateReviewResults(queryClient); showSuccess("현재 정렬 순서로 순번을 저장했습니다."); },
+    onError: (error) => showError(error instanceof Error ? error.message : "현재 정렬 순서로 순번을 저장하지 못했습니다."),
   });
 
   const deleteEngineerMutation = useMutation({
     mutationFn: async () => {
-      if (!canDelete || !bidSeq || !pendingBulkDeleteEngineerIds?.length) throw new Error("??젣??湲곗닠?몄씠 ?놁뒿?덈떎.");
+      if (!canDelete || !bidSeq || !pendingBulkDeleteEngineerIds?.length) throw new Error("삭제할 기술인이 없습니다.");
       const participatingEngineers = await listPqParticipatingEngineers({ bidSeq });
       const targets = participatingEngineers.filter((row) => pendingBulkDeleteEngineerIds.includes(row.engrId));
-      if (!targets.length) throw new Error("??젣??湲곗닠?몄씠 ?놁뒿?덈떎.");
+      if (!targets.length) throw new Error("삭제할 기술인이 없습니다.");
       await Promise.all(targets.map((row) => deletePqParticipatingEngineer(row.bidSeq, row.workDutyId, row.engrId)));
     },
     onSuccess: async () => {
       if (pendingBulkDeleteEngineerIds?.includes(activeEngineerId)) onActiveEngineerDeleted();
       await queryClient.invalidateQueries({ queryKey: engineerPerformanceDocumentsQueryKeys.selectedEngineersRoot });
-      showSuccess("?좏깮??湲곗닠?몄쓣 ??젣?덉뒿?덈떎.");
+      showSuccess("선택한 기술인을 삭제했습니다.");
     },
   });
 
   const processReviewRowUpdate = async (updatedRow: EngineerProjectHistoryReviewRecord, originalRow: EngineerProjectHistoryReviewRecord) => {
     if (!canUpdate || updatedRow.reviewId == null) return originalRow;
     const displayOrder = Number(updatedRow.displayOrder);
-    if (!Number.isInteger(displayOrder) || displayOrder < 1) throw new Error("?쒕쾲? 1 ?댁긽???뺤닔濡??낅젰??二쇱꽭??");
+    if (!Number.isInteger(displayOrder) || displayOrder < 1) throw new Error("순번은 1 이상의 정수로 입력해 주세요.");
     try {
       const saved = await updateEngineerProjectHistoryReviewResult({ bidSeq: updatedRow.bidSeq ?? bidSeq ?? 0, engineerId: updatedRow.engineerId, sourceSeq: updatedRow.sourceSeq, displayOrder, sourceRow: originalRow }, updatedRow.reviewId);
-      showSuccess("寃?좉껐怨??쒕쾲????ν뻽?듬땲??");
+      showSuccess("검토 결과 순번을 저장했습니다.");
       return saved;
     } catch (error) {
-      showError(error instanceof Error ? error.message : "寃?좉껐怨??쒕쾲????ν븯吏 紐삵뻽?듬땲??");
+      showError(error instanceof Error ? error.message : "검토 결과 순번을 저장하지 못했습니다.");
       throw error;
     }
   };
@@ -203,3 +203,4 @@ export function useEngineerPerformanceDocuments({
     syncReviewResults,
   };
 }
+

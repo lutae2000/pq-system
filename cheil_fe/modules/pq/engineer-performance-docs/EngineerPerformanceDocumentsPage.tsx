@@ -4,6 +4,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import FormatListNumberedOutlinedIcon from "@mui/icons-material/FormatListNumberedOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
@@ -28,7 +29,7 @@ import {
 } from "@mui/material";
 import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRenderEditCellParams, type GridRowParams, type GridRowSelectionModel } from "@mui/x-data-grid";
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
@@ -104,7 +105,7 @@ const center = {
 } as const;
 
 const selectorGridHeight = { xs: 520, md: 580 } as const;
-const DEFAULT_SELECTOR_PANEL_WIDTH = 360;
+const DEFAULT_SELECTOR_PANEL_WIDTH = 440;
 const SELECTOR_PANEL_MIN_WIDTH = 300;
 const SELECTOR_PANEL_MAX_WIDTH = 1000;
 const DEFAULT_HISTORY_CARD_HEIGHT = 520;
@@ -181,6 +182,7 @@ export function EngineerPerformanceDocumentsPage() {
   const [pendingBulkDeleteReviewIds, setPendingBulkDeleteReviewIds] = useState<string[] | null>(null);
   const [pendingBulkDeleteEngineerIds, setPendingBulkDeleteEngineerIds] = useState<string[] | null>(null);
   const [selectorPanelWidth, setSelectorPanelWidth] = useState(DEFAULT_SELECTOR_PANEL_WIDTH);
+  const selectorPanelRestoreWidthRef = useRef(DEFAULT_SELECTOR_PANEL_WIDTH);
   const [selectorPanelCollapsed, setSelectorPanelCollapsed] = useState(false);
   const reviewGridApiRef = useGridApiRef();
   const [historyCardHeight, setHistoryCardHeight] = useState(DEFAULT_HISTORY_CARD_HEIGHT);
@@ -854,6 +856,15 @@ export function EngineerPerformanceDocumentsPage() {
               maxWidth={SELECTOR_PANEL_MAX_WIDTH}
               minWidth={SELECTOR_PANEL_MIN_WIDTH}
               onWidthChange={setSelectorPanelWidth}
+              onResizeHandleClick={(edge) => {
+                if (edge !== "right") return;
+                if (selectorPanelWidth >= SELECTOR_PANEL_MAX_WIDTH) {
+                  setSelectorPanelWidth(selectorPanelRestoreWidthRef.current);
+                  return;
+                }
+                selectorPanelRestoreWidthRef.current = selectorPanelWidth;
+                setSelectorPanelWidth(SELECTOR_PANEL_MAX_WIDTH);
+              }}
               resizeEdges={["right"]}
               handleSx={attachedVerticalResizeHandleSx}
               width={selectorPanelWidth}
@@ -863,9 +874,14 @@ export function EngineerPerformanceDocumentsPage() {
               <CardContent sx={{ display: "flex", flex: 1, flexDirection: "column", minHeight: 0 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                   <Box>
-                    <Typography sx={{ fontWeight: 800 }} variant="h6">
-                      선택 기술인 목록
-                    </Typography>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                      <Typography sx={{ fontWeight: 800 }} variant="h6">
+                        선택 기술인 목록
+                      </Typography>
+                      <Tooltip title="카드 오른쪽을 넓게 조젇하여 학력과 자격을 선택하세요">
+                        <InfoOutlinedIcon color="primary" fontSize="small" sx={{ cursor: "help" }} />
+                      </Tooltip>
+                    </Stack>
                   </Box>
                   <Box sx={{ alignItems: "center", display: "flex", gap: 0.5 }}>
                     <Chip label={`${engineerRows.length}명`} size="small" variant="outlined" />

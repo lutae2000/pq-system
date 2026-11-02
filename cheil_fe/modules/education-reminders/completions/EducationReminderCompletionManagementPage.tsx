@@ -685,25 +685,27 @@ function EducationReminderCompletionManagementContent() {
           label="전문분야"
           onChange={(value) => setFilters((current) => ({ ...current, specialtyField: value }))}
           options={specialtyFieldOptions}
-          sx={{ minWidth: 220 }}
+          sx={{ flex: "0 1 170px", maxWidth: 190, minWidth: 160, width: "auto" }}
           value={filters.specialtyField}
         />
         <AutoCompleteField
           label="직무분야"
           onChange={(value) => setFilters((current) => ({ ...current, jobField: value }))}
           options={jobFieldOptions}
-          sx={{ minWidth: 220 }}
+          sx={{ flex: "0 1 170px", maxWidth: 190, minWidth: 160, width: "auto" }}
           value={filters.jobField}
         />
 
-        <CheckboxSelectInput
-          label="교육명"
-          name="educationCodes"
-          onChange={(_, value) => setFilters((current) => ({ ...current, educationCodes: value }))}
-          options={educationCodeOptions}
-          sx={{ minWidth: 220 }}
-          value={filters.educationCodes}
-        />
+        <Box sx={{ flex: "0 0 100% !important", flexBasis: "100% !important", maxWidth: "100% !important", minWidth: 0, width: "100%" }}>
+          <CheckboxSelectInput
+            label="교육명"
+            name="educationCodes"
+            onChange={(_, value) => setFilters((current) => ({ ...current, educationCodes: value }))}
+            options={educationCodeOptions}
+            sx={{ maxWidth: 440, width: "100%" }}
+            value={filters.educationCodes}
+          />
+        </Box>
 
       </SearchPanel>
 
