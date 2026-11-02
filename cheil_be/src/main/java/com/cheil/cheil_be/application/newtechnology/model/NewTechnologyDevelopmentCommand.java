@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record NewTechnologyDevelopmentCommand(
         String title,
         String technologyType,
+        String workCategory,
         BigDecimal applicantCount,
         BigDecimal calculatedScore,
         String applicationDate,

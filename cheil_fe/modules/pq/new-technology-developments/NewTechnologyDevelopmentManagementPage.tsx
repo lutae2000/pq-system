@@ -1,9 +1,11 @@
 "use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
+import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Alert, Box, Button, Card, CardContent, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Chip, Collapse, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
@@ -37,6 +39,7 @@ import {
   formatNumber,
   getValidityLabel,
   TECHNOLOGY_TYPES,
+  WORK_CATEGORIES,
   text,
   today,
   toDateInputValue,
@@ -61,6 +64,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [technologyType, setTechnologyType] = useState("");
+  const [workCategory, setWorkCategory] = useState("");
   const [useYn, setUseYn] = useState(true);
   const [targetField, setTargetField] = useState("");
   const [applicationDateFrom, setApplicationDateFrom] = useState("");
@@ -70,6 +74,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const [pageSize, setPageSize] = useState(100);
   const [draft, setDraft] = useState<NewTechnologyDevelopmentRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyDevelopmentRecord | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(true);
   const { showSnackbar } = useAppSnackbar();
 
   const searchParams = useMemo<NewTechnologyDevelopmentSearchParams>(
@@ -82,9 +87,10 @@ export function NewTechnologyDevelopmentManagementPage() {
       size: pageSize,
       targetField,
       technologyType,
+      workCategory,
       useYn,
     }),
-    [applicationDateFrom, applicationDateTo, appliedKeyword, page, pageSize, scoreReferenceDate, targetField, technologyType, useYn],
+    [applicationDateFrom, applicationDateTo, appliedKeyword, page, pageSize, scoreReferenceDate, targetField, technologyType, useYn, workCategory],
   );
 
   const selectedDevelopmentId = draft.id;
@@ -121,6 +127,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
     () => [
       { field: "id", headerName: "연번", width: 70, align: "center", headerAlign: "center" },
+      { field: "workCategory", headerName: "업무 구분", width: 95, valueFormatter: (value) => display(value as string | null) },
       { field: "targetField", headerName: "적용대상", width: 120, valueGetter: (_value, row) => row.targetField ?? "" },
       { field: "title", headerName: "출원명", minWidth: 320, flex: 1.5 },
       {
@@ -172,7 +179,7 @@ export function NewTechnologyDevelopmentManagementPage() {
         width: 90,
         align: "right",
         headerAlign: "center",
-        valueFormatter: (value) => formatNumber(value as number | null, 2),
+        valueFormatter: (value) => formatNumber(value as number | null, 3),
       },
       {
         field: "autoCalculatedScore",
@@ -180,8 +187,8 @@ export function NewTechnologyDevelopmentManagementPage() {
         width: 105,
         align: "right",
         headerAlign: "center",
-          valueGetter: (_value, row) => calculateAutoScore(row.technologyType, row.applicantCount, row.elapsedYears),
-        valueFormatter: (value) => formatNumber(value as number | null, 2),
+        valueGetter: (_value, row) => row.autoCalculatedScore,
+        valueFormatter: (value) => formatNumber(value as number | null, 3),
       },
       { field: "applicationNo", headerName: "출원번호", width: 150, valueGetter: (_value, row) => row.applicationNo ?? "" },
       { field: "registrationNo", headerName: "등록번호", width: 130, valueGetter: (_value, row) => row.registrationNo ?? "" },
@@ -216,6 +223,7 @@ export function NewTechnologyDevelopmentManagementPage() {
       keyword === "" &&
       appliedKeyword === "" &&
       technologyType === "" &&
+      workCategory === "" &&
       useYn &&
       targetField === "" &&
       applicationDateFrom === "" &&
@@ -226,6 +234,7 @@ export function NewTechnologyDevelopmentManagementPage() {
     setKeyword("");
     setAppliedKeyword("");
     setTechnologyType("");
+    setWorkCategory("");
     setUseYn(true);
     setTargetField("");
     setApplicationDateFrom("");
@@ -271,6 +280,10 @@ export function NewTechnologyDevelopmentManagementPage() {
             </MenuItem>
           ))}
         </TextField>
+        <TextField label="업무 구분" onChange={(event) => setWorkCategory(event.target.value)} select size="small" sx={standardFieldSx} value={workCategory}>
+          <MenuItem value="">전체</MenuItem>
+          {WORK_CATEGORIES.map((category) => <MenuItem key={category} value={category}>{category}</MenuItem>)}
+        </TextField>
         <TextField label="사용여부" onChange={(event) => setUseYn(event.target.value === "Y")} select size="small" sx={standardFieldSx} value={useYn ? "Y" : "N"}>
           <MenuItem value="Y">사용</MenuItem>
           <MenuItem value="N">미사용</MenuItem>
@@ -305,7 +318,7 @@ export function NewTechnologyDevelopmentManagementPage() {
               alignItems: "stretch",
               display: "grid",
               gap: 2,
-              gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.35fr) minmax(380px, 0.65fr)" },
+              gridTemplateColumns: detailsVisible ? { xs: "1fr", lg: "minmax(0, 1.35fr) minmax(380px, 0.65fr)" } : "1fr",
             }}
           >
             <Card sx={{ height: "100%" }}>
@@ -314,9 +327,14 @@ export function NewTechnologyDevelopmentManagementPage() {
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
                     개발실적 목록
                   </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    *산정점수는 현 날짜 기준 산정
-                  </Typography>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", height: 36 }}>
+                    <Typography color="text.secondary" sx={{ alignItems: "center", display: "flex", lineHeight: 1 }} variant="body2">
+                      *산정점수는 현 날짜 기준 산정
+                    </Typography>
+                    <IconButton aria-label={detailsVisible ? "상세정보 숨기기" : "상세정보 보이기"} color="primary" onClick={() => setDetailsVisible((visible) => !visible)} size="small">
+                      {detailsVisible ? <KeyboardDoubleArrowRightOutlinedIcon /> : <KeyboardDoubleArrowLeftOutlinedIcon />}
+                    </IconButton>
+                  </Stack>
                 </Box>
                 <EnterpriseDataGrid<NewTechnologyDevelopmentRecord>
                   columns={columns}
@@ -340,6 +358,7 @@ export function NewTechnologyDevelopmentManagementPage() {
               </CardContent>
             </Card>
 
+            <Collapse in={detailsVisible} sx={{ minWidth: 0 }}>
             <Card sx={{ height: "100%" }}>
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
@@ -374,12 +393,16 @@ export function NewTechnologyDevelopmentManagementPage() {
                       </MenuItem>
                     ))}
                   </TextField>
+                  <TextField label="업무 구분" onChange={(event) => updateDraft("workCategory", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.workCategory)}>
+                    <MenuItem value="">선택</MenuItem>
+                    {WORK_CATEGORIES.map((category) => <MenuItem key={category} value={category}>{category}</MenuItem>)}
+                  </TextField>
                   <TextField
                     label="적용대상"
                     onChange={(event) => updateDraft("targetField", event.target.value)}
                     size="small"
                     slotProps={{ inputLabel: { shrink: true } }}
-                    sx={{ ...standardFieldSx, gridColumn: "1 / -1" }}
+                    sx={standardFieldSx}
                     value={draft.targetField}
                   />
                   <TextField label="출원명" onChange={(event) => updateDraft("title", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.title)} />
@@ -389,10 +412,11 @@ export function NewTechnologyDevelopmentManagementPage() {
                     disabled
                     size="small"
                     sx={standardFieldSx}
-                    value={formatNumber(calculateAutoScore(draft.technologyType, draft.applicantCount, selectedRecord.elapsedYears), 2)}
+                    value={formatNumber(calculateAutoScore(draft.workCategory, draft.calculatedScore, draft.applicantCount), 3)}
                   />
                   <TextField
                     label="기준점수"
+                    required={draft.workCategory === "설계" || draft.workCategory === "감리"}
                     onChange={(event) => updateDraft("calculatedScore", event.target.value === "" ? null : Number(event.target.value))}
                     size="small"
                     sx={standardFieldSx}
@@ -403,7 +427,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                     <MenuItem value="Y">사용</MenuItem>
                     <MenuItem value="N">미사용</MenuItem>
                   </TextField>
-                  <TextField label="출원번호" onChange={(event) => updateDraft("applicationNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.applicationNo)} />
+                  <TextField disabled={draft.technologyType !== "특허"} label="출원번호" onChange={(event) => updateDraft("applicationNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.applicationNo)} />
                   <TextField label="등록번호" onChange={(event) => updateDraft("registrationNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.registrationNo)} />
                   <TextField
                       label="출원일"
@@ -426,9 +450,6 @@ export function NewTechnologyDevelopmentManagementPage() {
                   <TextField label="내용" minRows={5} multiline onChange={(event) => updateDraft("summary", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.summary)} />
                   <TextField label="비고" minRows={3} multiline onChange={(event) => updateDraft("remark", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.remark)} />
                 </Box>
-
-
-
                 <FileActionCard
                   attachmentTarget={fileOwnerId ? { attachmentType: NEW_TECHNOLOGY_ATTACHMENT_TYPE, ownerId: fileOwnerId, ownerType: NEW_TECHNOLOGY_ATTACHMENT_OWNER_TYPE } : undefined}
                   deleteDisabled={!canDelete}
@@ -446,6 +467,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                 />
               </CardContent>
             </Card>
+            </Collapse>
           </Box>
         </Stack>
 

@@ -9,6 +9,8 @@ public record NewTechnologyUsageCommand(
         String developers,
         String projectName,
         String client,
+        String workCategory,
+        String technologyType,
         String noticeDate,
         String usageExpirationDate,
         Integer usageCount,

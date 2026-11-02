@@ -42,7 +42,6 @@ export function useNewTechnologyUsageMutations({
       if (draftId === 0 && !canCreate) throw new Error("신인도 사용실적 등록 권한이 없습니다.");
       if (!request.designationNo) throw new Error("지정번호를 입력해 주세요.");
       if (!request.title) throw new Error("명칭을 입력해 주세요.");
-
       const created = draftId === 0;
       const saved = created ? await createNewTechnologyUsage(request) : await updateNewTechnologyUsage(draftId, request);
       return { created, saved };

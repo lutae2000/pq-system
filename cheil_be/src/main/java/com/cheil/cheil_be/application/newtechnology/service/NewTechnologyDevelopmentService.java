@@ -91,11 +91,13 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
         r.id(),
         r.title(),
         r.technologyType(),
+        r.workCategory(),
         r.applicantCount(),
         r.useYn(),
         r.applicationDate(),
         elapsed,
-        score(r.calculatedScore(), r.technologyType(), r.applicantCount(), elapsed),
+        r.calculatedScore(),
+        score(r.workCategory(), r.calculatedScore(), r.applicantCount()),
         r.targetField(),
         r.applicationNo(),
         r.registrationNo(),
@@ -117,23 +119,10 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
         .setScale(2, RoundingMode.HALF_UP);
   }
 
-  private BigDecimal score(
-      BigDecimal saved, String type, BigDecimal applicants, BigDecimal elapsed) {
-    if (saved != null) return saved;
-    if (applicants == null || applicants.compareTo(BigDecimal.ZERO) <= 0)
-      return BigDecimal.ZERO.setScale(2);
-    return base(type, elapsed)
-        .divide(applicants, 10, RoundingMode.DOWN)
-        .setScale(2, RoundingMode.DOWN);
-  }
-
-  private BigDecimal base(String type, BigDecimal elapsed) {
-    String t = StringValues.normalize(type);
-    double years = elapsed == null ? 0 : elapsed.doubleValue();
-    if ("신기술".equals(t)) return BigDecimal.valueOf(2);
-    if ("특허".equals(t)) return BigDecimal.valueOf(years < 5 ? 1 : years < 10 ? .8 : .6);
-    if ("실용신안".equals(t)) return BigDecimal.valueOf(years < 5 ? .5 : years < 10 ? .4 : 0);
-    return BigDecimal.ZERO;
+  private BigDecimal score(String workCategory, BigDecimal standardScore, BigDecimal applicants) {
+    if (!"설계".equals(workCategory) && !"감리".equals(workCategory)) return null;
+    if (standardScore == null || applicants == null || applicants.compareTo(BigDecimal.ZERO) <= 0) return null;
+    return standardScore.divide(applicants, 3, RoundingMode.DOWN);
   }
 
   private void validate(NewTechnologyDevelopmentCommand r) {
@@ -152,7 +141,13 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
     basicDate(r.validUntil(), "validUntil", false);
     if (r.applicantCount() != null && r.applicantCount().compareTo(BigDecimal.ZERO) <= 0)
       throw ApplicationException.badRequest("applicantCount must be greater than 0.");
+    if (!java.util.Set.of("설계", "감리", "건축").contains(StringValues.normalize(r.workCategory())))
+      throw ApplicationException.badRequest("workCategory는 설계, 감리, 건축 중 하나여야 합니다.");
     nonNegative(r.calculatedScore(), "calculatedScore");
+    if (("설계".equals(r.workCategory()) || "감리".equals(r.workCategory())) && r.calculatedScore() == null)
+      throw ApplicationException.badRequest("설계·감리 업무의 기준점수는 필수입니다.");
+    if (r.calculatedScore() != null && (r.calculatedScore().scale() > 3 || r.calculatedScore().precision() - r.calculatedScore().scale() > 7))
+      throw ApplicationException.badRequest("calculatedScore는 소수점 셋째 자리까지 입력할 수 있습니다.");
   }
 
   private NewTechnologyDevelopmentCommand normalize(NewTechnologyDevelopmentCommand r) {
@@ -160,6 +155,7 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
     return new NewTechnologyDevelopmentCommand(
         InputValues.requiredText(r.title(), "title"),
         trimToNull(r.technologyType()),
+        trimToNull(r.workCategory()),
         r.applicantCount(),
         r.calculatedScore(),
         basicDate(r.applicationDate(), "applicationDate", false),
@@ -179,6 +175,7 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
     return new NewTechnologyDevelopmentSearch(
         trimToNull(search.keyword()),
         trimToNull(search.technologyType()),
+        trimToNull(search.workCategory()),
         trimToNull(search.targetField()),
         basicDate(search.applicationDateFrom(), "applicationDateFrom", false),
         basicDate(search.applicationDateTo(), "applicationDateTo", false),

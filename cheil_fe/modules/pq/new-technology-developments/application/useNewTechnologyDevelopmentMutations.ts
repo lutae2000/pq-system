@@ -44,6 +44,12 @@ export function useNewTechnologyDevelopmentMutations({
       if (!request.technologyType) {
         throw new Error("구분을 선택하세요.");
       }
+      if (!request.workCategory) {
+        throw new Error("업무 구분을 선택하세요.");
+      }
+      if ((request.workCategory === "설계" || request.workCategory === "감리") && request.calculatedScore === null) {
+        throw new Error("설계·감리 업무의 기준점수를 입력하세요.");
+      }
       if (request.applicantCount === null || request.applicantCount <= 0) {
         throw new Error("출원인수는 0보다 커야 합니다.");
       }

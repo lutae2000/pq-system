@@ -95,6 +95,9 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('test') {
     outputs.dir snippetsDir
     useJUnitPlatform()
+    if (project.hasProperty('xlsxMigration')) {
+        maxHeapSize = '2g'
+    }
 }
 
 tasks.named('asciidoctor') {

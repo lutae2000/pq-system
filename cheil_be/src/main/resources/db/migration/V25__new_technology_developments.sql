@@ -5,11 +5,12 @@ CREATE TABLE IF NOT EXISTS new_technology_developments (
     applicant_count NUMERIC(10, 2),
     application_date VARCHAR(8),
     target_field VARCHAR(100),
+    work_category VARCHAR(10),
     application_no VARCHAR(100),
     registration_no VARCHAR(100),
     valid_until VARCHAR(8),
     use_yn BOOLEAN NOT NULL DEFAULT TRUE,
-    calculated_score NUMERIC(10, 2),
+    calculated_score NUMERIC(10, 3),
     summary TEXT,
     remark TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -19,7 +20,9 @@ CREATE TABLE IF NOT EXISTS new_technology_developments (
     CONSTRAINT ck_new_technology_applicant_count
         CHECK (applicant_count IS NULL OR applicant_count > 0),
     CONSTRAINT ck_new_technology_type
-        CHECK (technology_type IS NULL OR technology_type IN ('신기술', '특허', '신안')),
+        CHECK (technology_type IS NULL OR technology_type IN ('신기술', '특허')),
+    CONSTRAINT ck_new_technology_work_category
+        CHECK (work_category IS NULL OR work_category IN ('설계', '감리', '건축')),
     CONSTRAINT ck_new_technology_application_date
         CHECK (application_date IS NULL OR application_date ~ '^[0-9]{8}$'),
     CONSTRAINT ck_new_technology_valid_until
@@ -40,6 +43,7 @@ CREATE INDEX IF NOT EXISTS ix_new_technology_developments_registration_no
     ON new_technology_developments (registration_no);
 COMMENT ON COLUMN new_technology_developments.use_yn IS '사용 여부';
 COMMENT ON COLUMN new_technology_developments.calculated_score IS '산정 점수';
+COMMENT ON COLUMN new_technology_developments.work_category IS '업무 구분';
 
 COMMENT ON TABLE new_technology_developments IS '신기술 개발실적';
 COMMENT ON COLUMN new_technology_developments.id IS '신기술 개발실적 ID';

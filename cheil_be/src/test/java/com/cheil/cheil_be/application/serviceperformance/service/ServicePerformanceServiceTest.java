@@ -21,6 +21,8 @@ import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceCommand;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportRow;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +33,52 @@ import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerform
 
 @ExtendWith(MockitoExtension.class)
 class ServicePerformanceServiceTest {
+
+    @Test
+    void importedSearchNormalizesFourFilters() {
+        var pageable = PageRequest.of(0, 20);
+        var result = new PageImpl<com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportView>(
+                List.of(), pageable, 0);
+        when(repository.findImported(any(), any())).thenReturn(result);
+
+        assertThat(service.findImported(new ServicePerformanceImportSearch(
+                " 발주청 ", " 용역명 ", " 업역분류 ", " 세부분야 "), pageable)).isEqualTo(result);
+
+        ArgumentCaptor<ServicePerformanceImportSearch> captured =
+                ArgumentCaptor.forClass(ServicePerformanceImportSearch.class);
+        verify(repository).findImported(captured.capture(), org.mockito.ArgumentMatchers.same(pageable));
+        assertThat(captured.getValue()).isEqualTo(new ServicePerformanceImportSearch(
+                "발주청", "용역명", "업역분류", "세부분야"));
+    }
+
+    @Test
+    void replaceImportedNormalizesAllRowsBeforeReplacingData() {
+        ServicePerformanceImportRow row = new ServicePerformanceImportRow(
+                " Z22163 ", " 발주청 ", " 용역명 ", " 실시설계 ", " 수자원시설 ",
+                new BigDecimal("300504"), "2021-05-24", "2023-01-13",
+                new BigDecimal("73.87"), new BigDecimal("222"),
+                new BigDecimal("94.44"), "2025-04-04");
+        when(currentActorPort.currentActor()).thenReturn("admin");
+
+        assertThat(service.replaceImported(List.of(row))).isEqualTo(1);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ServicePerformanceImportRow>> rows = ArgumentCaptor.forClass(List.class);
+        verify(repository).replaceImported(rows.capture(), org.mockito.ArgumentMatchers.eq("admin"));
+        assertThat(rows.getValue().get(0).constructionNo()).isEqualTo("Z22163");
+        assertThat(rows.getValue().get(0).serviceStartDate()).isEqualTo("20210524");
+        assertThat(rows.getValue().get(0).evaluationEndDate()).isEqualTo("20250404");
+    }
+
+    @Test
+    void invalidImportDoesNotReplaceExistingData() {
+        ServicePerformanceImportRow invalid = new ServicePerformanceImportRow(
+                "Z1", "발주청", "용역명", null, null, null, null, null,
+                new BigDecimal("101"), null, null, null);
+        assertThatThrownBy(() -> service.replaceImported(List.of(invalid)))
+                .isInstanceOf(ApplicationException.class).hasMessageContaining("지분율");
+        verify(repository, never()).replaceImported(any(), any());
+    }
 
     @Mock
     private ServicePerformanceRepository repository;

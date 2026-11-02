@@ -27,6 +27,23 @@ public class ServicePerformanceController {
 
     private final ServicePerformanceUseCase servicePerformanceUseCase;
 
+    @GetMapping("/imported")
+    public ResponseEntity<PageResponse<ServicePerformanceImportResponse>> imported(
+            @RequestParam(required = false) String client,
+            @RequestParam(required = false) String serviceName,
+            @RequestParam(required = false) String serviceCategory,
+            @RequestParam(required = false) String detailField,
+            @PageableDefault(size = 100) Pageable pageable) {
+        var search = new com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch(
+                client, serviceName, serviceCategory, detailField);
+        return ResponseEntity.ok(PageResponse.from(servicePerformanceUseCase.findImported(search, PageRequests.of(pageable)), ServicePerformanceImportResponse::from));
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<Integer> replaceImported(@Valid @RequestBody java.util.List<@Valid ServicePerformanceImportRequest> rows) {
+        return ResponseEntity.ok(servicePerformanceUseCase.replaceImported(rows.stream().map(ServicePerformanceImportRequest::toRow).toList()));
+    }
+
     @GetMapping
     public ResponseEntity<PageResponse<ServicePerformanceResponse>> list(
             @RequestParam(required = false) String keyword,

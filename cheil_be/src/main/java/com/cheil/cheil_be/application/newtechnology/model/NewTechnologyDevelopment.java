@@ -7,6 +7,7 @@ public record NewTechnologyDevelopment(
         Long id,
         String title,
         String technologyType,
+        String workCategory,
         BigDecimal applicantCount,
         boolean useYn,
         String applicationDate,

@@ -1,10 +1,6 @@
 "use client";
-
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import PercentOutlinedIcon from "@mui/icons-material/PercentOutlined";
-import SellOutlinedIcon from "@mui/icons-material/SellOutlined";
-import StarOutlineOutlinedIcon from "@mui/icons-material/StarOutlineOutlined";
-import SubjectOutlinedIcon from "@mui/icons-material/SubjectOutlined";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -12,947 +8,321 @@ import {
   Card,
   CardContent,
   Chip,
-  FormControl,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import type {
-  GridColDef,
-  GridPaginationModel,
-  GridRowParams,
-  GridRowSelectionModel,
-} from "@mui/x-data-grid";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-
-import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
-import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import type { GridColDef } from "@mui/x-data-grid";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { SearchPanel } from "@/components/common/SearchPanel";
-import { todayLocalDate } from "@/modules/common/formatters";
+import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  SERVICE_PERFORMANCE_PAGE_SIZE,
-  type ServicePerformancePageResponse,
-  type ServicePerformanceRecord,
-  type ServicePerformanceRequest,
-  type ServicePerformanceSearchParams,
-} from "@/modules/pq/service-performance-management/api";
-import { useServicePerformanceMutations } from "@/modules/pq/service-performance-management/application/useServicePerformanceMutations";
-import { useServicePerformanceQueries } from "@/modules/pq/service-performance-management/application/useServicePerformanceQueries";
-import { ServicePerformanceDetailDialog } from "@/modules/pq/service-performance-management/ServicePerformanceDetailDialog";
+  listImportedServicePerformances,
+  replaceImportedServicePerformances,
+  type ServicePerformanceImportFilters,
+  type ServicePerformanceImportRecord,
+  type ServicePerformanceImportRow,
+} from "./api";
+import {
+  columns,
+  readServicePerformanceExcel,
+} from "./servicePerformanceExcel";
 
-const EMPTY_ROWS: ServicePerformanceRecord[] = [];
-const PAGE_SIZE = SERVICE_PERFORMANCE_PAGE_SIZE;
-const CLIENT_SELECT_PARAMS = { size: 1000 };
-type SearchFilterState = Pick<
-  ServicePerformanceSearchParams,
-  "clientCode" | "fieldName" | "periodType" | "referenceDate" | "siteName"
->;
-
-const PERIOD_OPTIONS: Array<{
-  label: string;
-  value: ServicePerformanceSearchParams["periodType"];
-}> = [
-  { label: "최근 3년", value: "3" },
-  { label: "최근 5년", value: "5" },
-  { label: "전체", value: "ALL" },
-];
-
-const today = todayLocalDate;
-
-const defaultSearchFilters = (): SearchFilterState => ({
-  clientCode: "",
-  fieldName: "",
-  periodType: "3",
-  referenceDate: today(),
-  siteName: "",
+const numeric = new Set<string>([
+  "serviceFeeThousand",
+  "shareRate",
+  "serviceAmountMillion",
+  "score",
+]);
+const dates = new Set<string>([
+  "serviceStartDate",
+  "serviceEndDate",
+  "evaluationEndDate",
+]);
+const emptyFilters = (): ServicePerformanceImportFilters => ({
+  client: "",
+  serviceName: "",
+  serviceCategory: "",
+  detailField: "",
 });
-
-const emptyDraft = (): ServicePerformanceRecord => ({
-  clientCode: "",
-  clientName: null,
-  amountReflectedEvaluationScore: null,
-  createdAt: null,
-  createdId: null,
-  evaluationDate: today(),
-  evaluationScore: null,
-  fieldName: "",
-  id: 0,
-  lastChangedAt: null,
-  lastChangedId: null,
-  remark: null,
-  serviceAmount: null,
-  siteName: "",
-});
-
-const emptyPage = (
-  page: number,
-  size: number,
-): ServicePerformancePageResponse => ({
-  content: EMPTY_ROWS,
-  page,
-  size,
-  totalElements: 0,
-  totalPages: 0,
-});
-
-const text = (value: string | null | undefined) => value || "";
-const display = (value: string | null | undefined) =>
-  value?.trim() ? value : "-";
-const compactDate = (value: string | null | undefined) =>
-  text(value).replace(/\D/g, "").slice(0, 8);
-const formatDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8
-    ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}`
-    : display(value);
+const filterFields = [
+  ["client", "발주청"],
+  ["serviceCategory", "업역분류"],
+  ["detailField", "세부분야"],
+] as const;
+const columnWidths: Record<string, number> = {
+  constructionNo: 125,
+  client: 200,
+  serviceName: 320,
+  serviceCategory: 150,
+  detailField: 175,
+  serviceFeeThousand: 145,
+  serviceStartDate: 135,
+  serviceEndDate: 135,
+  shareRate: 105,
+  serviceAmountMillion: 160,
+  score: 100,
+  evaluationEndDate: 135,
 };
-const formatMoney = (value: number | null | undefined) =>
-  value === null || value === undefined
-    ? "-"
-    : Number(value).toLocaleString("ko-KR");
-const formatScore = (value: number | null | undefined, digits = 2) =>
-  value === null || value === undefined
-    ? "-"
-    : Number(value).toLocaleString("ko-KR", {
-        maximumFractionDigits: digits,
-        minimumFractionDigits: digits,
-      });
-const normalizeDate = (value: string | null | undefined) => {
-  const normalized = compactDate(value);
-  return normalized.length === 8 ? normalized : "";
-};
-
-const toRequest = (
-  draft: ServicePerformanceRecord,
-): ServicePerformanceRequest => ({
-  clientCode: text(draft.clientCode).trim(),
-  evaluationDate: normalizeDate(draft.evaluationDate),
-  evaluationScore: draft.evaluationScore,
-  fieldName: text(draft.fieldName).trim(),
-  remark: text(draft.remark).trim() || null,
-  serviceAmount: draft.serviceAmount,
-  siteName: text(draft.siteName).trim(),
-});
-
-export function ServicePerformanceManagementPage() {
-  const { canCreate, canDelete, canRead, canUpdate } =
-    useCurrentMenuPermission();
-  const { showError, showSuccess } = useAppSnackbar();
-
-  const [keyword, setKeyword] = useState("");
-  const [appliedKeyword, setAppliedKeyword] = useState("");
-  const [searchFilters, setSearchFilters] = useState<SearchFilterState>(() =>
-    defaultSearchFilters(),
-  );
-  const [appliedSearchFilters, setAppliedSearchFilters] =
-    useState<SearchFilterState>(() => defaultSearchFilters());
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE);
-  const [draft, setDraft] = useState<ServicePerformanceRecord>(() =>
-    emptyDraft(),
-  );
-  const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
-  const [rowSelectionIds, setRowSelectionIds] = useState<number[]>([]);
-  const [deleteTarget, setDeleteTarget] =
-    useState<ServicePerformanceRecord | null>(null);
-  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-
-  const searchParams = useMemo<ServicePerformanceSearchParams>(
-    () => ({
-      clientCode: appliedSearchFilters.clientCode,
-      fieldName: appliedSearchFilters.fieldName,
-      keyword: appliedKeyword,
-      page,
-      periodType: appliedSearchFilters.periodType,
-      referenceDate: appliedSearchFilters.referenceDate,
-      siteName: appliedSearchFilters.siteName,
-      size: pageSize,
-    }),
-    [
-      appliedKeyword,
-      appliedSearchFilters.clientCode,
-      appliedSearchFilters.fieldName,
-      appliedSearchFilters.periodType,
-      appliedSearchFilters.referenceDate,
-      appliedSearchFilters.siteName,
-      page,
-      pageSize,
-    ],
-  );
-
-  const performancesQuery = useServicePerformanceQueries({ enabled: canRead, params: searchParams });
-
-  const pageData = performancesQuery.data || emptyPage(page, pageSize);
-  const rows = pageData.content || EMPTY_ROWS;
-  const selectedRecord = draft;
-  const selectedIdsSet = useMemo(
-    () => new Set(rowSelectionIds),
-    [rowSelectionIds],
-  );
-  const selectedRows = useMemo(
-    () => rows.filter((row) => selectedIdsSet.has(row.id)),
-    [rows, selectedIdsSet],
-  );
-  const basisRows = selectedRows.length > 0 ? selectedRows : rows;
-  const selectedCount = selectedRows.length;
-  const selectedServiceAmountTotal = useMemo(
-    () =>
-      basisRows.reduce((sum, row) => sum + Number(row.serviceAmount || 0), 0),
-    [basisRows],
-  );
-  const basisAverageScore = useMemo(() => {
-    if (basisRows.length === 0) {
-      return null;
-    }
-    const total = basisRows.reduce(
-      (sum, row) => sum + Number(row.evaluationScore || 0),
-      0,
-    );
-    return total / basisRows.length;
-  }, [basisRows]);
-  const weightedAverageScore = useMemo(() => {
-    if (selectedServiceAmountTotal === 0) {
-      return null;
-    }
-    const weightedTotal = basisRows.reduce(
-      (sum, row) =>
-        sum + Number(row.serviceAmount || 0) * Number(row.evaluationScore || 0),
-      0,
-    );
-    return weightedTotal / selectedServiceAmountTotal;
-  }, [basisRows, selectedServiceAmountTotal]);
-  const resolvedAmountReflectedEvaluationScore = useMemo(() => {
-    if (
-      selectedRecord.amountReflectedEvaluationScore !== null &&
-      selectedRecord.amountReflectedEvaluationScore !== undefined
-    ) {
-      return selectedRecord.amountReflectedEvaluationScore;
-    }
-    if (selectedServiceAmountTotal === 0) {
-      return null;
-    }
-    if (
-      selectedRecord.serviceAmount === null ||
-      selectedRecord.serviceAmount === undefined
-    ) {
-      return null;
-    }
-    if (
-      selectedRecord.evaluationScore === null ||
-      selectedRecord.evaluationScore === undefined
-    ) {
-      return null;
-    }
-    return (
-      (Number(selectedRecord.serviceAmount) *
-        Number(selectedRecord.evaluationScore)) /
-      selectedServiceAmountTotal
-    );
-  }, [
-    selectedRecord.amountReflectedEvaluationScore,
-    selectedRecord.evaluationScore,
-    selectedRecord.serviceAmount,
-    selectedServiceAmountTotal,
-  ]);
-
-  useEffect(() => {
-    if (!canRead) {
-      return;
-    }
-
-    if (detailDialogOpen && draft.id === 0) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      if (rows.length === 0) {
-        if (
-          selectedRowId !== null ||
-          rowSelectionIds.length > 0 ||
-          draft.id > 0
-        ) {
-          setSelectedRowId(null);
-          setDraft(emptyDraft());
-          setRowSelectionIds([]);
-        }
-        return;
-      }
-
+const gridColumns: GridColDef<ServicePerformanceImportRecord>[] = columns.map(
+  ([field, label]) => ({
+    field,
+    headerName: label,
+    width: columnWidths[field] ?? 150,
+    align: [
+      "constructionNo",
+      "client",
+      "serviceCategory",
+      "detailField",
+      "serviceStartDate",
+      "serviceEndDate",
+      "shareRate",
+      "score",
+      "evaluationEndDate",
+    ].includes(field)
+      ? "center"
+      : undefined,
+    headerAlign: [
+      "constructionNo",
+      "client",
+      "serviceCategory",
+      "detailField",
+      "serviceStartDate",
+      "serviceEndDate",
+      "shareRate",
+      "score",
+      "evaluationEndDate",
+    ].includes(field)
+      ? "center"
+      : undefined,
+    valueFormatter: (value: unknown) => {
       if (
-        selectedRowId === null ||
-        !rows.some((row) => row.id === selectedRowId)
-      ) {
-        setSelectedRowId(rows[0].id);
-        setDraft(rows[0]);
-        setRowSelectionIds([rows[0].id]);
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    canRead,
-    detailDialogOpen,
-    draft.id,
-    rowSelectionIds.length,
-    rows,
-    selectedRowId,
-  ]);
-
-  const { deleteMutation, saveMutation } = useServicePerformanceMutations({
-    canCreate,
-    canDelete,
-    canUpdate,
-    draftId: draft.id,
-    onDeleted: (deletedRow) => {
-      const nextSelected = rows.find((row) => row.id !== deletedRow.id) ?? null;
-      setDeleteTarget(null);
-      if (nextSelected) {
-        setSelectedRowId(nextSelected.id);
-        setDraft(nextSelected);
-        setRowSelectionIds([nextSelected.id]);
-      } else {
-        setSelectedRowId(null);
-        setDraft(emptyDraft());
-        setRowSelectionIds([]);
-      }
-      showSuccess("용역 수행성과 정보를 삭제했습니다.");
+        dates.has(field) &&
+        typeof value === "string" &&
+        /^\d{8}$/.test(value)
+      )
+        return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6)}`;
+      if (numeric.has(field) && value != null)
+        return Number(value).toLocaleString("ko-KR");
+      return value ?? "";
     },
-    onError: (error, fallback) => showError(error instanceof Error ? error.message : fallback),
-    onSaved: (saved) => {
-      setDraft(saved);
-      setSelectedRowId(saved.id);
-      setSaveConfirmOpen(false);
-      showSuccess("용역 수행성과 정보를 저장했습니다.");
-    },
+  }),
+);
+export function ServicePerformanceManagementPage() {
+  const { canCreate, canRead } = useCurrentMenuPermission();
+  const { showSnackbar } = useAppSnackbar();
+  const queryClient = useQueryClient();
+  const input = useRef<HTMLInputElement>(null);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(100);
+  const [rows, setRows] = useState<ServicePerformanceImportRow[]>([]);
+  const [filename, setFilename] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [draftFilters, setDraftFilters] =
+    useState<ServicePerformanceImportFilters>(emptyFilters);
+  const [filters, setFilters] =
+    useState<ServicePerformanceImportFilters>(emptyFilters);
+  const query = useQuery({
+    queryKey: ["service-performances", "imported", page, pageSize, filters],
+    queryFn: () => listImportedServicePerformances(page, pageSize, filters),
+    enabled: useTabQueryEnabled(canRead),
   });
-
-  const columns = useMemo<GridColDef<ServicePerformanceRecord>[]>(
-    () => [
-      {
-        field: "fieldName",
-        headerName: "분야",
-        minWidth: 130,
-        flex: 0.7,
-        valueGetter: (_value, row) => display(row.fieldName),
-      },
-      {
-        field: "siteName",
-        headerName: "현장명",
-        minWidth: 600,
-        flex: 1.3,
-        valueGetter: (_value, row) => display(row.siteName),
-      },
-      {
-        field: "clientName",
-        headerName: "발주처",
-        minWidth: 180,
-        flex: 0.9,
-        valueGetter: (_value, row) => display(row.clientName),
-      },
-      {
-        field: "evaluationDate",
-        headerName: "평가일",
-        width: 120,
-        align: "center",
-        headerAlign: "center",
-        valueGetter: (_value, row) => formatDate(row.evaluationDate),
-      },
-      {
-        field: "serviceAmount",
-        headerName: "용역금액(백만)",
-        width: 140,
-        align: "right",
-        headerAlign: "center",
-        valueGetter: (_value, row) => formatMoney(row.serviceAmount),
-      },
-      {
-        field: "evaluationScore",
-        headerName: "평가점수(점)",
-        width: 115,
-        align: "right",
-        headerAlign: "center",
-        valueGetter: (_value, row) => formatScore(row.evaluationScore),
-      },
-      {
-        field: "amountReflectedEvaluationScore",
-        headerName: "금액반영 평가점수(점)",
-        width: 150,
-        align: "right",
-        headerAlign: "center",
-        valueGetter: (_value, row) =>
-          formatScore(row.amountReflectedEvaluationScore),
-      },
-    ],
-    [],
-  );
-  const rowSelectionModel = useMemo<GridRowSelectionModel>(
-    () => ({ type: "include", ids: new Set(rowSelectionIds) }),
-    [rowSelectionIds],
-  );
-
-  const handleSearch = (nextKeyword: string) => {
-    const nextAppliedKeyword = nextKeyword.trim();
-    const shouldRefetch =
-      page === 0 &&
-      appliedKeyword === nextAppliedKeyword &&
-      appliedSearchFilters.clientCode === searchFilters.clientCode &&
-      appliedSearchFilters.fieldName === searchFilters.fieldName &&
-      appliedSearchFilters.periodType === searchFilters.periodType &&
-      appliedSearchFilters.referenceDate === searchFilters.referenceDate &&
-      appliedSearchFilters.siteName === searchFilters.siteName;
-
-    setPage(0);
-    setAppliedKeyword(nextAppliedKeyword);
-    setAppliedSearchFilters(searchFilters);
-
-    if (shouldRefetch) {
-      void performancesQuery.refetch();
+  const error = (reason: unknown) =>
+    showSnackbar({
+      message:
+        reason instanceof Error
+          ? reason.message
+          : "처리 중 오류가 발생했습니다.",
+      severity: "error",
+    });
+  const choose = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const parsed = await readServicePerformanceExcel(file);
+      setRows(parsed);
+      setFilename(file.name);
+      showSnackbar({
+        message: `${parsed.length}건을 확인했습니다.`,
+        severity: "success",
+      });
+    } catch (reason) {
+      setRows([]);
+      setFilename("");
+      error(reason);
     }
   };
-
-  const handleReset = () => {
-    const nextFilters = defaultSearchFilters();
-    const shouldRefetch =
-      page === 0 &&
-      keyword === "" &&
-      appliedKeyword === "" &&
-      searchFilters.clientCode === nextFilters.clientCode &&
-      searchFilters.fieldName === nextFilters.fieldName &&
-      searchFilters.periodType === nextFilters.periodType &&
-      searchFilters.referenceDate === nextFilters.referenceDate &&
-      searchFilters.siteName === nextFilters.siteName &&
-      appliedSearchFilters.clientCode === nextFilters.clientCode &&
-      appliedSearchFilters.fieldName === nextFilters.fieldName &&
-      appliedSearchFilters.periodType === nextFilters.periodType &&
-      appliedSearchFilters.referenceDate === nextFilters.referenceDate &&
-      appliedSearchFilters.siteName === nextFilters.siteName;
-
-    setKeyword("");
-    setAppliedKeyword("");
-    setSearchFilters(nextFilters);
-    setAppliedSearchFilters(nextFilters);
-    setPage(0);
-
-    if (shouldRefetch) {
-      void performancesQuery.refetch();
-    }
-  };
-
-  const updateSearchFilter = <K extends keyof SearchFilterState>(
-    field: K,
-    value: SearchFilterState[K],
-  ) => {
-    setSearchFilters((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleNew = () => {
-    setSelectedRowId(null);
-    setDraft(emptyDraft());
-    setDetailDialogOpen(true);
-  };
-
-  const handleOpenDetail = () => {
-    if (draft.id === 0 && selectedRowId === null) {
-      showError("먼저 선택할 수행성과를 골라 주세요.");
+  const replace = async () => {
+    if (
+      !rows.length ||
+      !window.confirm(
+        `기존 데이터를 모두 삭제하고 ${rows.length}건으로 교체하시겠습니까?`,
+      )
+    )
       return;
+    setBusy(true);
+    try {
+      const count = await replaceImportedServicePerformances(rows);
+      setRows([]);
+      setFilename("");
+      if (input.current) input.current.value = "";
+      setPage(0);
+      await queryClient.invalidateQueries({
+        queryKey: ["service-performances"],
+      });
+      showSnackbar({
+        message: `${count}건으로 교체했습니다.`,
+        severity: "success",
+      });
+    } catch (reason) {
+      error(reason);
+    } finally {
+      setBusy(false);
     }
-    setDetailDialogOpen(true);
   };
-
-  const handleSaveClick = () => {
-    if (draft.id > 0 && !canUpdate) {
-      showError("수정 권한이 없습니다.");
-      return;
-    }
-    if (draft.id === 0 && !canCreate) {
-      showError("등록 권한이 없습니다.");
-      return;
-    }
-    setSaveConfirmOpen(true);
-  };
-
-  const handleDeleteClick = () => {
-    if (!draft.id) {
-      showError("삭제할 대상을 먼저 선택해 주세요.");
-      return;
-    }
-    setDeleteTarget(draft);
-  };
-
-  const handleRowClick = (params: GridRowParams<ServicePerformanceRecord>) => {
-    setSelectedRowId(params.row.id);
-    setDraft(params.row);
-  };
-
-  const handleRowDoubleClick = (
-    params: GridRowParams<ServicePerformanceRecord>,
-  ) => {
-    setSelectedRowId(params.row.id);
-    setDraft(params.row);
-    setDetailDialogOpen(true);
-  };
-
-  const handleSelectionModelChange = (model: GridRowSelectionModel) => {
-    const nextIds = Array.isArray(model)
-      ? model
-      : model.type === "exclude"
-        ? rows.filter((row) => !model.ids.has(row.id)).map((row) => row.id)
-        : Array.from(model.ids);
-
-    setRowSelectionIds(
-      nextIds
-        .map((value) => Number(value))
-        .filter((value) => Number.isFinite(value)),
-    );
-  };
-  const updateDraft = <K extends keyof ServicePerformanceRecord>(
-    field: K,
-    value: ServicePerformanceRecord[K],
-  ) => {
-    setDraft((current) => ({ ...current, [field]: value }));
-  };
-
-  const selectedContextLabel =
-    selectedRows.length > 0
-      ? `${selectedRows.length}건 선택`
-      : `${rows.length}건 전체`;
-
   return (
     <Box>
       <PageHeader title="용역 수행성과 관리" />
-
-      <SearchPanel
-        keyword={keyword}
-        keywordLabel="통합검색"
-        keywordSx={{ flex: "1 1 360px", maxWidth: 420, minWidth: 300 }}
-        keywordPlaceholder="용역명, 발주처, 현장명 검색"
-        onKeywordChange={setKeyword}
-        onReset={handleReset}
-        onSearch={handleSearch}
-        searchDisabled={!canRead}
-        resetLabel="초기화"
-        searchLabel="조회"
-      >
-        <AutoCompleteField source={{ type: "client", params: CLIENT_SELECT_PARAMS }}
-          label="발주처"
-          onChange={(value) => updateSearchFilter("clientCode", value)}
-          placeholder="전체"
-          placeholderDisabled={false}
-          sx={{
-            ...standardFieldSx,
-            flex: "0 1 240px",
-            maxWidth: 280,
-            minWidth: 220,
-          }}
-          value={searchFilters.clientCode}
-        />
-        <TextField
-          fullWidth
-          label="세부분야"
-          onChange={(event) =>
-            updateSearchFilter("fieldName", event.target.value)
-          }
-          placeholder="세부분야 직접 입력"
-          size="small"
-          sx={standardFieldSx}
-          value={searchFilters.fieldName}
-        />
-        <TextField
-          label="현장명"
-          onChange={(event) =>
-            updateSearchFilter("siteName", event.target.value)
-          }
-          size="small"
-          sx={{ ...standardFieldSx, minWidth: 180 }}
-          value={searchFilters.siteName}
-        />
-        <div
-          style={{
-            display: "grid",
-            flex: "1 1 100%",
-            gap: "8px",
-            gridTemplateColumns: "180px minmax(0, 1fr)",
-            minWidth: 0,
-            width: "100%",
-          }}
-        >
-          <TextField
-            label="기준일"
-            onChange={(event) =>
-              updateSearchFilter("referenceDate", event.target.value)
-            }
-            size="small"
-            sx={{ ...standardFieldSx, minWidth: 180 }}
-            type="date"
-            value={searchFilters.referenceDate}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <Box
-            sx={{ alignItems: "center", display: "flex", gap: 1, minWidth: 0 }}
-          >
-            <Typography
-              sx={{
-                color: "text.secondary",
-                fontSize: 13,
-                fontWeight: 700,
-                lineHeight: 1.2,
-                whiteSpace: "nowrap",
-              }}
-            >
-              조회기간
-            </Typography>
-            <FormControl sx={{ flex: 1, minWidth: 0 }}>
-              <RadioGroup
-                row
-                onChange={(event) =>
-                  updateSearchFilter(
-                    "periodType",
-                    event.target
-                      .value as ServicePerformanceSearchParams["periodType"],
-                  )
-                }
-                value={searchFilters.periodType}
-                sx={{
-                  alignItems: "center",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 0.75,
-                  "& .MuiFormControlLabel-root": { mr: 0 },
-                }}
-              >
-                {PERIOD_OPTIONS.map((option) => (
-                  <FormControlLabel
-                    key={option.value}
-                    control={<Radio size="small" />}
-                    label={option.label}
-                    value={option.value}
-                  />
-                ))}
-              </RadioGroup>
-            </FormControl>
-          </Box>
-        </div>
-      </SearchPanel>
       {!canRead ? (
-        <Alert severity="warning">
-          용역 수행성과를 조회할 권한이 없습니다.
-        </Alert>
+        <Alert severity="warning">조회 권한이 없습니다.</Alert>
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={2} sx={{ mt: 2 }}>
+          <SearchPanel
+            keyword={draftFilters.serviceName}
+            keywordLabel="용역명"
+            keywordPlaceholder="용역명을 입력하세요"
+            localKeyword={false}
+            onKeywordChange={(value) =>
+              setDraftFilters((current) => ({ ...current, serviceName: value }))
+            }
+            onSearch={(serviceName) => {
+              setPage(0);
+              setFilters({
+                client: draftFilters.client.trim(),
+                serviceName: serviceName.trim(),
+                serviceCategory: draftFilters.serviceCategory.trim(),
+                detailField: draftFilters.detailField.trim(),
+              });
+            }}
+            onReset={() => {
+              setDraftFilters(emptyFilters());
+              setFilters(emptyFilters());
+              setPage(0);
+            }}
+          >
+            {filterFields.map(([field, label]) => (
+              <TextField
+                key={field}
+                label={label}
+                size="small"
+                value={draftFilters[field]}
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    [field]: event.target.value,
+                  }))
+                }
+              />
+            ))}
+          </SearchPanel>
           <Card>
-            <CardContent sx={{ p: 2 }}>
-              <Box
+            <CardContent>
+              <Stack
+                direction="row"
+                spacing={1}
                 sx={{
                   alignItems: "center",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1,
                   justifyContent: "space-between",
-                  mb: 1.5,
-                }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 800 }} variant="h6">
-                    실적 요약 정보
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    {selectedContextLabel}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={`총 ${pageData.totalElements.toLocaleString("ko-KR")}건`}
-                  size="small"
-                  variant="outlined"
-                />
-              </Box>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gap: 1.25,
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(4, minmax(0, 1fr))",
-                  },
-                }}
-              >
-                <SummaryCard
-                  icon={<SubjectOutlinedIcon />}
-                  label="수행성과 건수"
-                  value={`${pageData.totalElements.toLocaleString("ko-KR")}건`}
-                />
-                <SummaryCard
-                  icon={<SellOutlinedIcon />}
-                  label="선택 건수"
-                  value={`${selectedCount.toLocaleString("ko-KR")}건`}
-                />
-                <SummaryCard
-                  icon={<StarOutlineOutlinedIcon />}
-                  label="평균점수"
-                  value={formatScore(basisAverageScore)}
-                />
-                <SummaryCard
-                  icon={<PercentOutlinedIcon />}
-                  label="금액반영 평가점수"
-                  value={formatScore(weightedAverageScore)}
-                />
-              </Box>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gap: 1.25,
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    md: "repeat(2, minmax(0, 1fr))",
-                  },
-                  mt: 1.5,
-                }}
-              >
-                <Box
-                  sx={{
-                    bgcolor: "background.default",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    minWidth: 0,
-                    p: 1.25,
-                  }}
-                >
-                  <Typography
-                    color="text.secondary"
-                    sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}
-                  >
-                    선택된 용역금액 합계
-                  </Typography>
-                  <Typography sx={{ fontWeight: 800, mt: 0.5 }} variant="body1">
-                    {formatMoney(selectedServiceAmountTotal)}백만원
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    bgcolor: "background.default",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    minWidth: 0,
-                    p: 1.25,
-                  }}
-                >
-                  <Typography
-                    color="text.secondary"
-                    sx={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}
-                  >
-                    금액반영 평가점수 산정식
-                  </Typography>
-                  <Typography sx={{ mt: 0.5 }} variant="body2">
-                    금액반영 평가점수 = (용역금액 * 평가점수) / 선택된 용역금액
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent sx={{ p: 2 }}>
-              <Box
-                sx={{
-                  alignItems: "center",
-                  display: "flex",
                   flexWrap: "wrap",
-                  gap: 1,
-                  justifyContent: "space-between",
-                  mb: 1.5,
+                  mb: 1,
                 }}
               >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 800 }} variant="h6">
-                    용역 수행성과 목록
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    행을 더블클릭하면 상세 팝업을 열 수 있습니다.
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={1}>
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{ alignItems: "center" }}
+                >
                   <Chip
-                    label={`총 ${pageData.totalElements.toLocaleString("ko-KR")}건`}
+                    label={`총 ${(query.data?.totalElements ?? 0).toLocaleString("ko-KR")}건`}
                     size="small"
                     variant="outlined"
+                    color="primary"
                   />
-                  <Button
-                    disabled={!canCreate}
-                    onClick={handleNew}
-                    startIcon={<AddOutlinedIcon />}
-                    variant="contained"
-                  >
-                    신규
-                  </Button>
-                  <Button
-                    disabled={draft.id === 0 && selectedRowId === null}
-                    onClick={handleOpenDetail}
-                    variant="outlined"
-                  >
-                    상세
-                  </Button>
                 </Stack>
-              </Box>
-              <EnterpriseDataGrid<ServicePerformanceRecord>
-                columns={columns}
+                <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    업로드 일시: {query.data?.content[0]?.uploadedAt
+                      ? new Intl.DateTimeFormat("ko-KR", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(query.data.content[0].uploadedAt))
+                      : "정보 없음"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    업로드자: {query.data?.content[0]?.uploadedBy || "정보 없음"}
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center", flexWrap: "wrap" }}
+                >
+                  {filename && (
+                    <Typography variant="body2" color="text.secondary">
+                      {filename} · {rows.length}건
+                    </Typography>
+                  )}
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    disabled={!canCreate || busy}
+                    startIcon={<UploadFileOutlinedIcon />}
+                  >
+                    엑셀 업로드
+                    <input
+                      ref={input}
+                      hidden
+                      type="file"
+                      accept=".xlsx"
+                      onChange={(event) => void choose(event.target.files?.[0])}
+                    />
+                  </Button>
+                  {rows.length > 0 && (
+                    <Button
+                      variant="contained"
+                      disabled={!canCreate || busy}
+                      onClick={() => void replace()}
+                    >
+                      데이터 교체
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+              <EnterpriseDataGrid<ServicePerformanceImportRecord>
+                columns={gridColumns}
+                rows={query.data?.content ?? []}
                 getRowId={(row) => row.id}
-                checkboxSelection
-                hideFooterSelectedRowCount
-                loading={
-                  performancesQuery.isLoading || performancesQuery.isFetching
-                }
-                onPaginationModelChange={(model: GridPaginationModel) => {
+                loading={query.isFetching}
+                paginationMode="server"
+                paginationModel={{ page, pageSize }}
+                onPaginationModelChange={(model) => {
                   setPage(model.page);
                   setPageSize(model.pageSize);
                 }}
-                onRowClick={handleRowClick}
-                onRowDoubleClick={handleRowDoubleClick}
-                onRowSelectionModelChange={handleSelectionModelChange}
+                rowCount={query.data?.totalElements ?? 0}
                 pageSizeOptions={[25, 50, 100]}
-                paginationMode="server"
-                paginationModel={{ page, pageSize }}
-                rowCount={pageData.totalElements}
-                rowSelectionModel={rowSelectionModel}
-                rows={rows}
-                showPageNumbers
                 showXlsxExportButton
-                showToolbar
-                sx={{
-                  height: 440,
-                  minHeight: 440,
-                  "& .MuiDataGrid-columnHeaders": {
-                    bgcolor: "rgba(15, 23, 42, 0.02)",
-                  },
-                  "& .MuiDataGrid-row:hover": { cursor: "pointer" },
-                  "& .selected-performance-row": {
-                    bgcolor: "rgba(25, 118, 210, 0.08)",
-                  },
-                }}
-                getRowClassName={(params) =>
-                  params.row.id === selectedRowId
-                    ? "selected-performance-row"
-                    : ""
-                }
-                wrapperMinHeight={440}
+                showPageNumbers
+                wrapperMinHeight={650}
+                sx={{ height: 700 }}
               />
             </CardContent>
           </Card>
         </Stack>
       )}
-      <ServicePerformanceDetailDialog
-        amountReflectedEvaluationScore={resolvedAmountReflectedEvaluationScore}
-        canCreate={canCreate}
-        canDelete={canDelete}
-        canUpdate={canUpdate}
-        clientSelectParams={CLIENT_SELECT_PARAMS}
-        deleting={deleteMutation.isPending}
-        draft={draft}
-        onClose={() => setDetailDialogOpen(false)}
-        onDelete={handleDeleteClick}
-        onDraftChange={updateDraft}
-        onSave={handleSaveClick}
-        open={detailDialogOpen}
-        saving={saveMutation.isPending}
-      />
-      <ConfirmActionDialog
-        confirmLabel="저장"
-        loading={saveMutation.isPending}
-        message="용역 수행성과 정보를 저장하시겠습니까?"
-        onClose={() => setSaveConfirmOpen(false)}
-        onConfirm={() => saveMutation.mutate(toRequest(draft))}
-        open={saveConfirmOpen}
-        targetLabel={draft.siteName || draft.fieldName}
-        title="저장 확인"
-      />
-      <ConfirmDeleteDialog
-        loading={deleteMutation.isPending}
-        message="용역 수행성과 정보를 삭제하시겠습니까?"
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-        open={Boolean(deleteTarget)}
-        targetLabel={deleteTarget?.siteName || deleteTarget?.fieldName}
-        title="삭제 확인"
-      />
-
-    </Box>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <Box
-      sx={{
-        alignItems: "center",
-        bgcolor: "background.paper",
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 1,
-        display: "flex",
-        gap: 1.25,
-        minWidth: 0,
-        px: 1.5,
-        py: 1.25,
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: "center",
-          bgcolor: "background.default",
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: "50%",
-          color: "primary.main",
-          display: "inline-flex",
-          flex: "0 0 auto",
-          height: 48,
-          justifyContent: "center",
-          width: 48,
-          "& .MuiSvgIcon-root": { fontSize: 26 },
-        }}
-      >
-        {icon}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography
-          color="text.secondary"
-          sx={{ fontWeight: 700 }}
-          variant="body2"
-        >
-          {label}
-        </Typography>
-        <Typography
-          sx={{
-            color: "primary.main",
-            fontWeight: 900,
-            lineHeight: 1.15,
-            mt: 0.25,
-          }}
-          variant="h5"
-        >
-          {value}
-        </Typography>
-      </Box>
     </Box>
   );
 }

@@ -24,6 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.List;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportRow;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch;
+import static com.cheil.cheil_be.application.common.validation.InputValues.nonNegative;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +37,50 @@ public class ServicePerformanceService implements ServicePerformanceUseCase {
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
     private final ServicePerformanceRepository repository;
     private final CurrentActorPort currentActorPort;
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ServicePerformanceImportView> findImported(ServicePerformanceImportSearch search, Pageable pageable) {
+        requireNonNull(search, "조회 조건은 필수입니다.");
+        requireNonNull(pageable, "페이지 정보는 필수입니다.");
+        return repository.findImported(new ServicePerformanceImportSearch(
+                trimToNull(search.client()), trimToNull(search.serviceName()),
+                trimToNull(search.serviceCategory()), trimToNull(search.detailField())), pageable);
+    }
+
+    @Override
+    @Transactional
+    public int replaceImported(List<ServicePerformanceImportRow> rows) {
+        if (rows == null || rows.isEmpty()) throw ApplicationException.badRequest("업로드할 행이 없습니다.");
+        if (rows.size() > 5000) throw ApplicationException.badRequest("한 번에 5000행까지만 업로드할 수 있습니다.");
+        List<ServicePerformanceImportRow> normalized = new java.util.ArrayList<>(rows.size());
+        for (int index = 0; index < rows.size(); index++) {
+            try {
+                ServicePerformanceImportRow row = rows.get(index);
+                requireNonNull(row, "행 데이터가 없습니다.");
+                String constructionNo = requiredText(row.constructionNo(), "공사번호");
+                String serviceName = requiredText(row.serviceName(), "용역명");
+                validateMaxLength(constructionNo, 100, "공사번호");
+                validateMaxLength(serviceName, 500, "용역명");
+                validateMaxLength(trimToNull(row.client()), 300, "발주청");
+                nonNegative(row.serviceFeeThousand(), "용역비");
+                nonNegative(row.shareRate(), "지분율");
+                nonNegative(row.serviceAmountMillion(), "용역금액");
+                nonNegative(row.score(), "평점");
+                if (row.shareRate() != null && row.shareRate().compareTo(new java.math.BigDecimal("100")) > 0)
+                    throw ApplicationException.badRequest("지분율은 100 이하여야 합니다.");
+                normalized.add(new ServicePerformanceImportRow(constructionNo, trimToNull(row.client()), serviceName,
+                        trimToNull(row.serviceCategory()), trimToNull(row.detailField()), row.serviceFeeThousand(),
+                        basicDate(row.serviceStartDate(), "용역시작일", false),
+                        basicDate(row.serviceEndDate(), "용역완료일", false), row.shareRate(),
+                        row.serviceAmountMillion(), row.score(), basicDate(row.evaluationEndDate(), "평가종료일", false)));
+            } catch (ApplicationException exception) {
+                throw ApplicationException.badRequest((index + 2) + "행: " + exception.getMessage());
+            }
+        }
+        repository.replaceImported(normalized, currentActorPort.currentActor());
+        return normalized.size();
+    }
 
     @Override
     @Transactional(readOnly = true)

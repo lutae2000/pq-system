@@ -23,7 +23,7 @@ import org.springframework.stereotype.Repository;
 public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRepository {
   private final JdbcClient jdbcClient;
   private static final String COLUMNS =
-      "id, designation_no, title, developers, project_name, client, notice_date,"
+      "id, designation_no, title, developers, project_name, client, work_category, technology_type, notice_date,"
           + " usage_expiration_date, usage_count, amount_thousand, score, summary, weight,"
           + " disaster_prevention_score, remark, created_at, created_id, last_changed_at,"
           + " last_changed_id";
@@ -48,6 +48,14 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
     if (text(search.client())) {
       where.append("AND LOWER(COALESCE(client, '')) LIKE :client\n");
       params.put("client", "%" + search.client().trim().toLowerCase(Locale.ROOT) + "%");
+    }
+    if (text(search.workCategory())) {
+      where.append("AND work_category = :workCategory\n");
+      params.put("workCategory", search.workCategory().trim());
+    }
+    if (text(search.technologyType())) {
+      where.append("AND technology_type = :technologyType\n");
+      params.put("technologyType", search.technologyType().trim());
     }
     if (text(search.noticeDateFrom())) {
       where.append("AND notice_date >= :noticeDateFrom\n");
@@ -90,14 +98,16 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
     return jdbcClient
         .sql(
             """
-            INSERT INTO new_technology_usages (designation_no, title, developers, project_name, client, notice_date, usage_expiration_date, usage_count, amount_thousand, score, summary, weight, disaster_prevention_score, remark, created_id, last_changed_id)
-            VALUES (:designationNo, :title, :developers, :projectName, :client, :noticeDate, :usageExpirationDate, :usageCount, :amountThousand, :score, :summary, :weight, :disasterPreventionScore, :remark, :actor, :actor) RETURNING id
+            INSERT INTO new_technology_usages (designation_no, title, developers, project_name, client, work_category, technology_type, notice_date, usage_expiration_date, usage_count, amount_thousand, score, summary, weight, disaster_prevention_score, remark, created_id, last_changed_id)
+            VALUES (:designationNo, :title, :developers, :projectName, :client, :workCategory, :technologyType, :noticeDate, :usageExpirationDate, :usageCount, :amountThousand, :score, :summary, :weight, :disasterPreventionScore, :remark, :actor, :actor) RETURNING id
             """)
         .param("designationNo", r.designationNo())
         .param("title", r.title())
         .param("developers", r.developers())
         .param("projectName", r.projectName())
         .param("client", r.client())
+        .param("workCategory", r.workCategory())
+        .param("technologyType", r.technologyType())
         .param("noticeDate", r.noticeDate())
         .param("usageExpirationDate", r.usageExpirationDate())
         .param("usageCount", r.usageCount())
@@ -117,7 +127,7 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
     return jdbcClient
         .sql(
             """
-            UPDATE new_technology_usages SET designation_no=:designationNo, title=:title, developers=:developers, project_name=:projectName, client=:client, notice_date=:noticeDate, usage_expiration_date=:usageExpirationDate, usage_count=:usageCount, amount_thousand=:amountThousand, score=:score, summary=:summary, weight=:weight, disaster_prevention_score=:disasterPreventionScore, remark=:remark, last_changed_at=CURRENT_TIMESTAMP, last_changed_id=:actor WHERE id=:id
+            UPDATE new_technology_usages SET designation_no=:designationNo, title=:title, developers=:developers, project_name=:projectName, client=:client, work_category=:workCategory, technology_type=:technologyType, notice_date=:noticeDate, usage_expiration_date=:usageExpirationDate, usage_count=:usageCount, amount_thousand=:amountThousand, score=:score, summary=:summary, weight=:weight, disaster_prevention_score=:disasterPreventionScore, remark=:remark, last_changed_at=CURRENT_TIMESTAMP, last_changed_id=:actor WHERE id=:id
             """)
         .param("id", id)
         .param("designationNo", r.designationNo())
@@ -125,6 +135,8 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
         .param("developers", r.developers())
         .param("projectName", r.projectName())
         .param("client", r.client())
+        .param("workCategory", r.workCategory())
+        .param("technologyType", r.technologyType())
         .param("noticeDate", r.noticeDate())
         .param("usageExpirationDate", r.usageExpirationDate())
         .param("usageCount", r.usageCount())
@@ -154,6 +166,8 @@ public class NewTechnologyUsageRepositoryAdapter implements NewTechnologyUsageRe
         rs.getString("developers"),
         rs.getString("project_name"),
         rs.getString("client"),
+        rs.getString("work_category"),
+        rs.getString("technology_type"),
         rs.getString("notice_date"),
         rs.getString("usage_expiration_date"),
         nullableInt(rs, "usage_count"),

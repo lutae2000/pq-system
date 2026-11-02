@@ -34,6 +34,8 @@ public class NewTechnologyUsageController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String designationNo,
             @RequestParam(required = false) String client,
+            @RequestParam(required = false) String workCategory,
+            @RequestParam(required = false) String technologyType,
             @RequestParam(required = false) String noticeDateFrom,
             @RequestParam(required = false) String noticeDateTo,
             @PageableDefault(size = 20) Pageable pageable
@@ -43,6 +45,8 @@ public class NewTechnologyUsageController {
                 keyword,
                 designationNo,
                 client,
+                workCategory,
+                technologyType,
                 noticeDateFrom,
                 noticeDateTo
         ), safePageable);

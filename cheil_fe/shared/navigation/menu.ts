@@ -101,7 +101,7 @@ const iconForMenu = (permission: MenuPermission): MenuIconKey => {
   if (code.includes("new-employment") || path.includes("new-employment")) return "pqNewEmploymentRates";
   if (code.includes("shinindo") || path.includes("shinindo")) return "pqShinindo";
   if (code.includes("work-overlap") || path.includes("work-overlap")) return "pqWorkOverlap";
-  if (code.includes("similar-service-performance") || path.includes("similar-service-performance")) return "pqSimilarServicePerformance";
+  if (code.includes("similar-service-performance") || path.includes("construction-project-performances")) return "pqSimilarServicePerformance";
   if (code.includes("service-performance") || path.includes("service-performance")) return "pqServicePerformance";
   if (name.includes("입찰") || code.includes("bid") || path.includes("bid-notice") || path.includes("/bids")) return "pqBid";
   if (code.includes("announcement") || path.includes("announcement")) return "pqAnnouncement";

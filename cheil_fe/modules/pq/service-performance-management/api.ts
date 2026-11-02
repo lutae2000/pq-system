@@ -115,3 +115,50 @@ export async function deleteServicePerformance(id: number): Promise<void> {
     "용역 수행성과 정보를 삭제하지 못했습니다.",
   );
 }
+
+export type ServicePerformanceImportRow = {
+  constructionNo: string;
+  client: string;
+  serviceName: string;
+  serviceCategory: string;
+  detailField: string;
+  serviceFeeThousand: number | null;
+  serviceStartDate: string;
+  serviceEndDate: string;
+  shareRate: number | null;
+  serviceAmountMillion: number | null;
+  score: number | null;
+  evaluationEndDate: string;
+};
+
+export type ServicePerformanceImportRecord = ServicePerformanceImportRow & {
+  id: number;
+  uploadedAt: string | null;
+  uploadedBy: string | null;
+};
+export type ServicePerformanceImportPage = {
+  content: ServicePerformanceImportRecord[];
+  totalElements: number;
+  page: number;
+  size: number;
+  totalPages: number;
+};
+
+export type ServicePerformanceImportFilters = {
+  client: string;
+  serviceName: string;
+  serviceCategory: string;
+  detailField: string;
+};
+
+export async function listImportedServicePerformances(page: number, size: number,
+  filters: ServicePerformanceImportFilters): Promise<ServicePerformanceImportPage> {
+  return apiRequest(apiClient.get<ServicePerformanceImportPage>(`${SERVICE_PERFORMANCES_API}/imported`,
+    { params: { page, size, ...filters } }),
+    "용역 수행성과 목록을 불러오지 못했습니다.");
+}
+
+export async function replaceImportedServicePerformances(rows: ServicePerformanceImportRow[]): Promise<number> {
+  return apiRequest(apiClient.post<number>(`${SERVICE_PERFORMANCES_API}/import`, rows),
+    "용역 수행성과 엑셀 등록에 실패했습니다.");
+}

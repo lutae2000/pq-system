@@ -32,6 +32,7 @@ public class NewTechnologyDevelopmentController {
     public ResponseEntity<PageResponse<NewTechnologyDevelopmentResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String technologyType,
+            @RequestParam(required = false) String workCategory,
             @RequestParam(required = false) String targetField,
             @RequestParam(required = false) String applicationDateFrom,
             @RequestParam(required = false) String applicationDateTo,
@@ -43,6 +44,7 @@ public class NewTechnologyDevelopmentController {
         var result = useCase.findAll(new NewTechnologyDevelopmentSearch(
                 keyword,
                 technologyType,
+                workCategory,
                 targetField,
                 applicationDateFrom,
                 applicationDateTo,

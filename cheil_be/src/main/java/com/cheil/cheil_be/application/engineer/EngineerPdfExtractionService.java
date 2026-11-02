@@ -41,6 +41,7 @@ public class EngineerPdfExtractionService {
     private static final Pattern AWARD = Pattern.compile("^(" + DATE + ")\\s+(\\S+)\\s+(.+)$");
     private static final Pattern CAREER_START = Pattern.compile("(" + DATE + ")\\s*~\\s*(.*?)(?=(?:" + DATE + ")\\s*~|$)");
     private static final Pattern DATE_VALUE = Pattern.compile(DATE);
+    private static final Pattern PROJECT_DAYS = Pattern.compile("\\(\\s*([0-9,]+)\\s*일\\s*\\)");
     private static final Set<String> GRADES = Set.of("초급", "중급", "고급", "특급");
     private static final Set<String> TRAINING_RECOGNITION_TYPES = Set.of("건설사업관리", "설계시공", "설계·시공", "품질관리");
 
@@ -282,7 +283,7 @@ public class EngineerPdfExtractionService {
         return !projectStart.isBlank()
                 && !careerStart.isBlank()
                 && careerStart.compareTo(projectStart) <= 0
-                && (careerEnd.isBlank() || careerEnd.compareTo(projectEnd) >= 0);
+                && (careerEnd.isBlank() || (!projectEnd.isBlank() && careerEnd.compareTo(projectEnd) >= 0));
     }
 
     private boolean overlapsPeriod(Map<String, String> career, String projectStart, String projectEnd) {
@@ -290,7 +291,7 @@ public class EngineerPdfExtractionService {
         String careerEnd = career.getOrDefault("retiredt", "");
         return !projectStart.isBlank()
                 && !careerStart.isBlank()
-                && careerStart.compareTo(projectEnd) <= 0
+                && careerStart.compareTo(projectEnd.isBlank() ? projectStart : projectEnd) <= 0
                 && (careerEnd.isBlank() || careerEnd.compareTo(projectStart) >= 0);
     }
 
@@ -518,7 +519,7 @@ public class EngineerPdfExtractionService {
         SpreadsheetExtractionAlgorithm tableExtractor = new SpreadsheetExtractionAlgorithm();
         while (pages.hasNext()) {
             technology.tabula.Page page = pages.next();
-            List<String[]> periods = projectPeriods(glyphs, page.getPageNumber());
+            List<ProjectPeriod> periods = projectPeriods(glyphs, page.getPageNumber());
             int periodIndex = 0;
             for (Table table : tableExtractor.extract(page)) {
                 List<List<RectangularTextContainer>> rows = table.getRows();
@@ -531,13 +532,15 @@ public class EngineerPdfExtractionService {
                             normalizeBasicField(jobName),
                             ignored -> companyRowByJobName.size() + 1
                     );
-                    String[] period = periodIndex < periods.size() ? periods.get(periodIndex++) : new String[]{"", ""};
+                    ProjectPeriod period = periodIndex < periods.size() ? periods.get(periodIndex++) : new ProjectPeriod("", "", "", "");
                     values.add(mapOf(
                             "jobname", jobName,
                             "seq", "",
                             "_company_row_number", String.valueOf(companyRowNumber),
-                            "startdt", period[0],
-                            "enddt", period[1],
+                            "startdt", period.start(),
+                            "enddt", period.end(),
+                            "recognition_days", period.recognitionDays(),
+                            "participation_days", period.participationDays(),
                             "jobclass", tableCell(recordRows, 2, 1),
                             "jobtag", "",
                             "jobpart", tableCell(recordRows, 0, 1),
@@ -657,7 +660,9 @@ public class EngineerPdfExtractionService {
         return "";
     }
 
-    private List<String[]> projectPeriods(List<PositionedGlyph> glyphs, int pageNumber) {
+    private record ProjectPeriod(String start, String end, String recognitionDays, String participationDays) {}
+
+    private List<ProjectPeriod> projectPeriods(List<PositionedGlyph> glyphs, int pageNumber) {
         List<PositionedGlyph> pageGlyphs = glyphs.stream().filter(glyph -> glyph.page() == pageNumber).toList();
         List<PositionedLine> pageLines = positionedLines(pageGlyphs, 0, Float.MAX_VALUE, 0, Float.MAX_VALUE);
         float headerBottom = pageLines.stream()
@@ -670,16 +675,45 @@ public class EngineerPdfExtractionService {
                 .map(PositionedLine::y)
                 .min(Float::compare)
                 .orElse(Float.MAX_VALUE);
-        List<String> dates = positionedLines(pageGlyphs, 20, 78, headerBottom + 3, contentBottom).stream()
-                .map(PositionedLine::text)
-                .filter(text -> text.replace(" ", "").matches(DATE))
-                .map(this::normalizeDate)
-                .toList();
-        List<String[]> periods = new ArrayList<>();
+        List<PositionedLine> dates = projectPeriodLines(pageGlyphs, headerBottom, contentBottom);
+        boolean hasParticipationDays = hasParticipationDaysHeader(pageLines, headerBottom);
+        List<ProjectPeriod> periods = new ArrayList<>();
         for (int index = 0; index + 1 < dates.size(); index += 2) {
-            periods.add(new String[]{dates.get(index), dates.get(index + 1)});
+            PositionedLine start = dates.get(index);
+            PositionedLine end = dates.get(index + 1);
+            float nextStartY = index + 2 < dates.size() ? dates.get(index + 2).y() : contentBottom;
+            List<String> days = projectDayCounts(pageGlyphs, end.y(), nextStartY);
+            periods.add(new ProjectPeriod(normalizeDate(start.text()), projectEndDate(end.text()),
+                    days.isEmpty() ? "" : days.get(0), hasParticipationDays && days.size() > 1 ? days.get(1) : ""));
         }
         return periods;
+    }
+
+    private List<PositionedLine> projectPeriodLines(List<PositionedGlyph> glyphs, float headerBottom, float contentBottom) {
+        return positionedLines(glyphs, 20, 78, headerBottom + 3, contentBottom).stream()
+                .filter(line -> {
+                    String value = line.text().replaceAll("\\s+", "");
+                    return value.matches(DATE) || value.equals("근무중");
+                })
+                .toList();
+    }
+
+    private String projectEndDate(String value) {
+        return value.replaceAll("\\s+", "").equals("근무중") ? "" : normalizeDate(value);
+    }
+
+    private boolean hasParticipationDaysHeader(List<PositionedLine> lines, float headerBottom) {
+        return lines.stream().filter(line -> line.y() <= headerBottom + 4)
+                .anyMatch(line -> line.text().replaceAll("\\s+", "").contains("참여일"));
+    }
+
+    private List<String> projectDayCounts(List<PositionedGlyph> glyphs, float endY, float nextStartY) {
+        List<String> days = new ArrayList<>();
+        for (PositionedLine line : positionedLines(glyphs, 20, 78, endY + 1, nextStartY - 1)) {
+            Matcher matcher = PROJECT_DAYS.matcher(line.text());
+            while (matcher.find()) days.add(matcher.group(1).replace(",", ""));
+        }
+        return days;
     }
 
     private List<EngineerPdfExtractionDtos.Row> parseProjectHistoriesByPosition(List<PositionedGlyph> glyphs) {
@@ -705,13 +739,13 @@ public class EngineerPdfExtractionService {
                     .min(Float::compare)
                     .orElse(Float.MAX_VALUE);
 
-            List<PositionedLine> dateLines = positionedLines(pageGlyphs, 20, 78, headerBottom + 3, contentBottom).stream()
-                    .filter(line -> line.text().replace(" ", "").matches(DATE))
-                    .toList();
+            List<PositionedLine> dateLines = projectPeriodLines(pageGlyphs, headerBottom, contentBottom);
+            boolean hasParticipationDays = hasParticipationDaysHeader(pageLines, headerBottom);
             for (int index = 0; index + 1 < dateLines.size(); index += 2) {
                 PositionedLine startLine = dateLines.get(index);
                 PositionedLine endLine = dateLines.get(index + 1);
                 float nextStartY = index + 2 < dateLines.size() ? dateLines.get(index + 2).y() : contentBottom;
+                List<String> days = projectDayCounts(pageGlyphs, endLine.y(), nextStartY);
                 float recordTop = Math.max(headerBottom + 4, startLine.y() - 30);
                 float recordBottom = nextStartY == Float.MAX_VALUE ? contentBottom : nextStartY - 30;
 
@@ -736,7 +770,9 @@ public class EngineerPdfExtractionService {
                         "seq", "",
                         "_company_row_number", String.valueOf(companyRowNumber),
                         "startdt", normalizeDate(startLine.text()),
-                        "enddt", normalizeDate(endLine.text()),
+                        "enddt", projectEndDate(endLine.text()),
+                        "recognition_days", days.isEmpty() ? "" : days.get(0),
+                        "participation_days", hasParticipationDays && days.size() > 1 ? days.get(1) : "",
                         "jobclass", responsibility,
                         "jobtag", "",
                         "jobpart", jobPart,

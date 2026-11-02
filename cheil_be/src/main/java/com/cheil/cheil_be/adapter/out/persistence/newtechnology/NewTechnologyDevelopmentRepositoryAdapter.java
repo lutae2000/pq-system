@@ -22,7 +22,7 @@ import java.util.Map;
 @Repository
 @RequiredArgsConstructor
 public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyDevelopmentRepository {
-    private static final String COLUMNS = "id, title, technology_type, applicant_count, use_yn, application_date, "
+    private static final String COLUMNS = "id, title, technology_type, work_category, applicant_count, use_yn, application_date, "
             + "target_field, application_no, registration_no, valid_until, calculated_score, summary, remark, "
             + "created_at, created_id, last_changed_at, last_changed_id";
 
@@ -45,6 +45,10 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
         if (text(search.technologyType())) {
             where.append("AND technology_type = :technologyType\n");
             params.put("technologyType", search.technologyType().trim());
+        }
+        if (text(search.workCategory())) {
+            where.append("AND work_category = :workCategory\n");
+            params.put("workCategory", search.workCategory().trim());
         }
         if (text(search.targetField())) {
             where.append("AND LOWER(COALESCE(target_field, '')) LIKE :targetField\n");
@@ -94,11 +98,11 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     public Long create(NewTechnologyDevelopmentCommand request, String actor) {
         String sql = """
                 INSERT INTO new_technology_developments (
-                    title, technology_type, applicant_count, use_yn, application_date,
+                    title, technology_type, work_category, applicant_count, use_yn, application_date,
                     target_field, application_no, registration_no, valid_until,
                     calculated_score, summary, remark, created_id, last_changed_id
                 ) VALUES (
-                    :title, :technologyType, :applicantCount, :useYn, :applicationDate,
+                    :title, :technologyType, :workCategory, :applicantCount, :useYn, :applicationDate,
                     :targetField, :applicationNo, :registrationNo, :validUntil,
                     :calculatedScore, :summary, :remark, :actor, :actor
                 )
@@ -108,6 +112,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
         return jdbcClient.sql(sql)
                 .param("title", request.title())
                 .param("technologyType", request.technologyType())
+                .param("workCategory", request.workCategory())
                 .param("applicantCount", request.applicantCount())
                 .param("useYn", request.useYn() == null || request.useYn())
                 .param("applicationDate", request.applicationDate())
@@ -129,6 +134,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 UPDATE new_technology_developments
                 SET title = :title,
                     technology_type = :technologyType,
+                    work_category = :workCategory,
                     applicant_count = :applicantCount,
                     use_yn = :useYn,
                     application_date = :applicationDate,
@@ -148,6 +154,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 .param("id", id)
                 .param("title", request.title())
                 .param("technologyType", request.technologyType())
+                .param("workCategory", request.workCategory())
                 .param("applicantCount", request.applicantCount())
                 .param("useYn", request.useYn() == null || request.useYn())
                 .param("applicationDate", request.applicationDate())
@@ -174,6 +181,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 rs.getLong("id"),
                 rs.getString("title"),
                 rs.getString("technology_type"),
+                rs.getString("work_category"),
                 rs.getBigDecimal("applicant_count"),
                 rs.getBoolean("use_yn"),
                 rs.getString("application_date"),

@@ -10,11 +10,13 @@ export type NewTechnologyDevelopmentRecord = {
   id: number;
   title: string;
   technologyType: string | null;
+  workCategory: string | null;
   applicantCount: number | null;
   useYn: boolean;
   applicationDate: string | null;
   elapsedYears: number | null;
   calculatedScore: number | null;
+  autoCalculatedScore: number | null;
   targetField: string | null;
   applicationNo: string | null;
   registrationNo: string | null;
@@ -47,11 +49,12 @@ export type NewTechnologyDevelopmentSearchParams = {
   size: number;
   targetField: string;
   technologyType: string;
+  workCategory: string;
 };
 
 export type NewTechnologyDevelopmentRequest = Omit<
   NewTechnologyDevelopmentRecord,
-  "id" | "elapsedYears" | "createdAt" | "createdId" | "lastChangedAt" | "lastChangedId"
+  "id" | "elapsedYears" | "autoCalculatedScore" | "createdAt" | "createdId" | "lastChangedAt" | "lastChangedId"
 >;
 
 const normalizeQueryValue = (value: string | number | null | undefined) => {
@@ -69,7 +72,6 @@ const normalizeDateValue = (value: string | null | undefined) => {
 const normalizeRequestBody = (requestBody: NewTechnologyDevelopmentRequest): NewTechnologyDevelopmentRequest => ({
   ...requestBody,
   applicationDate: (normalizeDateValue(requestBody.applicationDate) as string | undefined) ?? "",
-  calculatedScore: requestBody.calculatedScore,
   validUntil: (normalizeDateValue(requestBody.validUntil) as string | undefined) ?? "",
 });
 
@@ -87,6 +89,7 @@ export async function listNewTechnologyDevelopments(
         size: Math.max(1, Math.trunc(params.size)),
         targetField: normalizeQueryValue(params.targetField.trim()),
         technologyType: normalizeQueryValue(params.technologyType),
+        workCategory: normalizeQueryValue(params.workCategory),
         useYn: params.useYn,
       },
     }),

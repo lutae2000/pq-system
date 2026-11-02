@@ -12,6 +12,8 @@ public record NewTechnologyUsageResponse(
         String developers,
         String projectName,
         String client,
+        String workCategory,
+        String technologyType,
         String noticeDate,
         String usageExpirationDate,
         Integer usageCount,
@@ -28,7 +30,7 @@ public record NewTechnologyUsageResponse(
 ) {
     public static NewTechnologyUsageResponse from(NewTechnologyUsageView view) {
         return new NewTechnologyUsageResponse(view.id(), view.designationNo(), view.title(), view.developers(),
-                view.projectName(), view.client(), view.noticeDate(), view.usageExpirationDate(), view.usageCount(),
+                view.projectName(), view.client(), view.workCategory(), view.technologyType(), view.noticeDate(), view.usageExpirationDate(), view.usageCount(),
                 view.amountThousand(), view.score(), view.summary(), view.weight(), view.disasterPreventionScore(),
                 view.remark(), view.createdAt(), view.createdId(), view.lastChangedAt(), view.lastChangedId());
     }

@@ -72,12 +72,12 @@ ORDER BY ids.engr_id, c.SEQ, c.STARTDT;
 
 -- company_performances.csv
 SELECT SEQ seq, JOBSEQ job_seq, JOBNAME job_name, OURYN job_own_yn,
-       ALLYN general_management, STARTDT contract_from_date, ENDDT contract_to_date,
-       FINISHYN job_finish_yn, STOPDT stop_date, JOBSPEC summary, JOBTYPE job_type,
-       JOINTRT job_ratio, CONTAMT contract_amt, OURAMT own_amt, ORDPLACE order_client,
-       REMARK remark, ROUND(DIVISION_RATE, 2) division_rate,
-       REDPLACE_SEC client_kind, PROJECT_TAG business_type, FOREIGN_TAG oversee_yn
-FROM PQ_COMP_CAREER ORDER BY SEQ;
+                                        ALLYN general_management, STARTDT contract_from_date, ENDDT contract_to_date,
+                                        FINISHYN job_finish_yn, STOPDT stop_date, JOBSPEC summary, JOBTYPE job_type,
+                                        JOINTRT job_ratio, CONTAMT contract_amt, OURAMT own_amt, ORDPLACE order_client,
+                                        REMARK remark, ROUND(DIVISION_RATE, 2) division_rate,
+                                        REDPLACE_SEC client_kind, PROJECT_TAG business_type, FOREIGN_TAG oversee_yn
+                                 FROM PQ_COMP_CAREER ORDER BY SEQ;
 
 -- company_performance_outlines.csv
 SELECT c.SEQ seq, c.OTLN_GSEQ otln_gseq, c.OTLN_LSEQ otln_lseq,
@@ -96,23 +96,24 @@ JOIN PQ_COMP_CAREER p ON p.SEQ=c.SEQ AND p.JOBNAME=c.JOBNAME
 ORDER BY c.SEQ, c.CONKINDBCODE, c.CONKINDMCODE, c.CONKINDSCODE;
 
 -- bid_notices.csv (14자리 원본 일시는 대상 컬럼 길이에 맞춰 자름)
-SELECT ROW_NUMBER() OVER (ORDER BY COMPANY_CODE, BID_SEQ, ROWID) bid_seq,
+SELECT bid_seq,
        DEPT_CODE department_code,
        COALESCE(PROJ_NAME, SNAME, '(제목 없음)') project_name,
        ORDER_NO order_client, DESIGN_AMT design_amt, BID_TAG bid_type,
-       SUBSTR(ANNOUNCE_DATE,1,8) announce_date,
-       SUBSTR(ENTER_DATE,1,12) pq_regist_date,
-       SUBSTR(PQ_DATE,1,12) pq_submit_date,
-       BID_METHOD order_method, SUBSTR(BID_DATE,1,12) bid_date,
+       ANNOUNCE_DATE announce_date,
+       ENTER_DATE pq_regist_date,
+       PQ_DATE pq_submit_date,
+       BID_METHOD order_method,
+       bid_date,
        BID_SUCESS_YN bid_sucess_yn, PQ_DECIDE_EMPNO pq_decide_empno,
-       SUBSTR(PQ_DECIDE_DATE,1,8) pq_decide_date,
+       PQ_DECIDE_DATE,
        SUPER_DECIDE_EMPNO super_decide_empno, PARTICIPATE_YN participate_yn,
-       PROJECT_TAG business_type, SUBSTR(TEND_DATE,1,12) bid_closing_date,
+       PROJECT_TAG business_type, ip_enter_date bid_closing_date,
        PROCESS_TAG process_tag, BID_TYPE bid_method,
-       SUBSTR(BLTY_EPNT,1,12) bid_submission_date,
+       tend_enter_date bid_submission_date,
        FILD_CODE_CD field_of_work_code, BUSN_BUWE scope_of_work_code,
        ABSE_CASE_CODE_CD reason_of_absence_code,
-       SUBSTR(TNDR_RGST_TEND,1,12) site_briefing_date,
-       SUBSTR(TP_JECH,1,12) tp_submit_date, TP_PASS_YN tp_pass_yn,
+       TNDR_RGST_TEND site_briefing_date,
+       TP_JECH tp_submit_date, TP_PASS_YN tp_pass_yn,
        RPST_VEND prime_contractor, REMK remark, REFMAT_YN refmat_yn
 FROM CS_BIDS_NOTICE ORDER BY COMPANY_CODE, BID_SEQ, ROWID;

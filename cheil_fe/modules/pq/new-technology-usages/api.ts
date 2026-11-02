@@ -13,6 +13,8 @@ export type NewTechnologyUsageRecord = {
   developers: string | null;
   projectName: string | null;
   client: string | null;
+  workCategory: string | null;
+  technologyType: string | null;
   noticeDate: string | null;
   usageExpirationDate: string | null;
   usageCount: number | null;
@@ -42,6 +44,8 @@ export type NewTechnologyUsageSearchParams = {
   keyword: string;
   designationNo: string;
   client: string;
+  workCategory: string;
+  technologyType: string;
   noticeDateFrom: string;
   noticeDateTo: string;
   page: number;
@@ -74,6 +78,8 @@ export async function listNewTechnologyUsages(
         keyword: normalizeQueryValue(params.keyword.trim()),
         designationNo: normalizeQueryValue(params.designationNo.trim()),
         client: normalizeQueryValue(params.client.trim()),
+        workCategory: normalizeQueryValue(params.workCategory),
+        technologyType: normalizeQueryValue(params.technologyType),
         noticeDateFrom: normalizeDateQueryValue(params.noticeDateFrom),
         noticeDateTo: normalizeDateQueryValue(params.noticeDateTo),
         page: Math.max(0, Math.trunc(params.page)),

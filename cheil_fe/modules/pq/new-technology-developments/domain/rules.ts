@@ -1,7 +1,8 @@
 import type { NewTechnologyDevelopmentRecord, NewTechnologyDevelopmentRequest } from "@/modules/pq/new-technology-developments/api";
 import { todayLocalDate, toDateInputValueFromDigits } from "@/modules/common/formatters";
 
-export const TECHNOLOGY_TYPES = ["신기술", "특허", "신안"] as const;
+export const TECHNOLOGY_TYPES = ["신기술", "특허"] as const;
+export const WORK_CATEGORIES = ["설계", "감리", "건축"] as const;
 
 export const today = () => todayLocalDate().replaceAll("-", "");
 
@@ -9,11 +10,13 @@ export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
   id: 0,
   title: "",
   technologyType: "신기술",
+  workCategory: "",
   applicantCount: 1,
   useYn: true,
   applicationDate: "",
   elapsedYears: null,
   calculatedScore: null,
+  autoCalculatedScore: null,
   targetField: "",
   applicationNo: "",
   registrationNo: "",
@@ -37,17 +40,14 @@ export const formatNumber = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined ? "-" : Number(value).toLocaleString("ko-KR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
 export const calculateAutoScore = (
-  technologyType: string | null | undefined,
+  workCategory: string | null | undefined,
+  baseScore: number | null | undefined,
   applicantCount: number | null | undefined,
-  elapsedYears: number | null | undefined,
 ) => {
-  if (applicantCount === null || applicantCount === undefined || applicantCount <= 0) {
+  if ((workCategory !== "설계" && workCategory !== "감리") || baseScore === null || baseScore === undefined || applicantCount === null || applicantCount === undefined || applicantCount <= 0) {
     return null;
   }
-
-  const years = elapsedYears ?? 0;
-  const baseScore = technologyType === "신기술" ? 2 : technologyType === "특허" ? (years < 5 ? 1 : years < 10 ? 0.8 : 0.6) : technologyType === "신안" ? (years < 5 ? 0.5 : years < 10 ? 0.4 : 0) : 0;
-  return Number((baseScore / applicantCount).toFixed(2));
+  return Math.trunc((baseScore / applicantCount) * 1000) / 1000;
 };
 
 export const getValidityLabel = (validUntil: string | null | undefined, referenceDate: string | null | undefined) => {
@@ -64,6 +64,7 @@ export const toDevelopmentRequest = (draft: NewTechnologyDevelopmentRecord): New
   applicationDate: compactDate(draft.applicationDate),
   applicationNo: text(draft.applicationNo).trim(),
   calculatedScore: draft.calculatedScore,
+  workCategory: text(draft.workCategory).trim() || null,
   registrationNo: text(draft.registrationNo).trim(),
   remark: text(draft.remark).trim(),
   summary: text(draft.summary).trim(),

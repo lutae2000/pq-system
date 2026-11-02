@@ -42,7 +42,7 @@ Cheil PQ 업무 시스템의 프론트엔드 프로젝트입니다. Next.js App 
 | 기준정보 | `code/*` | 공통코드, 부서, 본사, 거래처, 공사종류, 용역종류, 자격증, 사업장 관리 |
 | 입찰 | `bid/bid-results`, `bid/qualification-criteria`, `pq/bid-notice` | 입찰 결과, 적격심사 기준, PQ 공고와 기본 조건 |
 | 기술인 | `pq/engineers`, `pq/pq-participating-engineers` | 기술인 마스터·프로필, PQ 참여자 후보·선정·배치 |
-| 실적 | `pq/company-performance`, `pq/service-performance-management`, `pq/similar-service-performances` | 회사실적, 용역실적, 유사실적과 상세 하위 데이터 |
+| 실적 | `pq/company-performance`, `pq/service-performance-management`, `pq/construction-project-performances` | 회사실적, 용역실적, 건설사업 실적과 상세 하위 데이터 |
 | 실적 문서 | `pq/engineer-performance-docs`, `pq/company-performance-docs` | 기술인·회사 HWPX 양식 분석, 필드 매핑, 문서 생성과 실적증명서 |
 | 교육·인력 | `education-reminders`, `pq/education-reminders`, `pq/new-employment-rates` | 교육 대상·이수·발송 이력, 신규 고용률 관리 |
 | 신기술·신인도 | `pq/new-technology-*`, `pq/shinindo-management`, `pq/partnerCodes` | 신기술 개발·투자·활용, 신인도, 협력사 코드 관리 |

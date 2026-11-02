@@ -44,6 +44,8 @@ public class NewTechnologyUsageService implements NewTechnologyUsageUseCase {
                 trimToNull(search.keyword()),
                 trimToNull(search.designationNo()),
                 trimToNull(search.client()),
+                trimToNull(search.workCategory()),
+                trimToNull(search.technologyType()),
                 basicDate(search.noticeDateFrom(), "noticeDateFrom", false),
                 basicDate(search.noticeDateTo(), "noticeDateTo", false)
         ), pageable);
@@ -92,6 +94,14 @@ public class NewTechnologyUsageService implements NewTechnologyUsageUseCase {
         }
         String designationNo = InputValues.requiredText(command.designationNo(), CODE_MAX_LENGTH, "designationNo");
         String title = InputValues.requiredText(command.title(), TITLE_MAX_LENGTH, "title");
+        String workCategory = trimToNull(command.workCategory());
+        if (workCategory != null && !java.util.Set.of("설계", "감리", "건축").contains(workCategory)) {
+            throw ApplicationException.badRequest("workCategory는 설계, 감리, 건축 중 하나여야 합니다.");
+        }
+        String technologyType = trimToNull(command.technologyType());
+        if (technologyType != null && !java.util.Set.of("신기술", "특허").contains(technologyType)) {
+            throw ApplicationException.badRequest("technologyType은 신기술, 특허 중 하나여야 합니다.");
+        }
         InputValues.validateMaxLength(StringValues.normalize(command.client()), 300, "client");
         nonNegative(command.usageCount(), "usageCount");
         nonNegative(command.amountThousand(), "amountThousand");
@@ -105,6 +115,8 @@ public class NewTechnologyUsageService implements NewTechnologyUsageUseCase {
                 trimToNull(command.developers()),
                 trimToNull(command.projectName()),
                 trimToNull(command.client()),
+                workCategory,
+                technologyType,
                 basicDate(command.noticeDate(), "noticeDate", false),
                 basicDate(command.usageExpirationDate(), "usageExpirationDate", false),
                 command.usageCount(),

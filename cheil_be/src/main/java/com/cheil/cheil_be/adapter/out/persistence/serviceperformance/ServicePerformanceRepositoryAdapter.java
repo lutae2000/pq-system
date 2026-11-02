@@ -3,12 +3,17 @@ package com.cheil.cheil_be.adapter.out.persistence.serviceperformance;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceSearch;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceCommand;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportRow;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportView;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Locale;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -35,6 +40,71 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
 
   public ServicePerformanceRepositoryAdapter(JdbcClient jdbcClient) {
     this.jdbcClient = jdbcClient;
+  }
+
+  @Override
+  public Page<ServicePerformanceImportView> findImported(ServicePerformanceImportSearch search, Pageable pageable) {
+    StringBuilder where = new StringBuilder(" WHERE construction_no IS NOT NULL");
+    Map<String, Object> params = new LinkedHashMap<>();
+    addImportedFilter(where, params, "client", search.client());
+    addImportedFilter(where, params, "service_name", search.serviceName());
+    addImportedFilter(where, params, "service_category", search.serviceCategory());
+    addImportedFilter(where, params, "detail_field", search.detailField());
+    Map<String, Object> listParams = new LinkedHashMap<>(params);
+    listParams.put("limit", pageable.getPageSize());
+    listParams.put("offset", pageable.getOffset());
+    List<ServicePerformanceImportView> content = bindImported(jdbcClient.sql("""
+        SELECT id, construction_no, client, service_name, service_category, detail_field,
+               service_fee_thousand, service_start_date, service_end_date, share_rate,
+               service_amount_million, score, evaluation_end_date,
+               (SELECT created_at FROM service_performances WHERE construction_no IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1) AS uploaded_at,
+               (SELECT created_id FROM service_performances WHERE construction_no IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1) AS uploaded_by
+        FROM service_performances
+        """ + where + " ORDER BY evaluation_end_date DESC NULLS LAST, id DESC LIMIT :limit OFFSET :offset"), listParams)
+        .query((rs, rowNum) -> new ServicePerformanceImportView(rs.getLong("id"),
+            rs.getString("construction_no"), rs.getString("client"), rs.getString("service_name"),
+            rs.getString("service_category"), rs.getString("detail_field"),
+            rs.getBigDecimal("service_fee_thousand"), rs.getString("service_start_date"),
+            rs.getString("service_end_date"), rs.getBigDecimal("share_rate"),
+            rs.getBigDecimal("service_amount_million"), rs.getBigDecimal("score"),
+            rs.getString("evaluation_end_date"), rs.getTimestamp("uploaded_at") == null ? null : rs.getTimestamp("uploaded_at").toInstant(),
+            rs.getString("uploaded_by"))).list();
+    long total = bindImported(jdbcClient.sql("SELECT COUNT(*) FROM service_performances" + where), params)
+        .query(Long.class).single();
+    return new PageImpl<>(content, pageable, total);
+  }
+
+  private void addImportedFilter(StringBuilder where, Map<String, Object> params, String column, String value) {
+    if (value == null) return;
+    where.append(" AND LOWER(COALESCE(").append(column).append(", '')) LIKE :").append(column);
+    params.put(column, "%" + value.toLowerCase(Locale.ROOT) + "%");
+  }
+
+  private JdbcClient.StatementSpec bindImported(JdbcClient.StatementSpec statement, Map<String, Object> params) {
+    for (var entry : params.entrySet()) statement = statement.param(entry.getKey(), entry.getValue());
+    return statement;
+  }
+
+  @Override
+  public void replaceImported(List<ServicePerformanceImportRow> rows, String actor) {
+    jdbcClient.sql("DELETE FROM service_performances").update();
+    for (ServicePerformanceImportRow row : rows) {
+      jdbcClient.sql("""
+          INSERT INTO service_performances (construction_no, client, service_name, service_category,
+              detail_field, service_fee_thousand, service_start_date, service_end_date, share_rate,
+              service_amount_million, score, evaluation_end_date, created_id, last_changed_id)
+          VALUES (:constructionNo, :client, :serviceName, :serviceCategory, :detailField,
+              :serviceFeeThousand, :serviceStartDate, :serviceEndDate, :shareRate,
+              :serviceAmountMillion, :score, :evaluationEndDate, :actor, :actor)
+          """)
+          .param("constructionNo", row.constructionNo()).param("client", row.client())
+          .param("serviceName", row.serviceName()).param("serviceCategory", row.serviceCategory())
+          .param("detailField", row.detailField()).param("serviceFeeThousand", row.serviceFeeThousand())
+          .param("serviceStartDate", row.serviceStartDate()).param("serviceEndDate", row.serviceEndDate())
+          .param("shareRate", row.shareRate()).param("serviceAmountMillion", row.serviceAmountMillion())
+          .param("score", row.score()).param("evaluationEndDate", row.evaluationEndDate())
+          .param("actor", actor).update();
+    }
   }
 
   @Override

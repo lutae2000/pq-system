@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.newtechnology.model;
 public record NewTechnologyDevelopmentSearch(
         String keyword,
         String technologyType,
+        String workCategory,
         String targetField,
         String applicationDateFrom,
         String applicationDateTo,

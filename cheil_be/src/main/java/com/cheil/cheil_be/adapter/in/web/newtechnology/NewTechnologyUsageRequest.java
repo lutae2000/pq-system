@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyUsageCommand;
@@ -14,6 +15,8 @@ public record NewTechnologyUsageRequest(
         String developers,
         String projectName,
         @Size(max = 300) String client,
+        @Pattern(regexp = "설계|감리|건축") String workCategory,
+        @Pattern(regexp = "신기술|특허") String technologyType,
         String noticeDate,
         String usageExpirationDate,
         @PositiveOrZero Integer usageCount,
@@ -25,7 +28,7 @@ public record NewTechnologyUsageRequest(
         String remark
 ) {
     public NewTechnologyUsageCommand toCommand() {
-        return new NewTechnologyUsageCommand(designationNo, title, developers, projectName, client, noticeDate,
+        return new NewTechnologyUsageCommand(designationNo, title, developers, projectName, client, workCategory, technologyType, noticeDate,
                 usageExpirationDate, usageCount, amountThousand, score, summary, weight,
                 disasterPreventionScore, remark);
     }

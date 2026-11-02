@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS new_technology_usages (
     id BIGSERIAL PRIMARY KEY,
     designation_no VARCHAR(50) NOT NULL,
+    work_category VARCHAR(10),
+    technology_type VARCHAR(20),
     title VARCHAR(500) NOT NULL,
     developers TEXT,
     project_name TEXT,
@@ -19,6 +21,10 @@ CREATE TABLE IF NOT EXISTS new_technology_usages (
     last_changed_id VARCHAR(100),
     CONSTRAINT ck_new_technology_usages_count
         CHECK (usage_count IS NULL OR usage_count >= 0),
+    CONSTRAINT ck_new_technology_usages_work_category
+        CHECK (work_category IS NULL OR work_category IN ('설계', '감리', '건축')),
+    CONSTRAINT ck_new_technology_usages_technology_type
+        CHECK (technology_type IS NULL OR technology_type IN ('신기술', '특허')),
     CONSTRAINT ck_new_technology_usages_amount
         CHECK (amount_thousand IS NULL OR amount_thousand >= 0),
     CONSTRAINT ck_new_technology_usages_score
@@ -43,6 +49,8 @@ CREATE INDEX IF NOT EXISTS ix_new_technology_usages_notice_date
 COMMENT ON TABLE new_technology_usages IS '신기술 활용실적';
 COMMENT ON COLUMN new_technology_usages.id IS '신기술 활용실적 ID';
 COMMENT ON COLUMN new_technology_usages.designation_no IS '지정번호';
+COMMENT ON COLUMN new_technology_usages.work_category IS '업무 구분';
+COMMENT ON COLUMN new_technology_usages.technology_type IS '구분';
 COMMENT ON COLUMN new_technology_usages.title IS '건명';
 COMMENT ON COLUMN new_technology_usages.developers IS '개발자';
 COMMENT ON COLUMN new_technology_usages.project_name IS '공사명';
