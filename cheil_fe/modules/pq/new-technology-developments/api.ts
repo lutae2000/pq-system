@@ -13,7 +13,6 @@ export type NewTechnologyDevelopmentRecord = {
   workCategory: string | null;
   applicantCount: number | null;
   useYn: boolean;
-  validOnly: boolean | null;
   applicationDate: string | null;
   elapsedYears: number | null;
   calculatedScore: number | null;
@@ -46,6 +45,7 @@ export type NewTechnologyDevelopmentSearchParams = {
   keyword: string;
   page: number;
   useYn: boolean;
+  validOnly: boolean | null;
   scoreReferenceDate: string;
   size: number;
   targetField: string;
