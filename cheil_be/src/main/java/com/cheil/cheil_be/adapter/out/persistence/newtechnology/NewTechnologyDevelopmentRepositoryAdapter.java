@@ -65,6 +65,10 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
 
         where.append("AND use_yn = :useYn\n");
         params.put("useYn", search.useYn() == null || search.useYn());
+        if (Boolean.TRUE.equals(search.validOnly()) && text(search.scoreReferenceDate())) {
+            where.append("AND valid_until >= :validUntilDate\n");
+            params.put("validUntilDate", search.scoreReferenceDate());
+        }
 
         Map<String, Object> listParams = new LinkedHashMap<>(params);
         listParams.put("limit", pageable.getPageSize());
@@ -73,7 +77,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
         String sql = "SELECT " + COLUMNS
                 + " FROM new_technology_developments "
                 + where
-                + " ORDER BY id ASC LIMIT :limit OFFSET :offset";
+                + " ORDER BY CASE WHEN technology_type = '신기술' THEN 0 WHEN technology_type = '특허' THEN 1 ELSE 2 END, id ASC LIMIT :limit OFFSET :offset";
 
         List<NewTechnologyDevelopment> content = bind(jdbcClient.sql(sql), listParams)
                 .query((rs, rowNum) -> map(rs))

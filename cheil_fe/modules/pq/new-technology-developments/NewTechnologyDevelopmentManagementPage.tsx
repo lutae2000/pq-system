@@ -66,6 +66,7 @@ export function NewTechnologyDevelopmentManagementPage() {
   const [technologyType, setTechnologyType] = useState("");
   const [workCategory, setWorkCategory] = useState("");
   const [useYn, setUseYn] = useState(true);
+  const [validOnly, setValidOnly] = useState("");
   const [targetField, setTargetField] = useState("");
   const [applicationDateFrom, setApplicationDateFrom] = useState("");
   const [applicationDateTo, setApplicationDateTo] = useState("");
@@ -89,8 +90,9 @@ export function NewTechnologyDevelopmentManagementPage() {
       technologyType,
       workCategory,
       useYn,
+      validOnly: validOnly === "Y" ? true : validOnly === "N" ? false : null,
     }),
-    [applicationDateFrom, applicationDateTo, appliedKeyword, page, pageSize, scoreReferenceDate, targetField, technologyType, useYn, workCategory],
+    [applicationDateFrom, applicationDateTo, appliedKeyword, page, pageSize, scoreReferenceDate, targetField, technologyType, useYn, validOnly, workCategory],
   );
 
   const selectedDevelopmentId = draft.id;
@@ -225,6 +227,7 @@ export function NewTechnologyDevelopmentManagementPage() {
       technologyType === "" &&
       workCategory === "" &&
       useYn &&
+      validOnly === "" &&
       targetField === "" &&
       applicationDateFrom === "" &&
       applicationDateTo === "" &&
@@ -236,6 +239,7 @@ export function NewTechnologyDevelopmentManagementPage() {
     setTechnologyType("");
     setWorkCategory("");
     setUseYn(true);
+    setValidOnly("");
     setTargetField("");
     setApplicationDateFrom("");
     setApplicationDateTo("");
@@ -287,6 +291,10 @@ export function NewTechnologyDevelopmentManagementPage() {
         <TextField label="사용여부" onChange={(event) => setUseYn(event.target.value === "Y")} select size="small" sx={standardFieldSx} value={useYn ? "Y" : "N"}>
           <MenuItem value="Y">사용</MenuItem>
           <MenuItem value="N">미사용</MenuItem>
+        </TextField>
+        <TextField label="유효 여부" onChange={(event) => setValidOnly(event.target.value)} select size="small" sx={standardFieldSx} value={validOnly}>
+          <MenuItem value="">전체</MenuItem>
+          <MenuItem value="Y">유효</MenuItem>
         </TextField>
         <TextField
           label="공고일"

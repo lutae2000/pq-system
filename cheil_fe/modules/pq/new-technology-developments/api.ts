@@ -13,6 +13,7 @@ export type NewTechnologyDevelopmentRecord = {
   workCategory: string | null;
   applicantCount: number | null;
   useYn: boolean;
+  validOnly: boolean | null;
   applicationDate: string | null;
   elapsedYears: number | null;
   calculatedScore: number | null;
@@ -91,6 +92,7 @@ export async function listNewTechnologyDevelopments(
         technologyType: normalizeQueryValue(params.technologyType),
         workCategory: normalizeQueryValue(params.workCategory),
         useYn: params.useYn,
+        validOnly: params.validOnly ?? undefined,
       },
     }),
     "신기술 개발실적 목록을 불러오지 못했습니다.",

@@ -8,6 +8,7 @@ public record NewTechnologyDevelopmentSearch(
         String applicationDateFrom,
         String applicationDateTo,
         Boolean useYn,
+        Boolean validOnly,
         String scoreReferenceDate
 ) {
 }

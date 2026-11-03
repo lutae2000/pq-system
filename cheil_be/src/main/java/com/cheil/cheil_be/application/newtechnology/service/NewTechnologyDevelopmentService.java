@@ -180,6 +180,7 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
         basicDate(search.applicationDateFrom(), "applicationDateFrom", false),
         basicDate(search.applicationDateTo(), "applicationDateTo", false),
         search.useYn(),
+        search.validOnly(),
         basicDate(search.scoreReferenceDate(), "scoreReferenceDate", false));
   }
 

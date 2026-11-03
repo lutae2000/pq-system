@@ -37,6 +37,7 @@ public class NewTechnologyDevelopmentController {
             @RequestParam(required = false) String applicationDateFrom,
             @RequestParam(required = false) String applicationDateTo,
             @RequestParam(required = false) Boolean useYn,
+            @RequestParam(required = false) Boolean validOnly,
             @RequestParam(required = false) String scoreReferenceDate,
             @PageableDefault(size = 20) Pageable pageable
     ) {
@@ -49,6 +50,7 @@ public class NewTechnologyDevelopmentController {
                 applicationDateFrom,
                 applicationDateTo,
                 useYn,
+                validOnly,
                 scoreReferenceDate
         ), safePageable);
         return ResponseEntity.ok(PageResponse.from(result, NewTechnologyDevelopmentResponse::from));
