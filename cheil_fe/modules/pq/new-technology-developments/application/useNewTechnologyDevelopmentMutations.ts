@@ -74,6 +74,7 @@ export function useNewTechnologyDevelopmentMutations({
             title: "신기술 개발실적 신규 등록",
             content: `${saved.title} 개발실적이 등록되었습니다.`,
             targetPath: "/pq/new-technology-developments",
+            type: "ND",
           });
           await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
         } catch {

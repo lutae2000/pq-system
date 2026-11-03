@@ -57,6 +57,7 @@ export function useNewTechnologyUsageMutations({
             title: "신기술 활용실적 신규 등록",
             content: `${saved.title} 활용실적이 등록되었습니다.`,
             targetPath: "/pq/new-technology-usages",
+            type: "NU",
           });
           await queryClient.invalidateQueries({ queryKey: ["system-notices"] });
         } catch {

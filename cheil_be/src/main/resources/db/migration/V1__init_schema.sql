@@ -131,6 +131,7 @@ CREATE TABLE system_notices (
     important BOOLEAN NOT NULL DEFAULT FALSE,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     target_path VARCHAR(500),
+    notice_type VARCHAR(40) NOT NULL DEFAULT 'SY',
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     created_id VARCHAR(100),
     last_changed_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
@@ -303,6 +304,7 @@ COMMENT ON COLUMN system_notices.publish_at IS '게시 시각';
 COMMENT ON COLUMN system_notices.important IS '중요 공지 여부';
 COMMENT ON COLUMN system_notices.active IS '활성 여부';
 COMMENT ON COLUMN system_notices.target_path IS '공지 클릭 이동 경로';
+COMMENT ON COLUMN system_notices.notice_type IS '공지 유형 공통코드';
 COMMENT ON COLUMN system_policies.sort_seq IS '정렬 순서';
 COMMENT ON COLUMN system_policies.use_yn IS '사용 여부';
 COMMENT ON COLUMN role_permissions.read_yn IS '조회 권한';

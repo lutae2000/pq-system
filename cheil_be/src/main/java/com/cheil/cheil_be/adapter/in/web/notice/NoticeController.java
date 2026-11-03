@@ -55,7 +55,7 @@ public class NoticeController {
     private Notice toDomain(NoticeRequest request) {
         return request == null ? null : new Notice(
                 request.active(), request.content(), request.exposureEndAt(), request.exposureStartAt(),
-                request.id(), request.important(), request.publishAt(), request.title(), request.targetPath()
+                request.id(), request.important(), request.publishAt(), request.title(), request.targetPath(), request.type()
         );
     }
 
@@ -68,7 +68,8 @@ public class NoticeController {
             boolean important,
             String publishAt,
             String title,
-            String targetPath
+            String targetPath,
+            String type
     ) {
     }
 
@@ -81,12 +82,13 @@ public class NoticeController {
             boolean important,
             String publishAt,
             String title,
-            String targetPath
+            String targetPath,
+            String type
     ) {
         static NoticeResponse from(Notice notice) {
             return new NoticeResponse(
                     notice.isActive(), notice.getContent(), notice.getExposureEndAt(), notice.getExposureStartAt(),
-                    notice.getId(), notice.isImportant(), notice.getPublishAt(), notice.getTitle(), notice.getTargetPath()
+                    notice.getId(), notice.isImportant(), notice.getPublishAt(), notice.getTitle(), notice.getTargetPath(), notice.getType()
             );
         }
     }

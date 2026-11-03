@@ -32,6 +32,9 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
+import { SearchPanel } from "@/components/common/SearchPanel";
+import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
+import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { NoticeLayerDialog } from "./NoticeLayerDialog";
@@ -45,6 +48,7 @@ const EMPTY_NOTICES: NoticeRecord[] = [];
 
 const createEmptyNotice = (): NoticeDraft => ({
   id: `notice-tmp-${Date.now()}`,
+  type: "SY",
   title: "",
   content: "",
   exposureStartAt: "",
@@ -63,6 +67,7 @@ const currentDateTimeValue = () => {
 const formatDateTime = (value: string) => value.replace("T", " ").slice(0, 16);
 
 const noticeColumns: GridColDef<NoticeRecord>[] = [
+  { field: "type", headerName: "구분", width: 140, align: "center", headerAlign: "center", valueGetter: (_value, row) => ({ SY: "시스템", BC: "나라장터 공고 변경", ND: "신기술 개발실적", NU: "신기술 활용실적" })[row.type] ?? row.type },
   {
     field: "important",
     headerName: "중요",
@@ -90,11 +95,17 @@ export function NotificationManagementPage() {
   const { showSnackbar } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const { noticesQuery } = useNoticeQueries({ enabled: tabQueryEnabled });
+  const noticeTypeOptions = useCommonCodeLevel2Options("NT", { useYn: "Y" }, undefined, "sortOrder");
   const [selectedId, setSelectedId] = useState<GridRowId>("");
   const [draft, setDraft] = useState<NoticeDraft | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NoticeDraft | null>(null);
   const [saveTarget, setSaveTarget] = useState<NoticeDraft | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [titleFilter, setTitleFilter] = useState("");
+  const [importantFilter, setImportantFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string[]>(["SY"]);
+  const [appliedFilters, setAppliedFilters] = useState({ title: "", important: "", active: "", types: ["SY"] as string[] });
 
   const records = useMemo(() => noticesQuery.data ?? EMPTY_NOTICES, [noticesQuery.data]);
   const effectiveSelectedId = selectedId || records[0]?.id || "";
@@ -103,6 +114,12 @@ export function NotificationManagementPage() {
     [effectiveSelectedId],
   );
   const activeNotices = useMemo(() => records.filter((record) => record.active), [records]);
+  const filteredRecords = useMemo(() => records.filter((record) =>
+    record.title.toLocaleLowerCase().includes(appliedFilters.title.trim().toLocaleLowerCase()) &&
+    (!appliedFilters.important || String(record.important) === (appliedFilters.important === "Y" ? "true" : "false")) &&
+    (!appliedFilters.active || String(record.active) === (appliedFilters.active === "Y" ? "true" : "false")) &&
+    appliedFilters.types.includes(record.type || "SY"),
+  ), [records, appliedFilters]);
   const isExistingDraft = Boolean(draft && records.some((record) => record.id === draft.id));
   const canSaveCurrent = Boolean(draft) && (isExistingDraft ? canUpdate : canCreate);
 
@@ -203,6 +220,23 @@ export function NotificationManagementPage() {
     <Box>
       <PageHeader title="공지사항 관리" />
 
+      <SearchPanel
+        keyword={titleFilter}
+        keywordLabel="공지 제목"
+        keywordPlaceholder="공지 제목을 입력하세요."
+        onKeywordChange={setTitleFilter}
+        onSearch={(keyword) => setAppliedFilters({ title: keyword, important: importantFilter, active: activeFilter, types: typeFilter })}
+        onReset={() => { setTitleFilter(""); setImportantFilter(""); setActiveFilter(""); setTypeFilter(["SY"]); setAppliedFilters({ title: "", important: "", active: "", types: ["SY"] }); }}
+      >
+        <CheckboxSelectInput label="구분" labelPlacement="inside" name="noticeTypes" options={noticeTypeOptions.options} value={typeFilter} onChange={(_name, value) => setTypeFilter(value)} />
+        <TextField select label="중요 여부" size="small" sx={standardFieldSx} value={importantFilter} onChange={(event) => setImportantFilter(event.target.value)}>
+          <MenuItem value="">전체</MenuItem><MenuItem value="Y">중요</MenuItem><MenuItem value="N">일반</MenuItem>
+        </TextField>
+        <TextField select label="사용 여부" size="small" sx={standardFieldSx} value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}>
+          <MenuItem value="">전체</MenuItem><MenuItem value="Y">사용</MenuItem><MenuItem value="N">미사용</MenuItem>
+        </TextField>
+      </SearchPanel>
+
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap" }}>
@@ -222,7 +256,7 @@ export function NotificationManagementPage() {
             </Stack>
           </Box>
 
-          <Box sx={{ mt: 2 }}>
+          <Box>
             {canRead ? (
               <EnterpriseDataGrid<NoticeRecord>
                 columns={noticeColumns}
@@ -235,7 +269,7 @@ export function NotificationManagementPage() {
                 onRowDoubleClick={(params) => handleEdit(params.row)}
                 pageSizeOptions={[10, 50, 100]}
                 rowSelectionModel={rowSelectionModel}
-                rows={records}
+                rows={filteredRecords}
                 showPageNumbers
                 showToolbar={false}
                 wrapperMinHeight={480}
@@ -278,6 +312,9 @@ export function NotificationManagementPage() {
         <DialogContent dividers sx={{ p: 2.5 }}>
           {draft ? (
             <Grid container spacing={1.5}>
+              <Grid size={{ xs: 12 }}>
+                <TextField fullWidth label="구분" size="small" value={noticeTypeOptions.labelByValue[draft.type] ?? draft.type} disabled />
+              </Grid>
               <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth

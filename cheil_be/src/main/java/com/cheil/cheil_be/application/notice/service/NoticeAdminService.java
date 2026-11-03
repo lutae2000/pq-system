@@ -111,6 +111,7 @@ public class NoticeAdminService implements NoticeAdminUseCase {
         normalized.setPublishAt(normalizeDateTime(request.getPublishAt(), fallback == null ? null : fallback.getPublishAt(), "publishAt"));
         normalized.setTitle(InputValues.requiredText(request.getTitle(), "title"));
         normalized.setTargetPath(StringValues.normalize(request.getTargetPath()));
+        normalized.setType(StringValues.optional(request.getType(), fallback == null ? "system" : fallback.getType()));
         InputValues.validateMaxLength(normalized.getId(), NOTICE_ID_MAX_LENGTH, "id");
         InputValues.validateMaxLength(normalized.getTitle(), NOTICE_TITLE_MAX_LENGTH, "title");
         InputValues.validateMaxLength(normalized.getTargetPath(), NOTICE_TARGET_PATH_MAX_LENGTH, "targetPath");

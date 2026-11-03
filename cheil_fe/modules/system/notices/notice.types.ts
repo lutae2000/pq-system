@@ -1,4 +1,5 @@
 export type NoticeRecord = {
+  type: "system" | "bid_notice_changed" | string;
   active: boolean;
   content: string;
   exposureEndAt: string;

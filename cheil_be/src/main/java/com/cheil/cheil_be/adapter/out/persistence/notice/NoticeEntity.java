@@ -43,6 +43,9 @@ class NoticeEntity extends AuditEntity {
     @Column(name = "target_path", length = 500)
     private String targetPath;
 
+    @Column(name = "notice_type", nullable = false, length = 40)
+    private String type;
+
     @Column(name = "exposure_start_at", nullable = false)
     private LocalDateTime exposureStartAt;
 
@@ -64,6 +67,7 @@ class NoticeEntity extends AuditEntity {
                 .title(notice.getTitle())
                 .content(notice.getContent())
                 .targetPath(notice.getTargetPath())
+                .type(notice.getType() == null || notice.getType().isBlank() ? "system" : notice.getType())
                 .exposureStartAt(parseDateTime(notice.getExposureStartAt()))
                 .exposureEndAt(parseDateTime(notice.getExposureEndAt()))
                 .publishAt(parseDateTime(notice.getPublishAt()))
@@ -76,6 +80,7 @@ class NoticeEntity extends AuditEntity {
         title = notice.getTitle();
         content = notice.getContent();
         targetPath = notice.getTargetPath();
+        type = notice.getType() == null || notice.getType().isBlank() ? "system" : notice.getType();
         exposureStartAt = parseDateTime(notice.getExposureStartAt());
         exposureEndAt = parseDateTime(notice.getExposureEndAt());
         publishAt = parseDateTime(notice.getPublishAt());
@@ -93,7 +98,8 @@ class NoticeEntity extends AuditEntity {
                 important,
                 formatDateTime(publishAt),
                 title,
-                targetPath
+                targetPath,
+                type
         );
     }
 

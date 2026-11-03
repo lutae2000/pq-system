@@ -55,7 +55,7 @@ export function CheckboxSelectInput<TValue extends string>({
             .join(", ");
         }}
         size="small"
-        sx={[standardFieldSx, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}
+        sx={sx ? (Array.isArray(sx) ? [standardFieldSx, ...sx] : [standardFieldSx, sx]) : standardFieldSx}
         value={value}
       >
         {options.map((option, index) => (
@@ -74,7 +74,7 @@ export function CheckboxSelectInput<TValue extends string>({
     </FormControl>
   ) : (
     <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
-      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</Typography>
+      <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>{label}</Typography>
       {select}
     </Box>
   );

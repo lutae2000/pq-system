@@ -21,4 +21,5 @@ public class Notice {
     private String publishAt;
     private String title;
     private String targetPath;
+    private String type;
 }

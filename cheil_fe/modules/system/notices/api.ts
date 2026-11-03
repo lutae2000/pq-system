@@ -24,7 +24,7 @@ export async function saveNotificationPreference(menuPath: string, receiveYn: bo
   await apiRequest(apiClient.put("/system/notification-preferences", { menuPath, receiveYn }), "알림 설정을 저장하지 못했습니다.");
 }
 
-export async function createTechnologyNotice(params: { title: string; content: string; targetPath: string }): Promise<NoticeRecord> {
+export async function createTechnologyNotice(params: { title: string; content: string; targetPath: string; type: string }): Promise<NoticeRecord> {
   const now = new Date();
   const end = new Date(now);
   end.setFullYear(end.getFullYear() + 1);
@@ -38,6 +38,7 @@ export async function createTechnologyNotice(params: { title: string; content: s
     publishAt: localDateTimeText(now),
     targetPath: params.targetPath,
     title: params.title,
+    type: params.type,
   });
 }
 

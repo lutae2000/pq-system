@@ -133,7 +133,7 @@
         INSERT INTO system_notices (
             notice_id, title, content, target_path,
             exposure_start_at, exposure_end_at, publish_at,
-            important, active, created_at, created_id,
+            important, active, notice_type, created_at, created_id,
             last_changed_at, last_changed_id
         )
         SELECT
@@ -154,6 +154,7 @@
             CURRENT_TIMESTAMP,
             FALSE,
             TRUE,
+            'BC',
             CURRENT_TIMESTAMP,
             'g2b-bid-notice-batch',
             CURRENT_TIMESTAMP,
