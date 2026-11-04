@@ -1,9 +1,11 @@
 spring:
   datasource:
     # 운영 DB 연결 정보.
-    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB}
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB}?currentSchema=${POSTGRES_SCHEMA:public}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
+  flyway:
+    default-schema: ${POSTGRES_SCHEMA:public}
   jpa:
     # 운영은 스키마를 검증만 하고 자동 생성/초기 데이터 주입은 하지 않는다.
     hibernate:

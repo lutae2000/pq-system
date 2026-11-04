@@ -1,14 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 
-import {
-  getAuthSessionStorageSnapshot,
-  readAuthSessionSnapshot,
-  subscribeAuthSession,
-  type MenuPermission,
-} from "@/lib/auth/authSession";
+import { type MenuPermission } from "@/lib/auth/authSession";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
+
+const EMPTY_PERMISSIONS: MenuPermission[] = [];
 
 const matchesPath = (pathname: string, permission: MenuPermission) => {
   if (!permission.menuPath) {
@@ -20,11 +18,7 @@ const matchesPath = (pathname: string, permission: MenuPermission) => {
 
 export function useCurrentMenuPermission() {
   const pathname = usePathname();
-  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
-  const permissions = useMemo(
-    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
-    [sessionSnapshot],
-  );
+  const permissions = useAuthSession()?.permissions ?? EMPTY_PERMISSIONS;
 
   return useMemo(() => {
     const permission = permissions
@@ -44,11 +38,7 @@ export function useCurrentMenuPermission() {
 }
 
 export function useMenuPermission(menuCode: string) {
-  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
-  const permissions = useMemo(
-    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
-    [sessionSnapshot],
-  );
+  const permissions = useAuthSession()?.permissions ?? EMPTY_PERMISSIONS;
 
   return useMemo(() => {
     const permission = permissions?.find((item) => item.menuCode === menuCode);

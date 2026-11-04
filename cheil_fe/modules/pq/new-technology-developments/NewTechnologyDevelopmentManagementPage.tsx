@@ -7,7 +7,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, Collapse, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
@@ -20,6 +20,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   NEW_TECHNOLOGY_ATTACHMENT_OWNER_TYPE,
@@ -58,13 +59,15 @@ const emptyPage = (page: number, size: number): NewTechnologyDevelopmentPageResp
 
 
 export function NewTechnologyDevelopmentManagementPage() {
+  const groupCode = useAuthSession()?.groupCode;
+  const hasDesignGroup = groupCode === "BSD" || groupCode === "BSD_ADMIN";
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
 
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [technologyType, setTechnologyType] = useState("");
-  const [workCategory, setWorkCategory] = useState("");
+  const [workCategory, setWorkCategory] = useState(() => hasDesignGroup ? "설계" : "");
   const [useYn, setUseYn] = useState(true);
   const [validOnly, setValidOnly] = useState("");
   const [targetField, setTargetField] = useState("");
@@ -77,6 +80,12 @@ export function NewTechnologyDevelopmentManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyDevelopmentRecord | null>(null);
   const [detailsVisible, setDetailsVisible] = useState(true);
   const { showSnackbar } = useAppSnackbar();
+
+  useEffect(() => {
+    if (!hasDesignGroup) return;
+    setWorkCategory("설계");
+    setDraft((current) => current.id === 0 ? { ...current, workCategory: "설계" } : current);
+  }, [hasDesignGroup]);
 
   const searchParams = useMemo<NewTechnologyDevelopmentSearchParams>(
     () => ({
@@ -128,7 +137,7 @@ export function NewTechnologyDevelopmentManagementPage() {
 
   const columns = useMemo<GridColDef<NewTechnologyDevelopmentRecord>[]>(
     () => [
-      { field: "id", headerName: "연번", width: 70, align: "center", headerAlign: "center" },
+      { field: "sequenceLabel", headerName: "연번", width: 90, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.sequenceLabel ?? "" },
       { field: "workCategory", headerName: "업무 구분", width: 95, valueFormatter: (value) => display(value as string | null) },
       { field: "targetField", headerName: "적용대상", width: 120, valueGetter: (_value, row) => row.targetField ?? "" },
       { field: "title", headerName: "출원명", minWidth: 320, flex: 1.5 },
@@ -393,7 +402,7 @@ export function NewTechnologyDevelopmentManagementPage() {
                 </Box>
 
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField disabled label="연번" size="small" sx={standardFieldSx} value={draft.id > 0 ? draft.id : ""} />
+                  <TextField label="연번" onChange={(event) => updateDraft("sequenceLabel", event.target.value)} size="small" sx={standardFieldSx} value={draft.sequenceLabel ?? ""} />
                   <TextField label="구분" onChange={(event) => updateDraft("technologyType", event.target.value)} required select size="small" sx={standardFieldSx} value={text(draft.technologyType)}>
                     {TECHNOLOGY_TYPES.map((type) => (
                       <MenuItem key={type} value={type}>

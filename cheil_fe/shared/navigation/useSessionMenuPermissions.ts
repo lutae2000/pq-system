@@ -1,13 +1,10 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { type MenuPermission } from "@/lib/auth/authSession";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 
-import { getAuthSessionStorageSnapshot, readAuthSessionSnapshot, subscribeAuthSession } from "@/lib/auth/authSession";
+const EMPTY_PERMISSIONS: MenuPermission[] = [];
 
 export function useSessionMenuPermissions() {
-  const sessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
-  return useMemo(
-    () => (sessionSnapshot ? readAuthSessionSnapshot()?.permissions ?? [] : []),
-    [sessionSnapshot],
-  );
+  return useAuthSession()?.permissions ?? EMPTY_PERMISSIONS;
 }

@@ -67,6 +67,7 @@ export function LoginPage() {
         accessToken: response.token.accessToken,
         accessTokenExpiresAt: response.token.expiresAt ?? response.session.expiresAt ?? null,
         employeeNo: response.employeeNo,
+        groupCode: response.groupCode,
         issuedAt: new Date().toISOString(),
         loginId: response.loginId,
         deptCode: response.deptCode,

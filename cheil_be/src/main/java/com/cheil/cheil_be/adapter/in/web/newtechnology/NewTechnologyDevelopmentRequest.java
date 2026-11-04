@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyDevelopmentCommand;
 
 public record NewTechnologyDevelopmentRequest(
+        @Size(max = 50) String sequenceLabel,
         @NotBlank @Size(max = 500) String title,
         @Size(max = 100) String technologyType,
         @NotBlank @jakarta.validation.constraints.Pattern(regexp = "설계|감리|건축") String workCategory,
@@ -25,7 +26,7 @@ public record NewTechnologyDevelopmentRequest(
         Boolean useYn
 ) {
     public NewTechnologyDevelopmentCommand toCommand() {
-        return new NewTechnologyDevelopmentCommand(title, technologyType, workCategory, applicantCount, calculatedScore,
+        return new NewTechnologyDevelopmentCommand(sequenceLabel, title, technologyType, workCategory, applicantCount, calculatedScore,
                 applicationDate, targetField, applicationNo, registrationNo, validUntil, summary, remark, useYn);
     }
 }

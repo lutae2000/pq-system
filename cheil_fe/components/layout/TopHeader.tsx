@@ -17,12 +17,13 @@ import {
   Typography,
 } from "@mui/material";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState } from "react";
 import { MenuSearchPopper, type SearchMenuItem } from "@/components/layout/MenuSearchPopper";
 import { MyAccountDialog } from "@/components/layout/MyAccountDialog";
 import { OpenTabs } from "@/components/layout/OpenTabs";
 import { useTabNavigationGuard } from "@/components/layout/useTabNavigationGuard";
-import { AUTH_SESSION_STORAGE_KEY, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
+import { redirectToLogin } from "@/lib/auth/authSession";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { logoutSession } from "@/lib/http/apiClient";
 import { clearReferenceQueryCacheStorage } from "@/modules/common/reference/ReferenceQueryCacheProvider";
 import { getMenuItems, type MenuItemDto } from "@/shared/navigation/menu";
@@ -62,28 +63,6 @@ const flattenMenuItems = (items: MenuItemDto[], parents: string[] = []): SearchM
     return [...current, ...children];
   });
 
-const parseSessionSnapshot = (value: string | null): AuthSession | null => {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as AuthSession;
-    if (!parsed.sessionExpiresAt) {
-      return parsed;
-    }
-
-    const expiresAt = new Date(parsed.sessionExpiresAt).getTime();
-    if (Number.isNaN(expiresAt) || Date.now() < expiresAt) {
-      return parsed;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 export function TopHeader({
   drawerWidth,
   sessionRemainingMs,
@@ -99,18 +78,7 @@ export function TopHeader({
     queryFn: getMenuItems,
   });
   const { navigateIfAllowed } = useTabNavigationGuard();
-  const sessionSnapshot = useSyncExternalStore(
-    () => () => {},
-    () => {
-      if (typeof window === "undefined") {
-        return null;
-      }
-
-      return window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
-    },
-    () => null,
-  );
-  const session = useMemo(() => parseSessionSnapshot(sessionSnapshot), [sessionSnapshot]);
+  const session = useAuthSession();
   const userDisplayName = session?.userName?.trim() || "이름";
 
   const searchableMenuItems = useMemo(

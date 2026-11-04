@@ -89,6 +89,7 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
     BigDecimal elapsed = elapsed(r.applicationDate(), reference);
     return new NewTechnologyDevelopmentView(
         r.id(),
+        r.sequenceLabel(),
         r.title(),
         r.technologyType(),
         r.workCategory(),
@@ -153,6 +154,7 @@ public class NewTechnologyDevelopmentService implements NewTechnologyDevelopment
   private NewTechnologyDevelopmentCommand normalize(NewTechnologyDevelopmentCommand r) {
     validate(r);
     return new NewTechnologyDevelopmentCommand(
+        trimToNull(r.sequenceLabel()),
         InputValues.requiredText(r.title(), "title"),
         trimToNull(r.technologyType()),
         trimToNull(r.workCategory()),

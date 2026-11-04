@@ -8,6 +8,7 @@ export const today = () => todayLocalDate().replaceAll("-", "");
 
 export const emptyDraft = (): NewTechnologyDevelopmentRecord => ({
   id: 0,
+  sequenceLabel: "",
   title: "",
   technologyType: "신기술",
   workCategory: "",
@@ -60,6 +61,7 @@ export const getValidityLabel = (validUntil: string | null | undefined, referenc
 };
 
 export const toDevelopmentRequest = (draft: NewTechnologyDevelopmentRecord): NewTechnologyDevelopmentRequest => ({
+  sequenceLabel: text(draft.sequenceLabel).trim(),
   applicantCount: draft.applicantCount,
   applicationDate: compactDate(draft.applicationDate),
   applicationNo: text(draft.applicationNo).trim(),

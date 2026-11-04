@@ -22,7 +22,7 @@ import java.util.Map;
 @Repository
 @RequiredArgsConstructor
 public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyDevelopmentRepository {
-    private static final String COLUMNS = "id, title, technology_type, work_category, applicant_count, use_yn, application_date, "
+    private static final String COLUMNS = "id, sequence_label, title, technology_type, work_category, applicant_count, use_yn, application_date, "
             + "target_field, application_no, registration_no, valid_until, calculated_score, summary, remark, "
             + "created_at, created_id, last_changed_at, last_changed_id";
 
@@ -102,11 +102,11 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     public Long create(NewTechnologyDevelopmentCommand request, String actor) {
         String sql = """
                 INSERT INTO new_technology_developments (
-                    title, technology_type, work_category, applicant_count, use_yn, application_date,
+                    sequence_label, title, technology_type, work_category, applicant_count, use_yn, application_date,
                     target_field, application_no, registration_no, valid_until,
                     calculated_score, summary, remark, created_id, last_changed_id
                 ) VALUES (
-                    :title, :technologyType, :workCategory, :applicantCount, :useYn, :applicationDate,
+                    :sequenceLabel, :title, :technologyType, :workCategory, :applicantCount, :useYn, :applicationDate,
                     :targetField, :applicationNo, :registrationNo, :validUntil,
                     :calculatedScore, :summary, :remark, :actor, :actor
                 )
@@ -114,6 +114,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
                 """;
 
         return jdbcClient.sql(sql)
+                .param("sequenceLabel", request.sequenceLabel())
                 .param("title", request.title())
                 .param("technologyType", request.technologyType())
                 .param("workCategory", request.workCategory())
@@ -136,7 +137,8 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     public int update(Long id, NewTechnologyDevelopmentCommand request, String actor) {
         String sql = """
                 UPDATE new_technology_developments
-                SET title = :title,
+                SET sequence_label = :sequenceLabel,
+                    title = :title,
                     technology_type = :technologyType,
                     work_category = :workCategory,
                     applicant_count = :applicantCount,
@@ -156,6 +158,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
 
         return jdbcClient.sql(sql)
                 .param("id", id)
+                .param("sequenceLabel", request.sequenceLabel())
                 .param("title", request.title())
                 .param("technologyType", request.technologyType())
                 .param("workCategory", request.workCategory())
@@ -183,6 +186,7 @@ public class NewTechnologyDevelopmentRepositoryAdapter implements NewTechnologyD
     private NewTechnologyDevelopment map(ResultSet rs) throws SQLException {
         return new NewTechnologyDevelopment(
                 rs.getLong("id"),
+                rs.getString("sequence_label"),
                 rs.getString("title"),
                 rs.getString("technology_type"),
                 rs.getString("work_category"),

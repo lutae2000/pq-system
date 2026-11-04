@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.newtechnology.model;
 import java.math.BigDecimal;
 
 public record NewTechnologyDevelopmentCommand(
+        String sequenceLabel,
         String title,
         String technologyType,
         String workCategory,

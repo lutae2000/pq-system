@@ -5,6 +5,7 @@ import java.time.Instant;
 
 public record NewTechnologyDevelopmentView(
         Long id,
+        String sequenceLabel,
         String title,
         String technologyType,
         String workCategory,

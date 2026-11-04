@@ -7,7 +7,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, Collapse, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
@@ -20,6 +20,7 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
   NEW_TECHNOLOGY_USAGE_ATTACHMENT_OWNER_TYPE,
@@ -118,6 +119,8 @@ const toUsageRequest = (draft: NewTechnologyUsageRecord): NewTechnologyUsageRequ
 });
 
 export function NewTechnologyUsageManagementPage() {
+  const groupCode = useAuthSession()?.groupCode;
+  const hasDesignGroup = groupCode === "BSD" || groupCode === "BSD_ADMIN";
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const [keyword, setKeyword] = useState("");
@@ -126,7 +129,7 @@ export function NewTechnologyUsageManagementPage() {
   const [appliedDesignationNo, setAppliedDesignationNo] = useState("");
   const [client, setClient] = useState("");
   const [appliedClient, setAppliedClient] = useState("");
-  const [workCategory, setWorkCategory] = useState("");
+  const [workCategory, setWorkCategory] = useState(() => hasDesignGroup ? "설계" : "");
   const [appliedWorkCategory, setAppliedWorkCategory] = useState("");
   const [technologyType, setTechnologyType] = useState("");
   const [appliedTechnologyType, setAppliedTechnologyType] = useState("");
@@ -134,6 +137,12 @@ export function NewTechnologyUsageManagementPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(100);
   const [draft, setDraft] = useState<NewTechnologyUsageRecord>(() => emptyDraft());
+
+  useEffect(() => {
+    if (!hasDesignGroup) return;
+    setWorkCategory("설계");
+    setDraft((current) => current.id === 0 ? { ...current, workCategory: "설계" } : current);
+  }, [hasDesignGroup]);
   const [deleteTarget, setDeleteTarget] = useState<NewTechnologyUsageRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const { showSnackbar } = useAppSnackbar();

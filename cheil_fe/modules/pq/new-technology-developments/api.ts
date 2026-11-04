@@ -8,6 +8,7 @@ export const NEW_TECHNOLOGY_ATTACHMENT_TYPE = "REFERENCE";
 
 export type NewTechnologyDevelopmentRecord = {
   id: number;
+  sequenceLabel: string | null;
   title: string;
   technologyType: string | null;
   workCategory: string | null;

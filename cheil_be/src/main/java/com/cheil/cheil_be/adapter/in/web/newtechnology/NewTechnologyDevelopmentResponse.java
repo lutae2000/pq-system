@@ -7,6 +7,7 @@ import com.cheil.cheil_be.application.newtechnology.model.NewTechnologyDevelopme
 
 public record NewTechnologyDevelopmentResponse(
         Long id,
+        String sequenceLabel,
         String title,
         String technologyType,
         String workCategory,
@@ -28,7 +29,7 @@ public record NewTechnologyDevelopmentResponse(
         String lastChangedId
 ) {
     public static NewTechnologyDevelopmentResponse from(NewTechnologyDevelopmentView view) {
-        return new NewTechnologyDevelopmentResponse(view.id(), view.title(), view.technologyType(), view.workCategory(),
+        return new NewTechnologyDevelopmentResponse(view.id(), view.sequenceLabel(), view.title(), view.technologyType(), view.workCategory(),
                 view.applicantCount(), view.useYn(), view.applicationDate(), view.elapsedYears(),
                 view.calculatedScore(), view.autoCalculatedScore(), view.targetField(), view.applicationNo(), view.registrationNo(),
                 view.validUntil(), view.summary(), view.remark(), view.createdAt(), view.createdId(),

@@ -2,6 +2,7 @@ export type AuthSession = {
   accessToken: string;
   accessTokenExpiresAt?: string | null;
   employeeNo: string;
+  groupCode?: string | null;
   issuedAt: string;
   loginId: string;
   deptCode?: string | null;
