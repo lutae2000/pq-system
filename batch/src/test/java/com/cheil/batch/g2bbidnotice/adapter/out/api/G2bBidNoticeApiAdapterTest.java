@@ -31,7 +31,7 @@ class G2bBidNoticeApiAdapterTest {
     void 인증키를_정상적으로_인코딩하고_입찰공고를_도메인으로_변환한다() throws Exception {
         AtomicReference<String> rawQuery = new AtomicReference<>();
         server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/getBidPblancListInfoServcPPSSrch", exchange -> {
+        server.createContext("/getBidPblancListInfoServcPPSSrch02", exchange -> {
             rawQuery.set(exchange.getRequestURI().getRawQuery());
             byte[] responseBody = """
                     {

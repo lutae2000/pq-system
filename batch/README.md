@@ -9,8 +9,8 @@
 `g2bBidNoticeCandidateSyncJob`은 나라장터 용역 입찰공고를 조회하고 동기화 이력과 `g2b_bid_notice_candidates`에 저장합니다. 저장된 후보 중 기존 공고문으로 등록된 공고의 변경·취소·재공고는 `system_notices`에 알림으로 기록합니다.
 
 - 기본 실행 주기: 매시간 정각
-- 조회 API: `getBidPblancListInfoServcPPSSrch`
-- API 서비스: `BidPublicInfoService`
+- 조회 API: `getBidPblancListInfoServcPPSSrch02`
+- API 서비스: `BidPublicInfoService02`
 - 정기 실행 여부: `BATCH_G2B_BID_NOTICE_ENABLED` (기본값 `false`, 서비스 키 권한 확인 후 `true`)
 - 기동 시 1회 실행 여부: `BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP`
 - 실행 주기: `BATCH_G2B_BID_NOTICE_CRON`

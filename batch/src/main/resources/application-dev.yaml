@@ -1,4 +1,7 @@
 spring:
+  data:
+    redis:
+      host: merp-valkey
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${POSTGRES_HOST:merp-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
@@ -7,6 +10,10 @@ spring:
   batch:
     jdbc:
       initialize-schema: always
+
+management:
+  server:
+    port: 8081
 
 batch:
   cleanup:

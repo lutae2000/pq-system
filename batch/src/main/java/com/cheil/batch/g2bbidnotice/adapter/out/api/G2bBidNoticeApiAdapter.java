@@ -21,7 +21,7 @@ import java.util.List;
 /** 나라장터 외부 API를 호출하고 응답 형식을 검증하는 출력 어댑터입니다. */
 public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
 
-    private static final String OPERATION_PATH = "/getBidPblancListInfoServcPPSSrch";
+    private static final String OPERATION_PATH = "/getBidPblancListInfoServcPPSSrch02";
     private static final DateTimeFormatter QUERY_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
     private static final String SUCCESS_CODE = "00";
 
@@ -46,7 +46,7 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
             log.info("나라장터 API 요청: from={}, to={}, regionCodes={}, page={}, pageSize={}",
                     query.from(), query.to(), query.participationRegionCodes(), query.pageNumber(), query.pageSize());
             requestUri = buildRequestUri(query);
-            log.info("나라장터 API 요청 URI: {}", requestUri);
+            log.debug("나라장터 API 요청 경로: {}", requestUri.getPath());
             G2bBidNoticeApiResponse apiResponse = restClient.get()
                     .uri(requestUri)
                     .retrieve()
@@ -58,10 +58,9 @@ public class G2bBidNoticeApiAdapter implements LoadG2bBidNoticesPort {
         } catch (RestClientException exception) {
             // 예외 원문에는 인증키가 포함된 요청 URL이 들어갈 수 있어 로그와 상위 예외에 포함하지 않습니다.
             log.warn(
-                    "나라장터 API 통신 실패: errorType={}, message={}, uri={}",
+                    "나라장터 API 통신 실패: errorType={}, path={}",
                     exception.getClass().getSimpleName(),
-                    exception.getMessage(),
-                    requestUri == null ? "-" : requestUri,
+                    requestUri == null ? "-" : requestUri.getPath(),
                     exception
             );
             throw new G2bBidNoticeCommunicationException("나라장터 용역 입찰공고 API 통신에 실패했습니다.", exception);

@@ -25,7 +25,7 @@ class G2bBidNoticeApiLiveTest {
         assertThat(serviceKey).as("G2B_SERVICE_KEY 환경변수").isNotBlank();
 
         G2bBidNoticeApiProperties properties = new G2bBidNoticeApiProperties(
-                "https://apis.data.go.kr/1230000/ad/BidPublicInfoService",
+                "https://apis.data.go.kr/1230000/ad/BidPublicInfoService02",
                 serviceKey,
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(30)
