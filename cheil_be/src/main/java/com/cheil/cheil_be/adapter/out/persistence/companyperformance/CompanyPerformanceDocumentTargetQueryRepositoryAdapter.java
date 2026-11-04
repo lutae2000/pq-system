@@ -55,11 +55,11 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
         String sql = """
                 SELECT cp.seq
                 FROM company_performances cp
-                WHERE NOT EXISTS (
-                    SELECT 1
+                WHERE cp.job_own_yn = 'Y'
+                  AND cp.seq NOT IN (
+                    SELECT target.company_performance_seq
                     FROM pq_company_performance_document_targets target
                     WHERE target.bid_seq = :bidSeq
-                      AND target.company_performance_seq = cp.seq
                 )
                   AND (%s)
                 """.formatted(String.join("", fragments));

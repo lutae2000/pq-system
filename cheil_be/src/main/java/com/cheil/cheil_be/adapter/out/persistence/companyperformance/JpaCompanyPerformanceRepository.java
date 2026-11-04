@@ -63,11 +63,12 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
                 where.and(companyPerformanceEntity.contractToDate.loe(toDateText(condition.contractToDate())));
             }
             if (condition.excludeDocumentTargetBidSeq() != null) {
-                where.and(com.querydsl.jpa.JPAExpressions.selectOne()
-                        .from(companyPerformanceDocumentTargetEntity)
-                        .where(companyPerformanceDocumentTargetEntity.bidSeq.eq(condition.excludeDocumentTargetBidSeq())
-                                .and(companyPerformanceDocumentTargetEntity.companyPerformanceSeq.eq(companyPerformanceEntity.seq)))
-                        .notExists());
+                where.and(companyPerformanceEntity.jobOwnYn.eq("Y"));
+                where.and(companyPerformanceEntity.seq.notIn(
+                        com.querydsl.jpa.JPAExpressions.select(companyPerformanceDocumentTargetEntity.companyPerformanceSeq)
+                                .from(companyPerformanceDocumentTargetEntity)
+                                .where(companyPerformanceDocumentTargetEntity.bidSeq.eq(condition.excludeDocumentTargetBidSeq()))
+                ));
             }
         }
 
