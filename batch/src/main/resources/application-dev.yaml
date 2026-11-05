@@ -1,10 +1,10 @@
 spring:
   data:
     redis:
-      host: merp-valkey
+      host: works-valkey
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${POSTGRES_HOST:merp-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
+    url: jdbc:postgresql://${POSTGRES_HOST:works-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
     username: ${POSTGRES_USER:cheil}
     password: ${POSTGRES_PASSWORD:cheil}
   batch:

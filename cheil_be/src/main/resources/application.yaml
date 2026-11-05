@@ -116,7 +116,7 @@ logging:
 
 app:
   batch:
-    url: ${APP_BATCH_URL:http://merp-batch:8090}
+    url: ${APP_BATCH_URL:http://works-batch:8090}
     api-key: ${APP_BATCH_API_KEY:}
   completed-query-logging:
     # 개발/로컬 SQL 완료 로그에서 제외할 SQL 문자열 조각 목록.

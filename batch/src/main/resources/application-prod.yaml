@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:192.168.2.11}:${POSTGRES_PORT:5432}/cheileng?currentSchema=cheileng
+    username: ${POSTGRES_USER:chl-opt}
+    password: ${POSTGRES_PASSWORD:C35ky$8!}
+  data:
+    redis:
+      host: works-valkey
+
+batch:
+  internal:
+    api-key: 30aafc86257cbf251b0307cfc2cf5243f66fad37d63e2693176f451e83c301a8
