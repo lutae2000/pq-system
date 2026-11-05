@@ -2,7 +2,7 @@ spring:
   datasource:
     # 운영 DB 연결 정보.
     url: jdbc:postgresql://${POSTGRES_HOST:192.168.2.11}:${POSTGRES_PORT:5432}/cheileng?currentSchema=cheileng
-    username: ${POSTGRES_USER:chl-opt}
+    username: ${POSTGRES_USER:chlopt}
     password: ${POSTGRES_PASSWORD:C35ky$8!}
   flyway:
     default-schema: cheileng
