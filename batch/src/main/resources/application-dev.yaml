@@ -11,10 +11,6 @@ spring:
     jdbc:
       initialize-schema: always
 
-management:
-  server:
-    port: 8081
-
 batch:
   cleanup:
     api-call-logs:

@@ -12,10 +12,6 @@ spring:
 server:
   port: ${SERVER_PORT:8090}
 
-management:
-  server:
-    port: ${MANAGEMENT_SERVER_PORT:8081}
-
 batch:
   internal:
     api-key: ${BATCH_INTERNAL_API_KEY:}
