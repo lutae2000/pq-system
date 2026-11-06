@@ -272,7 +272,7 @@ export function LoginPage() {
               fullWidth
               onClick={() => setIsSignupOpen(true)}
               type="button"
-              sx={{ fontWeight: 700, textTransform: "none" }}
+              sx={{ fontWeight: 700, textTransform: "none", display: "none" }}
               variant="text"
             >
               계정 생성

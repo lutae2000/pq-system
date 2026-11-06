@@ -67,7 +67,7 @@ export function MyAccountLoginTab({ active, onClose }: { active: boolean; onClos
   return (
     <>
       {accountQuery.isError ? <Alert severity="error" sx={{ mb: 1.5 }}>내 계정 정보를 불러오지 못했습니다.</Alert> : null}
-      <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, p: 1.5 }}>
+      <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1.5, p: 1.5, display:"none" }}>
         <Typography sx={sectionTitleSx} variant="subtitle2">로그인 정보</Typography>
         <Alert severity="info" sx={{ mb: 1.5 }}>비밀번호를 변경하려면 현재 비밀번호와 새 비밀번호를 입력해 주세요.</Alert>
         <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>

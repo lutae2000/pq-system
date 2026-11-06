@@ -678,13 +678,13 @@ export function UserManagementPage() {
                 {visibleTab === "details" ? (
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center", justifyContent: "flex-end", width: "100%" }}>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center", width: "100%" }}>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center", justifyContent: "flex-end", width: "100%" }}>
                         <Button
                             disabled={!canUpdate || !selectedUser || resetPasswordMutation.isPending}
                             onClick={handleResetPassword}
                             startIcon={<RestartAltOutlinedIcon />}
                             variant="outlined"
-                            sx={{ mr: "auto" }}
+                            sx={{ mr: "auto", display:"none" }}
                         >
                           비밀번호 초기화
                         </Button>
