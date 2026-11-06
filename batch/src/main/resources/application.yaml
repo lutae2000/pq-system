@@ -39,7 +39,7 @@ batch:
       retention-months: ${BATCH_API_CALL_LOG_RETENTION_MONTHS:3}
   g2b:
     bid-notice:
-      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:false}
+      enabled: ${BATCH_G2B_BID_NOTICE_ENABLED:true}
       run-on-startup: ${BATCH_G2B_BID_NOTICE_RUN_ON_STARTUP:false}
       cron: ${BATCH_G2B_BID_NOTICE_CRON:0 */10 8-22 * * *}
       zone: ${BATCH_G2B_BID_NOTICE_ZONE:Asia/Seoul}

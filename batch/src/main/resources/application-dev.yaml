@@ -20,7 +20,7 @@ batch:
       retention-months: 3
   g2b:
     bid-notice:
-      enabled: true
+      enabled: false
       run-on-startup: false
       cron: "0 */10 8-22 * * *"
       zone: Asia/Seoul
