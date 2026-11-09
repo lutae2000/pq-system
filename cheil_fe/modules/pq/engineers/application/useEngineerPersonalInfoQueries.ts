@@ -31,7 +31,11 @@ export function useEngineerPersonalInfoQueries({ activeEngineerId, activeEnginee
   const selectedEngineerDetailQuery = useQuery({
     queryKey: engineerPersonalInfoQueryKeys.profile(activeEngineerId),
     queryFn: () => getEngineerProfile(activeEngineerId),
-    enabled: tabQueryEnabled && Boolean(activeEngineerId) && !activeEngineerIsNew,
+    enabled:
+      tabQueryEnabled &&
+      Boolean(activeEngineerId) &&
+      !activeEngineerIsNew &&
+      !activeEngineerId.startsWith("draft-"),
   });
 
   return {
