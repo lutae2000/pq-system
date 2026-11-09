@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import type { GridColDef } from "@mui/x-data-grid";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -121,6 +122,13 @@ export function ServicePerformanceManagementPage() {
   const [pageSize, setPageSize] = useState(100);
   const [rows, setRows] = useState<ServicePerformanceImportRow[]>([]);
   const [filename, setFilename] = useState("");
+  const isPreviewing = Boolean(filename);
+  const previewRows: ServicePerformanceImportRecord[] = rows.map((row, index) => ({
+    ...row,
+    id: index + 1,
+    uploadedAt: null,
+    uploadedBy: null,
+  }));
   const [busy, setBusy] = useState(false);
   const [draftFilters, setDraftFilters] =
     useState<ServicePerformanceImportFilters>(emptyFilters);
@@ -145,6 +153,7 @@ export function ServicePerformanceManagementPage() {
       const parsed = await readServicePerformanceExcel(file);
       setRows(parsed);
       setFilename(file.name);
+      setPage(0);
       showSnackbar({
         message: `${parsed.length}건을 확인했습니다.`,
         severity: "success",
@@ -276,6 +285,16 @@ export function ServicePerformanceManagementPage() {
                     </Typography>
                   )}
                   <Button
+                    component="a"
+                    href="http://www.csi.go.kr"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outlined"
+                    startIcon={<OpenInNewOutlinedIcon />}
+                  >
+                    건설공사 안전관리 종합정보망
+                  </Button>
+                  <Button
                     component="label"
                     variant="outlined"
                     disabled={!canCreate || busy}
@@ -303,21 +322,32 @@ export function ServicePerformanceManagementPage() {
               </Stack>
               <EnterpriseDataGrid<ServicePerformanceImportRecord>
                 columns={gridColumns}
-                rows={query.data?.content ?? []}
+                rows={isPreviewing ? previewRows : query.data?.content ?? []}
                 getRowId={(row) => row.id}
-                loading={query.isFetching}
-                paginationMode="server"
+                getRowClassName={() => isPreviewing ? "excel-preview-row" : ""}
+                loading={!isPreviewing && query.isFetching}
+                paginationMode={isPreviewing ? "client" : "server"}
                 paginationModel={{ page, pageSize }}
                 onPaginationModelChange={(model) => {
                   setPage(model.page);
                   setPageSize(model.pageSize);
                 }}
-                rowCount={query.data?.totalElements ?? 0}
+                rowCount={isPreviewing ? previewRows.length : query.data?.totalElements ?? 0}
                 pageSizeOptions={[25, 50, 100]}
                 showXlsxExportButton
                 showPageNumbers
                 wrapperMinHeight={650}
-                sx={{ height: 700 }}
+                sx={{
+                  height: 700,
+                  ...(isPreviewing && {
+                    "& .MuiDataGrid-row.excel-preview-row": {
+                      backgroundColor: "#fff3bf !important",
+                    },
+                    "& .MuiDataGrid-row.excel-preview-row:hover": {
+                      backgroundColor: "#ffe69c !important",
+                    },
+                  }),
+                }}
               />
             </CardContent>
           </Card>
