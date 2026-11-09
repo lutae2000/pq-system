@@ -2218,19 +2218,21 @@ export function EngineerPersonalInfoPage() {
                         : "왼쪽 목록에서 기술인를 선택하세요."}
                     </Typography>
                   </Box>
-                  {selectedEngineer ? (
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
                       <input ref={pdfInputRef} accept="application/pdf,.pdf" hidden type="file" onChange={handlePdfFileChange} />
                       <Button
-                        disabled={(!canCreate && !canUpdate) || Boolean(selectedEngineer.summary.isNew)}
-                        onClick={() => pdfInputRef.current?.click()}
+                        disabled={(!canCreate && !canUpdate) || Boolean(selectedEngineer?.summary.isNew)}
+                        onClick={() => {
+                          if (!selectedEngineer) handleNew();
+                          pdfInputRef.current?.click();
+                        }}
                         startIcon={<UploadFileOutlinedIcon />}
                         variant="outlined"
                       >
                         경력증명서 PDF 자동입력
                       </Button>
                       <Button
-                        disabled={!canCreate || Boolean(selectedEngineer.summary.isNew)}
+                        disabled={!canCreate || Boolean(selectedEngineer?.summary.isNew)}
                         onClick={handleNew}
                         startIcon={<AddOutlinedIcon />}
                         variant="contained"
@@ -2245,8 +2247,7 @@ export function EngineerPersonalInfoPage() {
                       >
                         {selectedEngineer?.summary.isNew ? "저장" : "업데이트"}
                       </Button>
-                    </Box>
-                  ) : null}
+                  </Box>
                 </Box>
                 <Divider sx={{ my: 2 }} />
 
