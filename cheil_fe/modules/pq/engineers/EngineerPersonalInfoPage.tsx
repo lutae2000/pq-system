@@ -480,7 +480,8 @@ const createEmptyTrainingRecord = (nextId = ""): TrainingRecord => ({
 });
 
 function createDraftEngineerId() {
-  return `draft-${crypto.randomUUID()}`;
+  const randomId = globalThis.crypto?.randomUUID?.();
+  return `draft-${randomId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`}`;
 }
 
 function createEmptyEngineerProfile(nextId: string, filters: EngineerFilterState): EngineerProfile {
@@ -2222,10 +2223,7 @@ export function EngineerPersonalInfoPage() {
                       <input ref={pdfInputRef} accept="application/pdf,.pdf" hidden type="file" onChange={handlePdfFileChange} />
                       <Button
                         disabled={(!canCreate && !canUpdate) || Boolean(selectedEngineer?.summary.isNew)}
-                        onClick={() => {
-                          if (!selectedEngineer) handleNew();
-                          pdfInputRef.current?.click();
-                        }}
+                        onClick={() => pdfInputRef.current?.click()}
                         startIcon={<UploadFileOutlinedIcon />}
                         variant="outlined"
                       >
