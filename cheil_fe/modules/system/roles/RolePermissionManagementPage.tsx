@@ -169,13 +169,15 @@ export function RolePermissionManagementPage() {
   }, [roleKeyword, roles]);
   const roleColumns = useMemo<GridColDef<SystemRoleRecord>[]>(
     () => [
-      { field: "roleCode", headerName: "코드", width: 120 },
-      { field: "roleName", headerName: "역할명", flex: 1, minWidth: 160 },
+      { field: "roleCode", headerName: "코드", width: 120, align: "center", headerAlign: "center" },
+      { field: "roleName", headerName: "역할명", flex: 1, minWidth: 160, align: "center", headerAlign: "center" },
       {
         field: "description",
         headerName: "설명",
         flex: 1,
         minWidth: 200,
+        align: "center",
+        headerAlign: "center",
         valueFormatter: (value) => (typeof value === "string" ? value : ""),
       },
       { field: "sortSeq", headerName: "순서", width: 90, align: "center", headerAlign: "center" },

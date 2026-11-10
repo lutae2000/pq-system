@@ -294,14 +294,18 @@ export function DepartmentManagementPage() {
         field: "deptCode",
         headerName: "부서코드",
         width: 140,
+        align: "center",
+        headerAlign: "center",
       },
       {
         field: "deptName",
         headerName: "부서명",
         flex: 1,
         minWidth: 220,
+        align: "center",
+        headerAlign: "center",
         renderCell: (params) => (
-          <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, pl: `${params.row.depth * 20}px`, width: "100%" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, pl: `${params.row.depth * 20}px`, width: "100%" }}>
             {params.row.hasChildren ? (
               <IconButton
                 size="small"
@@ -497,9 +501,11 @@ export function DepartmentManagementPage() {
               columns={departmentColumns}
               getRowId={(row) => row.deptCode}
               hideFooterSelectedRowCount
+              initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
               loading={loading}
               localeText={{ noRowsLabel: "조회된 부서가 없습니다." }}
               onRowClick={(params) => void handleSelect(params.row.deptCode)}
+              pageSizeOptions={[10, 20, 40, 100]}
               rowSelectionModel={departmentSelectionModel}
               rows={departmentGridRows}
               showPageNumbers
