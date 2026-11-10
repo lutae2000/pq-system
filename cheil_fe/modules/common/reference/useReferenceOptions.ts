@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useQuery, type QueryKey, type UseQueryOptions } from "@tanstack/react-query";
 
@@ -25,7 +25,7 @@ import {
 import type { CommonCodeRecord, CommonCodeSearchParams } from "@/modules/code/common-codes/api";
 import { getClientCode, type ClientCodeRecord } from "@/modules/code/clients/api";
 import type { ConstructionTypeRecord, ConstructionTypeSearchParams } from "@/modules/code/construction-types/api";
-import type { DepartmentRecord, DepartmentSearchParams } from "@/modules/code/departments/api";
+import type { DepartmentRecord, DepartmentSearchParams } from "@/modules/system/departments/api";
 import type { SystemRoleRecord, SystemRoleSearchParams } from "@/modules/system/roles/api";
 import type { AuthUserAccount } from "@/types/user";
 

@@ -1,4 +1,4 @@
-import {
+﻿import {
   listCommonCodeBatch,
   listCommonCodes,
   type CommonCodeBatchRequest,
@@ -11,7 +11,7 @@ import {
   type ConstructionTypeRecord,
   type ConstructionTypeSearchParams,
 } from "@/modules/code/construction-types/api";
-import { listDepartments, type DepartmentRecord, type DepartmentSearchParams } from "@/modules/code/departments/api";
+import { listDepartments, type DepartmentRecord, type DepartmentSearchParams } from "@/modules/system/departments/api";
 import { getUsers, type UserSearchParams } from "@/modules/system/user-management/api";
 import { listSystemRoles, type SystemRoleRecord, type SystemRoleSearchParams } from "@/modules/system/roles/api";
 import type { AuthUserAccount } from "@/types/user";

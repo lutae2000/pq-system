@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { listDepartments } from "@/modules/code/departments/api";
+import { listDepartments } from "@/modules/system/departments/api";
 import { listSystemMenus } from "@/modules/system/menus/api";
 import { listSystemRoles } from "@/modules/system/roles/api";
 import { getUsers, type UserSearchParams } from "@/modules/system/user-management/api";
