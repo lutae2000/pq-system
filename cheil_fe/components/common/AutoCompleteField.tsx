@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Autocomplete, Box, MenuItem, TextField, Typography, type TextFieldProps } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
@@ -55,7 +55,7 @@ export type AutoCompleteFieldProps<T = ReferenceOption> = FieldProps & (
   | { source?: never; options?: never; items: readonly T[]; mapOption: (item: T) => ReferenceOption }
 );
 
-/** source???대? 議고쉶, items/mapOption? ?몄텧?먭? 議고쉶??API ?묐떟???쒖떆?????ъ슜?쒕떎. */
+/** source는 내부 조회, items/mapOption은 호출자가 조회한 API 응답을 표시할 때 사용한다. */
 export function AutoCompleteField<T = ReferenceOption>(props: AutoCompleteFieldProps<T>) {
   if (props.source) {
     switch (props.source.type) {
@@ -164,14 +164,14 @@ function FieldControl({
   label,
   labelPlacement = "inside",
   loading = false,
-  loadingLabel = "議고쉶 以묒엯?덈떎.",
+  loadingLabel = "조회 중입니다.",
   mode = "autocomplete",
   noOptionsText,
   onChange,
   onSearchChange,
   onInputValueChange,
   options,
-  placeholder = "?좏깮",
+  placeholder = "선택",
   placeholderDisabled = true,
   readOnly = false,
   showCode = false,
@@ -193,13 +193,13 @@ function FieldControl({
           displayEmpty: true,
           renderValue: (selected) => {
             if (!selected) return placeholder;
-            if (includeAll && selected === (allValue || "All")) return "?꾩껜";
+            if (includeAll && selected === (allValue || "All")) return "전체";
             const option = options.find((item) => item.value === selected);
             return option ? (showCode ? `${option.value} - ${option.label}` : option.label) : valueLabel || String(selected);
           },
         },
       }}>
-      {includeAll ? <MenuItem value={allValue || "All"}>?꾩껜</MenuItem> : <MenuItem disabled={placeholderDisabled} value="">{placeholder}</MenuItem>}
+      {includeAll ? <MenuItem value={allValue || "All"}>전체</MenuItem> : <MenuItem disabled={placeholderDisabled} value="">{placeholder}</MenuItem>}
       {loading ? <MenuItem disabled value="">{loadingLabel}</MenuItem> : null}
       {!hasValue ? <MenuItem value={value}>{valueLabel || value}</MenuItem> : null}
       {options.map((option) => <MenuItem key={option.value} value={option.value}>{showCode ? `${option.value} - ${option.label}` : option.label}</MenuItem>)}
@@ -212,7 +212,7 @@ function FieldControl({
     ) : field;
   }
   const resolvedOptions = [
-    ...(!placeholderDisabled || includeAll ? [{ label: includeAll ? "?꾩껜" : placeholder, value: includeAll ? allValue : "" }] : []),
+    ...(!placeholderDisabled || includeAll ? [{ label: includeAll ? "전체" : placeholder, value: includeAll ? allValue : "" }] : []),
     ...options,
     ...(selectedOverride?.value === value ? [selectedOverride] : []),
   ];

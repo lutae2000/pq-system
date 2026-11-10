@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RestartAltOutlinedIcon from "@mui/icons-material/RestartAltOutlined";
@@ -75,7 +75,7 @@ const optionLabel = (options: Array<{ label: string; value: string }>, value: st
 
 const accountStatus = (user: AuthUserAccount) => ({
   color: user.useYn ? ("success" as const) : ("default" as const),
-  label: user.useYn ? "?쒖꽦" : "鍮꾪솢??,
+  label: user.useYn ? "활성" : "비활성",
 });
 
 const toDeptOption = (dept: DepartmentRecord) => ({
@@ -234,11 +234,11 @@ export function UserManagementPage() {
   const users = usersQuery.data?.content ?? EMPTY_USERS;
   const userColumns = useMemo<GridColDef<AuthUserAccount>[]>(
     () => [
-      { field: "userName", headerName: "?대쫫", width: 120, align: "center", headerAlign: "center" },
-      { field: "loginId", headerName: "濡쒓렇??ID", minWidth: 130, flex: 0.9, align: "center", headerAlign: "center" },
+      { field: "userName", headerName: "이름", width: 120, align: "center", headerAlign: "center" },
+      { field: "loginId", headerName: "로그인 ID", minWidth: 130, flex: 0.9, align: "center", headerAlign: "center" },
       {
         field: "deptCode",
-        headerName: "遺??,
+        headerName: "부서",
         width: 120,
         flex: 1,
         align: "center",
@@ -247,7 +247,7 @@ export function UserManagementPage() {
       },
       {
         field: "groupCode",
-        headerName: "洹몃９",
+        headerName: "그룹",
         width: 170,
         align: "center",
         headerAlign: "center",
@@ -255,7 +255,7 @@ export function UserManagementPage() {
       },
       {
         field: "useYn",
-        headerName: "?곹깭",
+        headerName: "상태",
         width: 100,
         align: "center",
         headerAlign: "center",
@@ -273,7 +273,7 @@ export function UserManagementPage() {
       },
       {
         field: "loginDt",
-        headerName: "理쒓렐 濡쒓렇??,
+        headerName: "최근 로그인",
         minWidth: 170,
         flex: 0.8,
         align: "center",
@@ -359,7 +359,7 @@ export function UserManagementPage() {
 
         setPermissionRows(buildPermissionRows(menus, []));
         setBaselinePermissionRows(buildPermissionRows(menus, []));
-        showError(error instanceof Error ? error.message : "?ъ슜??沅뚰븳 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??");
+        showError(error instanceof Error ? error.message : "사용자 권한 정보를 불러오지 못했습니다.");
       })
       .finally(() => {
         if (active) {
@@ -392,14 +392,14 @@ export function UserManagementPage() {
     setShowPassword(false);
     setShowPasswordConfirm(false);
     setActiveTab("details");
-    showInfo("??怨꾩젙 ?깅줉 紐⑤뱶濡??꾪솚?덉뒿?덈떎.");
+    showInfo("새 계정 등록 모드로 전환했습니다.");
   };
 
 
 
   const handleSaveUser = () => {
     if ((draftUser.userPassword || passwordConfirm) && draftUser.userPassword !== passwordConfirm) {
-      showError("鍮꾨?踰덊샇? 鍮꾨?踰덊샇 ?뺤씤???쇱튂?섏? ?딆뒿?덈떎.");
+      showError("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
       return;
     }
     saveMutation.mutate(draftUser);
@@ -407,7 +407,7 @@ export function UserManagementPage() {
 
   const handleResetPassword = () => {
     if (!selectedUser) {
-      showError("鍮꾨?踰덊샇瑜?珥덇린?뷀븷 ?ъ슜?먮? 癒쇱? ?좏깮?섏꽭??");
+      showError("비밀번호를 초기화할 사용자를 먼저 선택하세요.");
       return;
     }
 
@@ -486,13 +486,13 @@ export function UserManagementPage() {
     void _changedItems;
 
     if (!selectedUser) {
-      showError("癒쇱? 沅뚰븳????ν븷 ?ъ슜?먮? ?좏깮?섏꽭??");
+      showError("먼저 권한을 저장할 사용자를 선택하세요.");
       return;
     }
 
     const loginId = selectedUser.loginId.trim();
     if (!loginId) {
-      showError("濡쒓렇??ID媛 ?녿뒗 ?ъ슜?먮뒗 沅뚰븳????ν븷 ???놁뒿?덈떎.");
+      showError("로그인 ID가 없는 사용자는 권한을 저장할 수 없습니다.");
       return;
     }
 
@@ -511,9 +511,9 @@ export function UserManagementPage() {
       const rows = buildPermissionRows(menus, savedPermissions);
       setPermissionRows(rows);
       setBaselinePermissionRows(rows);
-      showSuccess("?ъ슜??沅뚰븳????λ릺?덉뒿?덈떎.");
+      showSuccess("사용자 권한이 저장되었습니다.");
     } catch (error) {
-      showError(error instanceof Error ? error.message : "?ъ슜??沅뚰븳????ν븯吏 紐삵뻽?듬땲??");
+      showError(error instanceof Error ? error.message : "사용자 권한을 저장하지 못했습니다.");
     } finally {
       setPermissionSaving(false);
     }
@@ -522,12 +522,12 @@ export function UserManagementPage() {
   const visibleTab: UserManagementTab = selectedUser ? activeTab : "details";
 
   if (!canRead) {
-    return <Alert severity="warning">?ъ슜??議고쉶 沅뚰븳???놁뒿?덈떎.</Alert>;
+    return <Alert severity="warning">사용자 조회 권한이 없습니다.</Alert>;
   }
 
   return (
     <Box>
-      <PageHeader title="?ъ슜??愿由? />
+      <PageHeader title="사용자 관리" />
 
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -552,32 +552,32 @@ export function UserManagementPage() {
           searchDisabled={!canRead}
         >
           <AutoCompleteField mode="select"
-            label="?ъ슜 ?곹깭"
+            label="사용 상태"
             onChange={(value) => setUseYnFilter((value || "All") as "All" | "Y" | "N")}
             options={[
-              { label: "?꾩껜", value: "All" },
-              { label: "?쒖꽦", value: "Y" },
-              { label: "鍮꾪솢??, value: "N" },
+              { label: "전체", value: "All" },
+              { label: "활성", value: "Y" },
+              { label: "비활성", value: "N" },
             ]}
-            placeholder="?꾩껜"
+            placeholder="전체"
             placeholderDisabled={false}
             sx={{ ...standardFieldSx, minWidth: 150 }}
             value={useYnFilter}
           />
           <AutoCompleteField mode="select" source={{ type: "role" }}
-            label="洹몃９"
+            label="그룹"
             includeAll allValue="All"
             onChange={(value) => setGroupFilter(value || "All")}
-            placeholder="?꾩껜"
+            placeholder="전체"
             placeholderDisabled={false}
             sx={{ ...standardFieldSx, minWidth: 170 }}
             value={groupFilter}
           />
           <AutoCompleteField mode="select"
-            label="遺??
+            label="부서"
             onChange={(value) => setDeptFilter(value || "All")}
-            options={[{ label: "?꾩껜", value: "All" }, ...deptOptions]}
-            placeholder="?꾩껜"
+            options={[{ label: "전체", value: "All" }, ...deptOptions]}
+            placeholder="전체"
             placeholderDisabled={false}
             sx={{ ...standardFieldSx, minWidth: 220 }}
             value={deptFilter}
@@ -597,10 +597,10 @@ export function UserManagementPage() {
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
                 <Box>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
-                    ?ъ슜??紐⑸줉
+                    사용자 목록
                   </Typography>
                 </Box>
-                <Chip label={`珥?${usersPage.totalElements}嫄?} size="small" variant="outlined" />
+                <Chip label={`총 ${usersPage.totalElements}건`} size="small" variant="outlined" />
               </Box>
 
               <Divider sx={{ my: 1.5 }} />
@@ -649,16 +649,16 @@ export function UserManagementPage() {
               <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
                 <Box>
                   <Typography sx={{ fontWeight: 800 }} variant="h6">
-                    ?ъ슜??愿由??곸꽭
+                    사용자 관리 상세
                   </Typography>
                   <Typography color="text.secondary" variant="body2">
-                    {selectedUser ? `${selectedUser.employeeNo} / ${selectedUser.loginId}` : "??怨꾩젙???묒꽦 以묒엯?덈떎."}
+                    {selectedUser ? `${selectedUser.employeeNo} / ${selectedUser.loginId}` : "새 계정을 작성 중입니다."}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "flex-end" }}>
                   <Chip icon={<SecurityOutlinedIcon />} label={selectedStatus.label} color={selectedStatus.color} />
-                  <Chip label={`遺??${optionLabel(deptOptions, draftUser.deptCode)}`} variant="outlined" />
-                  <Chip label={`洹몃９ ${optionLabel(groupOptions, draftUser.groupCode)}`} variant="outlined" />
+                  <Chip label={`부서 ${optionLabel(deptOptions, draftUser.deptCode)}`} variant="outlined" />
+                  <Chip label={`그룹 ${optionLabel(groupOptions, draftUser.groupCode)}`} variant="outlined" />
                 </Box>
               </Box>
 
@@ -670,8 +670,8 @@ export function UserManagementPage() {
                 variant="fullWidth"
                 sx={{ minHeight: 40, "& .MuiTab-root": { minHeight: 40, py: 0.75 } }}
               >
-                <Tab label="?ъ슜???곸꽭" value="details" />
-                <Tab disabled={!selectedUser} label="硫붾돱 沅뚰븳" value="permissions" />
+                <Tab label="사용자 상세" value="details" />
+                <Tab disabled={!selectedUser} label="메뉴 권한" value="permissions" />
               </Tabs>
 
               <Box sx={{ pt: 2 }}>
@@ -686,9 +686,10 @@ export function UserManagementPage() {
                             variant="outlined"
                             sx={{ mr: "auto", display:"none" }}
                         >
-                          鍮꾨?踰덊샇 珥덇린??                        </Button>
+                          비밀번호 초기화
+                        </Button>
                         <Button disabled={!canCreate} onClick={handleNewUser} startIcon={<AddOutlinedIcon />} variant="outlined">
-                          ?좉퇋
+                          신규
                         </Button>
                         <Button
                           disabled={saveMutation.isPending || (selectedUser ? !canUpdate : !canCreate)}
@@ -696,17 +697,19 @@ export function UserManagementPage() {
                           startIcon={<SaveOutlinedIcon />}
                           variant="contained"
                         >
-                          ???                        </Button>
+                          저장
+                        </Button>
                       </Box>
                     </Box>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       <Box>
                         <Typography sx={{ fontWeight: 700, mb: 1 }} variant="subtitle1">
-                          ?꾨줈??                        </Typography>
+                          프로필
+                        </Typography>
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
                           <TextField
                             fullWidth
-                            label="?щ쾲"
+                            label="사번"
                             onChange={(event) => updateDraft("employeeNo", event.target.value)}
                             size="small"
                             sx={standardFieldSx}
@@ -715,7 +718,7 @@ export function UserManagementPage() {
                           />
                           <TextField
                             fullWidth
-                            label="?대쫫"
+                            label="이름"
                             onChange={(event) => updateDraft("userName", event.target.value)}
                             size="small"
                             sx={standardFieldSx}
@@ -723,7 +726,7 @@ export function UserManagementPage() {
                           />
                           <TextField
                             fullWidth
-                            label="濡쒓렇??ID"
+                            label="로그인 ID"
                             onChange={(event) => updateDraft("loginId", event.target.value)}
                             size="small"
                             sx={standardFieldSx}
@@ -731,21 +734,21 @@ export function UserManagementPage() {
                           />
                           <TextField
                             fullWidth
-                            label="?대찓??
+                            label="이메일"
                             onChange={(event) => updateDraft("email", event.target.value)}
                             size="small"
                             sx={standardFieldSx}
                             value={draftUser.email}
                           />
                           <AutoCompleteField mode="select" source={{ type: "role" }}
-                                            label="洹몃９"
+                                            label="그룹"
                             onChange={(value) => updateDraft("groupCode", value)}
-                            placeholder="?좏깮"
+                            placeholder="선택"
                             sx={standardFieldSx}
                             value={draftUser.groupCode}
                           />
                           <AutoCompleteField
-                            label="遺??
+                            label="부서"
                             mode="select"
                             onChange={(value) => updateDraft("deptCode", value)}
                             options={deptOptions}
@@ -756,13 +759,13 @@ export function UserManagementPage() {
                           <Box sx={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 2 }}>
                             <FormControlLabel
                               control={<Switch checked={draftUser.useYn} onChange={(_, checked) => updateDraft("useYn", checked)} size="small" />}
-                              label="?쒖꽦"
+                              label="활성"
                             />
                             <FormControlLabel
                               control={
                                 <Switch checked={draftUser.picYn === "Y"} onChange={(_, checked) => updateDraft("picYn", checked ? "Y" : "N")} size="small" />
                               }
-                              label="?대떦??
+                              label="담당자"
                             />
                           </Box>
                         </Box>
@@ -772,13 +775,13 @@ export function UserManagementPage() {
 
                       <Box>
                         <Typography sx={{ fontWeight: 700, mb: 1 }} variant="subtitle1">
-                          蹂댁븞
+                          보안
                         </Typography>
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
                           <TextField
                             fullWidth
-                            label="鍮꾨?踰덊샇"
-                            helperText={selectedUser ? "?꾩옱 鍮꾨?踰덊샇瑜??좎??섎젮硫?鍮꾩썙?먯꽭??" : "??怨꾩젙?먮뒗 鍮꾨?踰덊샇媛 ?꾩슂?⑸땲??"}
+                            label="비밀번호"
+                            helperText={selectedUser ? "현재 비밀번호를 유지하려면 비워두세요." : "새 계정에는 비밀번호가 필요합니다."}
                             onChange={(event) => updateDraft("userPassword", event.target.value.replace(/\s/g, ""))}
                             size="small"
                             sx={standardFieldSx}
@@ -788,7 +791,7 @@ export function UserManagementPage() {
                               input: {
                                 endAdornment: (
                                   <InputAdornment position="end">
-                                    <IconButton aria-label={showPassword ? "鍮꾨?踰덊샇 ?④린湲? : "鍮꾨?踰덊샇 蹂닿린"} edge="end" onClick={() => setShowPassword((current) => !current)} size="small">
+                                    <IconButton aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"} edge="end" onClick={() => setShowPassword((current) => !current)} size="small">
                                       {showPassword ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                                     </IconButton>
                                   </InputAdornment>
@@ -798,7 +801,7 @@ export function UserManagementPage() {
                           />
                           <TextField
                             fullWidth
-                            label="鍮꾨?踰덊샇 ?뺤씤"
+                            label="비밀번호 확인"
                             onChange={(event) => setPasswordConfirm(event.target.value.replace(/\s/g, ""))}
                             size="small"
                             sx={standardFieldSx}
@@ -808,7 +811,7 @@ export function UserManagementPage() {
                               input: {
                                 endAdornment: (
                                   <InputAdornment position="end">
-                                    <IconButton aria-label={showPasswordConfirm ? "鍮꾨?踰덊샇 ?뺤씤 ?④린湲? : "鍮꾨?踰덊샇 ?뺤씤 蹂닿린"} edge="end" onClick={() => setShowPasswordConfirm((current) => !current)} size="small">
+                                    <IconButton aria-label={showPasswordConfirm ? "비밀번호 확인 숨기기" : "비밀번호 확인 보기"} edge="end" onClick={() => setShowPasswordConfirm((current) => !current)} size="small">
                                       {showPasswordConfirm ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
                                     </IconButton>
                                   </InputAdornment>
@@ -823,13 +826,13 @@ export function UserManagementPage() {
 
                       <Box>
                         <Typography sx={{ fontWeight: 700, mb: 1 }} variant="subtitle1">
-                          ?대젰
+                          이력
                         </Typography>
                         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }, gap: 1.5 }}>
-                          <TextField fullWidth label="理쒓렐 IP" size="small" sx={standardFieldSx} value={draftUser.recentIpAddr} disabled />
-                          <TextField fullWidth label="理쒓렐 濡쒓렇?? size="small" sx={standardFieldSx} value={draftUser.loginDt} disabled />
-                          <TextField fullWidth label="理쒓렐 濡쒓렇?꾩썐" size="small" sx={standardFieldSx} value={draftUser.logoutDt} disabled />
-                          <TextField fullWidth label="理쒖쥌 蹂寃쎌씪" size="small" sx={standardFieldSx} value={draftUser.lastChngDt} disabled />
+                          <TextField fullWidth label="최근 IP" size="small" sx={standardFieldSx} value={draftUser.recentIpAddr} disabled />
+                          <TextField fullWidth label="최근 로그인" size="small" sx={standardFieldSx} value={draftUser.loginDt} disabled />
+                          <TextField fullWidth label="최근 로그아웃" size="small" sx={standardFieldSx} value={draftUser.logoutDt} disabled />
+                          <TextField fullWidth label="최종 변경일" size="small" sx={standardFieldSx} value={draftUser.lastChngDt} disabled />
                         </Box>
                       </Box>
                     </Box>
@@ -839,8 +842,8 @@ export function UserManagementPage() {
                     {selectedUser ? (
                       <>
                         <MenuPermissionCard
-                          badgeLabel={`${permissionRows.length}嫄?硫붾돱`}
-                          description="?ъ슜?먮퀎 硫붾돱 ?묎렐 沅뚰븳??愿由ы빀?덈떎."
+                          badgeLabel={`${permissionRows.length}건 메뉴`}
+                          description="사용자별 메뉴 접근 권한을 관리합니다."
                           expandedMenuCodeSet={expandedMenuCodeSet}
                           isPermissionChanged={isPermissionChanged}
                           menuTree={menuTree}
@@ -854,7 +857,7 @@ export function UserManagementPage() {
                           permissionByMenuCode={permissionByMenuCode}
                           onSave={handleSavePermissions}
                           saveDisabled={!selectedUser || !canUpdate || permissionLoading || permissionSaving || savePermissionMutation.isPending}
-                          title="硫붾돱 沅뚰븳"
+                          title="메뉴 권한"
                         />
                       </>
                     ) : (
@@ -868,7 +871,7 @@ export function UserManagementPage() {
                         }}
                       >
                         <Typography color="text.secondary" variant="body2">
-                          硫붾돱 沅뚰븳???몄쭛???ъ슜?먮? 癒쇱? ?좏깮?섏꽭??
+                          메뉴 권한을 편집할 사용자를 먼저 선택하세요.
                         </Typography>
                       </Box>
                     )}
@@ -880,13 +883,13 @@ export function UserManagementPage() {
 
       </Box>
     <ConfirmActionDialog
-      confirmLabel="鍮꾨?踰덊샇 珥덇린??
+      confirmLabel="비밀번호 초기화"
       loading={resetPasswordMutation.isPending}
-      message="?좏깮???ъ슜?먯쓽 鍮꾨?踰덊샇瑜?珥덇린?뷀븯?쒓쿋?듬땲源?"
+      message="선택한 사용자의 비밀번호를 초기화하시겠습니까?"
       onClose={() => setResetPasswordConfirmOpen(false)}
       onConfirm={confirmResetPassword}
       open={resetPasswordConfirmOpen}
-      title="鍮꾨?踰덊샇 珥덇린???뺤씤"
+      title="비밀번호 초기화 확인"
     />
     </Box>
   );

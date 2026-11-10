@@ -1,4 +1,4 @@
-﻿import {
+import {
   listCommonCodeBatch,
   listCommonCodes,
   type CommonCodeBatchRequest,
