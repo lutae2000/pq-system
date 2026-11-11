@@ -251,7 +251,7 @@ export function HeadquartersManagementPage() {
               <CardContent sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
                 <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1 }}>
                   <Typography sx={{ borderLeft: "3px solid", borderColor: "primary.main", fontWeight: 800, pl: 1 }}>
-                    행정자료 첨부
+                    회사자료 첨부
                   </Typography>
                   <Button
                     disabled={!canCreate}
