@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24-alpine AS dependencies
+FROM node:26.13.0-alpine AS dependencies
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit --no-fund
 
 
-FROM node:24-alpine AS builder
+FROM node:26.13.0-alpine AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
 
-FROM node:24-alpine AS runner
+FROM node:26.13.0-alpine AS runner
 
 WORKDIR /app
 
