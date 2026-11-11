@@ -21,7 +21,8 @@ import { BrandingFavicon } from "@/modules/system/branding/BrandingFavicon";
 
 const drawerWidth = 280;
 const noticeDismissKey = "system-notice-dismiss-date";
-const noticeReadKey = "system-notice-read";
+const noticeHiddenKey = "system-notice-read";
+const noticeReadKey = "system-notice-viewed";
 const notificationRetentionMs = 14 * 24 * 60 * 60 * 1000;
 const hasTargetPath = (notice: { targetPath?: string | null }) => Boolean(notice.targetPath?.trim());
 const getNotificationMenuPath = (targetPath: string) => targetPath.split(/[?#]/, 1)[0];
@@ -113,6 +114,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? readStoredIds(`${noticeReadKey}:${notificationUserKey}`)
       : new Set<string>();
   }, [authSessionSnapshot, mounted, notificationUserKey, readNoticeVersion]);
+  const hiddenNoticeIds = useMemo(() => {
+    void readNoticeVersion;
+    return authSessionSnapshot || mounted
+      ? readStoredIds(`${noticeHiddenKey}:${notificationUserKey}`)
+      : new Set<string>();
+  }, [authSessionSnapshot, mounted, notificationUserKey, readNoticeVersion]);
   const sessionEnabled = mounted && !isPublicRoute && authState === "allowed" && Boolean(currentSession);
   const { remainingMs } = useIdleLogout({
     enabled: sessionEnabled,
@@ -139,12 +146,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const systemNotices = useMemo(() => (noticesQuery.data ?? []).filter((notice) => notice.active && !hasTargetPath(notice)), [noticesQuery.data]);
   const notificationNotices = useMemo(() => [...businessNotifications, ...systemNotices], [businessNotifications, systemNotices]);
   const unreadNotificationCount = useMemo(
-    () => notificationNotices.filter((notice) => !readNoticeIds.has(notice.id)).length,
-    [notificationNotices, readNoticeIds],
+    () => notificationNotices.filter((notice) => !readNoticeIds.has(notice.id) && !hiddenNoticeIds.has(notice.id)).length,
+    [notificationNotices, readNoticeIds, hiddenNoticeIds],
   );
 
   const markNoticeRead = (noticeId: string) => {
     const key = `${noticeReadKey}:${notificationUserKey}`;
+    const current = readStoredIds(key);
+    current.add(noticeId);
+    window.localStorage.setItem(key, JSON.stringify([...current]));
+    setReadNoticeVersion((version) => version + 1);
+  };
+
+  const hideNotice = (noticeId: string) => {
+    const key = `${noticeHiddenKey}:${notificationUserKey}`;
     const current = readStoredIds(key);
     current.add(noticeId);
     window.localStorage.setItem(key, JSON.stringify([...current]));
@@ -157,18 +172,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     const userKey = readAuthSession()?.employeeNo ?? readAuthSession()?.userName ?? "anonymous";
-    const key = `${noticeReadKey}:${userKey}`;
-    const current = readStoredIds(key);
     const retentionStart = Date.now() - notificationRetentionMs;
     const activeNoticeIds = new Set(
       (noticesQuery.data ?? [])
         .filter((notice) => new Date(notice.publishAt.replace(" ", "T")).getTime() >= retentionStart)
         .map((notice) => notice.id),
     );
-    const retainedIds = new Set([...current].filter((noticeId) => activeNoticeIds.has(noticeId)));
-
-    if (retainedIds.size !== current.size) {
-      window.localStorage.setItem(key, JSON.stringify([...retainedIds]));
+    for (const storageKey of [noticeReadKey, noticeHiddenKey]) {
+      const key = `${storageKey}:${userKey}`;
+      const current = readStoredIds(key);
+      const retainedIds = new Set([...current].filter((noticeId) => activeNoticeIds.has(noticeId)));
+      if (retainedIds.size !== current.size) {
+        window.localStorage.setItem(key, JSON.stringify([...retainedIds]));
+      }
     }
   }, [noticesQuery.data, noticesQuery.isSuccess]);
 
@@ -288,7 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <NotificationCenterDialog
           notices={notificationNotices}
           onClose={() => setNotificationOpen(false)}
-          onNoticeDismiss={(notice) => markNoticeRead(notice.id)}
+          onNoticeDismiss={(notice) => hideNotice(notice.id)}
           onNoticeClick={(notice) => {
             markNoticeRead(notice.id);
             setNotificationOpen(false);
@@ -298,6 +314,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           }}
           open={notificationOpen}
           readNoticeIds={readNoticeIds}
+          hiddenNoticeIds={hiddenNoticeIds}
         />
       ) : null}
       {shouldLoadNotices ? (

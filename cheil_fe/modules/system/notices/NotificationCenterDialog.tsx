@@ -14,13 +14,14 @@ type NotificationCenterDialogProps = {
   onNoticeClick: (notice: NoticeRecord) => void;
   open: boolean;
   readNoticeIds: ReadonlySet<string>;
+  hiddenNoticeIds: ReadonlySet<string>;
 };
 
 const formatDateTime = (value: string) => value.replace("T", " ").slice(0, 16);
 
-export function NotificationCenterDialog({ notices, onClose, onNoticeClick, onNoticeDismiss, open, readNoticeIds }: NotificationCenterDialogProps) {
+export function NotificationCenterDialog({ notices, onClose, onNoticeClick, onNoticeDismiss, open, readNoticeIds, hiddenNoticeIds }: NotificationCenterDialogProps) {
   const sortedNotices = notices
-    .filter((notice) => !readNoticeIds.has(notice.id))
+    .filter((notice) => !hiddenNoticeIds.has(notice.id))
     .sort((left, right) => right.publishAt.localeCompare(left.publishAt));
 
   return (
@@ -47,17 +48,17 @@ export function NotificationCenterDialog({ notices, onClose, onNoticeClick, onNo
         ) : (
           <Stack spacing={0.75}>
             {sortedNotices.map((notice) => (
-              <Box key={notice.id} sx={{ alignItems: "center", bgcolor: "background.paper", border: "1px solid", borderColor: "primary.light", borderRadius: 1.5, boxShadow: "0 2px 8px rgba(15, 23, 42, 0.06)", display: "flex", gap: 1, px: 1.25, py: 1, transition: "background-color 120ms ease", "&:hover": { bgcolor: "background.paper" } }}>
-                <Box sx={{ alignItems: "center", bgcolor: "rgba(25, 118, 210, 0.08)", borderRadius: 1.25, color: "primary.main", display: "flex", flex: "0 0 auto", height: 32, justifyContent: "center", width: 32 }}>
+              <Box key={notice.id} sx={{ alignItems: "center", bgcolor: readNoticeIds.has(notice.id) ? "#f1f3f5" : "background.paper", border: "1px solid", borderColor: readNoticeIds.has(notice.id) ? "divider" : "primary.light", borderRadius: 1.5, boxShadow: readNoticeIds.has(notice.id) ? "none" : "0 2px 8px rgba(15, 23, 42, 0.06)", display: "flex", gap: 1, px: 1.25, py: 1, transition: "background-color 120ms ease" }}>
+                <Box sx={{ alignItems: "center", bgcolor: readNoticeIds.has(notice.id) ? "action.hover" : "rgba(25, 118, 210, 0.08)", borderRadius: 1.25, color: readNoticeIds.has(notice.id) ? "text.disabled" : "primary.main", display: "flex", flex: "0 0 auto", height: 32, justifyContent: "center", width: 32 }}>
                   <NotificationsActiveRoundedIcon sx={{ fontSize: 18 }} />
                 </Box>
                 <Box onClick={() => onNoticeClick(notice)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onNoticeClick(notice); }} role="button" tabIndex={0} sx={{ cursor: "pointer", flex: 1, minWidth: 0 }}>
                   <Stack direction="row" spacing={0.6} sx={{ alignItems: "center", minWidth: 0 }}>
-                    <Box aria-label="읽지 않은 알림" sx={{ bgcolor: "primary.main", borderRadius: "50%", flex: "0 0 auto", height: 6, width: 6 }} />
-                    <Typography noWrap sx={{ flex: 1, fontSize: 13, fontWeight: 800 }} variant="subtitle2">{notice.title}</Typography>
+                    {readNoticeIds.has(notice.id) ? null : <Box aria-label="읽지 않은 알림" sx={{ bgcolor: "primary.main", borderRadius: "50%", flex: "0 0 auto", height: 6, width: 6 }} />}
+                    <Typography noWrap sx={{ flex: 1, fontSize: 13, fontWeight: readNoticeIds.has(notice.id) ? 400 : 800, color: readNoticeIds.has(notice.id) ? "text.secondary" : "text.primary" }} variant="subtitle2">{notice.title}</Typography>
                     <Typography color="text.disabled" sx={{ flex: "0 0 auto", fontSize: 10.5 }} variant="caption">{formatDateTime(notice.publishAt)}</Typography>
                   </Stack>
-                  <Typography color="text.secondary" noWrap sx={{ fontSize: 12, mt: 0.15 }} variant="body2">{notice.content}</Typography>
+                  <Typography color={readNoticeIds.has(notice.id) ? "text.disabled" : "text.secondary"} noWrap sx={{ fontSize: 12, mt: 0.15 }} variant="body2">{notice.content}</Typography>
                 </Box>
                 <Stack direction="row" spacing={0} sx={{ alignItems: "center", flex: "0 0 auto" }}>
                   <Tooltip title="알림 삭제">
