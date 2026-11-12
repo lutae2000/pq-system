@@ -31,6 +31,10 @@ batch:
   internal:
     api-key: ${BATCH_INTERNAL_API_KEY:}
   cleanup:
+    g2b-bid-notices:
+      enabled: ${BATCH_G2B_BID_NOTICE_CLEANUP_ENABLED:true}
+      cron: ${BATCH_G2B_BID_NOTICE_CLEANUP_CRON:0 30 3 * * *}
+      zone: ${BATCH_G2B_BID_NOTICE_CLEANUP_ZONE:Asia/Seoul}
     api-call-logs:
       enabled: ${BATCH_API_CALL_LOG_CLEANUP_ENABLED:true}
       cron: ${BATCH_API_CALL_LOG_CLEANUP_CRON:0 0 3 * * *}

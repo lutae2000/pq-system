@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cheil.batch.g2bbidnotice.adapter.out.persistence.G2bBidNoticeCleanupMapper">
+    <select id="findRetentionMonths" resultType="string">
+        SELECT policy_value FROM system_policies
+        WHERE policy_key = 'G2B_BID_NOTICE_RETENTION_MONTHS' AND use_yn = TRUE
+    </select>
+    <delete id="deleteExpiredCandidates"><![CDATA[
+        DELETE FROM g2b_bid_notice_candidates
+        WHERE imported_bid_seq IS NULL
+        and first_seen_at < CURRENT_TIMESTAMP - (#{retentionMonths} * INTERVAL '1 month')
+    ]]></delete>
+    <delete id="deleteExpiredSyncItems"><![CDATA[
+        DELETE FROM g2b_bid_notice_sync_items
+        WHERE (bef_bid_bbanc_no is null or bef_bid_bbanc_no = '')
+        and first_seen_at < CURRENT_TIMESTAMP - (#{retentionMonths} * INTERVAL '1 month')
+    ]]></delete>
+</mapper>

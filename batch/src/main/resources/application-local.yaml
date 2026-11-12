@@ -1,7 +1,7 @@
 spring:
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
     username: ${POSTGRES_USER:cheil}
     password: ${POSTGRES_PASSWORD:cheil}
   data:
@@ -11,6 +11,14 @@ spring:
 
 server:
   port: ${SERVER_PORT:8090}
+
+logging:
+  level:
+    p6spy: DEBUG
+
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
 
 batch:
   internal:

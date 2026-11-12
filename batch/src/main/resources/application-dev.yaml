@@ -3,8 +3,8 @@ spring:
     redis:
       host: works-valkey
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${POSTGRES_HOST:works-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
+    driver-class-name: com.p6spy.engine.spy.P6SpyDriver
+    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:works-postgresql}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_dev}
     username: ${POSTGRES_USER:cheil}
     password: ${POSTGRES_PASSWORD:cheil}
   batch:
@@ -13,6 +13,10 @@ spring:
 
 batch:
   cleanup:
+    g2b-bid-notices:
+      enabled: ${BATCH_G2B_BID_NOTICE_CLEANUP_ENABLED:true}
+      cron: "${BATCH_G2B_BID_NOTICE_CLEANUP_CRON:0 30 3 * * *}"
+      zone: ${BATCH_G2B_BID_NOTICE_CLEANUP_ZONE:Asia/Seoul}
     api-call-logs:
       enabled: true
       cron: "0 0 3 * * *"
@@ -34,4 +38,8 @@ batch:
 
 logging:
   level:
-    com.cheil.batch: INFO
+    p6spy: DEBUG
+
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

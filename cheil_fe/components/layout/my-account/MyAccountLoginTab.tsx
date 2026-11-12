@@ -81,11 +81,11 @@ export function MyAccountLoginTab({ active, onClose }: { active: boolean; onClos
         <Typography sx={sectionTitleSx} variant="subtitle2">기본 계정 정보</Typography>
         <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
           <TextField disabled label="이름" value={accountQuery.data?.userName ?? ""} />
-          <TextField label="사번" onChange={(event) => updateForm("employeeNo", event.target.value)} value={form.employeeNo} />
+          <TextField disabled label="사번" onChange={(event) => updateForm("employeeNo", event.target.value)} value={form.employeeNo} />
           <AutoCompleteField source={{ type: "department" }} enabled={active} label="부서" noOptionsText="부서가 없습니다." onChange={(value) => updateForm("deptCode", value)} placeholder="부서 검색" value={form.deptCode} />
           <TextField label="이메일" onChange={(event) => updateForm("email", event.target.value)} type="email" value={form.email} />
-          <TextField disabled label="역할" value={roleOptions.labelByValue[accountQuery.data?.groupCode ?? ""] ?? ""} />
-          <TextField disabled label="패스워드 초기화 날짜" value={formatDate(accountQuery.data?.passwordResetDt)} />
+          <TextField disabled label="역할권한" value={roleOptions.labelByValue[accountQuery.data?.groupCode ?? ""] ?? ""} />
+          {/*<TextField disabled label="패스워드 초기화 날짜" value={formatDate(accountQuery.data?.passwordResetDt) } />*/}
         </Box>
       </Box>
       <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end", mt: 2 }}>
