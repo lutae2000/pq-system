@@ -35,7 +35,7 @@ class NewTechnologyDevelopmentServiceTest {
 
   private NewTechnologyDevelopment row(String category) {
     return new NewTechnologyDevelopment(
-        1L, "기술", "신기술", category, BigDecimal.valueOf(3), true, null,
+        1L, "기술", "신기술", "type", category, BigDecimal.valueOf(3), true, null,
         BigDecimal.ONE, null, null, null, null, null, null,
         null, null, null, null);
   }

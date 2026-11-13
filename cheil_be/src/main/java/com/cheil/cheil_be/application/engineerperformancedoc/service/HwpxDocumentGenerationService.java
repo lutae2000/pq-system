@@ -285,6 +285,15 @@ public class HwpxDocumentGenerationService {
                   return row;
                 })
             .list();
+    Map<String, Integer> engineerOrder = new HashMap<>();
+    for (int index = 0; index < engineerIds.size(); index++) {
+      if (StringUtils.hasText(engineerIds.get(index))) {
+        engineerOrder.putIfAbsent(engineerIds.get(index).trim(), index);
+      }
+    }
+    rows.sort(
+        java.util.Comparator.comparingInt(
+            row -> engineerOrder.getOrDefault(row.get("engineer.id"), Integer.MAX_VALUE)));
     Map<String, Integer> fallbackSequences = new HashMap<>();
     rows.forEach(
         row -> {

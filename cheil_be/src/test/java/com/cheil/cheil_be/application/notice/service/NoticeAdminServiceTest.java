@@ -34,7 +34,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-18 09:00",
                 "visible",
-                null
+                null,
+                "system"
         ));
         repository.put(new Notice(
                 true,
@@ -45,7 +46,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-18 13:00",
                 "future publish",
-                null
+                null,
+                "system"
         ));
         repository.put(new Notice(
                 true,
@@ -56,7 +58,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-17 09:00",
                 "expired",
-                null
+                null,
+                "system"
         ));
         repository.put(new Notice(
                 false,
@@ -67,7 +70,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-18 09:00",
                 "inactive",
-                null
+                null,
+                "system"
         ));
 
         List<Notice> result = service.findAll(NoticeListScope.DASHBOARD);
@@ -86,7 +90,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-18 09:00",
                 "older",
-                null
+                null,
+                "system"
         ));
         repository.put(new Notice(
                 true,
@@ -97,7 +102,8 @@ class NoticeAdminServiceTest {
                 true,
                 "2026-06-18 10:00",
                 "newer",
-                null
+                null,
+                "system"
         ));
 
         List<Notice> result = service.findAll(NoticeListScope.ADMIN);
@@ -116,7 +122,8 @@ class NoticeAdminServiceTest {
                 false,
                 "2026-06-30 09:00",
                 "old title",
-                null
+                null,
+                "system"
         ));
 
         Notice updated = service.update("N001", new Notice(
@@ -128,7 +135,8 @@ class NoticeAdminServiceTest {
                 true,
                 null,
                 "new title",
-                "/notice/N001"
+                "/notice/N001",
+                "system"
         ));
 
         assertThat(updated.getContent()).isEqualTo("new content");
@@ -149,7 +157,8 @@ class NoticeAdminServiceTest {
                 false,
                 "2026-06-30 09:00",
                 "title",
-                null
+                null,
+                "system"
         )))
                 .isInstanceOf(ApplicationException.class)
                 .hasMessageContaining("exposureEndAt");

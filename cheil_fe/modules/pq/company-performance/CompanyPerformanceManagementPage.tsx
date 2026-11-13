@@ -5,10 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   MenuItem,
   TextField,
@@ -20,6 +16,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { DateRangeField } from "@/components/common/DateRangeField";
 import { standardFieldSx } from "@/components/common/FormControls";
@@ -507,28 +504,13 @@ export function CompanyPerformanceManagementPage() {
         saveDisabled={saveMutation.isPending || detailMutation.isPending || (draft.seq ? !canUpdate : !canCreate)}
       /> : null}
 
-      <Dialog onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
-        <DialogTitle>회사 실적 삭제</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">{deleteTarget ? `${deleteTarget.jobName} 실적을 삭제하시겠습니까?` : ""}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button
-            color="error"
-            onClick={() => {
-              if (deleteTarget?.seq) {
-                deleteMutation.mutate(deleteTarget.seq);
-              }
-            }}
-            variant="contained"
-          >
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        message={deleteTarget ? `${deleteTarget.jobName} 실적을 삭제하시겠습니까?` : ""}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget?.seq) deleteMutation.mutate(deleteTarget.seq); }}
+      />
     </Box>
   );
 }

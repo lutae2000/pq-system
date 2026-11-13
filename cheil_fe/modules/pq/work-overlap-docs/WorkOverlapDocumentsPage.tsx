@@ -1023,7 +1023,11 @@ export function WorkOverlapDocumentsPage() {
               bidNotice={selectedBidNotice}
               contracts={savedContractNos?.length ? visibleSavedContractRows : contractRows.filter((row) => selectedContractNos.includes(row.contractNo))}
               engineer={activeEngineer}
-              engineerIds={engineerRows.map((row) => row.engineerId)}
+              engineerIds={[...engineerRows]
+                .sort((left, right) =>
+                  (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER)
+                  || left.engineerId.localeCompare(right.engineerId))
+                .map((row) => row.engineerId)}
               open
               referenceDate={referenceDate}
               workDutyId={workDutyId}

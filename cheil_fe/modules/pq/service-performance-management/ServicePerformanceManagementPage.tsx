@@ -16,6 +16,7 @@ import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import type { GridColDef } from "@mui/x-data-grid";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -130,6 +131,7 @@ export function ServicePerformanceManagementPage() {
     uploadedBy: null,
   }));
   const [busy, setBusy] = useState(false);
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [draftFilters, setDraftFilters] =
     useState<ServicePerformanceImportFilters>(emptyFilters);
   const [filters, setFilters] =
@@ -165,13 +167,7 @@ export function ServicePerformanceManagementPage() {
     }
   };
   const replace = async () => {
-    if (
-      !rows.length ||
-      !window.confirm(
-        `기존 데이터를 모두 삭제하고 ${rows.length}건으로 교체하시겠습니까?`,
-      )
-    )
-      return;
+    if (!rows.length || busy) return;
     setBusy(true);
     try {
       const count = await replaceImportedServicePerformances(rows);
@@ -313,7 +309,7 @@ export function ServicePerformanceManagementPage() {
                     <Button
                       variant="contained"
                       disabled={!canCreate || busy}
-                      onClick={() => void replace()}
+                      onClick={() => setReplaceConfirmOpen(true)}
                     >
                       데이터 교체
                     </Button>
@@ -353,6 +349,19 @@ export function ServicePerformanceManagementPage() {
           </Card>
         </Stack>
       )}
+      <ConfirmActionDialog
+        open={replaceConfirmOpen}
+        loading={busy}
+        title="데이터 교체 확인"
+        message={`기존 데이터를 모두 삭제하고 ${rows.length}건으로 교체하시겠습니까?`}
+        confirmColor="warning"
+        confirmLabel="교체"
+        onClose={() => setReplaceConfirmOpen(false)}
+        onConfirm={() => {
+          setReplaceConfirmOpen(false);
+          void replace();
+        }}
+      />
     </Box>
   );
 }

@@ -9,10 +9,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   MenuItem,
   Switch,
@@ -23,6 +19,7 @@ import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -657,37 +654,15 @@ export function ConstructionTypesManagementPage() {
         </Card>
       </Box>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>공사종류를 삭제하시겠습니까?</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary">
-            선택된 공사종류
-          </Typography>
-          <Typography sx={{ mt: 0.75, fontWeight: 700 }} variant="body1">
-            {deleteTarget ? `${deleteTarget.codeId} / ${deleteTarget.codeName}` : ""}
-          </Typography>
-          <Typography sx={{ mt: 1.5 }} variant="body2">
-            하위 항목이 있으면 삭제할 수 없습니다.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button
-            color="error"
-            disabled={!canDelete || deleteMutation.isPending}
-            onClick={() => {
-              if (deleteTarget) {
-                deleteMutation.mutate(deleteTarget.codeId);
-              }
-            }}
-            variant="contained"
-          >
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        confirmDisabled={!canDelete}
+        message="하위 항목이 있으면 삭제할 수 없습니다. 공사종류를 삭제하시겠습니까?"
+        targetLabel={deleteTarget ? `${deleteTarget.codeId} / ${deleteTarget.codeName}` : undefined}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.codeId); }}
+      />
 
     </Box>
   );

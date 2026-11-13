@@ -11,10 +11,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   InputAdornment,
@@ -28,6 +24,7 @@ import type { GridColDef, GridRowId, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -562,28 +559,14 @@ export function CertificateManagementPage() {
         </Card>
       </Box>
 
-      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>자격증 삭제 확인</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            선택한 자격증
-          </Typography>
-          <Typography sx={{ mt: 0.75, fontWeight: 700 }} variant="body1">
-            {deleteTarget ? `${deleteTarget.certCode} - ${deleteTarget.certName}` : ""}
-          </Typography>
-          <Typography sx={{ mt: 1.5 }} variant="body2">
-            삭제하면 목록에서 제거됩니다. 계속 진행하시겠습니까?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="error" disabled={deleteMutation.isPending} onClick={handleDelete} variant="contained">
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        message="삭제하면 목록에서 제거됩니다. 계속 진행하시겠습니까?"
+        targetLabel={deleteTarget ? `${deleteTarget.certCode} - ${deleteTarget.certName}` : undefined}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
 
     </Box>
   );

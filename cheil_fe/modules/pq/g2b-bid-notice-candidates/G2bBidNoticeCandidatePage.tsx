@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/common/PageHeader";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -263,6 +264,7 @@ export function G2bBidNoticeCandidatePage() {
   });
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE });
   const [detailRecord, setDetailRecord] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ ids: number[]; detail: boolean } | null>(null);
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);
   const [inputCandidateId, setInputCandidateId] = useState<number | null>(null);
   const [inputAttachmentOwnerId, setInputAttachmentOwnerId] = useState<number | null>(null);
@@ -394,16 +396,12 @@ export function G2bBidNoticeCandidatePage() {
   const handleDeleteSelected = () => {
     const ids = Array.from(rowSelectionModel.ids).map(Number).filter((id) => Number.isFinite(id) && id > 0);
     if (!canDelete || ids.length === 0 || deleteMutation.isPending) return;
-    if (!window.confirm(`선택한 ${ids.length}건의 나라장터 공고를 삭제하시겠습니까?`)) return;
-    deleteMutation.mutate(ids);
+    setDeleteTarget({ ids, detail: false });
   };
 
   const handleDeleteDetailCandidate = () => {
     if (!canDelete || !detailRecord || deleteMutation.isPending) return;
-    if (!window.confirm("현재 나라장터 공고를 삭제하시겠습니까?")) return;
-    deleteMutation.mutate([detailRecord.id], {
-      onSuccess: () => setDetailRecord(null),
-    });
+    setDeleteTarget({ ids: [detailRecord.id], detail: true });
   };
 
   const openDetail = async (row: ReturnType<typeof toG2bBidNoticeCandidateRow>) => {
@@ -609,6 +607,21 @@ export function G2bBidNoticeCandidatePage() {
           sourceNotice={inputSourceNotice ?? undefined}
         />
       ) : null}
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        message={deleteTarget?.detail ? "현재 나라장터 공고를 삭제하시겠습니까?" : `선택한 ${deleteTarget?.ids.length ?? 0}건의 나라장터 공고를 삭제하시겠습니까?`}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget || !canDelete) return;
+          deleteMutation.mutate(deleteTarget.ids, {
+            onSuccess: () => {
+              if (deleteTarget.detail) setDetailRecord(null);
+              setDeleteTarget(null);
+            },
+          });
+        }}
+      />
     </Box>
   );
 }

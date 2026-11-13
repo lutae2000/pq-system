@@ -9,10 +9,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   MenuItem,
   Switch,
@@ -23,6 +19,7 @@ import type { GridColDef } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -610,28 +607,14 @@ export function CommonCodeManagementPage() {
         </Card>
       </Box>
 
-      <Dialog fullWidth maxWidth="xs" onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
-        <DialogTitle>공통코드를 삭제하시겠습니까?</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            선택한 공통코드
-          </Typography>
-          <Typography sx={{ fontWeight: 700, mt: 0.75 }} variant="body1">
-            {deleteTarget ? `${deleteTarget.codeId} / ${displayName(deleteTarget)}` : ""}
-          </Typography>
-          <Typography sx={{ mt: 1.5 }} variant="body2">
-            하위 코드가 있으면 삭제할 수 없습니다.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="error" disabled={deleteMutation.isPending} onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.codeId)} variant="contained">
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        message="하위 코드가 있으면 삭제할 수 없습니다. 공통코드를 삭제하시겠습니까?"
+        targetLabel={deleteTarget ? `${deleteTarget.codeId} / ${displayName(deleteTarget)}` : undefined}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.codeId); }}
+      />
 
     </Box>
   );

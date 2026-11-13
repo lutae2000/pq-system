@@ -6,6 +6,7 @@ import type { KeyboardEvent } from "react";
 export type ConfirmActionDialogProps = {
   cancelLabel?: string;
   confirmColor?: "primary" | "error" | "warning" | "success";
+  confirmDisabled?: boolean;
   confirmLabel?: string;
   enableKeyboardActions?: boolean;
   loading?: boolean;
@@ -20,8 +21,9 @@ export type ConfirmActionDialogProps = {
 export function ConfirmActionDialog({
   cancelLabel = "취소",
   confirmColor = "primary",
+  confirmDisabled = false,
   confirmLabel = "확인",
-  enableKeyboardActions = false,
+  enableKeyboardActions = true,
   loading = false,
   message,
   onClose,
@@ -38,7 +40,7 @@ export function ConfirmActionDialog({
     if (event.key === "Enter") {
       event.preventDefault();
       event.stopPropagation();
-      onConfirm();
+      if (!confirmDisabled) onConfirm();
       return;
     }
 
@@ -71,7 +73,7 @@ export function ConfirmActionDialog({
         <Button color="inherit" disabled={loading} onClick={onClose} variant="outlined">
           {cancelLabel}
         </Button>
-        <Button color={confirmColor} disabled={loading} onClick={onConfirm} variant="contained">
+        <Button color={confirmColor} disabled={loading || confirmDisabled} onClick={onConfirm} variant="contained">
           {confirmLabel}
         </Button>
       </DialogActions>

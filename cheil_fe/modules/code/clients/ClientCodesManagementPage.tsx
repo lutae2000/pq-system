@@ -7,10 +7,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   MenuItem,
   TextField,
@@ -20,6 +16,7 @@ import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { KakaoPostcodeFields } from "@/components/common/KakaoPostcodeFields";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -557,22 +554,14 @@ export function ClientCodesManagementPage() {
         </Box>
       </Box>
 
-      <Dialog fullWidth maxWidth="xs" onClose={() => setDeleteTarget(null)} open={Boolean(deleteTarget)}>
-        <DialogTitle>거래처를 삭제하시겠습니까?</DialogTitle>
-        <DialogContent dividers>
-          <Typography color="text.secondary" variant="body2">
-            {deleteTarget ? `${deleteTarget.clientCode} - ${deleteTarget.orderName}` : ""}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setDeleteTarget(null)} variant="outlined">
-            취소
-          </Button>
-          <Button color="error" onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.clientCode)} variant="contained">
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        loading={deleteMutation.isPending}
+        message="거래처를 삭제하시겠습니까?"
+        targetLabel={deleteTarget ? `${deleteTarget.clientCode} - ${deleteTarget.orderName}` : undefined}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.clientCode); }}
+      />
     </Box>
   );
 }
