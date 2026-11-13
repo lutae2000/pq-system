@@ -32,6 +32,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.HandlerMapping;
 
 import com.cheil.cheil_be.application.apilog.port.out.ApiCallLogRecorder;
+import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.common.logging.SensitiveValueMasker;
 import com.cheil.cheil_be.common.security.SecurityHeaders;
 import com.cheil.cheil_be.common.security.ServicePrincipal;
@@ -201,6 +203,15 @@ public class ApiCallLoggingAspect {
     private Integer statusCode(Object result, Throwable thrown) {
         if (thrown instanceof ResponseStatusException responseStatusException) {
             return responseStatusException.getStatusCode().value();
+        }
+        if (thrown instanceof ApplicationException applicationException) {
+            return switch (applicationException.errorType()) {
+                case BAD_REQUEST -> 400;
+                case UNAUTHORIZED -> 401;
+                case FORBIDDEN -> 403;
+                case NOT_FOUND -> 404;
+                case CONFLICT -> 409;
+            };
         }
         if (thrown != null) {
             return 500;
