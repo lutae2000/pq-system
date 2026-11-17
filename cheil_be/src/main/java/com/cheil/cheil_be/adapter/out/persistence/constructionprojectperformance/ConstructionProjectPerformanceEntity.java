@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.out.persistence.similarserviceperformance;
+package com.cheil.cheil_be.adapter.out.persistence.constructionprojectperformance;
 
 import java.math.BigDecimal;
 
@@ -12,18 +12,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformance;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceCommand;
 
 @Entity
-@Table(name = "similar_service_performances")
+@Table(name = "construction_project_performances")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SimilarServicePerformanceEntity extends AuditEntity {
+public class ConstructionProjectPerformanceEntity extends AuditEntity {
 
     @Id
-    @Column(name = "company_performance_seq")
-    private Long companyPerformanceSeq;
+    @Column(name = "construction_project_performance_seq")
+    private Long constructionProjectPerformanceSeq;
 
     @Column(name = "service_name", length = 500)
     private String serviceName;
@@ -61,12 +61,12 @@ public class SimilarServicePerformanceEntity extends AuditEntity {
     @Column(name = "remark", columnDefinition = "TEXT")
     private String remark;
 
-    public SimilarServicePerformanceEntity(Long companyPerformanceSeq, SimilarServicePerformanceCommand request) {
-        this.companyPerformanceSeq = companyPerformanceSeq;
+    public ConstructionProjectPerformanceEntity(Long constructionProjectPerformanceSeq, ConstructionProjectPerformanceCommand request) {
+        this.constructionProjectPerformanceSeq = constructionProjectPerformanceSeq;
         update(request);
     }
 
-    public void update(SimilarServicePerformanceCommand request) {
+    public void update(ConstructionProjectPerformanceCommand request) {
         serviceName = request.serviceName();
         constructionType = request.constructionType();
         client = request.client();
@@ -81,10 +81,10 @@ public class SimilarServicePerformanceEntity extends AuditEntity {
         remark = request.remark();
     }
 
-    public SimilarServicePerformance toModel() {
-        return new SimilarServicePerformance(
-                companyPerformanceSeq,
-                companyPerformanceSeq,
+    public ConstructionProjectPerformance toModel() {
+        return new ConstructionProjectPerformance(
+                constructionProjectPerformanceSeq,
+                constructionProjectPerformanceSeq,
                 serviceName,
                 constructionType,
                 client,

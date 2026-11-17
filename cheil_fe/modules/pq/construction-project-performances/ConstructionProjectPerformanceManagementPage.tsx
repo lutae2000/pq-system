@@ -17,7 +17,7 @@ import { SearchPanel } from "@/components/common/SearchPanel";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  SIMILAR_SERVICE_PERFORMANCE_PAGE_SIZE,
+  CONSTRUCTION_PROJECT_PERFORMANCE_PAGE_SIZE,
   type ConstructionProjectPerformancePageResponse,
   type ConstructionProjectPerformanceRecord,
   type ConstructionProjectPerformanceSearchParams,
@@ -36,7 +36,7 @@ import {
 } from "@/modules/pq/construction-project-performances/constructionProjectPerformanceForm";
 
 const EMPTY_ROWS: ConstructionProjectPerformanceRecord[] = [];
-const PAGE_SIZE_OPTIONS = [25, 50, SIMILAR_SERVICE_PERFORMANCE_PAGE_SIZE];
+const PAGE_SIZE_OPTIONS = [25, 50, CONSTRUCTION_PROJECT_PERFORMANCE_PAGE_SIZE];
 
 const emptyPage = (page: number, size: number): ConstructionProjectPerformancePageResponse => ({
   content: EMPTY_ROWS,
@@ -70,7 +70,7 @@ export function ConstructionProjectPerformanceManagementPage() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(SIMILAR_SERVICE_PERFORMANCE_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(CONSTRUCTION_PROJECT_PERFORMANCE_PAGE_SIZE);
   const [rowSelectionModel, setRowSelectionModel] = useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<ConstructionProjectPerformanceRecord | null>(null);

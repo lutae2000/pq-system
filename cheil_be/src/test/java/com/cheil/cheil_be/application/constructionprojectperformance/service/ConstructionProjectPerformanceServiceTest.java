@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.similarserviceperformance.service;
+package com.cheil.cheil_be.application.constructionprojectperformance.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,32 +17,32 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
-import com.cheil.cheil_be.application.similarserviceperformance.port.out.SimilarServicePerformanceRepository;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformance;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceSearch;
+import com.cheil.cheil_be.application.constructionprojectperformance.port.out.ConstructionProjectPerformanceRepository;
 
 @ExtendWith(MockitoExtension.class)
-class SimilarServicePerformanceServiceTest {
+class ConstructionProjectPerformanceServiceTest {
 
     @Mock
-    private SimilarServicePerformanceRepository repository;
+    private ConstructionProjectPerformanceRepository repository;
 
     @InjectMocks
-    private SimilarServicePerformanceService service;
+    private ConstructionProjectPerformanceService service;
 
     @Test
     void normalizesSimpleSearchBeforeCallingRepository() {
         var pageable = PageRequest.of(0, 20);
-        Page<SimilarServicePerformance> page = new PageImpl<>(List.of(), pageable, 0);
+        Page<ConstructionProjectPerformance> page = new PageImpl<>(List.of(), pageable, 0);
         when(repository.findAll(any(), any())).thenReturn(page);
 
-        assertThat(service.findAll(new SimilarServicePerformanceSearch(
+        assertThat(service.findAll(new ConstructionProjectPerformanceSearch(
                 " 검색어 ", " 공종 ", " 발주처 ", "2026-01-01", "2026-10-22"
         ), pageable)).isEqualTo(page);
 
-        var captor = ArgumentCaptor.forClass(SimilarServicePerformanceSearch.class);
+        var captor = ArgumentCaptor.forClass(ConstructionProjectPerformanceSearch.class);
         verify(repository).findAll(captor.capture(), org.mockito.ArgumentMatchers.same(pageable));
-        assertThat(captor.getValue()).isEqualTo(new SimilarServicePerformanceSearch(
+        assertThat(captor.getValue()).isEqualTo(new ConstructionProjectPerformanceSearch(
                 "검색어", "공종", "발주처", "20260101", "20261022"
         ));
     }

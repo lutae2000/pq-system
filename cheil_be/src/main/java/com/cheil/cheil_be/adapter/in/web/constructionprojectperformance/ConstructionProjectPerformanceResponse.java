@@ -1,10 +1,10 @@
-package com.cheil.cheil_be.adapter.in.web.similarserviceperformance;
+package com.cheil.cheil_be.adapter.in.web.constructionprojectperformance;
 
 import java.math.BigDecimal;
 
-public record SimilarServicePerformanceResponse(
+public record ConstructionProjectPerformanceResponse(
         Long id,
-        Long companyPerformanceSeq,
+        Long constructionProjectPerformanceSeq,
         String serviceName,
         String constructionType,
         String client,
@@ -23,11 +23,11 @@ public record SimilarServicePerformanceResponse(
         String lastChangedId
 ) {
 
-    public static SimilarServicePerformanceResponse from(
-            com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance model
+    public static ConstructionProjectPerformanceResponse from(
+            com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformance model
     ) {
-        return new SimilarServicePerformanceResponse(
-                model.id(), model.companyPerformanceSeq(), model.serviceName(), model.constructionType(), model.client(),
+        return new ConstructionProjectPerformanceResponse(
+                model.id(), model.constructionProjectPerformanceSeq(), model.serviceName(), model.constructionType(), model.client(),
                 model.contractFromDate(), model.contractToDate(), model.constructionFromDate(), model.constructionToDate(),
                 model.contractPrice(), model.shareRatio(), model.weight(), model.summary(), model.remark(),
                 model.createdAt(), model.createdId(), model.lastChangedAt(), model.lastChangedId()

@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.adapter.in.web.similarserviceperformance;
+package com.cheil.cheil_be.adapter.in.web.constructionprojectperformance;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -14,21 +14,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
-import com.cheil.cheil_be.application.similarserviceperformance.port.in.SimilarServicePerformanceUseCase;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceSearch;
+import com.cheil.cheil_be.application.constructionprojectperformance.port.in.ConstructionProjectPerformanceUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
 
-/** 유사용역 수행실적을 조회하고 관리하는 API다. */
+/** 건설사업 실적을 조회하고 관리하는 API다. */
 @RestController
-@RequestMapping("/pq/similar-service-performances")
+@RequestMapping({"/pq/construction-project-performances", "/pq/similar-service-performances"})
 @RequiredArgsConstructor
-public class SimilarServicePerformanceController {
+public class ConstructionProjectPerformanceController {
 
-    private final SimilarServicePerformanceUseCase useCase;
+    private final ConstructionProjectPerformanceUseCase useCase;
 
     @GetMapping
-    public ResponseEntity<PageResponse<SimilarServicePerformanceResponse>> list(
+    public ResponseEntity<PageResponse<ConstructionProjectPerformanceResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String constructionType,
             @RequestParam(required = false) String client,
@@ -37,28 +37,28 @@ public class SimilarServicePerformanceController {
             @PageableDefault(size = 20) Pageable pageable
     ) {
         var safePageable = PageRequests.of(pageable);
-        var result = useCase.findAll(new SimilarServicePerformanceSearch(
+        var result = useCase.findAll(new ConstructionProjectPerformanceSearch(
                 keyword, constructionType, client, contractFromDate, contractToDate
         ), safePageable);
-        return ResponseEntity.ok(PageResponse.from(result, SimilarServicePerformanceResponse::from));
+        return ResponseEntity.ok(PageResponse.from(result, ConstructionProjectPerformanceResponse::from));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SimilarServicePerformanceResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.findById(id)));
+    public ResponseEntity<ConstructionProjectPerformanceResponse> get(@PathVariable Long id) {
+        return ResponseEntity.ok(ConstructionProjectPerformanceResponse.from(useCase.findById(id)));
     }
 
     @PostMapping
-    public ResponseEntity<SimilarServicePerformanceResponse> create(@RequestBody SimilarServicePerformanceRequest request) {
-        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.create(request.toCommand())));
+    public ResponseEntity<ConstructionProjectPerformanceResponse> create(@RequestBody ConstructionProjectPerformanceRequest request) {
+        return ResponseEntity.ok(ConstructionProjectPerformanceResponse.from(useCase.create(request.toCommand())));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SimilarServicePerformanceResponse> update(
+    public ResponseEntity<ConstructionProjectPerformanceResponse> update(
             @PathVariable Long id,
-            @RequestBody SimilarServicePerformanceRequest request
+            @RequestBody ConstructionProjectPerformanceRequest request
     ) {
-        return ResponseEntity.ok(SimilarServicePerformanceResponse.from(useCase.update(id, request.toCommand())));
+        return ResponseEntity.ok(ConstructionProjectPerformanceResponse.from(useCase.update(id, request.toCommand())));
     }
 
     @DeleteMapping("/{id}")

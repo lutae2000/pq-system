@@ -1,13 +1,13 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
 
-const SIMILAR_SERVICE_PERFORMANCES_API = "/pq/similar-service-performances";
+const CONSTRUCTION_PROJECT_PERFORMANCES_API = "/pq/construction-project-performances";
 
-export const SIMILAR_SERVICE_PERFORMANCE_PAGE_SIZE = 100;
+export const CONSTRUCTION_PROJECT_PERFORMANCE_PAGE_SIZE = 100;
 
 export type ConstructionProjectPerformanceRecord = {
   id: number | null;
-  companyPerformanceSeq: number | null;
+  constructionProjectPerformanceSeq: number | null;
   serviceName: string | null;
   constructionType: string | null;
   client: string | null;
@@ -76,7 +76,7 @@ export async function listConstructionProjectPerformances(
   params: ConstructionProjectPerformanceSearchParams,
 ): Promise<ConstructionProjectPerformancePageResponse> {
   return apiRequest(
-    apiClient.get<ConstructionProjectPerformancePageResponse>(SIMILAR_SERVICE_PERFORMANCES_API, {
+    apiClient.get<ConstructionProjectPerformancePageResponse>(CONSTRUCTION_PROJECT_PERFORMANCES_API, {
       params: {
         keyword: normalizeQueryValue(params.keyword),
         constructionType: normalizeQueryValue(params.constructionType),
@@ -94,7 +94,7 @@ export async function listConstructionProjectPerformances(
 
 export async function getConstructionProjectPerformance(id: number): Promise<ConstructionProjectPerformanceRecord> {
   return apiRequest(
-    apiClient.get<ConstructionProjectPerformanceRecord>(`${SIMILAR_SERVICE_PERFORMANCES_API}/${encodeURIComponent(String(id))}`),
+    apiClient.get<ConstructionProjectPerformanceRecord>(`${CONSTRUCTION_PROJECT_PERFORMANCES_API}/${encodeURIComponent(String(id))}`),
     "건설사업 실적 정보를 불러오지 못했습니다.",
   );
 }
@@ -103,7 +103,7 @@ export async function createConstructionProjectPerformance(
   requestBody: ConstructionProjectPerformanceRequest,
 ): Promise<ConstructionProjectPerformanceRecord> {
   return apiRequest(
-    apiClient.post<ConstructionProjectPerformanceRecord>(SIMILAR_SERVICE_PERFORMANCES_API, requestBody),
+    apiClient.post<ConstructionProjectPerformanceRecord>(CONSTRUCTION_PROJECT_PERFORMANCES_API, requestBody),
     "건설사업 실적 정보를 저장하지 못했습니다.",
   );
 }
@@ -113,14 +113,14 @@ export async function updateConstructionProjectPerformance(
   requestBody: ConstructionProjectPerformanceRequest,
 ): Promise<ConstructionProjectPerformanceRecord> {
   return apiRequest(
-    apiClient.put<ConstructionProjectPerformanceRecord>(`${SIMILAR_SERVICE_PERFORMANCES_API}/${encodeURIComponent(String(id))}`, requestBody),
+    apiClient.put<ConstructionProjectPerformanceRecord>(`${CONSTRUCTION_PROJECT_PERFORMANCES_API}/${encodeURIComponent(String(id))}`, requestBody),
     "건설사업 실적 정보를 저장하지 못했습니다.",
   );
 }
 
 export async function deleteConstructionProjectPerformance(id: number): Promise<void> {
   await apiRequest(
-    apiClient.delete(`${SIMILAR_SERVICE_PERFORMANCES_API}/${encodeURIComponent(String(id))}`),
+    apiClient.delete(`${CONSTRUCTION_PROJECT_PERFORMANCES_API}/${encodeURIComponent(String(id))}`),
     "건설사업 실적 정보를 삭제하지 못했습니다.",
   );
 }

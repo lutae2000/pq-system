@@ -3,6 +3,8 @@ package com.cheil.cheil_be.application.educationreminder.service;
 import static com.cheil.cheil_be.common.text.StringValues.digitsOnly;
 import static com.cheil.cheil_be.common.text.StringValues.emptyIfNull;
 import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,14 +21,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderNotificationTargetResponse;
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderSendHistoryResponse;
@@ -35,27 +35,24 @@ import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderSend
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderSendRetryResponse;
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderSendResponse;
 import com.cheil.cheil_be.adapter.in.web.educationreminder.EducationReminderTemplateResponse;
-import com.cheil.cheil_be.adapter.out.persistence.educationreminder.EducationReminderTemplateEntity;
-import com.cheil.cheil_be.adapter.out.persistence.educationreminder.EducationReminderTemplateJpaRepository;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
+import com.cheil.cheil_be.application.educationreminder.model.EducationReminderSendTemplate;
+import com.cheil.cheil_be.application.educationreminder.port.out.EducationReminderSendTemplateRepository;
 import com.cheil.cheil_be.application.educationreminder.model.EducationReminderMessageSendCommand;
 import com.cheil.cheil_be.application.educationreminder.model.EducationReminderMessageSendResult;
 import com.cheil.cheil_be.application.educationreminder.port.out.EducationReminderMessageSender;
-import com.cheil.cheil_be.common.security.AuditActorResolver;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EducationReminderSendService {
 
-    private static final int ENGINEER_ID_MAX_LENGTH = 20;
-    private static final int PHONE_NO_MAX_LENGTH = 50;
-    private static final int TEMPLATE_NAME_MAX_LENGTH = 300;
-    private static final int CHANNEL_MAX_LENGTH = 10;
     private static final int SMS_MAX_BYTES = 90;
 
     private final JdbcClient jdbcClient;
     private final EducationReminderCompletionService completionService;
-    private final EducationReminderTemplateJpaRepository templateRepository;
+    private final EducationReminderSendTemplateRepository templateRepository;
+    private final CurrentActorPort currentActorPort;
     private final EducationReminderMessageSender messageSender;
     @Qualifier("educationReminderSendExecutor")
     private final TaskExecutor educationReminderSendExecutor;
@@ -155,6 +152,7 @@ public class EducationReminderSendService {
                 .list();
     }
 
+    @Transactional
     public EducationReminderSendResponse send(EducationReminderSendRequest request) {
         List<String> targetRowKeys = request.targetRowKeys() == null ? List.of() : request.targetRowKeys().stream()
                 .filter(StringUtils::hasText)
@@ -162,17 +160,17 @@ public class EducationReminderSendService {
                 .distinct()
                 .toList();
         if (targetRowKeys.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "targetRowKeys is required.");
+            throw badRequest("targetRowKeys is required.");
         }
 
         boolean testSend = Boolean.TRUE.equals(request.testSend());
         String testPhoneNo = digitsOnly(request.testPhoneNo());
         if (testSend && !StringUtils.hasText(testPhoneNo)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "testPhoneNo is required for test send.");
+            throw badRequest("testPhoneNo is required for test send.");
         }
 
         boolean manualMode = StringUtils.hasText(request.manualContent());
-        EducationReminderTemplateEntity template = null;
+        EducationReminderSendTemplate template = null;
         String channel;
         String templateName;
         String messageSource;
@@ -180,23 +178,23 @@ public class EducationReminderSendService {
         if (manualMode) {
             channel = normalizeChannel(request.manualChannel());
             if (!"SMS".equals(channel) && !"LMS".equals(channel)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Manual messages must use SMS or LMS.");
+                throw badRequest("Manual messages must use SMS or LMS.");
             }
             templateName = "Manual message";
             messageSource = request.manualContent().trim();
         } else {
             Long templateId = request.templateId();
             if (templateId == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "templateId is required.");
+                throw badRequest("templateId is required.");
             }
             template = templateRepository.findById(templateId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template not found."));
-            if (!template.isActive()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Template is inactive.");
+                    .orElseThrow(() -> notFound("Template not found."));
+            if (!template.active()) {
+                throw badRequest("Template is inactive.");
             }
-            channel = normalizeChannel(template.getChannel());
-            templateName = normalizeTemplateName(template.getName());
-            messageSource = template.getContent();
+            channel = normalizeChannel(template.channel());
+            templateName = normalizeTemplateName(template.name());
+            messageSource = template.content();
         }
 
         List<String> selectedEngineerIds = targetRowKeys.stream()
@@ -207,7 +205,7 @@ public class EducationReminderSendService {
                 completionService.findNotificationTargetsByEngineerIds(selectedEngineerIds);
         if (selectedTargets.isEmpty()) {
             log.warn("교육 알림 발송 대상 매칭 실패: 요청 대상 키 개수={}, 대상 키={}", targetRowKeys.size(), targetRowKeys);
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Selected send targets were not found.");
+            throw notFound("Selected send targets were not found.");
         }
 
         if (testSend) {
@@ -220,13 +218,13 @@ public class EducationReminderSendService {
             channel = "LMS";
         }
 
-        String actor = normalizeActor(AuditActorResolver.resolve());
+        String actor = normalizeActor(currentActorPort.currentActor());
         String previewMessage = renderMessage(messageSource, selectedTargets.get(0));
-        long batchId = insertBatch(actor, manualMode ? 0L : template.getId(), templateName, channel, selectedTargets.size(), testSend, testPhoneNo, previewMessage);
+        long batchId = insertBatch(actor, manualMode ? 0L : template.id(), templateName, channel, selectedTargets.size(), testSend, testPhoneNo, previewMessage);
         List<PendingSendItem> pendingItems = insertSendLogs(
                 batchId,
                 actor,
-                manualMode ? 0L : template.getId(),
+                manualMode ? 0L : template.id(),
                 templateName,
                 messageSource,
                 channel,
@@ -249,16 +247,17 @@ public class EducationReminderSendService {
         );
     }
 
+    @Transactional
     public EducationReminderSendRetryResponse retry(EducationReminderSendRetryRequest request) {
         List<EducationReminderSendRetryRequest.Item> items = request.items() == null ? List.of() : request.items().stream()
                 .filter(Objects::nonNull)
                 .filter(item -> item.logId() != null)
                 .toList();
         if (items.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "items is required.");
+            throw badRequest("items is required.");
         }
 
-        String actor = normalizeActor(AuditActorResolver.resolve());
+        String actor = normalizeActor(currentActorPort.currentActor());
         List<RetryDispatchPlan> plans = new ArrayList<>();
 
         for (EducationReminderSendRetryRequest.Item item : items) {
@@ -271,7 +270,7 @@ public class EducationReminderSendService {
                 actualPhoneNo = digitsOnly(source.targetPhoneNo());
             }
             if (!StringUtils.hasText(actualPhoneNo)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "actualPhoneNo is required for retry.");
+                throw badRequest("actualPhoneNo is required for retry.");
             }
 
             PendingSendItem pendingItem = new PendingSendItem(
@@ -347,7 +346,7 @@ public class EducationReminderSendService {
                         rs.getBoolean("is_test_send")
                 ))
                 .optional()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Retry source log not found."));
+                .orElseThrow(() -> notFound("Retry source log not found."));
 
         return source;
     }
@@ -412,7 +411,7 @@ public class EducationReminderSendService {
         try {
             return LocalDate.parse(normalized);
         } catch (java.time.format.DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be yyyy-MM-dd.");
+            throw badRequest(fieldName + " must be yyyy-MM-dd.");
         }
     }
 
@@ -771,13 +770,12 @@ public class EducationReminderSendService {
 
     private String renderMessage(String templateContent, EducationReminderNotificationTargetResponse target) {
         String content = StringUtils.hasText(templateContent) ? templateContent : "";
-        content = content.replace("{직위}", emptyIfNull(target.grade()));
         return content
                 .replace("{대상자명}", emptyIfNull(target.name()))
                 .replace("{이름}", emptyIfNull(target.name()))
+                .replace("{직위}", emptyIfNull(target.grade()))
                 .replace("{부서명}", emptyIfNull(target.department()))
                 .replace("{교육명}", emptyIfNull(target.targetEducationNames()))
-                .replace("{교육이름}", emptyIfNull(target.targetEducationNames()))
                 .replace("{마감일}", emptyIfNull(target.deadline()))
                 .replace("{전화번호}", emptyIfNull(target.phoneNo()))
                 .replace("{채널}", emptyIfNull(target.highlightTone() == null ? "" : target.highlightTone().name()))
@@ -786,7 +784,7 @@ public class EducationReminderSendService {
 
     private void validateMessageLength(String channel, String messageContent) {
         if ("SMS".equalsIgnoreCase(channel) && smsByteLength(messageContent) > SMS_MAX_BYTES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SMS message must be 90 bytes or less.");
+            throw badRequest("SMS message must be 90 bytes or less.");
         }
     }
 

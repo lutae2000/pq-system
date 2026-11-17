@@ -56,9 +56,7 @@ public class QualificationCriteriaService {
     @Transactional(readOnly = true)
     public List<QualificationReviewAgencyResponse> findAgencies(String keyword, Boolean useYn) {
         String normalizedKeyword = keyword(keyword);
-        return agencyRepository.findByOrderByAgencyCodeAsc().stream()
-                .filter(entity -> useYn == null || entity.isUseYn() == useYn)
-                .filter(entity -> matches(normalizedKeyword, entity.getAgencyCode(), entity.getAgencyName()))
+        return agencyRepository.search(normalizedKeyword, useYn).stream()
                 .map(QualificationReviewAgencyResponse::from)
                 .toList();
     }
@@ -94,16 +92,7 @@ public class QualificationCriteriaService {
         findAgency(agencyId);
 
         String normalizedKeyword = keyword(keyword);
-        return criterionRepository.findByAgencyIdOrderByRuleCodeAscRevisionNoAsc(agencyId).stream()
-                .filter(entity -> useYn == null || entity.isUseYn() == useYn)
-                .filter(entity -> matches(
-                        normalizedKeyword,
-                        entity.getRuleCode(),
-                        entity.getRevisionNo(),
-                        entity.getEffectiveDate(),
-                        entity.getLegalBasis(),
-                        entity.getDecisionMethod()
-                ))
+        return criterionRepository.search(agencyId, normalizedKeyword, useYn).stream()
                 .map(QualificationReviewCriterionResponse::from)
                 .toList();
     }
@@ -271,18 +260,6 @@ public class QualificationCriteriaService {
     private String keyword(String value) {
         String normalized = trimToNull(value);
         return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
-    }
-
-    private boolean matches(String keyword, String... values) {
-        if (keyword == null) {
-            return true;
-        }
-        for (String value : values) {
-            if (value != null && value.toLowerCase(Locale.ROOT).contains(keyword)) {
-                return true;
-            }
-        }
-        return false;
     }
 
 }

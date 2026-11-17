@@ -41,7 +41,7 @@ const maxDate = (left: Date | null, right: Date | null) => {
 
 export const defaultConstructionProjectPerformanceRecord = (): ConstructionProjectPerformanceRecord => ({
   id: null,
-  companyPerformanceSeq: null,
+  constructionProjectPerformanceSeq: null,
   serviceName: "",
   constructionType: null,
   client: null,

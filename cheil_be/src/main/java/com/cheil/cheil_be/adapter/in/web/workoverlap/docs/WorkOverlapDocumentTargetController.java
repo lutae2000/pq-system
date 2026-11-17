@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentTargetService;
+import com.cheil.cheil_be.application.workoverlap.docs.model.WorkOverlapDocumentTarget;
+import com.cheil.cheil_be.application.workoverlap.docs.port.in.WorkOverlapDocumentTargetUseCase;
 
 /** 업무중복도 문서에 포함할 대상 계약을 관리하는 API다. */
 @RestController
@@ -20,7 +21,7 @@ import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentTarget
 @RequiredArgsConstructor
 public class WorkOverlapDocumentTargetController {
 
-    private final WorkOverlapDocumentTargetService targetService;
+    private final WorkOverlapDocumentTargetUseCase targetService;
 
     @GetMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetResponse>> list(
@@ -28,14 +29,21 @@ public class WorkOverlapDocumentTargetController {
             @RequestParam String workDutyId,
             @RequestParam String engineerId
     ) {
-        return ResponseEntity.ok(targetService.findByWorkDutyIdAndBidSeqAndEngineerId(workDutyId, bidSeq, engineerId));
+        return ResponseEntity.ok(targetService.find(workDutyId, bidSeq, engineerId).stream().map(this::toResponse).toList());
     }
 
     @PostMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetResponse>> replace(
             @RequestBody WorkOverlapDocumentTargetRequest request
     ) {
-        return ResponseEntity.ok(targetService.replace(request));
+        List<WorkOverlapDocumentTarget> targets = request == null || request.contracts() == null ? List.of() : request.contracts().stream()
+                .filter(item -> item != null)
+                .map(item -> new WorkOverlapDocumentTarget(null, request.bidSeq(), request.workDutyId(), request.engineerId(),
+                        item.contractNo(), item.displayOrder(), item.responsibility()))
+                .toList();
+        return ResponseEntity.ok(targetService.replace(request == null ? null : request.workDutyId(),
+                        request == null ? null : request.bidSeq(), request == null ? null : request.engineerId(), targets)
+                .stream().map(this::toResponse).toList());
     }
 
     @DeleteMapping
@@ -47,5 +55,10 @@ public class WorkOverlapDocumentTargetController {
     ) {
         targetService.delete(workDutyId, bidSeq, engineerId, contractNo);
         return ResponseEntity.noContent().build();
+    }
+
+    private WorkOverlapDocumentTargetResponse toResponse(WorkOverlapDocumentTarget target) {
+        return new WorkOverlapDocumentTargetResponse(target.targetId(), target.bidSeq(), target.workDutyId(),
+                target.engineerId(), target.contractNo(), target.displayOrder(), target.responsibility());
     }
 }

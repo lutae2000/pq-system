@@ -13,8 +13,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceHwpxGenerateRequest;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
-import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetEntity;
-import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetJpaRepository;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetRepository;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceHwpxDataRepository;
 
 /** 회사실적 문서 생성에 필요한 대상 조회와 요청 검증을 담당한다. */
@@ -24,15 +24,15 @@ public class CompanyPerformanceHwpxGenerationService {
 
     private final CompanyPerformanceAdminService companyPerformanceAdminService;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
-    private final CompanyPerformanceDocumentTargetJpaRepository targetRepository;
+    private final CompanyPerformanceDocumentTargetRepository targetRepository;
     private final CompanyPerformanceHwpxDataRepository hwpxDataRepository;
 
     public byte[] generate(MultipartFile template, CompanyPerformanceHwpxGenerateRequest request) {
         validate(template, request);
-        Map<Long, Integer> displayOrders = targetRepository.findByBidSeqOrderByTargetId(request.bidSeq()).stream()
+        Map<Long, Integer> displayOrders = targetRepository.findByBidSeq(request.bidSeq()).stream()
                 .collect(java.util.stream.Collectors.toMap(
-                        CompanyPerformanceDocumentTargetEntity::getCompanyPerformanceSeq,
-                        target -> target.getDisplayOrder() == null ? Integer.MAX_VALUE : target.getDisplayOrder(),
+                        CompanyPerformanceDocumentTarget::companyPerformanceSeq,
+                        target -> target.displayOrder() == null ? Integer.MAX_VALUE : target.displayOrder(),
                         Math::min));
         List<CompanyPerformance> performances = request.companyPerformanceSeqs().stream()
                 .distinct()

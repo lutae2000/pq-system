@@ -1,8 +1,8 @@
-package com.cheil.cheil_be.adapter.in.web.similarserviceperformance;
+package com.cheil.cheil_be.adapter.in.web.constructionprojectperformance;
 
 import java.math.BigDecimal;
 
-public record SimilarServicePerformanceRequest(
+public record ConstructionProjectPerformanceRequest(
         String serviceName,
         String constructionType,
         String client,
@@ -17,8 +17,8 @@ public record SimilarServicePerformanceRequest(
         String remark
 ) {
 
-    public com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand toCommand() {
-        return new com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand(
+    public com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceCommand toCommand() {
+        return new com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceCommand(
                 serviceName, constructionType, client, contractFromDate, contractToDate,
                 constructionFromDate, constructionToDate, contractPrice, shareRatio,
                 weight, summary, remark

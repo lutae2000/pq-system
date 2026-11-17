@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetEntity;
-import com.cheil.cheil_be.adapter.out.persistence.companyperformance.CompanyPerformanceDocumentTargetJpaRepository;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetRepository;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetResponse;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetDisplayOrderRequest;
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceResponse;
@@ -29,25 +29,25 @@ import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerform
 @RequiredArgsConstructor
 public class CompanyPerformanceDocumentTargetService {
 
-    private final CompanyPerformanceDocumentTargetJpaRepository targetRepository;
+    private final CompanyPerformanceDocumentTargetRepository targetRepository;
     private final CompanyPerformanceRepository companyPerformanceRepository;
     private final CompanyPerformanceDocumentTargetQueryRepository targetQueryRepository;
 
     @Transactional(readOnly = true)
     public List<CompanyPerformanceDocumentTargetResponse> findByBidSeq(Long bidSeq) {
-        var targets = targetRepository.findByBidSeqOrderByTargetId(requiredPositive(bidSeq, "bidSeq"));
+        var targets = targetRepository.findByBidSeq(requiredPositive(bidSeq, "bidSeq"));
         Map<Long, CompanyPerformanceResponse> performances = companyPerformanceRepository.findByIds(
-                        targets.stream().map(CompanyPerformanceDocumentTargetEntity::getCompanyPerformanceSeq).toList())
+                        targets.stream().map(CompanyPerformanceDocumentTarget::companyPerformanceSeq).toList())
                 .stream()
                 .map(CompanyPerformanceResponse::from)
                 .collect(Collectors.toMap(CompanyPerformanceResponse::seq, Function.identity()));
         return targets.stream()
-                .sorted(java.util.Comparator.comparing(CompanyPerformanceDocumentTargetEntity::getDisplayOrder,
+                .sorted(java.util.Comparator.comparing(CompanyPerformanceDocumentTarget::displayOrder,
                         java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
-                        .thenComparing(CompanyPerformanceDocumentTargetEntity::getTargetId))
+                        .thenComparing(CompanyPerformanceDocumentTarget::targetId))
                 .map(target -> new CompanyPerformanceDocumentTargetResponse(
-                        target.getTargetId(), target.getBidSeq(), target.getCompanyPerformanceSeq(),
-                        target.getDisplayOrder(), performances.get(target.getCompanyPerformanceSeq())))
+                        target.targetId(), target.bidSeq(), target.companyPerformanceSeq(),
+                        target.displayOrder(), performances.get(target.companyPerformanceSeq())))
                 .toList()
                 .stream()
                 .sorted(java.util.Comparator.comparing(
@@ -69,19 +69,19 @@ public class CompanyPerformanceDocumentTargetService {
         // 한 번만 읽고, 중복이 아닌 항목만 일괄 저장해 조건 적용 시 반복 쿼리를 제거한다.
         var existingTargets = targetRepository.findByBidSeq(requiredBidSeq);
         var existingSeqs = existingTargets.stream()
-                .map(CompanyPerformanceDocumentTargetEntity::getCompanyPerformanceSeq)
+                .map(CompanyPerformanceDocumentTarget::companyPerformanceSeq)
                 .collect(java.util.stream.Collectors.toSet());
         int nextDisplayOrder = existingTargets.stream()
-                .map(CompanyPerformanceDocumentTargetEntity::getDisplayOrder)
+                .map(CompanyPerformanceDocumentTarget::displayOrder)
                 .filter(java.util.Objects::nonNull)
                 .max(Integer::compareTo)
                 .orElse(existingTargets.size()) + 1;
         java.util.concurrent.atomic.AtomicInteger displayOrder = new java.util.concurrent.atomic.AtomicInteger(nextDisplayOrder);
         var newTargets = distinctSeqs.stream()
                 .filter(seq -> !existingSeqs.contains(seq))
-                .map(seq -> new CompanyPerformanceDocumentTargetEntity(requiredBidSeq, seq, displayOrder.getAndIncrement()))
+                .map(seq -> new CompanyPerformanceDocumentTarget(null, requiredBidSeq, seq, displayOrder.getAndIncrement()))
                 .toList();
-        targetRepository.saveAll(newTargets);
+        targetRepository.add(requiredBidSeq, newTargets);
 
         return findByBidSeq(requiredBidSeq);
     }
@@ -122,12 +122,12 @@ public class CompanyPerformanceDocumentTargetService {
 
     @Transactional
     public void delete(Long bidSeq, Long targetId) {
-        CompanyPerformanceDocumentTargetEntity target = targetRepository.findById(targetId)
+        CompanyPerformanceDocumentTarget target = targetRepository.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.getBidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
+        if (!target.bidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다.");
         }
-        targetRepository.delete(target);
+        targetRepository.delete(targetId);
     }
 
     @Transactional
@@ -135,13 +135,12 @@ public class CompanyPerformanceDocumentTargetService {
         if (request == null || request.displayOrder() == null || request.displayOrder() < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "순번은 1 이상의 정수로 입력해 주세요.");
         }
-        CompanyPerformanceDocumentTargetEntity target = targetRepository.findById(targetId)
+        CompanyPerformanceDocumentTarget target = targetRepository.findById(targetId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.getBidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
+        if (!target.bidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다.");
         }
-        target.setDisplayOrder(request.displayOrder());
-        targetRepository.save(target);
+        targetRepository.updateDisplayOrder(targetId, request.displayOrder());
     }
 
 }

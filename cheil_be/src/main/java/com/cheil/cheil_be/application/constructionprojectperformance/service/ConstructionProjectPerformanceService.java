@@ -1,4 +1,4 @@
-package com.cheil.cheil_be.application.similarserviceperformance.service;
+package com.cheil.cheil_be.application.constructionprojectperformance.service;
 
 import com.cheil.cheil_be.application.common.validation.InputValues;
 
@@ -14,32 +14,32 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformance;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceCommand;
-import com.cheil.cheil_be.application.similarserviceperformance.model.SimilarServicePerformanceSearch;
-import com.cheil.cheil_be.application.similarserviceperformance.port.in.SimilarServicePerformanceUseCase;
-import com.cheil.cheil_be.application.similarserviceperformance.port.out.SimilarServicePerformanceRepository;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformance;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceCommand;
+import com.cheil.cheil_be.application.constructionprojectperformance.model.ConstructionProjectPerformanceSearch;
+import com.cheil.cheil_be.application.constructionprojectperformance.port.in.ConstructionProjectPerformanceUseCase;
+import com.cheil.cheil_be.application.constructionprojectperformance.port.out.ConstructionProjectPerformanceRepository;
 import com.cheil.cheil_be.common.text.StringValues;
 
 @Service
 @RequiredArgsConstructor
-public class SimilarServicePerformanceService implements SimilarServicePerformanceUseCase {
+public class ConstructionProjectPerformanceService implements ConstructionProjectPerformanceUseCase {
 
     private static final int TEXT_MAX_LENGTH = 500;
     private static final int REMARK_MAX_LENGTH = 1000;
-    private final SimilarServicePerformanceRepository repository;
+    private final ConstructionProjectPerformanceRepository repository;
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SimilarServicePerformance> findAll(
-            SimilarServicePerformanceSearch search, Pageable pageable) {
+    public Page<ConstructionProjectPerformance> findAll(
+            ConstructionProjectPerformanceSearch search, Pageable pageable) {
         if (search == null || pageable == null) throw badRequest("Search condition and pageable are required.");
         String from = basicDate(search.contractFromDate(), "contractFromDate", false);
         String to = basicDate(search.contractToDate(), "contractToDate", false);
         validateDateRange(from, to, "contractFromDate", "contractToDate");
 
         // 검색 조건은 application에서 정규화해 어댑터마다 서로 다른 해석을 하지 않도록 합니다.
-        return repository.findAll(new SimilarServicePerformanceSearch(
+        return repository.findAll(new ConstructionProjectPerformanceSearch(
                 keyword(search.keyword()), trimToNull(search.constructionType()), trimToNull(search.client()),
                 from, to
         ), pageable);
@@ -47,19 +47,20 @@ public class SimilarServicePerformanceService implements SimilarServicePerforman
 
     @Override
     @Transactional(readOnly = true)
-    public SimilarServicePerformance findById(Long id) {
+    public ConstructionProjectPerformance findById(Long id) {
         return findExisting(id);
     }
 
     @Override
     @Transactional
-    public SimilarServicePerformance create(SimilarServicePerformanceCommand command) {
-        return repository.save(repository.nextId(), normalize(command));
+    public ConstructionProjectPerformance create(ConstructionProjectPerformanceCommand command) {
+        ConstructionProjectPerformanceCommand normalized = normalize(command);
+        return repository.save(repository.nextId(), normalized);
     }
 
     @Override
     @Transactional
-    public SimilarServicePerformance update(Long id, SimilarServicePerformanceCommand command) {
+    public ConstructionProjectPerformance update(Long id, ConstructionProjectPerformanceCommand command) {
         findExisting(id);
         return repository.save(id, normalize(command));
     }
@@ -71,12 +72,12 @@ public class SimilarServicePerformanceService implements SimilarServicePerforman
         repository.deleteById(id);
     }
 
-    private SimilarServicePerformance findExisting(Long id) {
+    private ConstructionProjectPerformance findExisting(Long id) {
         if (id == null) throw badRequest("id is required.");
-        return repository.findById(id).orElseThrow(() -> notFound("유사용역 수행실적을 찾을 수 없습니다."));
+        return repository.findById(id).orElseThrow(() -> notFound("건설사업 실적을 찾을 수 없습니다."));
     }
 
-    private SimilarServicePerformanceCommand normalize(SimilarServicePerformanceCommand command) {
+    private ConstructionProjectPerformanceCommand normalize(ConstructionProjectPerformanceCommand command) {
         if (command == null) throw badRequest("Request body is required.");
         String contractFrom = basicDate(command.contractFromDate(), "contractFromDate", false);
         String contractTo = basicDate(command.contractToDate(), "contractToDate", false);
@@ -85,7 +86,7 @@ public class SimilarServicePerformanceService implements SimilarServicePerforman
         validateDateRange(contractFrom, contractTo, "contractFromDate", "contractToDate");
         validateDateRange(constructionFrom, constructionTo, "constructionFromDate", "constructionToDate");
 
-        return new SimilarServicePerformanceCommand(
+        return new ConstructionProjectPerformanceCommand(
                 limitedText(command.serviceName(), "serviceName"),
                 limitedText(command.constructionType(), "constructionType"),
                 limitedText(command.client(), "client"), contractFrom, contractTo,

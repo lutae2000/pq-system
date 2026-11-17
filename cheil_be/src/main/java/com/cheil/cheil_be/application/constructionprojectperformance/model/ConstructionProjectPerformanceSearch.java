@@ -1,6 +1,6 @@
-package com.cheil.cheil_be.application.similarserviceperformance.model;
+package com.cheil.cheil_be.application.constructionprojectperformance.model;
 
-public record SimilarServicePerformanceSearch(
+public record ConstructionProjectPerformanceSearch(
         String keyword,
         String constructionType,
         String client,
