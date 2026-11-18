@@ -132,6 +132,8 @@ const awardRate = Math.round((awardedBids / totalBids) * 1000) / 10;
 const totalAwardAmount = monthlyAwardAmountData.reduce((sum, item) => sum + item.awardAmount, 0);
 const averageAwardAmount = totalAwardAmount / awardedBids;
 
+const showSampleCards = process.env.NEXT_PUBLIC_APP_PROFILE === "local" || process.env.NEXT_PUBLIC_APP_PROFILE === "dev";
+
 const summaryCards = [
   {
     label: "총 입찰 건수",
@@ -295,7 +297,7 @@ export function DashboardPage() {
         </DashboardChartCard>
       </Box>
 
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+      {showSampleCards && <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         {summaryCards.map((card) => {
           const Icon = card.icon;
 
@@ -408,7 +410,7 @@ export function DashboardPage() {
             <MonthlyAwardRateChart data={monthlyBidData} />
           </DashboardChartCard>
         </Grid>
-      </Grid>
+      </Grid>}
 
       <BidNoticeDetailDialog
         attachments={emptyAttachments()}
