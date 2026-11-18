@@ -129,7 +129,7 @@ export function PqParticipatingEngineerFilterFields({
       <Box sx={fullWidthRowSx}>
         <Box sx={{ display: "grid", gap: 0.75, width: "100%" }}>
           <Typography color="text.secondary" sx={{ fontSize: 13, fontWeight: 700 }}>
-            업무중복도 조회조건
+            업무중복도 산정
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: "100%" }}>
             <TextField

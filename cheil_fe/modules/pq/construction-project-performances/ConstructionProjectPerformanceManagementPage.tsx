@@ -188,9 +188,9 @@ export function ConstructionProjectPerformanceManagementPage() {
 
   const columns = useMemo<GridColDef<ConstructionProjectPerformanceRecord>[]>(
     () => [
-      { field: "serviceName", headerName: "용역명", minWidth: 260, flex: 1.2, valueGetter: (_value, row) => displayText(row.serviceName) },
+      { field: "serviceName", headerName: "용역명", align: "center", headerAlign: "center", minWidth: 260, flex: 1.2, valueGetter: (_value, row) => displayText(row.serviceName) },
       { field: "constructionType", headerName: "공종", width: 150, valueGetter: (_value, row) => displayText(row.constructionType) },
-      { field: "client", headerName: "발주처", minWidth: 170, flex: 0.8, valueGetter: (_value, row) => displayText(row.client) },
+      { field: "client", headerName: "발주처", align: "center", headerAlign: "center", minWidth: 170, flex: 0.8, valueGetter: (_value, row) => displayText(row.client) },
       {
         field: "contractFromDate",
         headerName: "계약 시작일",
@@ -442,7 +442,6 @@ export function ConstructionProjectPerformanceManagementPage() {
             <CardContent sx={{ p: 2 }}>
               <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", gap: 1, mb: 1.5 }}>
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
-                  목록
                 </Typography>
                 <Stack direction="row" spacing={1}>
                   <Button disabled={!canCreate} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="outlined">

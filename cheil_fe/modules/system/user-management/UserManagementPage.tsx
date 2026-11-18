@@ -161,6 +161,7 @@ export function UserManagementPage() {
   const [groupFilter, setGroupFilter] = useState("All");
   const [deptFilter, setDeptFilter] = useState("All");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(USER_PAGE_SIZE);
   const [searchTick, setSearchTick] = useState(0);
   const [selectedEmployeeNo, setSelectedEmployeeNo] = useState("");
   const [draftUser, setDraftUser] = useState<AuthUserAccount>(() => emptyUser());
@@ -193,8 +194,8 @@ export function UserManagementPage() {
   });
 
   const queryCriteria = useMemo<UserSearchParams>(
-    () => ({ keyword: appliedKeyword, page, useYn: useYnFilter, groupCode: groupFilter, deptCode: deptFilter }),
-    [appliedKeyword, deptFilter, groupFilter, page, useYnFilter],
+    () => ({ keyword: appliedKeyword, page, size: pageSize, useYn: useYnFilter, groupCode: groupFilter, deptCode: deptFilter }),
+    [appliedKeyword, deptFilter, groupFilter, page, pageSize, useYnFilter],
   );
   const { departmentsQuery, menuQuery, rolesQuery, usersQuery } = useUserManagementQueries(tabQueryEnabled, queryCriteria, searchTick);
 
@@ -230,7 +231,7 @@ export function UserManagementPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [expandedMenuCodes.length, menuTree]);
 
-  const usersPage = usersQuery.data ?? { content: EMPTY_USERS, page, size: USER_PAGE_SIZE, totalElements: 0, totalPages: 0 };
+  const usersPage = usersQuery.data ?? { content: EMPTY_USERS, page, size: pageSize, totalElements: 0, totalPages: 0 };
   const users = usersQuery.data?.content ?? EMPTY_USERS;
   const userColumns = useMemo<GridColDef<AuthUserAccount>[]>(
     () => [
@@ -293,8 +294,8 @@ export function UserManagementPage() {
     [selectedEmployeeNo],
   );
   const paginationModel = useMemo<GridPaginationModel>(
-    () => ({ page, pageSize: USER_PAGE_SIZE }),
-    [page],
+    () => ({ page, pageSize }),
+    [page, pageSize],
   );
 
   useEffect(() => {
@@ -614,10 +615,11 @@ export function UserManagementPage() {
                 }}
                 loading={usersQuery.isLoading || usersQuery.isFetching}
                 onPaginationModelChange={(model) => {
-                  setPage((currentPage) => (currentPage === model.page ? currentPage : model.page));
+                  setPageSize(model.pageSize);
+                  setPage(model.pageSize === pageSize ? model.page : 0);
                 }}
                 onRowClick={(params) => handleSelect(params.row)}
-                pageSizeOptions={[USER_PAGE_SIZE]}
+                pageSizeOptions={[USER_PAGE_SIZE, 50, 100]}
                 paginationMode="server"
                 paginationModel={paginationModel}
                 rowCount={usersPage.totalElements}

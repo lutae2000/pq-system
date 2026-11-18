@@ -192,7 +192,7 @@ export function CommonCodeManagementPage() {
 
   const basicColumns = useMemo<GridColDef<CommonCodeRecord>[]>(
     () => [
-      { field: "displayName", headerName: "코드명", minWidth: 150, flex: 1, valueGetter: (_, row) => displayName(row) },
+      { field: "displayName", headerName: "코드명", minWidth: 150, flex: 1, align: "center", headerAlign: "center", valueGetter: (_, row) => displayName(row) },
       {
         field: "useYn",
         headerName: "사용",
@@ -213,16 +213,16 @@ export function CommonCodeManagementPage() {
   );
 
   const level1Columns = useMemo<GridColDef<CommonCodeRecord>[]>(
-    () => [{ field: "level2Code", headerName: "1레벨 코드", width: 110 }, ...basicColumns],
+    () => [{ field: "level2Code", headerName: "1레벨 코드", width: 110, align: "center", headerAlign: "center" }, ...basicColumns],
     [basicColumns],
   );
   const level2Columns = useMemo<GridColDef<CommonCodeRecord>[]>(
-    () => [{ field: "level2Code", headerName: "2레벨 코드", width: 110 }, ...basicColumns],
+    () => [{ field: "level2Code", headerName: "2레벨 코드", width: 110, align: "center", headerAlign: "center" }, ...basicColumns],
     [basicColumns],
   );
   const level3Columns = useMemo<GridColDef<CommonCodeRecord>[]>(
     () => [
-      { field: "level3Code", headerName: "3레벨 코드", width: 110 },
+      { field: "level3Code", headerName: "3레벨 코드", width: 110, align: "center", headerAlign: "center" },
       ...basicColumns,
     ],
     [basicColumns],

@@ -175,7 +175,7 @@ export function ConstructionTypesManagementPage() {
 
   const basicColumns = useMemo<GridColDef<ConstructionTypeRecord>[]>(
     () => [
-      { field: "codeName", headerName: "공사종류명", minWidth: 160, flex: 1 },
+      { field: "codeName", headerName: "공사종류명", minWidth: 160, flex: 1, align: "center", headerAlign: "center" },
       {
         field: "useYn",
         headerName: "사용",
@@ -196,17 +196,17 @@ export function ConstructionTypesManagementPage() {
   );
 
   const level1Columns = useMemo<GridColDef<ConstructionTypeRecord>[]>(
-    () => [{ field: "level1Code", headerName: "1단계 코드", width: 110 }, ...basicColumns],
+    () => [{ field: "level1Code", headerName: "1단계 코드", width: 110, align: "center", headerAlign: "center" }, ...basicColumns],
     [basicColumns],
   );
 
   const level2Columns = useMemo<GridColDef<ConstructionTypeRecord>[]>(
-    () => [{ field: "level2Code", headerName: "2단계 코드", width: 110 }, ...basicColumns],
+    () => [{ field: "level2Code", headerName: "2단계 코드", width: 110, align: "center", headerAlign: "center" }, ...basicColumns],
     [basicColumns],
   );
 
   const level3Columns = useMemo<GridColDef<ConstructionTypeRecord>[]>(
-    () => [{ field: "level3Code", headerName: "3단계 코드", width: 110 }, ...basicColumns],
+    () => [{ field: "level3Code", headerName: "3단계 코드", width: 110, align: "center", headerAlign: "center" }, ...basicColumns],
     [basicColumns],
   );
 
@@ -414,9 +414,6 @@ export function ConstructionTypesManagementPage() {
               <Box>
                 <Typography sx={{ fontWeight: 800 }} variant="h6">
                   공사종류 목록
-                </Typography>
-                <Typography color="text.secondary" variant="body2">
-                  상위 단계를 선택하면 하위 단계 목록이 함께 필터링됩니다.
                 </Typography>
               </Box>
             </Box>

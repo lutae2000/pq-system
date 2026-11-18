@@ -283,8 +283,8 @@ export function CertificateManagementPage() {
   const showFieldError = (key: keyof FieldErrorState) => submitted && Boolean(errors[key]);
 
   const columns: GridColDef<CertificationRecord>[] = [
-    { field: "certCode", headerName: "자격증 코드", width: 120 },
-    { field: "certName", headerName: "자격증명", minWidth: 220, flex: 1 },
+    { field: "certCode", headerName: "자격증 코드", width: 120, align: "center", headerAlign: "center" },
+    { field: "certName", headerName: "자격증명", minWidth: 220, flex: 1, align: "center", headerAlign: "center" },
     {
       field: "certKind",
       headerName: "구분",
@@ -297,6 +297,8 @@ export function CertificateManagementPage() {
       field: "satisCode",
       headerName: "SATIS 코드",
       width: 130,
+      align: "center",
+      headerAlign: "center",
       renderCell: (params) => (typeof params.value === "string" && params.value.trim() ? params.value : "-"),
     },
     {
