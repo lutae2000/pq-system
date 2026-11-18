@@ -13,6 +13,7 @@ import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 public interface BidNoticeRepository {
 
+
     Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable);
 
     List<BidNotice> findAllByCalendarDateBetween(LocalDate startDate, LocalDate endDate, String departmentCode);

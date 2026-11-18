@@ -197,14 +197,14 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
 
   const content = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          <Box
+      <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           gap: 1,
           px: 3,
-          pb: 2,
-          pt: 1,
+          pb: 0.5,
+          pt: 0,
         }}
       >
         <Box
@@ -213,13 +213,14 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
           src={brandingSettings.companyLogoUrl}
           sx={{
             display: "block",
-            height: 33,
+            height: 56,
             objectFit: "contain",
-            width: 230,
+            objectPosition: "center",
+            width: "100%",
           }}
         />
       </Box>
-      <List sx={{ px: 1.5, py: 2 }}>
+      <List sx={{ px: 1.5, pt: 0.5, pb: 2 }}>
         {menuQuery.isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
             <CircularProgress size={24} />

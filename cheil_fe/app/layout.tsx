@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cheil PQ",
-  description: "Cheil PQ application",
+  title: "Cheil Works 업무지원 시스템",
+  description: "Cheil Works System",
 };
 
 export default function RootLayout({

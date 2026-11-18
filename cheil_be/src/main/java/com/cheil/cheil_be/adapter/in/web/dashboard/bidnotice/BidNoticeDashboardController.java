@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDashboardSummary;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDepartmentSummary;
 
 /** 대시보드에 표시할 입찰공고 일정을 조회하는 API다. */
 @RestController
@@ -20,6 +22,16 @@ import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCas
 public class BidNoticeDashboardController {
 
     private final BidNoticeDashboardUseCase bidNoticeDashboardUseCase;
+
+    @GetMapping("/summary")
+    public ResponseEntity<BidNoticeDashboardSummary> summary() {
+        return ResponseEntity.ok(bidNoticeDashboardUseCase.findAnnualSummary());
+    }
+
+    @GetMapping("/summary/departments")
+    public ResponseEntity<List<BidNoticeDepartmentSummary>> departmentSummaries() {
+        return ResponseEntity.ok(bidNoticeDashboardUseCase.findAnnualDepartmentSummaries());
+    }
 
     @GetMapping("/calendar")
     public ResponseEntity<List<BidNoticeCalendarResponse>> calendar(

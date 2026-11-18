@@ -1,6 +1,9 @@
 package com.cheil.cheil_be.application.bidnotice.service;
 
 import java.time.LocalDate;
+import java.time.Clock;
+import java.time.ZoneId;
+import java.time.Year;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -14,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDashboardSummary;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDepartmentSummary;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEvent;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEventType;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
+import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeDashboardSummaryRepository;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
 @Service
@@ -26,6 +32,24 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
     private static final DateTimeFormatter YEAR_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
     private final BidNoticeRepository bidNoticeRepository;
+    private final BidNoticeDashboardSummaryRepository summaryRepository;
+    private final Clock clock;
+
+    @Override
+    @Transactional(readOnly = true)
+    public BidNoticeDashboardSummary findAnnualSummary() {
+        return summaryRepository.findAnnualSummary(currentYear());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BidNoticeDepartmentSummary> findAnnualDepartmentSummaries() {
+        return summaryRepository.findAnnualDepartmentSummaries(currentYear());
+    }
+
+    private int currentYear() {
+        return Year.now(clock.withZone(ZoneId.of("Asia/Seoul"))).getValue();
+    }
 
     @Override
     @Transactional(readOnly = true)

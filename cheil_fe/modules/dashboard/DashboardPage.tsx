@@ -4,19 +4,23 @@ import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 import MonetizationOnOutlinedIcon from "@mui/icons-material/MonetizationOnOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
-import { Box, Card, CardContent, Grid, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Card, CardContent, Grid, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
 import { DashboardChartCard } from "./DashboardChartCard";
+import { DashboardDepartmentSummaryGrid } from "./DashboardDepartmentSummaryGrid";
+import { DashboardDepartmentRateChart } from "./DashboardDepartmentRateChart";
 import { MonthlyAwardAmountChart } from "./MonthlyAwardAmountChart";
 import { MonthlyAwardRateChart } from "./MonthlyAwardRateChart";
-import { MonthlyCategoryStackedChart } from "./MonthlyCategoryStackedChart";
-import type { CategoryMonthlySeries, DashboardCategory, MonthlyAwardAmountRecord, MonthlyBidRecord } from "./dashboard.types";
+import type { MonthlyAwardAmountRecord, MonthlyBidRecord } from "./dashboard.types";
 import type { DashboardScheduleEvent } from "./dashboardSchedule.data";
 import type { BidNoticeAttachmentState, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { useDashboardBidNoticeQuery } from "@/modules/dashboard/application/useDashboardBidNoticeQuery";
+import { useDashboardSummaryQuery } from "@/modules/dashboard/application/useDashboardSummaryQuery";
+import { useDashboardDepartmentSummaryQuery } from "@/modules/dashboard/application/useDashboardDepartmentSummaryQuery";
+import type { DashboardBidNoticeSummary } from "@/modules/dashboard/dashboard.api";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
 
 const DashboardScheduleCalendar = dynamic(
@@ -27,84 +31,6 @@ const BidNoticeDetailDialog = dynamic(
   () => import("@/modules/pq/bid-notice/BidNoticeDetailDialog").then((module) => module.BidNoticeDetailDialog),
   { ssr: false },
 );
-
-const categories: DashboardCategory[] = [
-  { key: "design", label: "설계", color: "#2563eb" },
-  { key: "urbanPlanning", label: "도시계획", color: "#7c3aed" },
-  { key: "waterMaintenance", label: "상수도 유지보수", color: "#0f766e" },
-  { key: "supervision", label: "감리", color: "#f59e0b" },
-];
-
-const categorySeries: CategoryMonthlySeries[] = [
-  {
-    category: categories[0],
-    points: [
-      { month: "1월", achievement: 20, plan: 18 },
-      { month: "2월", achievement: 21, plan: 19 },
-      { month: "3월", achievement: 23, plan: 20 },
-      { month: "4월", achievement: 22, plan: 21 },
-      { month: "5월", achievement: 24, plan: 22 },
-      { month: "6월", achievement: 25, plan: 23 },
-      { month: "7월", achievement: 26, plan: 24 },
-      { month: "8월", achievement: 27, plan: 25 },
-      { month: "9월", achievement: 28, plan: 26 },
-      { month: "10월", achievement: 29, plan: 27 },
-      { month: "11월", achievement: 30, plan: 28 },
-      { month: "12월", achievement: 31, plan: 29 },
-    ],
-  },
-  {
-    category: categories[1],
-    points: [
-      { month: "1월", achievement: 12, plan: 11 },
-      { month: "2월", achievement: 13, plan: 12 },
-      { month: "3월", achievement: 14, plan: 13 },
-      { month: "4월", achievement: 15, plan: 14 },
-      { month: "5월", achievement: 16, plan: 15 },
-      { month: "6월", achievement: 17, plan: 16 },
-      { month: "7월", achievement: 18, plan: 17 },
-      { month: "8월", achievement: 19, plan: 18 },
-      { month: "9월", achievement: 20, plan: 19 },
-      { month: "10월", achievement: 21, plan: 20 },
-      { month: "11월", achievement: 22, plan: 21 },
-      { month: "12월", achievement: 23, plan: 22 },
-    ],
-  },
-  {
-    category: categories[2],
-    points: [
-      { month: "1월", achievement: 16, plan: 15 },
-      { month: "2월", achievement: 17, plan: 16 },
-      { month: "3월", achievement: 18, plan: 17 },
-      { month: "4월", achievement: 19, plan: 18 },
-      { month: "5월", achievement: 20, plan: 19 },
-      { month: "6월", achievement: 21, plan: 20 },
-      { month: "7월", achievement: 22, plan: 21 },
-      { month: "8월", achievement: 23, plan: 22 },
-      { month: "9월", achievement: 24, plan: 23 },
-      { month: "10월", achievement: 25, plan: 24 },
-      { month: "11월", achievement: 26, plan: 25 },
-      { month: "12월", achievement: 27, plan: 26 },
-    ],
-  },
-  {
-    category: categories[3],
-    points: [
-      { month: "1월", achievement: 10, plan: 9 },
-      { month: "2월", achievement: 11, plan: 10 },
-      { month: "3월", achievement: 12, plan: 11 },
-      { month: "4월", achievement: 13, plan: 12 },
-      { month: "5월", achievement: 14, plan: 13 },
-      { month: "6월", achievement: 15, plan: 14 },
-      { month: "7월", achievement: 16, plan: 15 },
-      { month: "8월", achievement: 17, plan: 16 },
-      { month: "9월", achievement: 18, plan: 17 },
-      { month: "10월", achievement: 19, plan: 18 },
-      { month: "11월", achievement: 20, plan: 19 },
-      { month: "12월", achievement: 21, plan: 20 },
-    ],
-  },
-];
 
 const monthlyBidData: MonthlyBidRecord[] = [
   { month: "1월", submittedBids: 26, awardedBids: 8 },
@@ -126,40 +52,39 @@ const monthlyAwardAmountData: MonthlyAwardAmountRecord[] = monthlyBidData.map((i
   awardAmount: [1.4, 1.5, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 2.7, 3.1, 3.0, 3.6][index] * 100000000,
 }));
 
-const totalBids = monthlyBidData.reduce((sum, item) => sum + item.submittedBids, 0);
-const awardedBids = monthlyBidData.reduce((sum, item) => sum + item.awardedBids, 0);
-const awardRate = Math.round((awardedBids / totalBids) * 1000) / 10;
-const totalAwardAmount = monthlyAwardAmountData.reduce((sum, item) => sum + item.awardAmount, 0);
-const averageAwardAmount = totalAwardAmount / awardedBids;
+const showSampleCharts = process.env.NEXT_PUBLIC_APP_PROFILE === "local" || process.env.NEXT_PUBLIC_APP_PROFILE === "dev";
 
-const showSampleCards = process.env.NEXT_PUBLIC_APP_PROFILE === "local" || process.env.NEXT_PUBLIC_APP_PROFILE === "dev";
-
-const summaryCards = [
+const summaryCards = (summary: DashboardBidNoticeSummary | undefined) => {
+  const bidCount = summary?.bidCount ?? 0;
+  const successCount = summary?.successCount ?? 0;
+  const awardRate = bidCount > 0 ? Math.round((successCount / bidCount) * 1000) / 10 : 0;
+  return [
   {
     label: "총 입찰 건수",
-    value: totalBids.toLocaleString("ko-KR"),
+    value: summary ? bidCount.toLocaleString("ko-KR") : "-",
     note: "연간 누적 입찰 수",
     icon: FactCheckOutlinedIcon,
   },
   {
     label: "낙찰 건수",
-    value: awardedBids.toLocaleString("ko-KR"),
+    value: summary ? successCount.toLocaleString("ko-KR") : "-",
     note: "연간 누적 낙찰 수",
     icon: HandshakeOutlinedIcon,
   },
   {
     label: "낙찰률",
-    value: `${awardRate.toLocaleString("ko-KR")}%`,
+    value: summary ? `${awardRate.toLocaleString("ko-KR")}%` : "-",
     note: "총 입찰 대비 낙찰 비율",
     icon: TrendingUpOutlinedIcon,
   },
   {
     label: "수주액",
-    value: `${(totalAwardAmount / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억`,
+    value: summary ? `${(summary.designAmount / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억` : "-",
     note: "연간 누적 수주액",
     icon: MonetizationOnOutlinedIcon,
   },
-];
+  ];
+};
 
 const emptyAttachments = (): BidNoticeAttachmentState => ({
   announcement: [],
@@ -277,6 +202,9 @@ const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
 
 export function DashboardPage() {
   const isTabActive = useTabActivity();
+  const summaryYear = new Date().getFullYear();
+  const summaryQuery = useDashboardSummaryQuery(isTabActive, summaryYear);
+  const departmentSummaryQuery = useDashboardDepartmentSummaryQuery(isTabActive, summaryYear);
   const [selectedSchedule, setSelectedSchedule] = useState<DashboardScheduleEvent | null>(null);
   const detailQuery = useDashboardBidNoticeQuery(isTabActive, selectedSchedule?.bidSeq);
 
@@ -297,8 +225,8 @@ export function DashboardPage() {
         </DashboardChartCard>
       </Box>
 
-      {showSampleCards && <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {summaryCards.map((card) => {
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
+        {summaryCards(summaryQuery.data).map((card) => {
           const Icon = card.icon;
 
           return (
@@ -327,78 +255,28 @@ export function DashboardPage() {
           );
         })}
 
+      </Grid>
+
+      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
-          <DashboardChartCard
-            title="카테고리별 월간 달성률 / 계획률"
-            subtitle="월별로 왼쪽은 달성률, 오른쪽은 계획률을 보여주고, 각 막대 안에 카테고리를 스택으로 쌓았습니다."
-          >
-            <MonthlyCategoryStackedChart series={categorySeries} />
+          <DashboardChartCard title="부서별 낙찰률" subtitle={`${summaryYear}년 참여 입찰 기준 부서별 낙찰 현황`}>
+            <DashboardDepartmentSummaryGrid
+              loading={departmentSummaryQuery.isLoading || departmentSummaryQuery.isFetching}
+              rows={departmentSummaryQuery.data ?? []}
+            />
           </DashboardChartCard>
         </Grid>
-
         <Grid size={{ xs: 12, lg: 4 }}>
-          <Card sx={{ height: "100%" }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                낙찰률 현황
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                총 입찰수와 낙찰수를 비교한 비율입니다.
-              </Typography>
-
-              <Box sx={{ mt: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    낙찰률
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 900 }}>
-                    {awardRate.toLocaleString("ko-KR")}%
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  value={awardRate}
-                  variant="determinate"
-                  sx={{ height: 12, borderRadius: 999, mt: 1.5, bgcolor: "grey.200", "& .MuiLinearProgress-bar": { borderRadius: 999, background: "linear-gradient(90deg, #2563eb 0%, #0f766e 100%)" } }}
-                />
-                <Stack spacing={1} sx={{ mt: 2 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      총 입찰
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {totalBids.toLocaleString("ko-KR")}건
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      낙찰
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {awardedBids.toLocaleString("ko-KR")}건
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      미낙찰
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {(totalBids - awardedBids).toLocaleString("ko-KR")}건
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      평균 수주액
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }}>
-                      {(averageAwardAmount / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}억
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            </CardContent>
-          </Card>
+          <DashboardChartCard title="부서별 낙찰률 비교" subtitle="낙찰 건수/입찰 건수">
+            <DashboardDepartmentRateChart
+              loading={departmentSummaryQuery.isLoading || departmentSummaryQuery.isFetching}
+              rows={departmentSummaryQuery.data ?? []}
+            />
+          </DashboardChartCard>
         </Grid>
+      </Grid>
 
+      {showSampleCharts && <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <DashboardChartCard title="월별 수주액 추이" subtitle="연간 수주액의 월별 변화를 라인 차트로 보여줍니다.">
             <MonthlyAwardAmountChart data={monthlyAwardAmountData} />
