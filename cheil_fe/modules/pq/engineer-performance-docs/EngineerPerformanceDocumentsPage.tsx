@@ -17,7 +17,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Checkbox,
   Grid,
   IconButton,
   Stack,
@@ -113,15 +112,6 @@ const HISTORY_CARD_MIN_HEIGHT = 320;
 const HISTORY_CARD_MAX_HEIGHT = 900;
 const HISTORY_CARD_RESERVED_HEIGHT = 80;
 const reviewGridHeight = { xs: 240, md: "clamp(260px, calc(100vh - 400px), 440px)" } as const;
-const historySelectionAlignmentSx = {
-  "& .history-selection-cell, & .history-selection-header": {
-    alignItems: "center",
-    display: "flex",
-    justifyContent: "center",
-    padding: 0,
-  },
-} as const;
-
 const text = (value: string | number | null | undefined) => String(value ?? "").trim();
 
 const historySelectionKey = (row: PerformanceHistoryRow) => {
@@ -268,15 +258,14 @@ export function EngineerPerformanceDocumentsPage() {
     [availableHistoryRows, selectedHistoryIds],
   );
   const historyRowIds = useMemo(() => availableHistoryRows.map(historySelectionKey), [availableHistoryRows]);
-  const historyAllSelected = historyRowIds.length > 0 && historyRowIds.every((id) => selectedHistoryIds.includes(id));
-  const historySomeSelected = historyRowIds.some((id) => selectedHistoryIds.includes(id)) && !historyAllSelected;
-  const reviewAllSelected = reviewRowIds.length > 0 && selectedReviewIds.length === reviewRowIds.length;
-  const reviewSomeSelected = selectedReviewIds.length > 0 && selectedReviewIds.length < reviewRowIds.length;
-  const handleToggleAllHistorySelection = useCallback(() => {
-    setSelectedHistoryIds(historyAllSelected ? [] : historyRowIds);
+  const handleHistorySelectionModelChange = useCallback((model: GridRowSelectionModel) => {
+    setSelectedHistoryIds(historyRowIds.filter((id) => model.type === "exclude" ? !model.ids.has(id) : model.ids.has(id)));
     setHistorySelectionAnchorId(null);
-  }, [historyAllSelected, historyRowIds]);
-
+  }, [historyRowIds]);
+  const handleReviewSelectionModelChange = useCallback((model: GridRowSelectionModel) => {
+    setSelectedReviewIds(reviewRows.filter((row) => row.reviewId != null && (model.type === "exclude" ? !model.ids.has(row.reviewId) : model.ids.has(row.reviewId))).map((row) => String(row.reviewId)));
+    setReviewSelectionAnchorId(null);
+  }, [reviewRows]);
   const handleHistorySelection = useCallback(
     (id: string, event?: ReviewSelectionClickEvent, source: "row" | "checkbox" = "row") => {
       const isModifierClick = Boolean(event?.ctrlKey || event?.metaKey);
@@ -313,11 +302,6 @@ export function EngineerPerformanceDocumentsPage() {
     },
     [historyRowIds, historySelectionAnchorId],
   );
-
-  const handleToggleAllReviewSelection = useCallback(() => {
-    setSelectedReviewIds(reviewAllSelected ? [] : reviewRowIds);
-    setReviewSelectionAnchorId(null);
-  }, [reviewAllSelected, reviewRowIds]);
 
   const handleReviewSelection = useCallback(
     (reviewId: string, event?: ReviewSelectionClickEvent, source: "row" | "checkbox" = "row") => {
@@ -502,40 +486,7 @@ export function EngineerPerformanceDocumentsPage() {
     [canUpdate, certificateLabelByCode, documentValueSettingsByEngineerId, documentValueSettingsQuery.isFetching, labelByJobField, labelBySpecialtyField, profilesByEngineerId, documentActions.saveInlineDocumentValueMutation],
   );
 
-  const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(
-    () => [
-      {
-        field: "__select__",
-        headerName: "선택",
-        width: 48,
-        ...center,
-        cellClassName: "history-selection-cell",
-        headerClassName: "history-selection-header",
-        sortable: false,
-        filterable: false,
-        disableColumnMenu: true,
-        renderHeader: () => (
-          <Checkbox
-            checked={historyAllSelected}
-            indeterminate={historySomeSelected && !historyAllSelected}
-            onChange={handleToggleAllHistorySelection}
-            onClick={(event) => event.stopPropagation()}
-          />
-        ),
-        renderCell: ({ row }) => (
-          <Checkbox
-            checked={selectedHistoryIds.includes(historySelectionKey(row))}
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-            onChange={(event) => {
-              event.stopPropagation();
-              handleHistorySelection(historySelectionKey(row), undefined, "checkbox");
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          />
-        ),
-      },
+  const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(() => [
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
       { field: "compName", headerName: "참여당시 회사", width: 150 },
       {
@@ -558,41 +509,10 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [handleHistorySelection, handleToggleAllHistorySelection, historyAllSelected, historySomeSelected, labelByEngLevel, selectedHistoryIds],
+    [labelByEngLevel],
   );
 
-  const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(
-    () => [
-      {
-        field: "__select__",
-        headerName: "선택",
-        width: 48,
-        ...center,
-        cellClassName: "history-selection-cell",
-        headerClassName: "history-selection-header",
-        sortable: false,
-        filterable: false,
-        disableColumnMenu: true,
-        renderHeader: () => (
-          <Checkbox
-            checked={reviewAllSelected}
-            indeterminate={reviewSomeSelected && !reviewAllSelected}
-            onChange={handleToggleAllReviewSelection}
-            onClick={(event) => event.stopPropagation()}
-          />
-        ),
-        renderCell: ({ row }) => (
-          <Checkbox
-            checked={row.reviewId != null && selectedReviewIds.includes(String(row.reviewId))}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (row.reviewId != null) {
-                handleReviewSelection(String(row.reviewId), event, "checkbox");
-              }
-            }}
-          />
-        ),
-      },
+  const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(() => [
       {
         field: "displayOrder",
         headerName: "순번",
@@ -642,11 +562,10 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [canUpdate, handleReviewSelection, handleToggleAllReviewSelection, labelByEngLevel, reviewAllSelected, reviewSomeSelected, selectedReviewIds],
+    [canUpdate, labelByEngLevel],
   );
   const orderedHistoryColumns = useMemo(() => {
     const order = [
-      "__select__",
       "jobName",
       "orderClient",
       "contractAmt",
@@ -669,7 +588,6 @@ export function EngineerPerformanceDocumentsPage() {
   }, [historyColumns]);
   const orderedReviewColumns = useMemo(() => {
     const order = [
-      "__select__",
       "displayOrder",
       "jobName",
       "orderClient",
@@ -1018,7 +936,9 @@ export function EngineerPerformanceDocumentsPage() {
                   </Box>
                   <Box sx={{ minHeight: 0 }}>
                     <EnterpriseDataGrid<PerformanceHistoryRow>
+                      checkboxSelection
                       columns={orderedHistoryColumns}
+                      enableRowClickCheckboxSelection={false}
                       getRowId={(row) => historySelectionKey(row)}
                       hideFooterSelectedRowCount
                       loading={projectHistoryRowsQuery.isLoading || projectHistoryRowsQuery.isFetching}
@@ -1031,16 +951,17 @@ export function EngineerPerformanceDocumentsPage() {
                         }
                       }}
                       onPaginationModelChange={setHistoryPaginationModel}
+                      onRowSelectionModelChange={handleHistorySelectionModelChange}
                       paginationModel={historyPaginationModel}
                       pageSizeOptions={[25, 50, 100]}
                       rows={availableHistoryRows}
+                      rowSelectionModel={{ type: "include", ids: new Set(selectedHistoryIds) }}
                       columnHeaderHeight={36}
                       rowHeight={30}
                       showPageNumbers
                       showToolbar={false}
                       wrapperMinHeight={historyGridHeight}
                       sx={{
-                        ...historySelectionAlignmentSx,
                         border: 0,
                         height: historyGridHeight,
                         "& .MuiDataGrid-row:hover": { cursor: "pointer" },
@@ -1069,10 +990,7 @@ export function EngineerPerformanceDocumentsPage() {
                   >
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 800 }} variant="h6">
-                        관련공사 참여이력 검토결과
-                      </Typography>
-                      <Typography color="text.secondary" variant="body2">
-                        {activeEngineerProfile ? "" : "기술인을 먼저 선택하세요."}
+                        문서 생성할 프로젝트 참여이력
                       </Typography>
                     </Box>
                     <Box
@@ -1082,6 +1000,7 @@ export function EngineerPerformanceDocumentsPage() {
                         flexWrap: "wrap",
                         gap: 1,
                         justifyContent: "flex-end",
+                        ml: "auto",
                         minWidth: 0,
                       }}
                     >
@@ -1115,9 +1034,12 @@ export function EngineerPerformanceDocumentsPage() {
                     </Box>
                   </Box>
                   <EnterpriseDataGrid<EngineerProjectHistoryReviewRecord>
+                    checkboxSelection
                     apiRef={reviewGridApiRef}
                     columns={orderedReviewColumns}
+                    enableRowClickCheckboxSelection={false}
                     getRowId={(row) => row.reviewId ?? row.id}
+                    isRowSelectable={(params) => params.row.reviewId != null}
                     hideFooterSelectedRowCount
                     loading={reviewRowsQuery.isLoading || reviewRowsQuery.isFetching}
                     onCellClick={(params, event) => {
@@ -1131,6 +1053,7 @@ export function EngineerPerformanceDocumentsPage() {
                         handleReviewSelection(String(params.row.reviewId), event);
                       }
                     }}
+                    onRowSelectionModelChange={handleReviewSelectionModelChange}
                     onRowDoubleClick={(params: GridRowParams<EngineerProjectHistoryReviewRecord>, event) => {
                       const clickedField = event.target instanceof HTMLElement
                         ? event.target.closest(".MuiDataGrid-cell")?.getAttribute("data-field")
@@ -1150,6 +1073,7 @@ export function EngineerPerformanceDocumentsPage() {
                     paginationModel={reviewPaginationModel}
                     processRowUpdate={canUpdate ? documentActions.processReviewRowUpdate : undefined}
                     rows={reviewRows}
+                    rowSelectionModel={{ type: "include", ids: new Set(selectedReviewIds.map(Number)) }}
                     summaryColumns={[
                       { field: "contractAmt", label: "계약금액", format: (value) => formatMoney(value) },
                       { field: "ownAmt", label: "자사금액", format: (value) => formatMoney(value) },
@@ -1164,7 +1088,6 @@ export function EngineerPerformanceDocumentsPage() {
                     showXlsxExportButton
                     wrapperMinHeight={reviewGridHeight}
                     sx={{
-                      ...historySelectionAlignmentSx,
                       border: 0,
                       height: reviewGridHeight,
                       "& .MuiDataGrid-row:hover": { cursor: "pointer" },

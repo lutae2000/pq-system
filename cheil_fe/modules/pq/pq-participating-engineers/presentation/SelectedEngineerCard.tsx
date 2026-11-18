@@ -6,7 +6,7 @@ import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDo
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Box, Button, CardContent, Chip, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { GridColDef, GridEventListener } from "@mui/x-data-grid";
+import type { GridColDef, GridEventListener, GridRowSelectionModel } from "@mui/x-data-grid";
 
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { SelectedEngineerGrid } from "@/modules/pq/pq-participating-engineers/presentation/SelectedEngineerGrid";
@@ -24,6 +24,7 @@ type SelectedEngineerCardProps = {
   height: number;
   onHeightChange: (height: number) => void;
   onRowClick: GridEventListener<"rowClick">;
+  onSelectionChange: (model: GridRowSelectionModel) => void;
   onSave: () => void;
   onToggleFocus: () => void;
   onRemove: () => void;
@@ -54,6 +55,7 @@ export function SelectedEngineerCard({
   height,
   onHeightChange,
   onRowClick,
+  onSelectionChange,
   onSave,
   onToggleFocus,
   onRemove,
@@ -103,7 +105,7 @@ export function SelectedEngineerCard({
             </Tooltip>
           </Stack>
         </Box>
-        <SelectedEngineerGrid columns={columns} height={gridHeight} onRowClick={onRowClick} rows={rows} selectedEngineerIdSet={selectedIds} sx={sx} />
+        <SelectedEngineerGrid columns={columns} height={gridHeight} onRowClick={onRowClick} onSelectionChange={onSelectionChange} rows={rows} selectedEngineerIdSet={selectedIds} sx={sx} />
       </CardContent>
     </ResizableCard>
   );

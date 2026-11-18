@@ -2211,7 +2211,7 @@ export function EngineerPersonalInfoPage() {
                 <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
                   <Box>
                     <Typography sx={{ fontWeight: 800 }} variant="h6">
-                      {selectedEngineer?.summary.name ?? "선택된 기술인가 없습니다."}
+                      {selectedEngineer?.summary.name ?? "선택된 기술인이 없습니다"}
                     </Typography>
                     <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
                       {selectedEngineer

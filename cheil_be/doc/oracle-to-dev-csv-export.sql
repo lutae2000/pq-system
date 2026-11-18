@@ -117,3 +117,19 @@ SELECT bid_seq,
        TP_JECH tp_submit_date, TP_PASS_YN tp_pass_yn,
        RPST_VEND prime_contractor, REMK remark, REFMAT_YN refmat_yn
 FROM CS_BIDS_NOTICE ORDER BY COMPANY_CODE, BID_SEQ, ROWID;
+
+--전문분야 공통코드 통합
+update pq_engineer_master
+set dutypart ='QAC'
+where dutypart in ('QAC', 'QAD');
+
+update pq_engineer_master
+set dutypart ='QAH'
+where dutypart in ('QAH', 'QAL');
+
+--참여기술인 구분 변경
+update pq_engineer_project_history
+set jobtag = case when jobtag ='1' then 'CAA'
+when jobtag ='2' then 'CAH'
+when jobtag ='3' then 'CAI'
+end;

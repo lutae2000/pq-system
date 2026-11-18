@@ -46,7 +46,7 @@ export function RelatedProjectHistoryConditionsPanel({
   bidSeq,
   buttonLabel = "조건 설정",
   disabled = false,
-  label = "관련공사 참여 이력",
+  label = "",
   onApply,
   onSaved,
   value,

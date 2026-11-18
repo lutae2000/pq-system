@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import type { GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
+import type { GridPaginationModel, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -248,24 +248,18 @@ export function PqParticipatingEngineersPage() {
   const candidateSelection = usePqGridSelection({ rowIds: candidateRowIds });
   const selectedEngineerSelection = usePqGridSelection({ rowIds: selectedEngineerRowIds });
   const {
-    allSelected: allCandidatesSelected,
     clear: clearCandidateSelection,
     handleSelection: handleCandidateSelection,
     selectedIdSet: selectedCandidateIdSet,
     setSelectedIds: setSelectedCandidateIds,
     setSelectionAnchorId: setCandidateSelectionAnchorId,
-    someSelected: someCandidatesSelected,
-    toggleAll: toggleAllCandidates,
   } = candidateSelection;
   const {
-    allSelected: allSelectedEngineersSelected,
     clear: clearSelectedEngineerSelection,
     handleSelection: handleSelectedEngineerSelection,
     selectedIdSet: selectedEngineerIdSet,
     selectedIds: selectedEngineerIds,
     setSelectedIds: setSelectedEngineerIds,
-    someSelected: someSelectedEngineersSelected,
-    toggleAll: toggleAllSelectedEngineers,
   } = selectedEngineerSelection;
   const selectedCandidateRows = useMemo(
     () => candidates.filter((candidate) => selectedCandidateIdSet.has(candidate.engrId)),
@@ -401,6 +395,15 @@ export function PqParticipatingEngineersPage() {
     [clearCandidateClickTimer, handleCandidateSelection],
   );
 
+  const handleCandidateSelectionChange = useCallback(
+    (model: GridRowSelectionModel) => {
+      setSelectedCandidateIds(
+        candidateRowIds.filter((id) => model.type === "exclude" ? !model.ids.has(id) : model.ids.has(id)),
+      );
+    },
+    [candidateRowIds, setSelectedCandidateIds],
+  );
+
   const handleCandidateRowDoubleClick = useCallback(
     (params: GridRowParams<PqParticipatingEngineerCandidate>) => {
       clearCandidateClickTimer();
@@ -418,6 +421,15 @@ export function PqParticipatingEngineersPage() {
       handleSelectedEngineerSelection(params.row.engineerId, event);
     },
     [handleSelectedEngineerSelection],
+  );
+
+  const handleSelectedEngineerSelectionChange = useCallback(
+    (model: GridRowSelectionModel) => {
+      setSelectedEngineerIds(
+        selectedEngineerRowIds.filter((id) => model.type === "exclude" ? !model.ids.has(id) : model.ids.has(id)),
+      );
+    },
+    [selectedEngineerRowIds, setSelectedEngineerIds],
   );
 
   const removeSelectedEngineers = useCallback(() => {
@@ -505,31 +517,19 @@ export function PqParticipatingEngineersPage() {
 
   const candidateColumns = useMemo(
     () => createCandidateEngineerColumns({
-      allSelected: allCandidatesSelected,
-      candidatesCount: candidates.length,
       labelByGrade,
       labelByJobField,
       labelBySpecialtyField,
-      onSelect: handleCandidateSelection,
-      onToggleAll: toggleAllCandidates,
-      selectedIds: selectedCandidateIdSet,
-      someSelected: someCandidatesSelected,
     }),
-    [allCandidatesSelected, candidates.length, handleCandidateSelection, labelByGrade, labelByJobField, labelBySpecialtyField, selectedCandidateIdSet, someCandidatesSelected, toggleAllCandidates],
+    [labelByGrade, labelByJobField, labelBySpecialtyField],
   );
 
   const selectedColumns = useMemo(
     () => createSelectedEngineerColumns({
-      allSelected: allSelectedEngineersSelected,
-      engineersCount: selectedEngineers.length,
       labelByJobField,
       labelBySpecialtyField,
-      onSelect: handleSelectedEngineerSelection,
-      onToggleAll: toggleAllSelectedEngineers,
-      selectedIds: selectedEngineerIdSet,
-      someSelected: someSelectedEngineersSelected,
     }),
-    [allSelectedEngineersSelected, handleSelectedEngineerSelection, labelByJobField, labelBySpecialtyField, selectedEngineerIdSet, selectedEngineers.length, someSelectedEngineersSelected, toggleAllSelectedEngineers],
+    [labelByJobField, labelBySpecialtyField],
   );
 
   const candidatePaginationModel = useMemo<GridPaginationModel>(
@@ -556,6 +556,7 @@ export function PqParticipatingEngineersPage() {
       onHeightChange={setSelectedEngineerCardHeight}
       onRemove={removeSelectedEngineers}
       onRowClick={handleSelectedEngineerRowClick}
+      onSelectionChange={handleSelectedEngineerSelectionChange}
       onSave={handleSave}
       onToggleFocus={() => setPerformanceFocusMode((focused) => !focused)}
       onWidthChange={setCandidateCardWidth}
@@ -664,6 +665,7 @@ export function PqParticipatingEngineersPage() {
                   paginationModel={candidatePaginationModel}
                   rowCount={candidateRowCount}
                   rows={candidates}
+                  onSelectionChange={handleCandidateSelectionChange}
                   selectedCandidateIdSet={selectedCandidateIdSet}
                   height={candidateGridHeight}
                   sx={{ ...gridSx, height: { xs: 420, lg: candidateGridHeight } }}

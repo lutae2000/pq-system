@@ -1,4 +1,4 @@
-import { Checkbox, Chip } from "@mui/material";
+import { Chip } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
 
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
@@ -13,29 +13,15 @@ export type SelectionClickEvent = {
 };
 
 type CandidateColumnParams = {
-  allSelected: boolean;
-  candidatesCount: number;
   labelByGrade: Record<string, string>;
   labelByJobField: Record<string, string>;
   labelBySpecialtyField: Record<string, string>;
-  onSelect: (id: string, event?: SelectionClickEvent, source?: "row" | "checkbox") => void;
-  onToggleAll: (checked: boolean) => void;
-  selectedIds: Set<string>;
-  someSelected: boolean;
 };
 
 type SelectedColumnParams = {
-  allSelected: boolean;
-  engineersCount: number;
   labelByJobField: Record<string, string>;
   labelBySpecialtyField: Record<string, string>;
-  onSelect: (id: string, event?: SelectionClickEvent, source?: "row" | "checkbox") => void;
-  onToggleAll: (checked: boolean) => void;
-  selectedIds: Set<string>;
-  someSelected: boolean;
 };
-
-const checkboxSx = { p: 0, "& .MuiSvgIcon-root": { fontSize: 18 } } as const;
 
 const formatBirthDate = (value: string | null | undefined) => {
   const digits = String(value ?? "").replace(/\D/g, "");
@@ -49,41 +35,11 @@ const formatStatusChip = (status: EngineerStatus) => {
 };
 
 export function createCandidateEngineerColumns({
-  allSelected,
-  candidatesCount,
   labelByGrade,
   labelByJobField,
   labelBySpecialtyField,
-  onSelect,
-  onToggleAll,
-  selectedIds,
-  someSelected,
 }: CandidateColumnParams): GridColDef<PqParticipatingEngineerCandidate>[] {
   return [
-    {
-      field: "__select__",
-      headerName: "선택",
-      width: 64,
-      align: "center",
-      headerAlign: "center",
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderHeader: () => (
-        <Checkbox checked={allSelected} disabled={candidatesCount === 0} indeterminate={!allSelected && someSelected} onChange={(event) => onToggleAll(event.target.checked)} size="small" sx={checkboxSx} />
-      ),
-      renderCell: (params) => (
-        <Checkbox
-          checked={selectedIds.has(params.row.engrId)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelect(params.row.engrId, event, "checkbox");
-          }}
-          size="small"
-          sx={checkboxSx}
-        />
-      ),
-    },
     { field: "name", headerName: "성명", width: 100, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.name ?? "" },
     { field: "position", headerName: "직위", width: 90, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.position ?? "" },
     { field: "jobField", headerName: "직무분야", width: 120, align: "center", headerAlign: "center", valueGetter: (_value, row) => row.jobField ?? "", valueFormatter: (value) => formatReferenceLabel(labelByJobField, value) },
@@ -93,40 +49,10 @@ export function createCandidateEngineerColumns({
 }
 
 export function createSelectedEngineerColumns({
-  allSelected,
-  engineersCount,
   labelByJobField,
   labelBySpecialtyField,
-  onSelect,
-  onToggleAll,
-  selectedIds,
-  someSelected,
 }: SelectedColumnParams): GridColDef<SelectedPqEngineer>[] {
   return [
-    {
-      field: "__select__",
-      headerName: "선택",
-      width: 64,
-      align: "center",
-      headerAlign: "center",
-      sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
-      renderHeader: () => (
-        <Checkbox checked={allSelected} disabled={engineersCount === 0} indeterminate={!allSelected && someSelected} onChange={(event) => onToggleAll(event.target.checked)} size="small" sx={checkboxSx} />
-      ),
-      renderCell: (params) => (
-        <Checkbox
-          checked={selectedIds.has(params.row.engineerId)}
-          onClick={(event) => {
-            event.stopPropagation();
-            onSelect(params.row.engineerId, event, "checkbox");
-          }}
-          size="small"
-          sx={checkboxSx}
-        />
-      ),
-    },
     { field: "priority", headerName: "순번", width: 70, align: "center", headerAlign: "center" },
     { field: "name", headerName: "성명", width: 100, align: "center", headerAlign: "center" },
     { field: "birthDate", headerName: "생년월일", width: 120, align: "center", headerAlign: "center", valueGetter: (_value, row) => formatBirthDate(row.birthDate) },
