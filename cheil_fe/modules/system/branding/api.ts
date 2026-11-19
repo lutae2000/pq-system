@@ -10,7 +10,7 @@ export type BrandingSettings = {
 };
 
 export const DEFAULT_BRANDING_SETTINGS: BrandingSettings = {
-  companyLogoUrl: "/branding/logo_white_landscape.png",
+  companyLogoUrl: "/branding/cheil-works.png",
   faviconUrl: "",
   loginBackgroundUrl: "/login/login-light-hero-balanced-v2.png",
 };

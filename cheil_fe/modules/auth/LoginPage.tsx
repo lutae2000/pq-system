@@ -141,7 +141,7 @@ export function LoginPage() {
         <Box
           component="img"
           alt="Cheil"
-          src="/branding/logo_white_landscape.png"
+          src={brandingSettings.companyLogoUrl}
           sx={{
             display: "block",
             height: { xs: 30, md: 38 },

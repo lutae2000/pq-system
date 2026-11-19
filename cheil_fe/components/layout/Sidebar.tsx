@@ -196,12 +196,13 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
   };
 
   const content = (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           gap: 1,
+          flexShrink: 0,
           px: 3,
           pb: 0.5,
           pt: 0,
@@ -220,7 +221,7 @@ export function Sidebar({ drawerWidth }: SidebarProps) {
           }}
         />
       </Box>
-      <List sx={{ px: 1.5, pt: 0.5, pb: 2 }}>
+      <List sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 1.5, pt: 0.5, pb: 2 }}>
         {menuQuery.isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
             <CircularProgress size={24} />

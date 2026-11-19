@@ -26,7 +26,7 @@ import com.cheil.cheil_be.application.systempolicy.port.in.SystemPolicyAdminUseC
 public class BrandingAssetService {
 
     public static final String DEFAULT_LOGIN_BACKGROUND_URL = "/login/login-light-hero-balanced-v2.png";
-    public static final String DEFAULT_COMPANY_LOGO_URL = "/branding/logo_white_landscape.png";
+    public static final String DEFAULT_COMPANY_LOGO_URL = "/branding/cheil-works.png";
     public static final String DEFAULT_FAVICON_URL = "";
     private static final String NO_FAVICON_POLICY_VALUE = "NONE";
 

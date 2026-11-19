@@ -451,7 +451,7 @@ export function BrandingImageSettingsCard({ canUpdate, onUploaded }: BrandingIma
                 position: "relative",
               }}
             >
-              <Box component="img" src="/branding/logo_white_landscape.png" sx={{ left: 22, position: "absolute", top: 18, width: 145 }} />
+              <Box component="img" src={settings.companyLogoUrl} sx={{ left: 22, position: "absolute", top: 18, width: 145 }} />
               <Paper
                 sx={{
                   left: "50%",
