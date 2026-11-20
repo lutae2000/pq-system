@@ -60,6 +60,8 @@ const buildDefaultFilters = (): BidNoticeFilters => {
     department: "",
     superDecideEmpno: "",
     keyword: "",
+    orderClient: "",
+    remark: "",
     businessType: "",
     periodType: "NOTICE",
     periodStartDate: dayjs().subtract(1, "year").format("YYYYMMDD"),
@@ -392,7 +394,7 @@ export function BidNoticePage() {
       <Card sx={{ mb: 3 }} variant="outlined">
         <CardContent>
           <Stack spacing={2}>
-    <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", xl: "repeat(5, minmax(0, 1fr))" } }}>
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", xl: "repeat(5, minmax(0, 1fr))" } }}>
               <Box sx={{ display: "grid", gap: 0.75, gridColumn: { xs: "auto", xl: "span 1" }, alignSelf: "start" }}>
                 <Typography sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>용역명</Typography>
                 <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
@@ -488,6 +490,36 @@ export function BidNoticePage() {
                 sx={compactFieldSx}
                 value={searchDraft.bidMethod}
               />
+
+              <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
+                <Typography component="label" htmlFor="bid-notice-search-order-client" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+                  발주처
+                </Typography>
+                <TextField
+                  id="bid-notice-search-order-client"
+                  fullWidth
+                  onChange={(event) => setSearchDraft((current) => ({ ...current, orderClient: event.target.value }))}
+                  onKeyDown={handleSearchEnter(handleSearch)}
+                  size="small"
+                  sx={compactFieldSx}
+                  value={searchDraft.orderClient}
+                />
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
+                <Typography component="label" htmlFor="bid-notice-search-remark" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+                  비고
+                </Typography>
+                <TextField
+                  id="bid-notice-search-remark"
+                  fullWidth
+                  onChange={(event) => setSearchDraft((current) => ({ ...current, remark: event.target.value }))}
+                  onKeyDown={handleSearchEnter(handleSearch)}
+                  size="small"
+                  sx={compactFieldSx}
+                  value={searchDraft.remark}
+                />
+              </Box>
 
             </Box>
 

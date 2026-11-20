@@ -22,7 +22,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
-import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.model.CertificateDownload;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.PerformanceCertificateUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
@@ -36,34 +37,33 @@ public class EngineerPerformanceDocumentController {
     private final EngineerPerformanceDocumentService engineerPerformanceDocumentService;
     private final DocumentValueSettingUseCase documentValueSettingUseCase;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
-    private final PerformanceCertificateGenerationService performanceCertificateGenerationService;
+    private final PerformanceCertificateUseCase performanceCertificateGenerationService;
 
     @PostMapping("/performance-certificates/generate")
     public ResponseEntity<byte[]> generatePerformanceCertificate(
             @RequestBody PerformanceCertificateGenerateRequest request
     ) {
-        byte[] content = performanceCertificateGenerationService.generate(request);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(content.length)
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename("실적증명서.hwpx", java.nio.charset.StandardCharsets.UTF_8)
-                        .build().toString())
-                .body(content);
+        return certificateResponse(performanceCertificateGenerationService.generate(request.toCommand()));
     }
 
     @PostMapping("/performance-certificates/generate-batch")
     public ResponseEntity<byte[]> generatePerformanceCertificateBatch(
             @RequestBody PerformanceCertificateGenerateRequest request
     ) {
-        byte[] content = performanceCertificateGenerationService.generateBatch(request);
+        return certificateResponse(performanceCertificateGenerationService.generateBatch(request.toCommand()));
+    }
+
+    private ResponseEntity<byte[]> certificateResponse(CertificateDownload download) {
+        String filename = download.archive() ? "실적증명서.zip" : "실적증명서.hwpx";
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("application/zip"))
-                .contentLength(content.length)
+                .contentType(download.archive() ? MediaType.valueOf("application/zip") : MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(download.content().length)
+                .header("X-Attachment-Error-Count", Integer.toString(download.failedAttachmentCount()))
+                .header("X-Generated-Document-Count", Integer.toString(download.documentCount()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename("실적증명서.zip", java.nio.charset.StandardCharsets.UTF_8)
+                        .filename(filename, java.nio.charset.StandardCharsets.UTF_8)
                         .build().toString())
-                .body(content);
+                .body(download.content());
     }
 
     @PostMapping(value = "/hwpx/inspect", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

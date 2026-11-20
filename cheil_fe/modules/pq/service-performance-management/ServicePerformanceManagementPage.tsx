@@ -1,6 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -15,20 +14,20 @@ import {
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import OpenInNewOutlinedIcon from "@mui/icons-material/OpenInNewOutlined";
 import type { GridColDef } from "@mui/x-data-grid";
+import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
-import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import {
-  listImportedServicePerformances,
-  replaceImportedServicePerformances,
-  type ServicePerformanceImportFilters,
-  type ServicePerformanceImportRecord,
-  type ServicePerformanceImportRow,
+import type {
+  ServicePerformanceImportFilters,
+  ServicePerformanceImportRecord,
+  ServicePerformanceImportRow,
 } from "./api";
+import { useServicePerformanceImport } from "./application/useServicePerformanceImport";
+import { workTypeLabels, type ServicePerformanceWorkType } from "./domain/workType";
 import {
   columns,
   readServicePerformanceExcel,
@@ -46,11 +45,17 @@ const dates = new Set<string>([
   "evaluationEndDate",
 ]);
 const emptyFilters = (): ServicePerformanceImportFilters => ({
+  workType: "",
   client: "",
   serviceName: "",
   serviceCategory: "",
   detailField: "",
 });
+const workTypeOptions = Object.entries(workTypeLabels).map(([value, label]) => ({ value, label }));
+
+function toWorkType(value: string): ServicePerformanceWorkType | "" {
+  return value === "DESIGN" || value === "SUPERVISION" ? value : "";
+}
 const filterFields = [
   ["client", "발주청"],
   ["serviceCategory", "업역분류"],
@@ -70,7 +75,7 @@ const columnWidths: Record<string, number> = {
   score: 100,
   evaluationEndDate: 135,
 };
-const gridColumns: GridColDef<ServicePerformanceImportRecord>[] = columns.map(
+const excelGridColumns: GridColDef<ServicePerformanceImportRecord>[] = columns.map(
   ([field, label]) => ({
     field,
     headerName: label,
@@ -114,33 +119,47 @@ const gridColumns: GridColDef<ServicePerformanceImportRecord>[] = columns.map(
     },
   }),
 );
+const gridColumns: GridColDef<ServicePerformanceImportRecord>[] = [
+  {
+    field: "workType",
+    headerName: "업무 구분",
+    width: 110,
+    align: "center",
+    headerAlign: "center",
+    valueFormatter: (value: ServicePerformanceWorkType | null) =>
+      value ? workTypeLabels[value] : "미지정",
+  },
+  ...excelGridColumns,
+];
+
 export function ServicePerformanceManagementPage() {
   const { canCreate, canRead } = useCurrentMenuPermission();
   const { showSnackbar } = useAppSnackbar();
-  const queryClient = useQueryClient();
-  const input = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(100);
-  const [rows, setRows] = useState<ServicePerformanceImportRow[]>([]);
-  const [filename, setFilename] = useState("");
-  const isPreviewing = Boolean(filename);
-  const previewRows: ServicePerformanceImportRecord[] = rows.map((row, index) => ({
-    ...row,
-    id: index + 1,
-    uploadedAt: null,
-    uploadedBy: null,
-  }));
-  const [busy, setBusy] = useState(false);
+  const [uploadWorkType, setUploadWorkType] = useState<ServicePerformanceWorkType | "">("");
+  const [preview, setPreview] = useState<{
+    filename: string;
+    workType: ServicePerformanceWorkType;
+    rows: ServicePerformanceImportRow[];
+  } | null>(null);
+  const isPreviewing = preview !== null;
+  const previewRows = useMemo<ServicePerformanceImportRecord[]>(() =>
+    preview?.rows.map((row, index) => ({
+      ...row,
+      id: index + 1,
+      workType: preview.workType,
+      uploadedAt: null,
+      uploadedBy: null,
+    })) ?? [], [preview]);
+  const [parsing, setParsing] = useState(false);
   const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [draftFilters, setDraftFilters] =
     useState<ServicePerformanceImportFilters>(emptyFilters);
   const [filters, setFilters] =
     useState<ServicePerformanceImportFilters>(emptyFilters);
-  const query = useQuery({
-    queryKey: ["service-performances", "imported", page, pageSize, filters],
-    queryFn: () => listImportedServicePerformances(page, pageSize, filters),
-    enabled: useTabQueryEnabled(canRead),
-  });
+  const { query, replacement } = useServicePerformanceImport(page, pageSize, filters, canRead, canCreate);
+  const busy = parsing || replacement.isPending;
   const error = (reason: unknown) =>
     showSnackbar({
       message:
@@ -150,42 +169,36 @@ export function ServicePerformanceManagementPage() {
       severity: "error",
     });
   const choose = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || !uploadWorkType || !canCreate || busy) return;
+    setParsing(true);
     try {
       const parsed = await readServicePerformanceExcel(file);
-      setRows(parsed);
-      setFilename(file.name);
+      setPreview({ filename: file.name, workType: uploadWorkType, rows: parsed });
       setPage(0);
       showSnackbar({
         message: `${parsed.length}건을 확인했습니다.`,
         severity: "success",
       });
     } catch (reason) {
-      setRows([]);
-      setFilename("");
+      setPreview(null);
       error(reason);
+    } finally {
+      setParsing(false);
     }
   };
   const replace = async () => {
-    if (!rows.length || busy) return;
-    setBusy(true);
+    if (!preview?.rows.length || busy) return;
     try {
-      const count = await replaceImportedServicePerformances(rows);
-      setRows([]);
-      setFilename("");
-      if (input.current) input.current.value = "";
+      const count = await replacement.mutateAsync({ workType: preview.workType, rows: preview.rows });
+      setPreview(null);
+      setUploadWorkType("");
       setPage(0);
-      await queryClient.invalidateQueries({
-        queryKey: ["service-performances"],
-      });
       showSnackbar({
-        message: `${count}건으로 교체했습니다.`,
+        message: `${workTypeLabels[preview.workType]} 데이터를 ${count}건으로 교체했습니다.`,
         severity: "success",
       });
     } catch (reason) {
       error(reason);
-    } finally {
-      setBusy(false);
     }
   };
   return (
@@ -206,6 +219,7 @@ export function ServicePerformanceManagementPage() {
             onSearch={(serviceName) => {
               setPage(0);
               setFilters({
+                workType: draftFilters.workType,
                 client: draftFilters.client.trim(),
                 serviceName: serviceName.trim(),
                 serviceCategory: draftFilters.serviceCategory.trim(),
@@ -218,6 +232,18 @@ export function ServicePerformanceManagementPage() {
               setPage(0);
             }}
           >
+            <AutoCompleteField
+              mode="select"
+              label="업무 구분"
+              size="small"
+              sx={{ minWidth: 116 }}
+              options={workTypeOptions}
+              includeAll
+              value={draftFilters.workType}
+              onChange={(value) =>
+                setDraftFilters((current) => ({ ...current, workType: toWorkType(value) }))
+              }
+            />
             {filterFields.map(([field, label]) => (
               <TextField
                 key={field}
@@ -275,9 +301,9 @@ export function ServicePerformanceManagementPage() {
                   spacing={1}
                   sx={{ alignItems: "center", flexWrap: "wrap" }}
                 >
-                  {filename && (
+                  {preview && (
                     <Typography variant="body2" color="text.secondary">
-                      {filename} · {rows.length}건
+                      {preview.filename} · {preview.rows.length}건
                     </Typography>
                   )}
                   <Button
@@ -290,22 +316,49 @@ export function ServicePerformanceManagementPage() {
                   >
                     건설공사 안전관리 종합정보망
                   </Button>
+                  <AutoCompleteField
+                    mode="select"
+                    label="업로드 업무 구분"
+                    size="small"
+                    fullWidth={false}
+                    sx={{ minWidth: 155 }}
+                    required
+                    options={workTypeOptions}
+                    value={uploadWorkType}
+                    disabled={!canCreate || busy || isPreviewing}
+                    onChange={(value) => setUploadWorkType(toWorkType(value))}
+                  />
                   <Button
                     component="label"
                     variant="outlined"
-                    disabled={!canCreate || busy}
+                    disabled={!canCreate || busy || !uploadWorkType}
                     startIcon={<UploadFileOutlinedIcon />}
                   >
                     엑셀 업로드
                     <input
-                      ref={input}
                       hidden
                       type="file"
                       accept=".xlsx"
-                      onChange={(event) => void choose(event.target.files?.[0])}
+                      disabled={!canCreate || busy || !uploadWorkType}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0];
+                        event.currentTarget.value = "";
+                        void choose(file);
+                      }}
                     />
                   </Button>
-                  {rows.length > 0 && (
+                  {preview && (
+                    <Button
+                      disabled={busy}
+                      onClick={() => {
+                        setPreview(null);
+                        setPage(0);
+                      }}
+                    >
+                      미리보기 취소
+                    </Button>
+                  )}
+                  {preview && preview.rows.length > 0 && (
                     <Button
                       variant="contained"
                       disabled={!canCreate || busy}
@@ -349,19 +402,21 @@ export function ServicePerformanceManagementPage() {
           </Card>
         </Stack>
       )}
-      <ConfirmActionDialog
-        open={replaceConfirmOpen}
-        loading={busy}
-        title="데이터 교체 확인"
-        message={`기존 데이터를 모두 삭제하고 ${rows.length}건으로 교체하시겠습니까?`}
-        confirmColor="warning"
-        confirmLabel="교체"
-        onClose={() => setReplaceConfirmOpen(false)}
-        onConfirm={() => {
-          setReplaceConfirmOpen(false);
-          void replace();
-        }}
-      />
+      {replaceConfirmOpen && preview && (
+        <ConfirmActionDialog
+          open
+          loading={busy}
+          title="데이터 교체 확인"
+          message={`기존 ‘${workTypeLabels[preview.workType]}’ 데이터를 삭제하고 ${preview.rows.length}건으로 교체하시겠습니까?`}
+          confirmColor="warning"
+          confirmLabel="교체"
+          onClose={() => setReplaceConfirmOpen(false)}
+          onConfirm={() => {
+            setReplaceConfirmOpen(false);
+            void replace();
+          }}
+        />
+      )}
     </Box>
   );
 }

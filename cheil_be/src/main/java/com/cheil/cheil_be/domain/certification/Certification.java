@@ -17,4 +17,5 @@ public record Certification(
         Instant lastChangedAt,
         String lastChangedId
 ) {
+    public static final int UNCLASSIFIED_KIND = 0;
 }

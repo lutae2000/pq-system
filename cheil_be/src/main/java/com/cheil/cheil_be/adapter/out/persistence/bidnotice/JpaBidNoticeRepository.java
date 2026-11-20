@@ -44,8 +44,8 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
 
     @Override
     public Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable) {
-        BooleanBuilder predicate = toPredicate(condition);
         QClientEntity client = new QClientEntity("client");
+        BooleanBuilder predicate = toPredicate(condition, client);
         QDepartmentEntity department = new QDepartmentEntity("department");
         var query = queryFactory
                 .select(bidNoticeEntity, client.orderNameLong, department.deptName)
@@ -69,10 +69,13 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         return PageableExecutionUtils.getPage(
                 content,
                 pageable,
-                () -> queryFactory.select(bidNoticeEntity.count())
-                        .from(bidNoticeEntity)
-                        .where(predicate)
-                        .fetchOne()
+                () -> {
+                    var countQuery = queryFactory.select(bidNoticeEntity.count()).from(bidNoticeEntity);
+                    if (condition != null && StringUtils.hasText(condition.orderClient())) {
+                        countQuery.leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient));
+                    }
+                    return countQuery.where(predicate).fetchOne();
+                }
         );
     }
 
@@ -168,7 +171,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         bidNoticeJpaRepository.deleteById(bidSeq);
     }
 
-    private BooleanBuilder toPredicate(BidNoticeSearchCondition condition) {
+    private BooleanBuilder toPredicate(BidNoticeSearchCondition condition, QClientEntity client) {
         BooleanBuilder predicate = new BooleanBuilder();
         if (condition == null) {
             return predicate;
@@ -182,6 +185,15 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
                             .or(bidNoticeEntity.primeContractor.lower().like(keyword))
                             .or(bidNoticeEntity.remark.lower().like(keyword))
             );
+        }
+
+        if (StringUtils.hasText(condition.orderClient())) {
+            String orderClient = condition.orderClient().trim();
+            predicate.and(client.orderNameLong.containsIgnoreCase(orderClient)
+                    .or(bidNoticeEntity.orderClient.containsIgnoreCase(orderClient)));
+        }
+        if (StringUtils.hasText(condition.remark())) {
+            predicate.and(bidNoticeEntity.remark.containsIgnoreCase(condition.remark().trim()));
         }
 
         addEqualsIfPresent(predicate, bidNoticeEntity.departmentCode, condition.departmentCode());

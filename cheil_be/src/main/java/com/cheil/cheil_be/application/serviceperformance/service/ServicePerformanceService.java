@@ -15,6 +15,7 @@ import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanc
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
 import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceUseCase;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
+import com.cheil.cheil_be.domain.serviceperformance.ServicePerformanceWorkType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,13 +45,14 @@ public class ServicePerformanceService implements ServicePerformanceUseCase {
         requireNonNull(search, "조회 조건은 필수입니다.");
         requireNonNull(pageable, "페이지 정보는 필수입니다.");
         return repository.findImported(new ServicePerformanceImportSearch(
-                trimToNull(search.client()), trimToNull(search.serviceName()),
+                search.workType(), trimToNull(search.client()), trimToNull(search.serviceName()),
                 trimToNull(search.serviceCategory()), trimToNull(search.detailField())), pageable);
     }
 
     @Override
     @Transactional
-    public int replaceImported(List<ServicePerformanceImportRow> rows) {
+    public int replaceImported(ServicePerformanceWorkType workType, List<ServicePerformanceImportRow> rows) {
+        requireNonNull(workType, "업무 구분을 선택해 주세요.");
         if (rows == null || rows.isEmpty()) throw ApplicationException.badRequest("업로드할 행이 없습니다.");
         if (rows.size() > 5000) throw ApplicationException.badRequest("한 번에 5000행까지만 업로드할 수 있습니다.");
         List<ServicePerformanceImportRow> normalized = new java.util.ArrayList<>(rows.size());
@@ -78,7 +80,7 @@ public class ServicePerformanceService implements ServicePerformanceUseCase {
                 throw ApplicationException.badRequest((index + 2) + "행: " + exception.getMessage());
             }
         }
-        repository.replaceImported(normalized, currentActorPort.currentActor());
+        repository.replaceImported(workType, normalized, currentActorPort.currentActor());
         return normalized.size();
     }
 

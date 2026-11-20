@@ -40,6 +40,8 @@ public class BidNoticeController {
     @GetMapping("/pq/bid-notice")
     public ResponseEntity<PageResponse<BidNoticeResponse>> list(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String orderClient,
+            @RequestParam(required = false) String remark,
             @RequestParam(required = false) String departmentCode,
             @RequestParam(required = false) String superDecideEmpno,
             @RequestParam(required = false) String bidType,
@@ -59,6 +61,8 @@ public class BidNoticeController {
         Page<BidNoticeListRow> result = bidNoticeAdminUseCase.findAll(
                 new BidNoticeSearchCondition(
                         keyword,
+                        orderClient,
+                        remark,
                         departmentCode,
                         superDecideEmpno,
                         bidType,

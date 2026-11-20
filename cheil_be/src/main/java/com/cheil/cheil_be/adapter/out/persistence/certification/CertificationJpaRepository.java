@@ -29,7 +29,10 @@ public class CertificationJpaRepository implements CertificationRepository {
             return findAll();
         }
 
-        return jpaCertificationRepository.findByCertKind(certKind).stream()
+        List<CertificationEntity> certifications = certKind == Certification.UNCLASSIFIED_KIND
+                ? jpaCertificationRepository.findByCertKindOrCertKindIsNull(certKind)
+                : jpaCertificationRepository.findByCertKind(certKind);
+        return certifications.stream()
                 .map(CertificationEntity::toDomain)
                 .toList();
     }

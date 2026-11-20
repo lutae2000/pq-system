@@ -4,6 +4,8 @@ import java.time.LocalDate;
 
 public record BidNoticeSearchCondition(
         String keyword,
+        String orderClient,
+        String remark,
         String departmentCode,
         String superDecideEmpno,
         String bidType,

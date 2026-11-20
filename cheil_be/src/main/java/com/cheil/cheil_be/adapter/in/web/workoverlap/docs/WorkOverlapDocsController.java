@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentContractsQueryService;
-import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.PerformanceCertificateUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,7 +34,7 @@ public class WorkOverlapDocsController {
     );
 
     private final WorkOverlapDocumentContractsQueryService contractQueryService;
-    private final PerformanceCertificateGenerationService performanceCertificateGenerationService;
+    private final PerformanceCertificateUseCase performanceCertificateGenerationService;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
 
     @PostMapping(value = "/hwpx/template/generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -53,8 +53,10 @@ public class WorkOverlapDocsController {
 
     @PostMapping(value = "/hwpx/generate", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<byte[]> generateHwpx(@RequestBody WorkOverlapHwpxGenerateRequest request) {
-        byte[] content = performanceCertificateGenerationService.generateWorkOverlapBatch(request);
-        String suffix = request.includeParticipantList() == Boolean.TRUE
+        boolean includeParticipantList = Boolean.TRUE.equals(request.includeParticipantList());
+        byte[] content = performanceCertificateGenerationService.generateWorkOverlapBatch(
+                request.bidSeq(), request.workDutyId(), includeParticipantList);
+        String suffix = includeParticipantList
                 ? "업무중복도_계약서_참여자명단.zip" : "업무중복도_계약서.zip";
         String projectName = performanceCertificateGenerationService.findProjectName(request.bidSeq())
                 .replaceAll("[\\\\/:*?\"<>|]", "_").trim();

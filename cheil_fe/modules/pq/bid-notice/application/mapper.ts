@@ -98,6 +98,8 @@ export const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertReque
 
 export const toSearchParams = (filters: BidNoticeFilters, paginationModel: { page: number; pageSize: number }): BidNoticeSearchParams => ({
   keyword: filters.keyword,
+  orderClient: filters.orderClient,
+  remark: filters.remark,
   departmentCode: filters.department,
   superDecideEmpno: filters.superDecideEmpno,
   bidType: "",

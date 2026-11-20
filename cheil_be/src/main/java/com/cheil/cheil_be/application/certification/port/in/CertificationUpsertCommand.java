@@ -17,7 +17,7 @@ public record CertificationUpsertCommand(
         certCode = StringValues.trimToNull(certCode);
         InputValues.validateMaxLength(certCode, 20, "certCode");
         certName = InputValues.requiredText(certName, 200, "certName");
-        certKind = certKind == null ? 0 : InputValues.integerRange(certKind, 0, 4, "certKind");
+        certKind = certKind == null ? Certification.UNCLASSIFIED_KIND : InputValues.integerRange(certKind, 0, 4, "certKind");
         satisCode = optional(satisCode, 20, "satisCode");
         satisName = optional(satisName, 200, "satisName");
     }

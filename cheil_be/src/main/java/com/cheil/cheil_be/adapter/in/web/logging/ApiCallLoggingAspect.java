@@ -210,6 +210,7 @@ public class ApiCallLoggingAspect {
                 case UNAUTHORIZED -> 401;
                 case FORBIDDEN -> 403;
                 case NOT_FOUND -> 404;
+                case UNPROCESSABLE_CONTENT -> 422;
                 case CONFLICT -> 409;
             };
         }

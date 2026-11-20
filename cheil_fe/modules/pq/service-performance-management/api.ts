@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
+import type { ServicePerformanceWorkType } from "./domain/workType";
 
 const SERVICE_PERFORMANCES_API = "/pq/service-performance-management";
 
@@ -133,6 +134,7 @@ export type ServicePerformanceImportRow = {
 
 export type ServicePerformanceImportRecord = ServicePerformanceImportRow & {
   id: number;
+  workType: ServicePerformanceWorkType | null;
   uploadedAt: string | null;
   uploadedBy: string | null;
 };
@@ -145,6 +147,7 @@ export type ServicePerformanceImportPage = {
 };
 
 export type ServicePerformanceImportFilters = {
+  workType: ServicePerformanceWorkType | "";
   client: string;
   serviceName: string;
   serviceCategory: string;
@@ -154,11 +157,14 @@ export type ServicePerformanceImportFilters = {
 export async function listImportedServicePerformances(page: number, size: number,
   filters: ServicePerformanceImportFilters): Promise<ServicePerformanceImportPage> {
   return apiRequest(apiClient.get<ServicePerformanceImportPage>(`${SERVICE_PERFORMANCES_API}/imported`,
-    { params: { page, size, ...filters } }),
+    { params: { page, size, ...filters, workType: filters.workType || undefined } }),
     "용역 수행성과 목록을 불러오지 못했습니다.");
 }
 
-export async function replaceImportedServicePerformances(rows: ServicePerformanceImportRow[]): Promise<number> {
-  return apiRequest(apiClient.post<number>(`${SERVICE_PERFORMANCES_API}/import`, rows),
+export async function replaceImportedServicePerformances(
+  workType: ServicePerformanceWorkType,
+  rows: ServicePerformanceImportRow[],
+): Promise<number> {
+  return apiRequest(apiClient.post<number>(`${SERVICE_PERFORMANCES_API}/import`, rows, { params: { workType } }),
     "용역 수행성과 엑셀 등록에 실패했습니다.");
 }

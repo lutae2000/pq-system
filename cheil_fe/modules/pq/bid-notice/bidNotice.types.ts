@@ -72,6 +72,8 @@ export type BidNoticeFilters = {
   department: Department | "";
   superDecideEmpno: string;
   keyword: string;
+  orderClient: string;
+  remark: string;
   bidMethod: BidMethod | "";
   businessType: string;
   periodType: BidNoticePeriodType;

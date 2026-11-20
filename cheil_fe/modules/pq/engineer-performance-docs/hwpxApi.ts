@@ -57,15 +57,35 @@ export type PerformanceCertificateGenerateRequest = {
 };
 
 export function generatePerformanceCertificate(request: PerformanceCertificateGenerateRequest) {
-  return apiRequest(
-    apiClient.post<Blob>("/pq/engineer-performance-docs/performance-certificates/generate", request, { responseType: "blob" }),
+  return requestCertificate(
+    "generate",
+    request,
     "실적증명서 생성에 실패했습니다.",
   );
 }
 
 export function generatePerformanceCertificateBatch(request: PerformanceCertificateGenerateRequest) {
-  return apiRequest(
-    apiClient.post<Blob>("/pq/engineer-performance-docs/performance-certificates/generate-batch", request, { responseType: "blob" }),
+  return requestCertificate(
+    "generate-batch",
+    request,
     "기술인별 실적증명서 ZIP 생성에 실패했습니다.",
+  );
+}
+
+function requestCertificate(
+  action: "generate" | "generate-batch",
+  request: PerformanceCertificateGenerateRequest,
+  fallback: string,
+) {
+  return apiRequest(
+    apiClient.post<Blob>(`/pq/engineer-performance-docs/performance-certificates/${action}`, request, { responseType: "blob" })
+      .then(({ data, headers }) => ({
+        data: {
+          blob: data,
+          documentCount: Number(headers["x-generated-document-count"] ?? 1),
+          failedAttachmentCount: Number(headers["x-attachment-error-count"] ?? 0),
+        },
+      })),
+    fallback,
   );
 }

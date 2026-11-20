@@ -29,8 +29,8 @@ class CertificationEntity extends AuditEntity {
     @Column(name = "cert_name", nullable = false, length = 200)
     private String certName;
 
-    @Column(name = "cert_kind", nullable = false)
-    private int certKind;
+    @Column(name = "cert_kind")
+    private Integer certKind;
 
     @Column(name = "satis_code", length = 20)
     private String satisCode;
@@ -68,7 +68,7 @@ class CertificationEntity extends AuditEntity {
         return new Certification(
                 certCode,
                 certName,
-                certKind,
+                certKind == null ? Certification.UNCLASSIFIED_KIND : certKind,
                 satisCode,
                 satisName,
                 useYn,

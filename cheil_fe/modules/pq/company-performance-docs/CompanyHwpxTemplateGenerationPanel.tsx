@@ -60,7 +60,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
   const hbFields = useCommonCodeLevel3Options("PQ", "HB", { useYn: "Y", bypassCache: true }, { enabled: open }, "level3Code");
   const [template, setTemplate] = useState<File | null>(null);
   const [mappings, setMappings] = useState<MappingRow[]>([]);
-  const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ severity: "error" | "success" | "warning"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [certificateGenerating, setCertificateGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
@@ -128,6 +128,7 @@ export function CompanyHwpxTemplateGenerationPanel({ bidNotice, targets, open }:
           filenamePrefix={bidNotice?.projectName ?? undefined}
           onError={(text) => setMessage({ severity: "error", text })}
           onSuccess={(text) => setMessage({ severity: "success", text })}
+          onWarning={(text) => setMessage({ severity: "warning", text })}
           onGeneratingChange={setCertificateGenerating}
         />
         <Button disabled={hbFields.isLoading || documentGenerating} onClick={() => inputRef.current?.click()} startIcon={<UploadFileOutlinedIcon />} variant="outlined">한글양식(HWPX) 업로드</Button>

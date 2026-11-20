@@ -1,9 +1,11 @@
 package com.cheil.cheil_be.adapter.in.web.serviceperformance;
 
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceQuery;
 import com.cheil.cheil_be.application.serviceperformance.port.in.ServicePerformanceUseCase;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
+import com.cheil.cheil_be.domain.serviceperformance.ServicePerformanceWorkType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -29,19 +31,22 @@ public class ServicePerformanceController {
 
     @GetMapping("/imported")
     public ResponseEntity<PageResponse<ServicePerformanceImportResponse>> imported(
+            @RequestParam(required = false) ServicePerformanceWorkType workType,
             @RequestParam(required = false) String client,
             @RequestParam(required = false) String serviceName,
             @RequestParam(required = false) String serviceCategory,
             @RequestParam(required = false) String detailField,
             @PageableDefault(size = 100) Pageable pageable) {
-        var search = new com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch(
-                client, serviceName, serviceCategory, detailField);
+        var search = new ServicePerformanceImportSearch(workType, client, serviceName, serviceCategory, detailField);
         return ResponseEntity.ok(PageResponse.from(servicePerformanceUseCase.findImported(search, PageRequests.of(pageable)), ServicePerformanceImportResponse::from));
     }
 
     @PostMapping("/import")
-    public ResponseEntity<Integer> replaceImported(@Valid @RequestBody java.util.List<@Valid ServicePerformanceImportRequest> rows) {
-        return ResponseEntity.ok(servicePerformanceUseCase.replaceImported(rows.stream().map(ServicePerformanceImportRequest::toRow).toList()));
+    public ResponseEntity<Integer> replaceImported(
+            @RequestParam ServicePerformanceWorkType workType,
+            @Valid @RequestBody java.util.List<@Valid ServicePerformanceImportRequest> rows) {
+        return ResponseEntity.ok(servicePerformanceUseCase.replaceImported(
+                workType, rows.stream().map(ServicePerformanceImportRequest::toRow).toList()));
     }
 
     @GetMapping

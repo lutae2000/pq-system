@@ -1,6 +1,8 @@
 package com.cheil.cheil_be.adapter.in.web.bidnotice;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
@@ -24,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Page;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -63,6 +66,19 @@ class BidNoticeControllerRestDocsTest {
 
     @MockitoBean
     private ServiceCredentialRegistry serviceCredentialRegistry;
+
+    @Test
+    void listPassesOrderClientAndRemarkFiltersToUseCase() throws Exception {
+        when(bidNoticeAdminUseCase.findAll(any(), any())).thenReturn(Page.empty());
+
+        mockMvc.perform(get("/pq/bid-notice")
+                        .param("orderClient", "수자원")
+                        .param("remark", "재공고"))
+                .andExpect(status().isOk());
+
+        verify(bidNoticeAdminUseCase).findAll(argThat(condition ->
+                "수자원".equals(condition.orderClient()) && "재공고".equals(condition.remark())), any());
+    }
 
     @Test
     void getBidNoticeDocumentsDashboardDetail() throws Exception {

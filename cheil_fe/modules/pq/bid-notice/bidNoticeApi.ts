@@ -77,9 +77,11 @@ export type BidNoticeSearchParams = {
   businessType: string;
   departmentCode: string;
   keyword: string;
+  orderClient?: string;
   page?: number;
   pqSubmitDateFrom: string;
   pqSubmitDateTo: string;
+  remark?: string;
   size?: number;
   superDecideEmpno: string;
 };
@@ -106,9 +108,11 @@ export async function listBidNotices(params: BidNoticeSearchParams): Promise<Bid
         businessType: normalizeQueryValue(params.businessType),
         departmentCode: normalizeQueryValue(params.departmentCode),
         keyword: normalizeQueryValue(params.keyword.trim()),
+        orderClient: params.orderClient?.trim() || undefined,
         page: Math.max(0, Math.trunc(params.page ?? 0)),
         pqSubmitDateFrom: normalizeQueryValue(params.pqSubmitDateFrom),
         pqSubmitDateTo: normalizeQueryValue(params.pqSubmitDateTo),
+        remark: params.remark?.trim() || undefined,
         size: params.size ?? BID_NOTICE_PAGE_SIZE,
         superDecideEmpno: normalizeQueryValue(params.superDecideEmpno),
       },

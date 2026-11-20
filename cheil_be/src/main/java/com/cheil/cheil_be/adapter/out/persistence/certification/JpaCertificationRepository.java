@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface JpaCertificationRepository extends JpaRepository<CertificationEntity, String> {
     List<CertificationEntity> findByCertKind(int certKind);
+
+    List<CertificationEntity> findByCertKindOrCertKindIsNull(int certKind);
 }

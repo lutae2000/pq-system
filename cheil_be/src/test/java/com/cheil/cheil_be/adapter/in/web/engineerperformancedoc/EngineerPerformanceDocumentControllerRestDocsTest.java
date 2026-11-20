@@ -1,5 +1,6 @@
 package com.cheil.cheil_be.adapter.in.web.engineerperformancedoc;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
@@ -20,15 +21,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -36,7 +42,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPerformanceDocumentService;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
-import com.cheil.cheil_be.application.engineerperformancedoc.service.PerformanceCertificateGenerationService;
+import com.cheil.cheil_be.application.engineerperformancedoc.model.CertificateDownload;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.PerformanceCertificateUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 
@@ -49,12 +56,34 @@ class EngineerPerformanceDocumentControllerRestDocsTest {
     @MockitoBean private EngineerPerformanceDocumentService documentService;
     @MockitoBean private DocumentValueSettingUseCase documentValueSettingUseCase;
     @MockitoBean private HwpxDocumentGenerationService hwpxService;
-    @MockitoBean private PerformanceCertificateGenerationService performanceCertificateGenerationService;
+    @MockitoBean private PerformanceCertificateUseCase performanceCertificateGenerationService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase validateLoginSessionUseCase;
     @MockitoBean private com.cheil.cheil_be.config.security.AppSecurityProperties appSecurityProperties;
     @MockitoBean private java.time.Clock clock;
     @MockitoBean private com.cheil.cheil_be.config.security.ServiceCredentialRegistry serviceCredentialRegistry;
+
+    @ParameterizedTest
+    @CsvSource({
+            "false, 1, 0, application/octet-stream, .hwpx",
+            "true, 1, 2, application/zip, .zip",
+            "true, 0, 2, application/zip, .zip"
+    })
+    void companyCertificateDownloadReportsItsFormatAndCounts(
+            boolean archive, int documentCount, int errorCount, String mediaType, String suffix
+    ) throws Exception {
+        when(performanceCertificateGenerationService.generate(any()))
+                .thenReturn(new CertificateDownload(new byte[]{1}, archive, documentCount, errorCount));
+
+        mockMvc.perform(post("/pq/engineer-performance-docs/performance-certificates/generate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bidSeq\":20261072,\"companyPerformanceSeqs\":[10]}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(mediaType))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, containsString(suffix)))
+                .andExpect(header().string("X-Generated-Document-Count", Integer.toString(documentCount)))
+                .andExpect(header().string("X-Attachment-Error-Count", Integer.toString(errorCount)));
+    }
 
     @Test
     void inspectHwpxDocumentsContract() throws Exception {

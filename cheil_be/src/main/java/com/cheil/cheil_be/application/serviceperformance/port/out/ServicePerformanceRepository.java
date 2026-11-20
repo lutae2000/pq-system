@@ -2,6 +2,9 @@ package com.cheil.cheil_be.application.serviceperformance.port.out;
 
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceSearch;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceCommand;
+import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportRow;
+import com.cheil.cheil_be.domain.serviceperformance.ServicePerformanceWorkType;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
@@ -10,7 +13,7 @@ public interface ServicePerformanceRepository {
             com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch search,
             Pageable pageable);
 
-    void replaceImported(java.util.List<com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportRow> rows, String actor);
+    void replaceImported(ServicePerformanceWorkType workType, List<ServicePerformanceImportRow> rows, String actor);
 
     Page<ServicePerformanceView> findAll(ServicePerformanceSearch search, Pageable pageable);
 

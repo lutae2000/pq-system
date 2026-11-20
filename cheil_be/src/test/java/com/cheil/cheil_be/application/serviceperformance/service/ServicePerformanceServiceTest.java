@@ -30,25 +30,26 @@ import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanc
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceSearch;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceView;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
+import com.cheil.cheil_be.domain.serviceperformance.ServicePerformanceWorkType;
 
 @ExtendWith(MockitoExtension.class)
 class ServicePerformanceServiceTest {
 
     @Test
-    void importedSearchNormalizesFourFilters() {
+    void importedSearchNormalizesTextFiltersAndKeepsWorkType() {
         var pageable = PageRequest.of(0, 20);
         var result = new PageImpl<com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportView>(
                 List.of(), pageable, 0);
         when(repository.findImported(any(), any())).thenReturn(result);
 
         assertThat(service.findImported(new ServicePerformanceImportSearch(
-                " 발주청 ", " 용역명 ", " 업역분류 ", " 세부분야 "), pageable)).isEqualTo(result);
+                ServicePerformanceWorkType.DESIGN, " 발주청 ", " 용역명 ", " 업역분류 ", " 세부분야 "), pageable)).isEqualTo(result);
 
         ArgumentCaptor<ServicePerformanceImportSearch> captured =
                 ArgumentCaptor.forClass(ServicePerformanceImportSearch.class);
         verify(repository).findImported(captured.capture(), org.mockito.ArgumentMatchers.same(pageable));
         assertThat(captured.getValue()).isEqualTo(new ServicePerformanceImportSearch(
-                "발주청", "용역명", "업역분류", "세부분야"));
+                ServicePerformanceWorkType.DESIGN, "발주청", "용역명", "업역분류", "세부분야"));
     }
 
     @Test
@@ -60,11 +61,12 @@ class ServicePerformanceServiceTest {
                 new BigDecimal("94.44"), "2025-04-04");
         when(currentActorPort.currentActor()).thenReturn("admin");
 
-        assertThat(service.replaceImported(List.of(row))).isEqualTo(1);
+        assertThat(service.replaceImported(ServicePerformanceWorkType.SUPERVISION, List.of(row))).isEqualTo(1);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ServicePerformanceImportRow>> rows = ArgumentCaptor.forClass(List.class);
-        verify(repository).replaceImported(rows.capture(), org.mockito.ArgumentMatchers.eq("admin"));
+        verify(repository).replaceImported(org.mockito.ArgumentMatchers.eq(ServicePerformanceWorkType.SUPERVISION),
+                rows.capture(), org.mockito.ArgumentMatchers.eq("admin"));
         assertThat(rows.getValue().get(0).constructionNo()).isEqualTo("Z22163");
         assertThat(rows.getValue().get(0).serviceStartDate()).isEqualTo("20210524");
         assertThat(rows.getValue().get(0).evaluationEndDate()).isEqualTo("20250404");
@@ -75,9 +77,16 @@ class ServicePerformanceServiceTest {
         ServicePerformanceImportRow invalid = new ServicePerformanceImportRow(
                 "Z1", "발주청", "용역명", null, null, null, null, null,
                 new BigDecimal("101"), null, null, null);
-        assertThatThrownBy(() -> service.replaceImported(List.of(invalid)))
+        assertThatThrownBy(() -> service.replaceImported(ServicePerformanceWorkType.DESIGN, List.of(invalid)))
                 .isInstanceOf(ApplicationException.class).hasMessageContaining("지분율");
-        verify(repository, never()).replaceImported(any(), any());
+        verify(repository, never()).replaceImported(any(), any(), any());
+    }
+
+    @Test
+    void importWithoutWorkTypeDoesNotReplaceExistingData() {
+        assertThatThrownBy(() -> service.replaceImported(null, List.of()))
+                .isInstanceOf(ApplicationException.class).hasMessageContaining("업무 구분");
+        verify(repository, never()).replaceImported(any(), any(), any());
     }
 
     @Mock

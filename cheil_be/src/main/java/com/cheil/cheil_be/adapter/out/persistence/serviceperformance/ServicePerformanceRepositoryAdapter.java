@@ -7,6 +7,7 @@ import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanc
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportView;
 import com.cheil.cheil_be.application.serviceperformance.model.ServicePerformanceImportSearch;
 import com.cheil.cheil_be.application.serviceperformance.port.out.ServicePerformanceRepository;
+import com.cheil.cheil_be.domain.serviceperformance.ServicePerformanceWorkType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -44,8 +45,13 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
 
   @Override
   public Page<ServicePerformanceImportView> findImported(ServicePerformanceImportSearch search, Pageable pageable) {
-    StringBuilder where = new StringBuilder(" WHERE construction_no IS NOT NULL");
+    StringBuilder scope = new StringBuilder(" WHERE construction_no IS NOT NULL");
     Map<String, Object> params = new LinkedHashMap<>();
+    if (search.workType() != null) {
+      scope.append(" AND work_type = :workType");
+      params.put("workType", search.workType().name());
+    }
+    StringBuilder where = new StringBuilder(scope);
     addImportedFilter(where, params, "client", search.client());
     addImportedFilter(where, params, "service_name", search.serviceName());
     addImportedFilter(where, params, "service_category", search.serviceCategory());
@@ -54,21 +60,28 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
     listParams.put("limit", pageable.getPageSize());
     listParams.put("offset", pageable.getOffset());
     List<ServicePerformanceImportView> content = bindImported(jdbcClient.sql("""
-        SELECT id, construction_no, client, service_name, service_category, detail_field,
+        SELECT id, work_type, construction_no, client, service_name, service_category, detail_field,
                service_fee_thousand, service_start_date, service_end_date, share_rate,
                service_amount_million, score, evaluation_end_date,
-               (SELECT created_at FROM service_performances WHERE construction_no IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1) AS uploaded_at,
-               (SELECT created_id FROM service_performances WHERE construction_no IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1) AS uploaded_by
+               latest.created_at AS uploaded_at, latest.created_id AS uploaded_by
         FROM service_performances
-        """ + where + " ORDER BY evaluation_end_date DESC NULLS LAST, id DESC LIMIT :limit OFFSET :offset"), listParams)
-        .query((rs, rowNum) -> new ServicePerformanceImportView(rs.getLong("id"),
+        CROSS JOIN (
+            SELECT created_at, created_id FROM service_performances
+        """ + scope + " ORDER BY created_at DESC, id DESC LIMIT 1) latest" +
+        where + " ORDER BY evaluation_end_date DESC NULLS LAST, id DESC LIMIT :limit OFFSET :offset"), listParams)
+        .query((rs, rowNum) -> {
+          String workType = rs.getString("work_type");
+          Timestamp uploadedAt = rs.getTimestamp("uploaded_at");
+          return new ServicePerformanceImportView(rs.getLong("id"),
+            workType == null ? null : ServicePerformanceWorkType.valueOf(workType),
             rs.getString("construction_no"), rs.getString("client"), rs.getString("service_name"),
             rs.getString("service_category"), rs.getString("detail_field"),
             rs.getBigDecimal("service_fee_thousand"), rs.getString("service_start_date"),
             rs.getString("service_end_date"), rs.getBigDecimal("share_rate"),
             rs.getBigDecimal("service_amount_million"), rs.getBigDecimal("score"),
-            rs.getString("evaluation_end_date"), rs.getTimestamp("uploaded_at") == null ? null : rs.getTimestamp("uploaded_at").toInstant(),
-            rs.getString("uploaded_by"))).list();
+            rs.getString("evaluation_end_date"), uploadedAt == null ? null : uploadedAt.toInstant(),
+            rs.getString("uploaded_by"));
+        }).list();
     long total = bindImported(jdbcClient.sql("SELECT COUNT(*) FROM service_performances" + where), params)
         .query(Long.class).single();
     return new PageImpl<>(content, pageable, total);
@@ -86,17 +99,21 @@ public class ServicePerformanceRepositoryAdapter implements ServicePerformanceRe
   }
 
   @Override
-  public void replaceImported(List<ServicePerformanceImportRow> rows, String actor) {
-    jdbcClient.sql("DELETE FROM service_performances").update();
+  public void replaceImported(ServicePerformanceWorkType workType, List<ServicePerformanceImportRow> rows, String actor) {
+    // Serialize replacements even when the selected type has no rows to lock.
+    jdbcClient.sql("LOCK TABLE service_performances IN SHARE ROW EXCLUSIVE MODE").update();
+    jdbcClient.sql("DELETE FROM service_performances WHERE work_type = :workType")
+        .param("workType", workType.name()).update();
     for (ServicePerformanceImportRow row : rows) {
       jdbcClient.sql("""
-          INSERT INTO service_performances (construction_no, client, service_name, service_category,
+          INSERT INTO service_performances (work_type, construction_no, client, service_name, service_category,
               detail_field, service_fee_thousand, service_start_date, service_end_date, share_rate,
               service_amount_million, score, evaluation_end_date, created_id, last_changed_id)
-          VALUES (:constructionNo, :client, :serviceName, :serviceCategory, :detailField,
+          VALUES (:workType, :constructionNo, :client, :serviceName, :serviceCategory, :detailField,
               :serviceFeeThousand, :serviceStartDate, :serviceEndDate, :shareRate,
               :serviceAmountMillion, :score, :evaluationEndDate, :actor, :actor)
           """)
+          .param("workType", workType.name())
           .param("constructionNo", row.constructionNo()).param("client", row.client())
           .param("serviceName", row.serviceName()).param("serviceCategory", row.serviceCategory())
           .param("detailField", row.detailField()).param("serviceFeeThousand", row.serviceFeeThousand())

@@ -149,7 +149,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
   const [template, setTemplate] = useState<File | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [mappings, setMappings] = useState<Mapping[]>([]);
-  const [message, setMessage] = useState<{ severity: "error" | "success"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ severity: "error" | "success" | "warning"; text: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [certificateGenerating, setCertificateGenerating] = useState(false);
   const [autoCopyOnCellClick, setAutoCopyOnCellClick] = useState(false);
@@ -304,6 +304,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 onGeneratingChange={setCertificateGenerating}
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}
+                onWarning={(text) => setMessage({ severity: "warning", text })}
                 relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
               /> : null}
               <PerformanceCertificateGenerationButton
@@ -315,6 +316,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 onGeneratingChange={setCertificateGenerating}
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}
+                onWarning={(text) => setMessage({ severity: "warning", text })}
                 relatedProjectHistoryConditions={relatedProjectHistoryConditions.length > 0 ? JSON.stringify(relatedProjectHistoryConditions) : undefined}
               />
               <Button

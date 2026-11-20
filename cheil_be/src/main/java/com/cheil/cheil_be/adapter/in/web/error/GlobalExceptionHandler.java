@@ -48,6 +48,7 @@ public class GlobalExceptionHandler {
             case FORBIDDEN -> HttpStatus.FORBIDDEN;
             case CONFLICT -> HttpStatus.CONFLICT;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case UNPROCESSABLE_CONTENT -> HttpStatus.UNPROCESSABLE_CONTENT;
         };
         return build(status, exception.getMessage(), request.getRequestURI());
     }

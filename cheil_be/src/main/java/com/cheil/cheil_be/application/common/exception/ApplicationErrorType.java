@@ -5,5 +5,6 @@ public enum ApplicationErrorType {
     UNAUTHORIZED,
     FORBIDDEN,
     CONFLICT,
-    NOT_FOUND
+    NOT_FOUND,
+    UNPROCESSABLE_CONTENT
 }
