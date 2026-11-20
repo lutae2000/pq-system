@@ -41,15 +41,15 @@ public record ConstructionTypeUpsertCommand(
         }
     }
 
-    public ConstructionType toDomain(Long codeId, ConstructionType existing, Instant now) {
-        String resolvedCreatedId = StringValues.optional(createdId, existing == null ? "admin" : existing.createdId());
+    public ConstructionType toDomain(Long codeId, ConstructionType existing, Instant now, String actorEmployeeNo) {
+        String resolvedCreatedId = existing == null ? actorEmployeeNo : existing.createdId();
         return new ConstructionType(
                 codeId, codeLevel, level1Code, level2Code, level3Code, codeName,
                 useYn == null ? existing == null || existing.useYn() : useYn,
                 existing == null ? now : existing.createdAt(),
                 resolvedCreatedId,
                 now,
-                StringValues.optional(lastChangedId, resolvedCreatedId)
+                actorEmployeeNo
         );
     }
 

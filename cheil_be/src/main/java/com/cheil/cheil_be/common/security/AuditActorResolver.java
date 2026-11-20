@@ -1,7 +1,5 @@
 package com.cheil.cheil_be.common.security;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -20,7 +18,7 @@ public final class AuditActorResolver {
     }
 
     public static String resolve(String fallback) {
-        return currentLoginId()
+        return currentEmployeeNo()
                 .or(AuditActorResolver::currentServiceId)
                 .or(() -> StringUtils.hasText(fallback) ? java.util.Optional.of(fallback) : java.util.Optional.empty())
                 .map(String::trim)
@@ -32,17 +30,14 @@ public final class AuditActorResolver {
         return ServicePrincipal.currentServiceId();
     }
 
-    private static java.util.Optional<String> currentLoginId() {
+    private static java.util.Optional<String> currentEmployeeNo() {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (!(attributes instanceof ServletRequestAttributes servletRequestAttributes)) {
             return java.util.Optional.empty();
         }
-
-        HttpServletRequest request = servletRequestAttributes.getRequest();
-        String loginId = request.getHeader(SecurityHeaders.LOGIN_ID);
-        if (!StringUtils.hasText(loginId)) {
-            return java.util.Optional.empty();
-        }
-        return java.util.Optional.of(loginId);
+        Object employeeNo = servletRequestAttributes.getRequest().getAttribute("employeeNo");
+        return employeeNo instanceof String value && StringUtils.hasText(value)
+                ? java.util.Optional.of(value) : java.util.Optional.empty();
     }
+
 }

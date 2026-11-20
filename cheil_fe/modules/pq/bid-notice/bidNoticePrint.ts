@@ -66,7 +66,7 @@ export const buildBidNoticePrintHtml = (
               <td class="right">${escapeHtml(formatMoney(Number(record.designAmt ?? record.estimateAmount ?? 0)))}<br/><span class="sub business-type">${escapeHtml(resolveLabel(record.businessType, labelMaps.businessType) || record.businessTypeLabel || "-")}</span></td>
               <td class="center">${escapeHtml(resolveLabel(record.procurementMethod, labelMaps.orderMethod) || record.orderMethodLabel || "-")}<br/><span class="sub">${escapeHtml(resolveLabel(record.bidType, labelMaps.bidType) || record.bidTypeLabel || "-")}</span></td>
               <td class="center">${escapeHtml(dateTimeText(record.pqRegistrationDate) || "-")}<br/><span class="sub">${escapeHtml(dateTimeText(record.pqSubmissionDate) || "-")}</span></td>
-              <td class="center">${escapeHtml(resolveLabel(record.department, labelMaps.department) || record.departmentName || "-")}<br/><span class="sub">${escapeHtml(record.participationStatus || "-")} / ${escapeHtml(resolveLabel(record.writerName || record.pqDecideEmpno, labelMaps.registrant) || record.writerName || record.pqDecideEmpno || "-")}</span></td>
+              <td class="center">${escapeHtml(resolveLabel(record.department, labelMaps.department) || record.departmentName || "-")}<br/><span class="sub">${escapeHtml(record.participationStatus || "-")} / ${escapeHtml(resolveLabel(record.writerName, labelMaps.registrant) || record.writerName || "-")}</span></td>
               <td class="center">${escapeHtml(record.bidSuccessYn === "Y" ? "낙찰" : "")}</td>
               <td class="left">${escapeHtml(record.draftNote || "-")}</td>
             </tr>
@@ -161,12 +161,13 @@ export const openBidNoticePrintWindow = (
   filters: BidNoticeFilters,
   labelMaps: BidNoticePrintLabelMaps = {},
   onError?: (message: string) => void,
+  existingWindow?: Window,
 ) => {
   if (typeof window === "undefined") {
     return false;
   }
 
-  const printWindow = window.open("", "_blank", "width=1400,height=900");
+  const printWindow = existingWindow ?? window.open("", "_blank", "width=1400,height=900");
   if (!printWindow) {
     onError?.("인쇄 창을 열 수 없습니다.");
     return false;

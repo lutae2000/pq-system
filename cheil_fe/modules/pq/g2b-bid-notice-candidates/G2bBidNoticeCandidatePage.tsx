@@ -198,8 +198,8 @@ const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => (
   primeContractor: draft.representativeVendor.trim(),
   remark: draft.draftNote.trim(),
   refmatYn: "",
-  createdId: "admin",
-  lastChangedId: "admin",
+  createdId: null,
+  lastChangedId: null,
 });
 
 const toCandidateBidNoticeDraft = (record: ReturnType<typeof toG2bBidNoticeCandidateRow>): BidNoticeRecord => {

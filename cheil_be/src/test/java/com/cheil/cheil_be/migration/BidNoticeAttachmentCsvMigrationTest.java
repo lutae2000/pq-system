@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -14,8 +16,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.commons.csv.CSVFormat;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -23,6 +27,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class BidNoticeAttachmentCsvMigrationTest {
 
@@ -33,6 +38,7 @@ class BidNoticeAttachmentCsvMigrationTest {
             )
     );
     private static final Path OUTPUT_DIRECTORY = INPUT_DIRECTORY;
+    private static final Charset ORACLE_CSV_CHARSET = Charset.forName("EUC-KR");
     private static final String OWNER_TYPE = "BID_NOTICE";
     private static final String MIGRATION_TIMESTAMP = LocalDateTime.now()
             .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -62,16 +68,23 @@ class BidNoticeAttachmentCsvMigrationTest {
     );
 
     @Test
-    void convertsBidNoticeAttachmentExcelToAppFileAttachmentsCsv() throws Exception {
+    void convertsBidNoticeAttachmentFilesToAppFileAttachmentsCsv() throws IOException {
+        Assumptions.assumeTrue(Files.isDirectory(INPUT_DIRECTORY),
+                "Input directory does not exist: " + INPUT_DIRECTORY);
         List<Path> inputs;
         try (Stream<Path> files = Files.list(INPUT_DIRECTORY)) {
             inputs = files
-                    .filter(path -> path.getFileName().toString().matches("(?i)CS_BIDS_APPEND_.*\\.xlsx"))
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().matches("(?i)CS_BIDS_APPEND_.*\\.(csv|xlsx)"))
+                    .filter(path -> !path.getFileName().toString().toLowerCase(Locale.ROOT)
+                            .endsWith("_app_file_attachments.csv"))
+                    .filter(path -> isCsv(path) || !Files.isRegularFile(path.resolveSibling(
+                            stripExtension(path.getFileName().toString()) + ".csv")))
                     .sorted()
                     .toList();
         }
         Assumptions.assumeTrue(!inputs.isEmpty(),
-                "Put a CS_BIDS_APPEND_*.xlsx file in " + INPUT_DIRECTORY);
+                "Put a CS_BIDS_APPEND_*.csv or CS_BIDS_APPEND_*.xlsx file in " + INPUT_DIRECTORY);
 
         Files.createDirectories(OUTPUT_DIRECTORY);
         for (Path input : inputs) {
@@ -80,57 +93,103 @@ class BidNoticeAttachmentCsvMigrationTest {
             );
             convert(input, output);
             assertThat(Files.size(output)).isGreaterThan(0L);
+            System.out.printf("%s -> %s (UTF-8)%n", input, output);
         }
     }
 
+    @Test
+    void preservesKoreanAndQuotedFilenameInExistingOutputFormat(@TempDir Path directory) throws IOException {
+        Path input = directory.resolve("CS_BIDS_APPEND_sample.csv");
+        Path output = directory.resolve("CS_BIDS_APPEND_sample_app_file_attachments.csv");
+        Files.writeString(input, """
+                "BID_SEQ","GFILE_NAME","MFILE_NAME","PFILE_NAME","JFILE_NAME","RFILE_NAME"
+                "123","입찰공고/자료/123______공고, ""정정"".pdf","","","",""
+                """, ORACLE_CSV_CHARSET);
+
+        convert(input, output);
+
+        assertThat(Files.readAllLines(output, StandardCharsets.UTF_8)).containsExactly(
+                "\uFEFF" + CSV_HEADER,
+                toAttachmentRow("123", "announcement", "입찰공고/자료/123______공고, \"정정\".pdf").toCsvLine()
+        );
+    }
+
     private static void convert(Path input, Path output) throws IOException {
-        try (Workbook workbook = WorkbookFactory.create(input.toFile());
-             BufferedWriter writer = Files.newBufferedWriter(
-                     output,
-                     StandardCharsets.UTF_8
-             )) {
+        Path temporary = Files.createTempFile(output.getParent(), ".bid-notice-attachments-", ".tmp");
+        try {
+            try (BufferedWriter writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
+                writer.write('\uFEFF');
+                writer.write(CSV_HEADER);
+                writer.newLine();
+                if (isCsv(input)) {
+                    convertOracleCsv(input, writer);
+                } else {
+                    convertExcel(input, writer);
+                }
+            }
+            Files.move(temporary, output, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    private static boolean isCsv(Path input) {
+        return input.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".csv");
+    }
+
+    private static void convertOracleCsv(Path input, BufferedWriter writer) throws IOException {
+        CSVFormat format = CSVFormat.DEFAULT.builder()
+                .setHeader()
+                .setSkipHeaderRecord(true)
+                .setIgnoreHeaderCase(true)
+                .setTrim(true)
+                .build();
+        try (var reader = Files.newBufferedReader(input, ORACLE_CSV_CHARSET);
+             var parser = format.parse(reader)) {
+            validateColumns(parser.getHeaderMap());
+            for (var row : parser) {
+                writeAttachments(writer, column -> row.get(column).trim());
+            }
+        }
+    }
+
+    private static void convertExcel(Path input, BufferedWriter writer) throws IOException {
+        try (Workbook workbook = WorkbookFactory.create(input.toFile())) {
             DataFormatter formatter = new DataFormatter(Locale.ROOT);
             Row header = workbook.getSheetAt(0).getRow(0);
             Map<String, Integer> columns = headerColumns(header, formatter);
-            assertThat(columns).containsKeys(
-                    "BID_SEQ",
-                    "GFILE_NAME",
-                    "MFILE_NAME",
-                    "PFILE_NAME",
-                    "JFILE_NAME",
-                    "RFILE_NAME"
-            );
-
-            // Windows Excel detects UTF-8 reliably when the CSV starts with a BOM.
-            writer.write('\uFEFF');
-            writer.write(CSV_HEADER);
-            writer.newLine();
+            validateColumns(columns);
 
             for (Row row : workbook.getSheetAt(0)) {
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
-
-                String bidSeq = cellValue(row, columns.get("BID_SEQ"), formatter);
-                if (bidSeq.isBlank()) {
-                    continue;
-                }
-
-                for (SourceColumn sourceColumn : SOURCE_COLUMNS) {
-                    String sourcePath = cellValue(row, columns.get(sourceColumn.sourceColumn()), formatter);
-                    if (sourcePath.isBlank()) {
-                        continue;
-                    }
-
-                    AttachmentRow attachment = toAttachmentRow(
-                            bidSeq,
-                            sourceColumn.attachmentType(),
-                            sourcePath
-                    );
-                    writer.write(attachment.toCsvLine());
-                    writer.newLine();
+                if (row.getRowNum() != 0) {
+                    writeAttachments(writer, column -> cellValue(row, columns.get(column), formatter));
                 }
             }
+        }
+    }
+
+    private static void validateColumns(Map<String, Integer> columns) {
+        assertThat(columns).containsKey("BID_SEQ");
+        for (SourceColumn sourceColumn : SOURCE_COLUMNS) {
+            assertThat(columns).containsKey(sourceColumn.sourceColumn());
+        }
+    }
+
+    private static void writeAttachments(BufferedWriter writer, Function<String, String> value) throws IOException {
+        String bidSeq = value.apply("BID_SEQ");
+        if (bidSeq.isBlank()) {
+            return;
+        }
+
+        for (SourceColumn sourceColumn : SOURCE_COLUMNS) {
+            String sourcePath = value.apply(sourceColumn.sourceColumn());
+            if (sourcePath.isBlank()) {
+                continue;
+            }
+
+            AttachmentRow attachment = toAttachmentRow(bidSeq, sourceColumn.attachmentType(), sourcePath);
+            writer.write(attachment.toCsvLine());
+            writer.newLine();
         }
     }
 

@@ -27,10 +27,10 @@ import com.cheil.cheil_be.domain.userauth.UserAccount;
 @SuperBuilder
 class UserAccountEntity extends AuditEntity {
 
-    @Id
     @Column(name = "login_id", nullable = false, unique = true, length = 100)
     private String loginId;
 
+    @Id
     @Column(name = "employee_no", nullable = false, unique = true, length = 20)
     private String employeeNo;
 

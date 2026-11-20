@@ -120,8 +120,8 @@ const toRequest = (draft: CompanyPerformanceRecord): CompanyPerformanceUpsertReq
   clientKind: text(draft.clientKind).trim(),
   businessType: text(draft.businessType).trim(),
   overseeYn: draft.overseeYn,
-  createdId: text(draft.createdId).trim() || "admin",
-  lastChangedId: "admin",
+  createdId: null,
+  lastChangedId: null,
 });
 
 const toLabelMap = (options: CompanyPerformanceCodeOption[]) =>

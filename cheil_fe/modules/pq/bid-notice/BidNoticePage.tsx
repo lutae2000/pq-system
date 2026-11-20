@@ -19,6 +19,7 @@ import { compactFieldSx } from "@/components/common/FormControls";
 import { PeriodRangeField } from "@/components/common/PeriodRangeField";
 import { dateOnly, formatMoney } from "@/modules/common/formatters";
 import { openBidNoticePrintWindow } from "@/modules/pq/bid-notice/bidNoticePrint";
+import { BID_NOTICE_PAGE_SIZE, listBidNotices } from "@/modules/pq/bid-notice/bidNoticeApi";
 import {
   formatBidSuccessForXlsx,
   formatDepartmentForXlsx,
@@ -31,7 +32,7 @@ import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from
 import { useBidNoticeCommands } from "@/modules/pq/bid-notice/application/useBidNoticeCommands";
 import { useBidNoticeList, useImportedBidNoticeAttachments } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 import { toBidNoticeRecord, toSearchParams } from "@/modules/pq/bid-notice/application/mapper";
-import { emptyDraft, filterBidNoticeRecords } from "@/modules/pq/bid-notice/domain/rules";
+import { emptyDraft } from "@/modules/pq/bid-notice/domain/rules";
 import type {
   BidNoticeFilters,
   BidNoticeRecord,
@@ -144,8 +145,6 @@ export function BidNoticePage() {
     ],
   );
 
-  const filteredRecords = useMemo(() => filterBidNoticeRecords(records, filters), [filters, records]);
-
   const { deleteMutation, loadDetail, saveMutation } = useBidNoticeCommands({
     canCreate,
     canDelete,
@@ -155,7 +154,6 @@ export function BidNoticePage() {
     onSaved: (saved) => {
       setDraft(saved);
       showSuccess("저장되었습니다.");
-      setOpen(false);
     },
     onDeleted: () => {
       showSuccess("삭제되었습니다.");
@@ -190,7 +188,7 @@ export function BidNoticePage() {
       showError("등록 권한이 없습니다.");
       return;
     }
-    setDraft(emptyDraft());
+    setDraft({ ...emptyDraft(), noticeDate: dayjs().format("YYYYMMDD") });
     setOpen(true);
   };
 
@@ -199,12 +197,8 @@ export function BidNoticePage() {
     setOpen(false);
   };
 
-  const updateDraft = <K extends keyof BidNoticeRecord>(name: K, value: BidNoticeRecord[K]) => {
-    setDraft((current) => ({ ...current, [name]: value }));
-  };
-
-  const saveRecord = () => {
-    saveMutation.mutate(draft);
+  const saveRecord = (record: BidNoticeRecord) => {
+    saveMutation.mutate(record);
   };
 
   const requestDeleteRecord = () => {
@@ -318,7 +312,7 @@ export function BidNoticePage() {
         renderCell: ({ row }) => formatMoney(Number(row.designAmt ?? row.estimateAmount ?? 0)),
       },
       {
-        field: "pqDecideEmpno",
+        field: "writerName",
         headerName: "작성자",
         width: 90,
         align: "center",
@@ -363,16 +357,25 @@ export function BidNoticePage() {
     );
   }, []);
 
-  const handleExportPrint = () => {
-    const gridApi = gridApiRef.current;
-    const sortedRecords = gridApi
-      ? gridApi
-          .getSortedRowIds()
-          .map((rowId) => gridApi.getRow<BidNoticeRecord>(rowId))
-          .filter((row): row is BidNoticeRecord => Boolean(row))
-      : filteredRecords;
-
-    openBidNoticePrintWindow(sortedRecords, filters, printLabelMaps, showError);
+  const handleExportPrint = async () => {
+    const printWindow = window.open("", "_blank", "width=1400,height=900");
+    if (!printWindow) {
+      showError("인쇄 창을 열 수 없습니다.");
+      return;
+    }
+    printWindow.document.body.textContent = "인쇄 데이터를 불러오는 중입니다...";
+    try {
+      const firstPage = await listBidNotices(toSearchParams(filters, { page: 0, pageSize: BID_NOTICE_PAGE_SIZE }));
+      const allRecords = [...firstPage.content];
+      for (let page = 1; page < firstPage.totalPages; page += 1) {
+        const nextPage = await listBidNotices(toSearchParams(filters, { page, pageSize: BID_NOTICE_PAGE_SIZE }));
+        allRecords.push(...nextPage.content);
+      }
+      openBidNoticePrintWindow(allRecords.map(toBidNoticeRecord), filters, printLabelMaps, showError, printWindow);
+    } catch (error) {
+      printWindow.close();
+      showError(error instanceof Error ? error.message : "인쇄 데이터를 불러오지 못했습니다.");
+    }
   };
 
   return (
@@ -557,10 +560,11 @@ export function BidNoticePage() {
         <BidNoticeDetailDialog
           onClose={closeDialog}
           onDeleteRequest={requestDeleteRecord}
-          onFieldChange={updateDraft}
+          onFieldChange={() => undefined}
           onSave={saveRecord}
           open
           record={draft}
+          deferChanges
           saveDisabled={saveMutation.isPending || (draft.seqNo ? !canUpdate : !canCreate)}
           deleteDisabled={deleteMutation.isPending || !draft.seqNo || !canDelete}
           g2bBidNoticeNumber={sourceCandidate?.bidNtceNo ?? ""}

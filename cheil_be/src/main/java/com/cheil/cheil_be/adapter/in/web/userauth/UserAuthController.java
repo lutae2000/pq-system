@@ -62,6 +62,7 @@ public class UserAuthController {
         );
         var token = loginAccessTokenService.issue(
                 result.loginId(),
+                result.employeeNo(),
                 result.session().id(),
                 result.session().expiresAt()
         );

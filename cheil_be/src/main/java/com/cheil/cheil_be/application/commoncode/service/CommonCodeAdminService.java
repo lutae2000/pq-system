@@ -20,6 +20,7 @@ import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeSearchConditi
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeUpsertCommand;
 import com.cheil.cheil_be.application.commoncode.port.out.CommonCodeRepository;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.commoncode.CommonCode;
 
@@ -40,6 +41,7 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
     private final CommonCodeRepository commonCodeRepository;
     private final CommonCodeCacheService commonCodeCacheService;
     private final CommonCodeSearchSupport commonCodeSearchSupport;
+    private final CurrentActorPort currentActorPort;
     private final Clock clock;
 
     @Override
@@ -276,8 +278,9 @@ public class CommonCodeAdminService implements CommonCodeAdminUseCase {
         String remark = StringValues.normalize(command.remark());
         Integer sortOrder = command.sortOrder() == null ? 0 : command.sortOrder();
         boolean useYn = command.useYn() == null ? existing == null || existing.useYn() : command.useYn();
-        String createdId = StringValues.optional(command.createdId(), existing == null ? "admin" : existing.createdId());
-        String lastChangedId = StringValues.optional(command.lastChangedId(), createdId);
+        String actor = currentActorPort.currentActor();
+        String createdId = existing == null ? actor : existing.createdId();
+        String lastChangedId = actor;
 
         if (codeLevel == 1) {
             level2Code = level1Code;

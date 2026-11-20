@@ -22,20 +22,20 @@ public class NotificationPreferenceService {
 
     @Transactional(readOnly = true)
     public Map<String, Boolean> findAll() {
-        String loginId = currentActorPort.currentActor();
-        return notificationPreferenceRepository.findAllByLoginId(loginId);
+        String employeeNo = currentActorPort.currentActor();
+        return notificationPreferenceRepository.findAllByEmployeeNo(employeeNo);
     }
 
     @Transactional(readOnly = true)
     public List<NotificationPreferenceOption> findOptions() {
-        String loginId = currentActorPort.currentActor();
-        return notificationPreferenceRepository.findOptionsByLoginId(loginId);
+        String employeeNo = currentActorPort.currentActor();
+        return notificationPreferenceRepository.findOptionsByEmployeeNo(employeeNo);
     }
 
     @Transactional
     public void save(String menuPath, Boolean receiveYn) {
         String normalizedPath = InputValues.requiredText(menuPath, "menuPath");
-        String loginId = currentActorPort.currentActor();
-        notificationPreferenceRepository.save(loginId, normalizedPath, Boolean.TRUE.equals(receiveYn));
+        String employeeNo = currentActorPort.currentActor();
+        notificationPreferenceRepository.save(employeeNo, normalizedPath, Boolean.TRUE.equals(receiveYn));
     }
 }

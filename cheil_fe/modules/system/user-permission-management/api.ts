@@ -9,7 +9,7 @@ export type UserMenuPermissionRecord = {
   create: boolean;
   delete: boolean;
   description: string | null;
-  loginId: string;
+  employeeNo: string;
   menuCode: string;
   menuName: string;
   menuPath: string | null;
@@ -53,19 +53,19 @@ export async function listUsersForPermissionManagement(): Promise<AuthUserAccoun
   return users;
 }
 
-export async function listUserMenuPermissions(loginId: string): Promise<UserMenuPermissionRecord[]> {
+export async function listUserMenuPermissions(employeeNo: string): Promise<UserMenuPermissionRecord[]> {
   return apiRequest(
-    apiClient.get(`/auth/users/${encodeURIComponent(loginId)}/menu-permissions`),
+    apiClient.get(`/auth/users/${encodeURIComponent(employeeNo)}/menu-permissions`),
     "사용자 메뉴 권한을 불러오지 못했습니다.",
   );
 }
 
 export async function saveUserMenuPermissions(
-  loginId: string,
+  employeeNo: string,
   requestBody: UserMenuPermissionUpsertRequest,
 ): Promise<UserMenuPermissionRecord[]> {
   return apiRequest(
-    apiClient.put(`/auth/users/${encodeURIComponent(loginId)}/menu-permissions`, requestBody),
+    apiClient.put(`/auth/users/${encodeURIComponent(employeeNo)}/menu-permissions`, requestBody),
     "사용자 메뉴 권한을 저장하지 못했습니다.",
   );
 }

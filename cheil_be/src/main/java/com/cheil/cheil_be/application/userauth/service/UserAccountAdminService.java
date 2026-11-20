@@ -73,14 +73,14 @@ public class UserAccountAdminService implements UserAccountAdminUseCase {
     }
 
     @Transactional(readOnly = true)
-    public List<UserMenuPermission> findUserMenuPermissions(String loginId) {
-        String normalizedLoginId = findByLoginId(loginId).loginId();
-        return userMenuPermissionRepository.findAll(normalizedLoginId);
+    public List<UserMenuPermission> findUserMenuPermissions(String employeeNo) {
+        String normalizedEmployeeNo = findByEmployeeNo(employeeNo).employeeNo();
+        return userMenuPermissionRepository.findAll(normalizedEmployeeNo);
     }
 
     @Transactional
-    public List<UserMenuPermission> saveUserMenuPermissions(String loginId, List<UserMenuPermissionCommand> items) {
-        String normalizedLoginId = findByLoginId(loginId).loginId();
+    public List<UserMenuPermission> saveUserMenuPermissions(String employeeNo, List<UserMenuPermissionCommand> items) {
+        String normalizedEmployeeNo = findByEmployeeNo(employeeNo).employeeNo();
         if (items == null) {
             throw ApplicationException.badRequest("permission items are required");
         }
@@ -88,8 +88,8 @@ public class UserAccountAdminService implements UserAccountAdminUseCase {
                 .filter(item -> item != null && StringUtils.hasText(item.menuCode()))
                 .map(item -> new UserMenuPermissionCommand(item.menuCode().trim(), item.read(), item.create(), item.update(), item.delete()))
                 .toList();
-        userMenuPermissionRepository.replaceAll(normalizedLoginId, normalized);
-        return userMenuPermissionRepository.findAll(normalizedLoginId);
+        userMenuPermissionRepository.replaceAll(normalizedEmployeeNo, normalized);
+        return userMenuPermissionRepository.findAll(normalizedEmployeeNo);
     }
 
     @Transactional(readOnly = true)
@@ -145,7 +145,7 @@ public class UserAccountAdminService implements UserAccountAdminUseCase {
                 normalizeCount(command.wrongPasswordCount()),
                 StringValues.normalize(command.email()),
                 occurredAt,
-                StringUtils.hasText(command.lastChangedId()) ? command.lastChangedId().trim() : currentActorPort.currentActor()
+                currentActorPort.currentActor()
         );
 
         return userAccountRepository.save(updated);

@@ -83,14 +83,14 @@ type DepartmentGridRow = DepartmentRecord & {
 
 const defaultForm = (headquarterCode = "100"): DepartmentFormState => ({
   chgDate: "",
-  chgDutyId: "admin",
+  chgDutyId: "",
   costDept: "",
   deptCode: "",
   deptDiv: "1",
   deptName: "",
   headquarterCode,
   inputDate: "",
-  inputDutyId: "admin",
+  inputDutyId: "",
   mhYn: false,
   projDiv: "20",
   sortSeq: "0001",
@@ -121,13 +121,11 @@ const buildRequest = (form: DepartmentFormState): DepartmentUpsertRequest => ({
   deptDiv: form.deptDiv.trim(),
   deptName: form.deptName.trim(),
   headquarterCode: form.headquarterCode.trim(),
-  inputDutyId: form.inputDutyId.trim() || null,
   mhYn: form.mhYn,
   projDiv: form.projDiv.trim(),
   sortSeq: form.sortSeq.trim(),
   terminateDate: form.terminateDate.trim() || null,
   useYn: form.useYn,
-  chgDutyId: form.chgDutyId.trim() || null,
 });
 
 const toBooleanFilter = (value: string) => {
@@ -602,7 +600,7 @@ export function DepartmentManagementPage() {
                 <TextField
                   fullWidth
                   label="입력 담당"
-                  onChange={(event) => setDraft((current) => ({ ...current, inputDutyId: event.target.value }))}
+                  slotProps={{ input: { readOnly: true } }}
                   size="small"
                   sx={standardFieldSx}
                   value={draft.inputDutyId}
@@ -610,7 +608,7 @@ export function DepartmentManagementPage() {
                 <TextField
                   fullWidth
                   label="수정 담당"
-                  onChange={(event) => setDraft((current) => ({ ...current, chgDutyId: event.target.value }))}
+                  slotProps={{ input: { readOnly: true } }}
                   size="small"
                   sx={standardFieldSx}
                   value={draft.chgDutyId}

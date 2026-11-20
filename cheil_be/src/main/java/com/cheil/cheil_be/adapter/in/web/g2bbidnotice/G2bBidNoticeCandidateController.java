@@ -99,7 +99,7 @@ public class G2bBidNoticeCandidateController {
             @PathVariable Long candidateId,
             @RequestBody G2bBidNoticeCandidateImportRequest request
     ) {
-        queryUseCase.markImported(candidateId, request.bidSeq(), request.importedBy());
+        queryUseCase.markImported(candidateId, request.bidSeq());
         return ResponseEntity.noContent().build();
     }
 

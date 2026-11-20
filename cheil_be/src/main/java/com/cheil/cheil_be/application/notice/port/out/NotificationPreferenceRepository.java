@@ -6,9 +6,9 @@ import java.util.Map;
 import com.cheil.cheil_be.domain.notice.NotificationPreferenceOption;
 
 public interface NotificationPreferenceRepository {
-    Map<String, Boolean> findAllByLoginId(String loginId);
+    Map<String, Boolean> findAllByEmployeeNo(String employeeNo);
 
-    List<NotificationPreferenceOption> findOptionsByLoginId(String loginId);
+    List<NotificationPreferenceOption> findOptionsByEmployeeNo(String employeeNo);
 
-    void save(String loginId, String menuPath, boolean receiveYn);
+    void save(String employeeNo, String menuPath, boolean receiveYn);
 }

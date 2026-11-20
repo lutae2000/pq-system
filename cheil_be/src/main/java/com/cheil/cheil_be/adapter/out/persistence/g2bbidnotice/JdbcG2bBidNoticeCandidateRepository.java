@@ -76,7 +76,7 @@ public class JdbcG2bBidNoticeCandidateRepository implements G2bBidNoticeCandidat
     public void markImported(Long candidateId, Long bidSeq, String importedBy) {
         jdbcTemplate.update(
                 "UPDATE g2b_bid_notice_candidates SET imported_at = CURRENT_TIMESTAMP, imported_by = ?, imported_bid_seq = ? WHERE id = ?",
-                StringUtils.hasText(importedBy) ? importedBy.trim() : "admin",
+                importedBy,
                 bidSeq,
                 candidateId
         );

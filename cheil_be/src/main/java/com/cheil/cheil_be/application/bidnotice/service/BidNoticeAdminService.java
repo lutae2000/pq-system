@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
@@ -41,6 +42,7 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
 
     private final BidNoticeRepository bidNoticeRepository;
     private final BidNoticeAttachmentRepository bidNoticeAttachmentRepository;
+    private final CurrentActorPort currentActorPort;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -104,8 +106,9 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         if (participateYn.isEmpty()) {
             throw ApplicationException.badRequest("최종 참여 여부는 필수입니다.");
         }
-        String createdId = optional(command.createdId(), existing == null ? "admin" : existing.createdId());
-        String lastChangedId = optional(command.lastChangedId(), createdId);
+        String actor = currentActorPort.currentActor();
+        String createdId = existing == null ? actor : existing.createdId();
+        String lastChangedId = actor;
         Long bidSeq = existing == null ? command.bidSeq() : existing.bidSeq();
 
         NormalizedBidNotice normalized = new NormalizedBidNotice(

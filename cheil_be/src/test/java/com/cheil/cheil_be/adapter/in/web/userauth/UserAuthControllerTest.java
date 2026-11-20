@@ -85,6 +85,7 @@ class UserAuthControllerTest {
     void loginReturnsUserProfile() throws Exception {
         when(loginAccessTokenService.issue(
                 "stleekm",
+                "150801",
                 "session-123",
                 Instant.parse("2026-06-19T00:00:00Z")
         )).thenReturn(new LoginAccessTokenService.LoginAccessToken(
@@ -145,6 +146,7 @@ class UserAuthControllerTest {
     void validateSessionReturnsNoContent() throws Exception {
         when(loginAccessTokenService.parse("Bearer jwt-token")).thenReturn(new LoginAccessTokenService.LoginAccessTokenClaims(
                 "stleekm",
+                "150801",
                 "session-123",
                 Instant.parse("2026-06-19T00:00:00Z")
         ));
@@ -158,6 +160,7 @@ class UserAuthControllerTest {
     void menuPermissionsReturnsEffectivePermissions() throws Exception {
         when(loginAccessTokenService.parse("Bearer jwt-token")).thenReturn(new LoginAccessTokenService.LoginAccessTokenClaims(
                 "stleekm",
+                "150801",
                 "session-123",
                 Instant.parse("2026-06-19T00:00:00Z")
         ));
@@ -196,6 +199,7 @@ class UserAuthControllerTest {
     void logoutReturnsNoContent() throws Exception {
         when(loginAccessTokenService.parse("Bearer jwt-token")).thenReturn(new LoginAccessTokenService.LoginAccessTokenClaims(
                 "stleekm",
+                "150801",
                 "session-123",
                 Instant.parse("2026-06-19T00:00:00Z")
         ));

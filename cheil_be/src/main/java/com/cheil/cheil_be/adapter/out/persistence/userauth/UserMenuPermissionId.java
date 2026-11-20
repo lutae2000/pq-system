@@ -19,8 +19,8 @@ import lombok.Setter;
 @EqualsAndHashCode
 public class UserMenuPermissionId implements Serializable {
 
-    @Column(name = "login_id", nullable = false, length = 100)
-    private String loginId;
+    @Column(name = "employee_no", nullable = false, length = 20)
+    private String employeeNo;
 
     @Column(name = "menu_code", nullable = false, length = 50)
     private String menuCode;

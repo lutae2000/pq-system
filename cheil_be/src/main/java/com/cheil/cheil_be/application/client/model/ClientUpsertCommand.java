@@ -50,10 +50,10 @@ public record ClientUpsertCommand(
         lastChangedId = optional(lastChangedId, 100, "lastChangedId");
     }
 
-    public Client toDomain(Client existing, Instant now) {
+    public Client toDomain(Client existing, Instant now, String actor) {
         String resolvedOrderNameLong = StringValues.optional(orderNameLong, orderName);
-        String resolvedCreatedId = StringValues.optional(createdId, existing == null ? "admin" : existing.createdId());
-        String resolvedLastChangedId = StringValues.optional(lastChangedId, resolvedCreatedId);
+        String resolvedCreatedId = existing == null ? actor : existing.createdId();
+        String resolvedLastChangedId = actor;
         return new Client(
                 clientCode, orderName, orderEngName, businessNo, corpNo, resolvedOrderNameLong,
                 owner, businessSectors, businessItems, orderClass, zipCode, addr1, addr2,

@@ -320,8 +320,6 @@ export function ConstructionTypesManagementPage() {
     const request: ConstructionTypeUpsertRequest = {
       codeLevel: normalized.codeLevel,
       codeName: normalized.codeName,
-      createdId: normalized.createdId || null,
-      lastChangedId: normalized.lastChangedId || null,
       level1Code: normalized.level1Code,
       level2Code: normalized.level2Code || null,
       level3Code: normalized.level3Code || null,

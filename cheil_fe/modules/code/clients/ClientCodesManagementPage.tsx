@@ -91,8 +91,8 @@ const toRequest = (draft: ClientCodeRecord): ClientCodeUpsertRequest => ({
   companyType: text(draft.companyType).trim(),
   homeUrl: text(draft.homeUrl).trim(),
   otype: text(draft.otype).trim(),
-  createdId: text(draft.createdId).trim() || "admin",
-  lastChangedId: "admin",
+  createdId: null,
+  lastChangedId: null,
 });
 
 export function ClientCodesManagementPage() {

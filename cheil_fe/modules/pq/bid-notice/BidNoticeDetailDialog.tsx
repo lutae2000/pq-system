@@ -98,6 +98,7 @@ function LabeledField({
 }
 
 function TextInputField({
+  disabled = false,
   label,
   multiline,
   onChange,
@@ -105,6 +106,7 @@ function TextInputField({
   readOnly = false,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   multiline?: boolean;
   onChange: (value: string) => void;
@@ -115,6 +117,7 @@ function TextInputField({
   return (
     <LabeledField label={label}>
       <TextField
+        disabled={disabled}
         fullWidth
         multiline={multiline}
         onChange={(event) => onChange(event.target.value)}
@@ -399,8 +402,9 @@ export function BidNoticeDetailDialog({
                 <Stack spacing={1}>
                   <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", md: "120px minmax(0, 1fr)" } }}>
                     <TextInputField
+                      disabled
                       label="관리번호"
-                      onChange={(value) => onFieldChange("bidNo", value)}
+                      onChange={() => undefined}
                       readOnly
                       value={record.bidNo}
                     />

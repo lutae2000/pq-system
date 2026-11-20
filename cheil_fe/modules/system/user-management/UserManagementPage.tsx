@@ -331,9 +331,9 @@ export function UserManagementPage() {
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
-    const loginId = selectedUser?.loginId?.trim();
+    const employeeNo = selectedUser?.employeeNo?.trim();
 
-    if (!loginId || menus.length === 0) {
+    if (!employeeNo || menus.length === 0) {
       setPermissionRows([]);
       setBaselinePermissionRows([]);
       setPermissionLoading(false);
@@ -343,7 +343,7 @@ export function UserManagementPage() {
     let active = true;
     setPermissionLoading(true);
 
-    void listUserMenuPermissions(loginId)
+    void listUserMenuPermissions(employeeNo)
       .then((permissions) => {
         if (!active) {
           return;
@@ -372,7 +372,7 @@ export function UserManagementPage() {
       active = false;
     };
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [menus, selectedUser?.loginId, showError]);
+  }, [menus, selectedUser?.employeeNo, showError]);
 
   const updateDraft = <K extends keyof AuthUserAccount>(key: K, value: AuthUserAccount[K]) => {
     setDraftUser((current) => ({ ...current, [key]: value }));
@@ -491,8 +491,8 @@ export function UserManagementPage() {
       return;
     }
 
-    const loginId = selectedUser.loginId.trim();
-    if (!loginId) {
+    const employeeNo = selectedUser.employeeNo.trim();
+    if (!employeeNo) {
       showError("로그인 ID가 없는 사용자는 권한을 저장할 수 없습니다.");
       return;
     }
@@ -500,7 +500,7 @@ export function UserManagementPage() {
     setPermissionSaving(true);
     try {
       const savedPermissions = await savePermissionMutation.mutateAsync({
-        loginId,
+        employeeNo,
         items: permissionRows.map((row) => ({
           menuCode: row.menuCode,
           read: row.read,

@@ -38,7 +38,7 @@ class ConstructionTypeAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ConstructionTypeAdminService(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new ConstructionTypeAdminService(repository, Clock.fixed(NOW, ZoneOffset.UTC), () -> "E0001");
     }
 
     @Test
@@ -55,7 +55,7 @@ class ConstructionTypeAdminServiceTest {
         assertThat(created.codeName()).isEqualTo("도로");
         assertThat(created.useYn()).isTrue();
         assertThat(created.createdAt()).isEqualTo(NOW);
-        assertThat(created.createdId()).isEqualTo("admin");
+        assertThat(created.createdId()).isEqualTo("E0001");
         verify(repository).existsByNaturalKey(1, "10", "", "");
     }
 

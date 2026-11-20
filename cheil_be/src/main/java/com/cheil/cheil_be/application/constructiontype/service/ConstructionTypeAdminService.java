@@ -17,6 +17,7 @@ import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeU
 import com.cheil.cheil_be.application.constructiontype.port.in.ConstructionTypeUseCase;
 import com.cheil.cheil_be.application.constructiontype.port.out.ConstructionTypeRepository;
 import com.cheil.cheil_be.application.common.validation.InputValues;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.domain.constructiontype.ConstructionType;
 
 @Service
@@ -25,6 +26,7 @@ public class ConstructionTypeAdminService implements ConstructionTypeUseCase {
 
     private final ConstructionTypeRepository constructionTypeRepository;
     private final Clock clock;
+    private final CurrentActorPort currentActorPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -46,7 +48,7 @@ public class ConstructionTypeAdminService implements ConstructionTypeUseCase {
         if (constructionTypeRepository.existsByNaturalKey(command.codeLevel(), command.level1Code(), command.level2Code(), command.level3Code())) {
             throw conflict("이미 존재하는 공사종류입니다.");
         }
-        return constructionTypeRepository.save(command.toDomain(null, null, Instant.now(clock)));
+        return constructionTypeRepository.save(command.toDomain(null, null, Instant.now(clock), currentActorPort.currentActor()));
     }
 
     @Override
@@ -64,7 +66,7 @@ public class ConstructionTypeAdminService implements ConstructionTypeUseCase {
         )) {
             throw conflict("이미 존재하는 공사종류 경로입니다.");
         }
-        return constructionTypeRepository.save(command.toDomain(normalizedCodeId, existing, Instant.now(clock)));
+        return constructionTypeRepository.save(command.toDomain(normalizedCodeId, existing, Instant.now(clock), currentActorPort.currentActor()));
     }
 
     @Override

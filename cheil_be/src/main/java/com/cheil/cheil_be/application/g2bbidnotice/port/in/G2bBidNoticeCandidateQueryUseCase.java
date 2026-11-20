@@ -17,7 +17,7 @@ public interface G2bBidNoticeCandidateQueryUseCase {
 
     void deleteAllById(List<Long> ids);
 
-    void markImported(Long candidateId, Long bidSeq, String importedBy);
+    void markImported(Long candidateId, Long bidSeq);
 
     List<G2bBidNoticeCandidateAttachment> findAttachmentsByImportedBidSeq(Long bidSeq);
 

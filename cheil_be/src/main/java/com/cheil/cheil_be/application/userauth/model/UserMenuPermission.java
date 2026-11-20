@@ -1,7 +1,7 @@
 package com.cheil.cheil_be.application.userauth.model;
 
 public record UserMenuPermission(
-        String loginId,
+        String employeeNo,
         String menuCode,
         String menuName,
         String parentMenuCode,

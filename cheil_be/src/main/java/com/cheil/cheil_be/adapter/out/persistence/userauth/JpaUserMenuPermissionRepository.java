@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JpaUserMenuPermissionRepository extends JpaRepository<UserMenuPermissionEntity, UserMenuPermissionId> {
 
-    List<UserMenuPermissionEntity> findAllByIdLoginIdOrderByIdMenuCodeAsc(String loginId);
+    List<UserMenuPermissionEntity> findAllByIdEmployeeNoOrderByIdMenuCodeAsc(String employeeNo);
 
-    void deleteByIdLoginId(String loginId);
+    void deleteByIdEmployeeNo(String employeeNo);
 }

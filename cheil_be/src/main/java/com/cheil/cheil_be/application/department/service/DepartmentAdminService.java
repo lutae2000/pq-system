@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.application.common.validation.InputValues;
 import com.cheil.cheil_be.application.department.port.in.DepartmentSearchCondition;
 import com.cheil.cheil_be.application.department.port.in.DepartmentUpsertCommand;
@@ -27,6 +28,7 @@ public class DepartmentAdminService implements DepartmentUseCase {
     private final DepartmentRepository departmentRepository;
     private final DepartmentCacheService departmentCacheService;
     private final Clock clock;
+    private final CurrentActorPort currentActorPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,7 +60,7 @@ public class DepartmentAdminService implements DepartmentUseCase {
         if (departmentRepository.existsByDeptCode(deptCode)) {
             throw ApplicationException.conflict("이미 존재하는 부서 코드입니다.");
         }
-        Department saved = departmentRepository.save(command.toDomain(null, Instant.now(clock)));
+        Department saved = departmentRepository.save(command.toDomain(null, Instant.now(clock), currentActorPort.currentActor()));
         departmentCacheService.refreshAfterCommit(saved, departmentRepository::findAll);
         return saved;
     }
@@ -75,7 +77,7 @@ public class DepartmentAdminService implements DepartmentUseCase {
         if (!requestedDeptCode.isBlank() && !normalizedDeptCode.equals(requestedDeptCode)) {
             throw ApplicationException.badRequest("path deptCode와 body deptCode가 일치해야 합니다.");
         }
-        Department saved = departmentRepository.save(command.toDomain(existing, Instant.now(clock)));
+        Department saved = departmentRepository.save(command.toDomain(existing, Instant.now(clock), currentActorPort.currentActor()));
         departmentCacheService.refreshAfterCommit(saved, departmentRepository::findAll);
         return saved;
     }

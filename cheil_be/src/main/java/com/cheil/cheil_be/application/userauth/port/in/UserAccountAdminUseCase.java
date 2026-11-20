@@ -16,6 +16,6 @@ public interface UserAccountAdminUseCase {
     UserAccount findByLoginId(String loginId);
     UserAccount upsert(UserAccountCommand command);
     UserAccount resetPassword(String employeeNo);
-    List<UserMenuPermission> findUserMenuPermissions(String loginId);
-    List<UserMenuPermission> saveUserMenuPermissions(String loginId, List<UserMenuPermissionCommand> items);
+    List<UserMenuPermission> findUserMenuPermissions(String employeeNo);
+    List<UserMenuPermission> saveUserMenuPermissions(String employeeNo, List<UserMenuPermissionCommand> items);
 }

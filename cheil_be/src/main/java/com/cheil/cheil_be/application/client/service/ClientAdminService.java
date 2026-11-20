@@ -17,6 +17,7 @@ import com.cheil.cheil_be.application.client.model.ClientUpsertCommand;
 import com.cheil.cheil_be.application.client.port.in.ClientUseCase;
 import com.cheil.cheil_be.application.client.port.out.ClientRepository;
 import com.cheil.cheil_be.application.common.validation.InputValues;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.client.Client;
 
@@ -25,6 +26,7 @@ import com.cheil.cheil_be.domain.client.Client;
 public class ClientAdminService implements ClientUseCase {
 
     private final ClientRepository clientRepository;
+    private final CurrentActorPort currentActorPort;
     private final Clock clock;
 
     @Override
@@ -54,7 +56,7 @@ public class ClientAdminService implements ClientUseCase {
         if (clientRepository.existsByClientCode(command.clientCode())) {
             throw conflict("이미 존재하는 거래처 코드입니다.");
         }
-        return clientRepository.save(command.toDomain(null, Instant.now(clock)));
+        return clientRepository.save(command.toDomain(null, Instant.now(clock), currentActorPort.currentActor()));
     }
 
     @Override
@@ -65,7 +67,7 @@ public class ClientAdminService implements ClientUseCase {
         if (!existing.clientCode().equals(command.clientCode())) {
             throw badRequest("거래처 코드는 수정할 수 없습니다.");
         }
-        return clientRepository.save(command.toDomain(existing, Instant.now(clock)));
+        return clientRepository.save(command.toDomain(existing, Instant.now(clock), currentActorPort.currentActor()));
     }
 
     @Override

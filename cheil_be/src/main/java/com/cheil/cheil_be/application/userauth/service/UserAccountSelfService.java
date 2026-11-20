@@ -64,6 +64,9 @@ public class UserAccountSelfService implements UserAccountSelfUseCase {
     ) {
         UserAccount account = findByLoginId(loginId);
         String nextEmployeeNo = requiredText(employeeNo, "employeeNo");
+        if (!account.employeeNo().equals(nextEmployeeNo)) {
+            throw ApplicationException.badRequest("사번은 변경할 수 없습니다.");
+        }
         repository.findByEmployeeNo(nextEmployeeNo)
                 .filter(item -> !item.loginId().equals(account.loginId()))
                 .ifPresent(item -> { throw ApplicationException.conflict("이미 사용 중인 사번입니다."); });

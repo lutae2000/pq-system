@@ -82,9 +82,7 @@ public class SystemPermissionAdminService implements SystemPermissionUseCase {
                 .filter(item -> item != null && item.menuCode() != null && !item.menuCode().isBlank())
                 .map(item -> new RolePermissionCommand(item.menuCode().trim(), item.read(), item.create(), item.update(), item.delete()))
                 .toList();
-        String actor = trimToNull(lastChangedId);
-        repository.saveRolePermissions(code, normalized,
-                actor == null ? currentActorPort.currentActor() : actor, Instant.now(clock));
+        repository.saveRolePermissions(code, normalized, currentActorPort.currentActor(), Instant.now(clock));
         return repository.findRolePermissions(code);
     }
 }

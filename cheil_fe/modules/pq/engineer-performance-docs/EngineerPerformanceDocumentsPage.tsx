@@ -151,7 +151,7 @@ export function EngineerPerformanceDocumentsPage() {
   const { showError, showSuccess } = useAppSnackbar();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
-  const workDutyId = currentSession?.loginId ?? "";
+  const workDutyId = currentSession?.employeeNo ?? "";
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
   const [selectedBidNotice, setSelectedBidNotice] = useState<BidNoticeApiRecord | null>(null);

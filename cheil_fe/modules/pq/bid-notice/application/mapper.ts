@@ -76,7 +76,7 @@ export const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertReque
   participateYn: draft.finalParticipationStatus.trim(),
   g2bBidNtceNo: draft.g2bBidNtceNo.trim() || null,
   g2bBidNtceOrd: draft.g2bBidNtceOrd.trim() || null,
-  pqDecideEmpno: "",
+  pqDecideEmpno: draft.pqDecideEmpno,
   pqDecideDate: null,
   superDecideEmpno: draft.writerName.trim(),
   businessType: draft.businessType.trim(),
@@ -92,8 +92,8 @@ export const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertReque
   primeContractor: draft.representativeVendor.trim(),
   remark: draft.draftNote.trim(),
   refmatYn: "",
-  createdId: "admin",
-  lastChangedId: "admin",
+  createdId: null,
+  lastChangedId: null,
 });
 
 export const toSearchParams = (filters: BidNoticeFilters, paginationModel: { page: number; pageSize: number }): BidNoticeSearchParams => ({

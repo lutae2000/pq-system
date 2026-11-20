@@ -344,7 +344,7 @@ export function RolePermissionManagementPage() {
       return;
     }
 
-    const changedBy = readAuthSessionSnapshot()?.loginId ?? "system";
+    const changedBy = readAuthSessionSnapshot()?.employeeNo ?? "system";
     savePermissionsMutation.mutate({
       roleCode: selectedRoleCode,
       request: { items: changedItems, lastChangedId: changedBy },

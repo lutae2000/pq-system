@@ -127,9 +127,9 @@ public class UserAccountController {
     /**
      * 특정 로그인 계정의 메뉴 권한을 조회한다.
      */
-    @GetMapping("/{loginId}/menu-permissions")
-    public ResponseEntity<List<UserMenuPermissionResponse>> listUserMenuPermissions(@PathVariable String loginId) {
-        return ResponseEntity.ok(userAccountAdminService.findUserMenuPermissions(loginId).stream()
+    @GetMapping("/{employeeNo}/menu-permissions")
+    public ResponseEntity<List<UserMenuPermissionResponse>> listUserMenuPermissions(@PathVariable String employeeNo) {
+        return ResponseEntity.ok(userAccountAdminService.findUserMenuPermissions(employeeNo).stream()
                 .map(UserMenuPermissionResponse::from)
                 .toList());
     }
@@ -137,16 +137,16 @@ public class UserAccountController {
     /**
      * 특정 로그인 계정의 메뉴 권한을 저장한다.
      */
-    @PutMapping("/{loginId}/menu-permissions")
+    @PutMapping("/{employeeNo}/menu-permissions")
     public ResponseEntity<List<UserMenuPermissionResponse>> saveUserMenuPermissions(
-            @PathVariable String loginId,
+            @PathVariable String employeeNo,
             @RequestBody UserMenuPermissionUpsertRequest request
     ) {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "요청 본문이 필요합니다.");
         }
 
-        return ResponseEntity.ok(userAccountAdminService.saveUserMenuPermissions(loginId, request.items()).stream()
+        return ResponseEntity.ok(userAccountAdminService.saveUserMenuPermissions(employeeNo, request.items()).stream()
                 .map(UserMenuPermissionResponse::from)
                 .toList());
     }
@@ -174,7 +174,7 @@ public class UserAccountController {
     }
 
     public record UserMenuPermissionResponse(
-            String loginId,
+            String employeeNo,
             String menuCode,
             String menuName,
             String parentMenuCode,
@@ -191,7 +191,7 @@ public class UserAccountController {
     ) {
         static UserMenuPermissionResponse from(UserMenuPermission view) {
             return new UserMenuPermissionResponse(
-                    view.loginId(),
+                    view.employeeNo(),
                     view.menuCode(),
                     view.menuName(),
                     view.parentMenuCode(),

@@ -130,9 +130,9 @@ export async function getG2bBidNoticeCandidateSyncStatus(): Promise<G2bBidNotice
   );
 }
 
-export async function markG2bBidNoticeCandidateImported(candidateId: number, bidSeq: number, importedBy = "admin"): Promise<void> {
+export async function markG2bBidNoticeCandidateImported(candidateId: number, bidSeq: number): Promise<void> {
   await apiRequest(
-    apiClient.patch(`${G2B_BID_NOTICE_CANDIDATES_API}/${candidateId}/import`, { bidSeq, importedBy }),
+    apiClient.patch(`${G2B_BID_NOTICE_CANDIDATES_API}/${candidateId}/import`, { bidSeq }),
     "공고문 반영 상태를 저장하지 못했습니다.",
   );
 }

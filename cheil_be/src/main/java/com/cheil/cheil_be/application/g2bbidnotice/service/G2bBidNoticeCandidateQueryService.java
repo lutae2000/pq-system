@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateQueryUseCase;
 import com.cheil.cheil_be.application.g2bbidnotice.port.in.G2bBidNoticeCandidateSearchCondition;
 import com.cheil.cheil_be.application.g2bbidnotice.port.out.G2bBidNoticeCandidateRepository;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidate;
 import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 
@@ -19,6 +20,7 @@ import com.cheil.cheil_be.domain.g2bbidnotice.G2bBidNoticeCandidateAttachment;
 public class G2bBidNoticeCandidateQueryService implements G2bBidNoticeCandidateQueryUseCase {
 
     private final G2bBidNoticeCandidateRepository repository;
+    private final CurrentActorPort currentActorPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -46,11 +48,11 @@ public class G2bBidNoticeCandidateQueryService implements G2bBidNoticeCandidateQ
 
     @Override
     @Transactional
-    public void markImported(Long candidateId, Long bidSeq, String importedBy) {
+    public void markImported(Long candidateId, Long bidSeq) {
         if (candidateId == null || candidateId <= 0 || bidSeq == null || bidSeq <= 0) {
             throw new IllegalArgumentException("candidateId and bidSeq must be positive");
         }
-        repository.markImported(candidateId, bidSeq, importedBy);
+        repository.markImported(candidateId, bidSeq, currentActorPort.currentActor());
     }
 
     @Override

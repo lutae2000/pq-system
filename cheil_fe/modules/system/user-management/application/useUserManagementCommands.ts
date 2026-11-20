@@ -49,9 +49,9 @@ export function useUserManagementCommands({ canCreate, canUpdate, onPasswordRese
   });
 
   const savePermissionMutation = useMutation({
-    mutationFn: async ({ loginId, items }: { loginId: string; items: UserMenuPermissionUpsertRequest["items"] }) => {
+    mutationFn: async ({ employeeNo, items }: { employeeNo: string; items: UserMenuPermissionUpsertRequest["items"] }) => {
       if (!canUpdate) throw new Error("사용자 권한 수정 권한이 없습니다.");
-      return saveUserMenuPermissions(loginId, { items });
+      return saveUserMenuPermissions(employeeNo, { items });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: userManagementQueryKeys.all });

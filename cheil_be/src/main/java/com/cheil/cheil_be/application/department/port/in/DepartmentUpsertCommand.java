@@ -35,9 +35,9 @@ public record DepartmentUpsertCommand(
         costDept = optional(costDept, 20, "costDept");
     }
 
-    public Department toDomain(Department existing, Instant now) {
-        String resolvedInputDutyId = StringValues.optional(inputDutyId, existing == null ? "admin" : existing.inputDutyId());
-        String resolvedChangeDutyId = StringValues.optional(chgDutyId, resolvedInputDutyId);
+    public Department toDomain(Department existing, Instant now, String actorEmployeeNo) {
+        String resolvedInputDutyId = existing == null ? actorEmployeeNo : existing.inputDutyId();
+        String resolvedChangeDutyId = actorEmployeeNo;
         return new Department(
                 deptCode, deptName, deptDiv, projDiv,
                 useYn == null ? existing == null || existing.useYn() : useYn,

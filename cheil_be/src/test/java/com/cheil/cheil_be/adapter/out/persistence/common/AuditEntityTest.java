@@ -24,16 +24,17 @@ class AuditEntityTest {
     }
 
     @Test
-    void onCreateUsesLoginIdHeaderAsAuditActor() {
+    void onCreateUsesValidatedEmployeeNumberAsAuditActor() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/menus");
         request.addHeader(SecurityHeaders.LOGIN_ID, "user-123");
+        request.setAttribute("employeeNo", "150801");
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         TestAuditEntity entity = new TestAuditEntity();
         entity.create();
 
-        assertThat(entity.createdId).isEqualTo("user-123");
-        assertThat(entity.lastChangedId).isEqualTo("user-123");
+        assertThat(entity.createdId).isEqualTo("150801");
+        assertThat(entity.lastChangedId).isEqualTo("150801");
         assertThat(entity.createdAt).isNotNull();
         assertThat(entity.lastChangedAt).isNotNull();
     }

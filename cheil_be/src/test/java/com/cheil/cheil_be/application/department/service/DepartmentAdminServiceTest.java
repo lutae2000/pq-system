@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.application.department.port.in.DepartmentUpsertCommand;
 import com.cheil.cheil_be.application.department.port.out.DepartmentRepository;
 import com.cheil.cheil_be.domain.department.Department;
@@ -35,7 +36,8 @@ class DepartmentAdminServiceTest {
     private final DepartmentAdminService service = new DepartmentAdminService(
             repository,
             departmentCacheService,
-            Clock.fixed(Instant.parse("2026-06-18T00:00:00Z"), ZoneOffset.UTC)
+            Clock.fixed(Instant.parse("2026-06-18T00:00:00Z"), ZoneOffset.UTC),
+            () -> "E0001"
     );
 
     @BeforeEach
@@ -99,7 +101,7 @@ class DepartmentAdminServiceTest {
     }
 
     @Test
-    void updateUsesRequestInputDutyIdInsteadOfKeepingStaleStoredValue() {
+    void updatePreservesCreatorAndRecordsCurrentEmployee() {
         repository.put(new Department(
                 "DSR000",
                 "\uB4F1\uB85D\uC870\uC9C1",
@@ -132,8 +134,8 @@ class DepartmentAdminServiceTest {
                 "DSR000"
         ));
 
-        assertThat(updated.inputDutyId()).isEqualTo("F0000");
-        assertThat(updated.chgDutyId()).isEqualTo("F0000");
+        assertThat(updated.inputDutyId()).isEqualTo("LEGACY-TOO-LONG");
+        assertThat(updated.chgDutyId()).isEqualTo("E0001");
     }
 
     @Test

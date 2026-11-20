@@ -32,10 +32,10 @@ public class LoginAccessTokenService {
     private final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
     private final Base64.Decoder decoder = Base64.getUrlDecoder();
 
-    public LoginAccessToken issue(String loginId, String sessionId, Instant expiresAt) {
+    public LoginAccessToken issue(String loginId, String employeeNo, String sessionId, Instant expiresAt) {
         Instant issuedAt = Instant.now(clock);
         String header = encodeJson(Map.of("alg", "HS256", "typ", "JWT"));
-        String payload = encodeJson(payload(loginId, sessionId, issuedAt, expiresAt));
+        String payload = encodeJson(payload(loginId, employeeNo, sessionId, issuedAt, expiresAt));
         String unsignedToken = "%s.%s".formatted(header, payload);
         String token = "%s.%s".formatted(unsignedToken, sign(unsignedToken));
         return new LoginAccessToken(token, TOKEN_TYPE, expiresAt);
@@ -59,6 +59,7 @@ public class LoginAccessTokenService {
 
         Map<?, ?> payload = readPayload(parts[1]);
         String loginId = stringValue(payload.get("sub"));
+        String employeeNo = stringValue(payload.get("employeeNo"));
         String sessionId = stringValue(payload.get("sid"));
         Instant expiresAt = instantValue(payload.get("exp"));
 
@@ -66,13 +67,14 @@ public class LoginAccessTokenService {
             throw ApplicationException.unauthorized("로그인 토큰이 유효하지 않습니다.");
         }
 
-        return new LoginAccessTokenClaims(loginId, sessionId, expiresAt);
+        return new LoginAccessTokenClaims(loginId, employeeNo, sessionId, expiresAt);
     }
 
-    private Map<String, Object> payload(String loginId, String sessionId, Instant issuedAt, Instant expiresAt) {
+    private Map<String, Object> payload(String loginId, String employeeNo, String sessionId, Instant issuedAt, Instant expiresAt) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("iss", securityProperties.token().issuer());
         payload.put("sub", loginId);
+        payload.put("employeeNo", employeeNo);
         payload.put("sid", sessionId);
         payload.put("typ", "login");
         payload.put("iat", issuedAt.getEpochSecond());
@@ -130,6 +132,6 @@ public class LoginAccessTokenService {
     public record LoginAccessToken(String accessToken, String tokenType, Instant expiresAt) {
     }
 
-    public record LoginAccessTokenClaims(String loginId, String sessionId, Instant expiresAt) {
+    public record LoginAccessTokenClaims(String loginId, String employeeNo, String sessionId, Instant expiresAt) {
     }
 }

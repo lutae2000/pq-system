@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
@@ -21,6 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionCommand;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
+import com.cheil.cheil_be.application.userauth.port.out.UserAccountRepository;
 import com.cheil.cheil_be.common.security.SecurityHeaders;
 import com.cheil.cheil_be.common.security.ServicePrincipal;
 import com.cheil.cheil_be.common.web.ApiErrorResponse;
@@ -34,6 +36,7 @@ public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String UNAUTHORIZED_MESSAGE = "로그인 세션이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.";
 
     private final LoginAccessTokenService loginAccessTokenService;
+    private final ObjectProvider<UserAccountRepository> userAccountRepositoryProvider;
     private final ValidateLoginSessionUseCase validateLoginSessionUseCase;
     private final AppSecurityProperties appSecurityProperties;
     private final ObjectMapper objectMapper;
@@ -64,6 +67,11 @@ public class LoginJwtAuthenticationFilter extends OncePerRequestFilter {
             var token = loginAccessTokenService.parse(authorization);
             validateLoginSessionUseCase.validate(new ValidateLoginSessionCommand(token.loginId(), token.sessionId()));
             request.setAttribute("loginId", token.loginId());
+            String employeeNo = token.employeeNo() != null ? token.employeeNo()
+                    : userAccountRepositoryProvider.getObject().findByLoginId(token.loginId())
+                            .map(account -> account.employeeNo())
+                            .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+            request.setAttribute("employeeNo", employeeNo);
             request.setAttribute("loginSessionId", token.sessionId());
             filterChain.doFilter(request, response);
         } catch (ResponseStatusException ex) {

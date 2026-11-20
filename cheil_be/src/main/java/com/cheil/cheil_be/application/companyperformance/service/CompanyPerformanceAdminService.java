@@ -18,6 +18,7 @@ import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerforma
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceAdminUseCase;
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceUpsertCommand;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.common.text.StringValues;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 
@@ -32,9 +33,9 @@ public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUs
     private static final int STATUS_CODE_MAX_LENGTH = 1;
     private static final int JOB_RATIO_MAX_LENGTH = 200;
     private static final int ORDER_CLIENT_MAX_LENGTH = 300;
-    private static final int AUDIT_ID_MAX_LENGTH = 100;
 
     private final CompanyPerformanceRepository companyPerformanceRepository;
+    private final CurrentActorPort currentActorPort;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -57,8 +58,8 @@ public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUs
         validateCommand(command);
 
         Instant now = Instant.now(clock);
-        String createdId = StringValues.optional(command.createdId(), "admin");
-        String lastChangedId = StringValues.optional(command.lastChangedId(), createdId);
+        String createdId = currentActorPort.currentActor();
+        String lastChangedId = createdId;
 
         return companyPerformanceRepository.save(
                 toDomain(command, null, now, createdId, now, lastChangedId)
@@ -80,7 +81,7 @@ public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUs
         validateCommand(command);
 
         Instant now = Instant.now(clock);
-        String lastChangedId = StringValues.optional(command.lastChangedId(), existing.createdId());
+        String lastChangedId = currentActorPort.currentActor();
 
         return companyPerformanceRepository.save(
                 toDomain(command, existing.seq(), existing.createdAt(), existing.createdId(), now, lastChangedId)
@@ -108,12 +109,6 @@ public class CompanyPerformanceAdminService implements CompanyPerformanceAdminUs
         InputValues.validateMaxLength(StringValues.normalize(command.orderClient()), ORDER_CLIENT_MAX_LENGTH, "orderClient");
         InputValues.validateMaxLength(StringValues.normalize(command.clientKind()), CODE_MAX_LENGTH, "clientKind");
         InputValues.validateMaxLength(StringValues.normalize(command.businessType()), CODE_MAX_LENGTH, "businessType");
-        InputValues.validateMaxLength(StringValues.optional(command.createdId(), "admin"), AUDIT_ID_MAX_LENGTH, "createdId");
-        InputValues.validateMaxLength(
-                StringValues.optional(command.lastChangedId(), StringValues.optional(command.createdId(), "admin")),
-                AUDIT_ID_MAX_LENGTH,
-                "lastChangedId"
-        );
     }
 
     private CompanyPerformance toDomain(

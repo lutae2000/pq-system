@@ -21,22 +21,22 @@ public class UserMenuPermissionRepositoryAdapter implements UserMenuPermissionRe
     private final JpaUserMenuPermissionRepository permissionRepository;
 
     @Override
-    public List<UserMenuPermission> findAll(String loginId) {
+    public List<UserMenuPermission> findAll(String employeeNo) {
         Map<String, UserMenuPermissionEntity> permissions = permissionRepository
-                .findAllByIdLoginIdOrderByIdMenuCodeAsc(loginId).stream()
+                .findAllByIdEmployeeNoOrderByIdMenuCodeAsc(employeeNo).stream()
                 .collect(Collectors.toMap(item -> item.getId().getMenuCode(), item -> item));
         return menuRepository.findAllByOrderBySortSeqAscMenuCodeAsc().stream()
-                .map(menu -> toModel(loginId, menu, permissions.get(menu.getMenuCode())))
+                .map(menu -> toModel(employeeNo, menu, permissions.get(menu.getMenuCode())))
                 .toList();
     }
 
     @Override
-    public void replaceAll(String loginId, List<UserMenuPermissionCommand> items) {
-        permissionRepository.deleteByIdLoginId(loginId);
+    public void replaceAll(String employeeNo, List<UserMenuPermissionCommand> items) {
+        permissionRepository.deleteByIdEmployeeNo(employeeNo);
         items.stream()
                 .filter(item -> item.read() || item.create() || item.update() || item.delete())
                 .map(item -> UserMenuPermissionEntity.builder()
-                        .id(new UserMenuPermissionId(loginId, item.menuCode()))
+                        .id(new UserMenuPermissionId(employeeNo, item.menuCode()))
                         .readYn(item.read())
                         .createYn(item.create())
                         .updateYn(item.update())
@@ -45,9 +45,9 @@ public class UserMenuPermissionRepositoryAdapter implements UserMenuPermissionRe
                 .forEach(permissionRepository::save);
     }
 
-    private UserMenuPermission toModel(String loginId, SystemMenuEntity menu, UserMenuPermissionEntity permission) {
+    private UserMenuPermission toModel(String employeeNo, SystemMenuEntity menu, UserMenuPermissionEntity permission) {
         return new UserMenuPermission(
-                loginId, menu.getMenuCode(), menu.getMenuName(), menu.getParentMenuCode(), menu.getMenuPath(),
+                employeeNo, menu.getMenuCode(), menu.getMenuName(), menu.getParentMenuCode(), menu.getMenuPath(),
                 menu.getMenuType(), menu.getSortSeq(), menu.isUseYn(), menu.isVisibleYn(), menu.getDescription(),
                 permission != null && permission.isReadYn(), permission != null && permission.isCreateYn(),
                 permission != null && permission.isUpdateYn(), permission != null && permission.isDeleteYn()

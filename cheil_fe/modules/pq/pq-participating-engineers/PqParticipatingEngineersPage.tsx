@@ -172,7 +172,7 @@ export function PqParticipatingEngineersPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
   const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
-  const workDutyId = currentSession?.loginId ?? "";
+  const workDutyId = currentSession?.employeeNo ?? "";
   const candidateClickTimerRef = useRef<number | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<CandidateFilters>(() => emptyFilters());
@@ -295,7 +295,7 @@ export function PqParticipatingEngineersPage() {
 
   const { removeMutation: removeSelectedEngineersMutation, saveMutation: saveSelectedEngineersMutation } = usePqParticipatingEngineerMutations({
     bidSeq: selectedCompanyPerformance?.bidSeq ?? null,
-    currentLoginId: currentSession?.loginId ?? "",
+    currentEmployeeNo: currentSession?.employeeNo ?? "",
     onError: handleEngineerMutationError,
     onRemoved: handleRemovedSelectedEngineers,
     onSaved: handleSavedSelectedEngineers,

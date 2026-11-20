@@ -13,7 +13,7 @@ import { deleteWorkOverlapDocumentEngineer, replaceWorkOverlapDocumentEngineers 
 
 type UsePqParticipatingEngineerMutationsParams = {
   bidSeq: number | null;
-  currentLoginId: string;
+  currentEmployeeNo: string;
   onError: (error: unknown) => void;
   onRemoved: (engineerIds: string[]) => void;
   onSaved: (records: PqParticipatingEngineerRecord[]) => void;
@@ -23,7 +23,7 @@ type UsePqParticipatingEngineerMutationsParams = {
 
 export function usePqParticipatingEngineerMutations({
   bidSeq,
-  currentLoginId,
+  currentEmployeeNo,
   onError,
   onRemoved,
   onSaved,
@@ -46,7 +46,7 @@ export function usePqParticipatingEngineerMutations({
         replacePqParticipatingEngineers({ bidSeq, workDutyId, engineers }),
         replaceWorkOverlapDocumentEngineers({
           bidSeq,
-          workDutyId: currentLoginId,
+          workDutyId: currentEmployeeNo,
           engineers: engineers.map((engineer) => ({ engrId: engineer.engrId, displayOrder: engineer.priority, responsibility: null })),
         }),
       ]);
@@ -56,18 +56,18 @@ export function usePqParticipatingEngineerMutations({
       onSaved(records);
       await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.candidatesRoot() });
       await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId) });
-      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentLoginId) });
+      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentEmployeeNo) });
     },
     onError,
   });
 
   const removeMutation = useMutation({
     mutationFn: async (engineerIds: string[]) => {
-      if (!bidSeq || !workDutyId || !currentLoginId) throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
+      if (!bidSeq || !workDutyId || !currentEmployeeNo) throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
       await Promise.all(
         engineerIds.map(async (engineerId) => {
           await deletePqParticipatingEngineer(bidSeq, workDutyId, engineerId);
-          await deleteWorkOverlapDocumentEngineer(bidSeq, currentLoginId, engineerId).catch(() => undefined);
+          await deleteWorkOverlapDocumentEngineer(bidSeq, currentEmployeeNo, engineerId).catch(() => undefined);
         }),
       );
       return engineerIds;
@@ -76,7 +76,7 @@ export function usePqParticipatingEngineerMutations({
       onRemoved(engineerIds);
       await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.candidatesRoot() });
       await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId) });
-      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentLoginId) });
+      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentEmployeeNo) });
     },
     onError,
   });

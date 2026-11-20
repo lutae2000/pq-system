@@ -60,7 +60,7 @@ LEFT JOIN role_permissions rp
    AND rp.role_code = au.group_code
 LEFT JOIN user_menu_permissions up
     ON up.menu_code = m.menu_code
-   AND up.login_id = au.login_id
+   AND up.employee_no = au.employee_no
 WHERE m.use_yn = true
   AND m.visible_yn = true
   and AU.use_yn = true
@@ -1243,7 +1243,7 @@ CREATE SEQUENCE cheileng.new_technology_usages_id_seq
 ALTER SEQUENCE cheileng.new_technology_usages_id_seq OWNED BY cheileng.new_technology_usages.id;
 
 CREATE TABLE cheileng.notification_preferences (
-    login_id character varying(100) CONSTRAINT system_notification_preferences_login_id_not_null NOT NULL,
+    employee_no character varying(20) NOT NULL,
     menu_path character varying(500) CONSTRAINT system_notification_preferences_menu_path_not_null NOT NULL,
     receive_yn boolean DEFAULT false CONSTRAINT system_notification_preferences_receive_yn_not_null NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -1251,7 +1251,7 @@ CREATE TABLE cheileng.notification_preferences (
 );
 
 COMMENT ON TABLE cheileng.notification_preferences IS '사용자별 업무 알림 수신 설정';
-COMMENT ON COLUMN cheileng.notification_preferences.login_id IS '알림 설정 사용자 로그인 ID';
+COMMENT ON COLUMN cheileng.notification_preferences.employee_no IS '알림 설정 사용자 사번';
 COMMENT ON COLUMN cheileng.notification_preferences.menu_path IS '알림 대상 메뉴 경로';
 COMMENT ON COLUMN cheileng.notification_preferences.receive_yn IS '알림 수신 여부';
 COMMENT ON COLUMN cheileng.notification_preferences.created_at IS '최초 설정 일시';
@@ -1632,7 +1632,7 @@ CREATE TABLE cheileng.pq_find_engr_info (
 
 COMMENT ON TABLE cheileng.pq_find_engr_info IS 'PQ참여 기술자 선정 정보';
 COMMENT ON COLUMN cheileng.pq_find_engr_info.bid_seq IS '공고문 시퀀스';
-COMMENT ON COLUMN cheileng.pq_find_engr_info.work_duty_id IS 'PQ작업자';
+COMMENT ON COLUMN cheileng.pq_find_engr_info.work_duty_id IS 'PQ 작업자 사번(auth_users.employee_no)';
 COMMENT ON COLUMN cheileng.pq_find_engr_info.engr_id IS '엔지니어 ID';
 COMMENT ON COLUMN cheileng.pq_find_engr_info.created_at IS '생성 시각';
 COMMENT ON COLUMN cheileng.pq_find_engr_info.created_id IS '생성자';
@@ -2016,7 +2016,7 @@ CREATE TABLE cheileng.system_policies (
 );
 
 CREATE TABLE cheileng.user_menu_permissions (
-    login_id character varying(100) NOT NULL,
+    employee_no character varying(20) NOT NULL,
     menu_code character varying(50) NOT NULL,
     read_yn boolean DEFAULT false NOT NULL,
     create_yn boolean DEFAULT false NOT NULL,
@@ -2168,7 +2168,7 @@ CREATE TABLE cheileng.work_overlap_document_engineers (
 COMMENT ON TABLE cheileng.work_overlap_document_engineers IS '업무중복도 문서 생성 대상 기술인 목록';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.target_id IS '업무중복도 문서 대상 기술인 식별자';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.bid_seq IS '문서 생성 대상 공고 식별자';
-COMMENT ON COLUMN cheileng.work_overlap_document_engineers.work_duty_id IS '대상 기술인을 등록한 PQ 작업자';
+COMMENT ON COLUMN cheileng.work_overlap_document_engineers.work_duty_id IS '대상 기술인을 등록한 PQ 작업자 사번(auth_users.employee_no)';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.engr_id IS '업무중복도 문서 생성 대상 기술인 식별자';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.display_order IS '선택 기술인 표시 순서';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.responsibility IS '기술인 책임 정도';
@@ -2286,10 +2286,10 @@ ALTER TABLE ONLY cheileng.auth_roles
     ADD CONSTRAINT auth_roles_role_name_key UNIQUE (role_name);
 
 ALTER TABLE ONLY cheileng.auth_users
-    ADD CONSTRAINT auth_users_employee_no_key UNIQUE (employee_no);
+    ADD CONSTRAINT uq_auth_users_login_id UNIQUE (login_id);
 
 ALTER TABLE ONLY cheileng.auth_users
-    ADD CONSTRAINT auth_users_pkey PRIMARY KEY (login_id);
+    ADD CONSTRAINT auth_users_pkey PRIMARY KEY (employee_no);
 
 ALTER TABLE ONLY cheileng.bid_notices
     ADD CONSTRAINT bid_notices_pkey PRIMARY KEY (bid_seq);
@@ -2439,7 +2439,7 @@ ALTER TABLE ONLY cheileng.system_notices
     ADD CONSTRAINT system_notices_pkey PRIMARY KEY (notice_id);
 
 ALTER TABLE ONLY cheileng.notification_preferences
-    ADD CONSTRAINT system_notification_preferences_pkey PRIMARY KEY (login_id, menu_path);
+    ADD CONSTRAINT notification_preferences_pkey PRIMARY KEY (employee_no, menu_path);
 
 ALTER TABLE ONLY cheileng.notification_topics
     ADD CONSTRAINT system_notification_topics_menu_path_key UNIQUE (menu_path);
@@ -2490,7 +2490,7 @@ ALTER TABLE ONLY cheileng.work_overlap_document_targets
     ADD CONSTRAINT uq_work_overlap_document_targets UNIQUE (work_duty_id, bid_seq, engr_id, contract_no);
 
 ALTER TABLE ONLY cheileng.user_menu_permissions
-    ADD CONSTRAINT user_menu_permissions_pkey PRIMARY KEY (login_id, menu_code);
+    ADD CONSTRAINT user_menu_permissions_pkey PRIMARY KEY (employee_no, menu_code);
 
 ALTER TABLE ONLY cheileng.work_overlap_contract_engineer_histories
     ADD CONSTRAINT work_overlap_contract_engineer_histories_pkey PRIMARY KEY (id);
@@ -2761,7 +2761,10 @@ ALTER TABLE ONLY cheileng.pq_find_engr_info
     ADD CONSTRAINT fk_pq_find_engr_info_engineer FOREIGN KEY (engr_id) REFERENCES cheileng.pq_engineer_master(engr_id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY cheileng.user_menu_permissions
-    ADD CONSTRAINT fk_user_menu_permissions_user FOREIGN KEY (login_id) REFERENCES cheileng.auth_users(login_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_user_menu_permissions_user FOREIGN KEY (employee_no) REFERENCES cheileng.auth_users(employee_no) ON DELETE CASCADE;
+
+ALTER TABLE ONLY cheileng.notification_preferences
+    ADD CONSTRAINT fk_notification_preferences_user FOREIGN KEY (employee_no) REFERENCES cheileng.auth_users(employee_no) ON DELETE CASCADE;
 
 ALTER TABLE ONLY cheileng.work_overlap_contract_engineer_histories
     ADD CONSTRAINT fk_work_overlap_contract_engineer_histories_contract FOREIGN KEY (contract_no) REFERENCES cheileng.work_overlap_contracts(contract_no) ON DELETE CASCADE;
@@ -2795,6 +2798,9 @@ ALTER TABLE ONLY cheileng.shinindo_managements
 
 ALTER TABLE ONLY cheileng.work_overlap_document_engineers
     ADD CONSTRAINT work_overlap_document_engineers_bid_seq_fkey FOREIGN KEY (bid_seq) REFERENCES cheileng.bid_notices(bid_seq) ON DELETE CASCADE;
+
+ALTER TABLE ONLY cheileng.work_overlap_document_engineers
+    ADD CONSTRAINT work_overlap_document_engineers_work_duty_id_fkey FOREIGN KEY (work_duty_id) REFERENCES cheileng.auth_users(employee_no) ON DELETE CASCADE;
 
 ALTER TABLE ONLY cheileng.work_overlap_document_targets
     ADD CONSTRAINT work_overlap_document_targets_bid_seq_fkey FOREIGN KEY (bid_seq) REFERENCES cheileng.bid_notices(bid_seq) ON DELETE CASCADE;
@@ -3131,7 +3137,7 @@ COMMENT ON COLUMN cheileng.system_policies.sort_seq IS '정렬 순번';
 COMMENT ON COLUMN cheileng.system_policies.use_yn IS '사용 yn';
 COMMENT ON COLUMN cheileng.system_policies.value_type IS '값 구분';
 COMMENT ON TABLE cheileng.user_menu_permissions IS '사용자별 메뉴 권한';
-COMMENT ON COLUMN cheileng.user_menu_permissions.login_id IS '로그인 식별자';
+COMMENT ON COLUMN cheileng.user_menu_permissions.employee_no IS '사용자 사번';
 COMMENT ON COLUMN cheileng.user_menu_permissions.menu_code IS '메뉴 코드';
 COMMENT ON COLUMN cheileng.user_menu_permissions.read_yn IS '조회 yn';
 COMMENT ON COLUMN cheileng.user_menu_permissions.create_yn IS '생성 yn';
@@ -3159,4 +3165,4 @@ COMMENT ON COLUMN cheileng.work_overlap_document_engineers.created_at IS '생성
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.created_id IS '생성자 ID';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.last_changed_at IS '최종 변경 일시';
 COMMENT ON COLUMN cheileng.work_overlap_document_engineers.last_changed_id IS '최종 변경자 ID';
-COMMENT ON COLUMN cheileng.work_overlap_document_targets.work_duty_id IS '업무 duty 식별자';
+COMMENT ON COLUMN cheileng.work_overlap_document_targets.work_duty_id IS '업무중복도 문서 작업자 사번(auth_users.employee_no)';
