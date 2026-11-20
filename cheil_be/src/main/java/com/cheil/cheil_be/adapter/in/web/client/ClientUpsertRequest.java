@@ -6,11 +6,10 @@ import jakarta.validation.constraints.Size;
 
 public record ClientUpsertRequest(
         @NotBlank @Size(max = 20) String clientCode,
-        @NotBlank @Size(max = 300) String orderName,
         @Size(max = 300) String orderEngName,
         @Size(max = 20) String businessNo,
         @Size(max = 20) String corpNo,
-        @Size(max = 300) String orderNameLong,
+        @NotBlank @Size(max = 300) String orderNameLong,
         @Size(max = 100) String owner,
         @Size(max = 100) String businessSectors,
         @Size(max = 100) String businessItems,
@@ -29,7 +28,6 @@ public record ClientUpsertRequest(
     public ClientUpsertCommand toCommand() {
         return new ClientUpsertCommand(
                 clientCode,
-                orderName,
                 orderEngName,
                 businessNo,
                 corpNo,

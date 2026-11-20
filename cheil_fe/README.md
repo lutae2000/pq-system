@@ -237,7 +237,7 @@ export async function getClientReferences(params: ClientReferenceSearchParams = 
   return toResult(
     page.content,
     (client) => ({
-      label: client.orderName,
+      label: client.orderNameLong,
       value: client.clientCode,
     }),
   );

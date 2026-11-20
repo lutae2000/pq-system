@@ -1,163 +1,85 @@
-﻿"use client";
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { logoutSession } from "@/lib/http/apiClient";
-import { readAuthSessionSnapshot, redirectToLogin } from "@/lib/auth/authSession";
+import {
+  getAuthSessionExpiryMs,
+  readAuthSessionSnapshot,
+  redirectToLogin,
+  writeAuthNotice,
+  type AuthSession,
+} from "@/lib/auth/authSession";
 import { frontendIdleTimeoutMs } from "@/lib/config/timeouts";
-
-type UseIdleLogoutOptions = {
-  enabled?: boolean;
-  logoutPath?: string;
-  timeoutMs?: number;
-};
+import { logoutSession } from "@/lib/http/apiClient";
 
 const DISPLAY_TICK_MS = 1000;
+const ACTIVITY_EVENTS = ["mousedown", "click", "keydown", "touchstart"] as const;
 
-export function useIdleLogout({
-  enabled = true,
-  logoutPath = "/login",
-  timeoutMs = frontendIdleTimeoutMs,
-}: UseIdleLogoutOptions = {}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const timeoutRef = useRef<number | null>(null);
-  const intervalRef = useRef<number | null>(null);
-  const lastActivityAtRef = useRef<number>(0);
-  const loggingOutRef = useRef(false);
-  const [remainingMs, setRemainingMs] = useState(timeoutMs);
-
-  const clearTimers = useCallback(() => {
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-  }, []);
-
-  const logout = useCallback(() => {
-    if (loggingOutRef.current) {
-      return;
-    }
-
-    loggingOutRef.current = true;
-    clearTimers();
-    void logoutSession();
-    redirectToLogin(logoutPath);
-    router.refresh();
-  }, [clearTimers, logoutPath, router]);
-
-  const getRemainingMs = useCallback(() => {
-    const idleDeadlineMs = lastActivityAtRef.current + timeoutMs;
-    return Math.max(idleDeadlineMs - Date.now(), 0);
-  }, [timeoutMs]);
-
-  const scheduleLogout = useCallback(
-    (delayMs: number) => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = window.setTimeout(logout, Math.max(delayMs, 0));
-    },
-    [logout],
-  );
-
-  const syncRemainingTime = useCallback(() => {
-    const nextRemainingMs = getRemainingMs();
-    setRemainingMs(nextRemainingMs);
-    scheduleLogout(nextRemainingMs);
-    return nextRemainingMs;
-  }, [getRemainingMs, scheduleLogout]);
-
-  const markActivity = useCallback(() => {
-    lastActivityAtRef.current = Date.now();
-    setRemainingMs(timeoutMs);
-    scheduleLogout(timeoutMs);
-    return timeoutMs;
-  }, [scheduleLogout, timeoutMs]);
+export function useIdleLogout({ enabled, session }: { enabled: boolean; session: AuthSession | null }) {
+  const accessToken = session?.accessToken;
+  const expiresAtMs = session ? getAuthSessionExpiryMs(session) : Infinity;
+  const idleTimeoutMinutes = session?.idleTimeoutMinutes ?? 0;
+  const idleTimeoutMs = idleTimeoutMinutes > 0 && Number.isFinite(idleTimeoutMinutes)
+    ? idleTimeoutMinutes * 60_000
+    : frontendIdleTimeoutMs;
+  const [remainingMs, setRemainingMs] = useState(idleTimeoutMs);
 
   useEffect(() => {
-    if (!enabled || pathname === logoutPath) {
-      clearTimers();
-      loggingOutRef.current = false;
+    if (!enabled || !accessToken) {
       return;
     }
 
-    const session = readAuthSessionSnapshot();
-    if (!session) {
-      logout();
-      return;
-    }
+    let idleDeadlineMs = Date.now() + idleTimeoutMs;
+    let timerId: number;
+    let expired = false;
 
-    loggingOutRef.current = false;
-    lastActivityAtRef.current = Date.now();
-    scheduleLogout(timeoutMs);
-
-    const activityEvents = ["mousedown", "click", "keydown", "touchstart"] as const;
-    const syncEvents = ["focus", "visibilitychange"] as const;
-
-    intervalRef.current = window.setInterval(() => {
-      const nextRemainingMs = getRemainingMs();
-      setRemainingMs(nextRemainingMs);
-      if (nextRemainingMs <= 0) {
-        logout();
-      }
-    }, DISPLAY_TICK_MS);
-
-    const initialSyncTimer = window.setTimeout(() => {
-      const initialRemainingMs = syncRemainingTime();
-      if (initialRemainingMs <= 0) {
-        logout();
-      }
-    }, 0);
-
-    const handleActivity = () => {
-      const nextRemainingMs = markActivity();
-      if (nextRemainingMs <= 0) {
-        logout();
-      }
-    };
-
-    const handleSync = () => {
-      const nextRemainingMs = syncRemainingTime();
-      if (nextRemainingMs <= 0) {
-        logout();
-      }
-    };
-
-    activityEvents.forEach((eventName) => {
-      window.addEventListener(eventName, handleActivity, { passive: true });
-    });
-    syncEvents.forEach((eventName) => {
-      if (eventName === "visibilitychange") {
-        document.addEventListener(eventName, handleSync);
+    const sync = (activity = false) => {
+      if (expired) {
         return;
       }
-      window.addEventListener(eventName, handleSync);
+
+      window.clearTimeout(timerId);
+      const now = Date.now();
+      const deadlineMs = Math.min(idleDeadlineMs, expiresAtMs);
+      if (now >= deadlineMs) {
+        expired = true;
+        setRemainingMs(0);
+        if (readAuthSessionSnapshot()?.accessToken === accessToken) {
+          writeAuthNotice("세션이 종료되었습니다. 다시 로그인해 주세요.");
+          void logoutSession();
+          redirectToLogin();
+        }
+        return;
+      }
+
+      if (activity) {
+        idleDeadlineMs = now + idleTimeoutMs;
+      }
+
+      const nextRemainingMs = Math.min(idleDeadlineMs, expiresAtMs) - now;
+      setRemainingMs(nextRemainingMs);
+      timerId = window.setTimeout(checkExpiry, Math.min(nextRemainingMs, DISPLAY_TICK_MS));
+    };
+
+    const checkExpiry = () => sync();
+    const markActivity = () => sync(true);
+
+    timerId = window.setTimeout(checkExpiry, 0);
+    ACTIVITY_EVENTS.forEach((event) => {
+      window.addEventListener(event, markActivity, { passive: true });
     });
+    window.addEventListener("focus", checkExpiry);
+    window.addEventListener("pageshow", checkExpiry);
+    document.addEventListener("visibilitychange", checkExpiry);
 
     return () => {
-      activityEvents.forEach((eventName) => {
-        window.removeEventListener(eventName, handleActivity);
-      });
-      syncEvents.forEach((eventName) => {
-        if (eventName === "visibilitychange") {
-          document.removeEventListener(eventName, handleSync);
-          return;
-        }
-        window.removeEventListener(eventName, handleSync);
-      });
-      window.clearTimeout(initialSyncTimer);
-      clearTimers();
+      window.clearTimeout(timerId);
+      ACTIVITY_EVENTS.forEach((event) => window.removeEventListener(event, markActivity));
+      window.removeEventListener("focus", checkExpiry);
+      window.removeEventListener("pageshow", checkExpiry);
+      document.removeEventListener("visibilitychange", checkExpiry);
     };
-  }, [clearTimers, enabled, getRemainingMs, logout, markActivity, pathname, scheduleLogout, syncRemainingTime, logoutPath, timeoutMs]);
+  }, [accessToken, enabled, expiresAtMs, idleTimeoutMs]);
 
   return { remainingMs };
 }

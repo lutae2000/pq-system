@@ -59,7 +59,7 @@ public class BidNoticeResponseMapper {
     private BidNoticeResponseLookup snapshot(boolean includeDepartments, boolean includeClients) {
         return new BidNoticeResponseLookup(
                 includeDepartments ? toLabelMap(departmentRepository.findAll(), Department::deptCode, Department::deptName) : Map.of(),
-                includeClients ? toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderName) : Map.of(),
+                includeClients ? toLabelMap(clientRepository.findAll(), Client::clientCode, Client::orderNameLong) : Map.of(),
                 BID_NOTICE_CODE_GROUPS.stream()
                         .flatMap(level1Code -> commonCodeCacheService.getOrLoadByLevel1Code(
                                 level1Code,

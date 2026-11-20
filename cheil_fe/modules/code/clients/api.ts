@@ -6,11 +6,10 @@ export const CLIENT_CODE_PAGE_SIZE = 20;
 
 export type ClientCodeRecord = {
   clientCode: string;
-  orderName: string;
   orderEngName: string | null;
   businessNo: string | null;
   corpNo: string | null;
-  orderNameLong: string | null;
+  orderNameLong: string;
   owner: string | null;
   businessSectors: string | null;
   businessItems: string | null;

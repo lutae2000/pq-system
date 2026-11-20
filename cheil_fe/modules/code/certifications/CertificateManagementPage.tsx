@@ -11,7 +11,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   FormControlLabel,
   InputAdornment,
   MenuItem,
@@ -26,6 +25,7 @@ import { useMemo, useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
+import { DetailFormSection } from "@/components/common/DetailFormSection";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -428,29 +428,21 @@ export function CertificateManagementPage() {
 
         <Card sx={{ minWidth: 0 }}>
           <CardContent>
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-              <Box>
-                <Typography sx={{ fontWeight: 800 }} variant="h6">
-                  자격증 상세
-                </Typography>
-                <Typography color="text.secondary" variant="body2">
-                  {isCreating
-                    ? "새 자격증을 등록합니다."
-                    : selectedRow
-                      ? `${selectedRow.certCode} - ${selectedRow.certName}`
-                      : "목록에서 자격증을 선택하세요."}
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing={1}>
-                <Chip label={certificationKindLabel(supportedCertKind(detailDraft.certKind))} size="small" variant="outlined" />
-                <Chip color={detailDraft.useYn ? "success" : "default"} label={detailDraft.useYn ? "사용" : "미사용"} size="small" />
-              </Stack>
-            </Box>
-
-            <Divider sx={{ my: 1.5 }} />
-
-            <Stack spacing={1.5}>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <DetailFormSection
+              title="자격증 상세"
+              description={isCreating
+                ? "새 자격증을 등록합니다."
+                : selectedRow
+                  ? `${selectedRow.certCode} - ${selectedRow.certName}`
+                  : "목록에서 자격증을 선택하세요."}
+              actions={
+                <Stack direction="row" spacing={1}>
+                  <Chip label={certificationKindLabel(supportedCertKind(detailDraft.certKind))} size="small" variant="outlined" />
+                  <Chip color={detailDraft.useYn ? "success" : "default"} label={detailDraft.useYn ? "사용" : "미사용"} size="small" />
+                </Stack>
+              }
+            >
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", gridColumn: "1 / -1", justifyContent: "flex-end" }}>
                 <Button disabled={!canCreate || saveMutation.isPending} onClick={handleNew} startIcon={<AddOutlinedIcon />} variant="outlined">
                   신규
                 </Button>
@@ -482,7 +474,7 @@ export function CertificateManagementPage() {
                 onChange={(event) => setDraft((current) => ({ ...current, certCode: event.target.value }))}
                 size="small"
                 slotProps={{ htmlInput: { maxLength: MAX_CERT_CODE } }}
-                sx={fieldSx}
+                sx={standardFieldSx}
                 value={detailDraft.certCode}
               />
               <TextField
@@ -492,7 +484,7 @@ export function CertificateManagementPage() {
                 label="구분"
                 onChange={(event) => setDraft((current) => ({ ...current, certKind: Number(event.target.value) }))}
                 size="small"
-                sx={fieldSx}
+                sx={standardFieldSx}
                 value={String(supportedCertKind(detailDraft.certKind))}
               >
                 {editableCertKindOptions.map((kind) => (
@@ -510,7 +502,7 @@ export function CertificateManagementPage() {
                 onChange={(event) => setDraft((current) => ({ ...current, certName: event.target.value }))}
                 size="small"
                 slotProps={{ htmlInput: { maxLength: MAX_CERT_NAME } }}
-                sx={fieldSx}
+                sx={{ ...standardFieldSx, gridColumn: "1 / -1" }}
                 value={detailDraft.certName}
               />
               <TextField
@@ -522,7 +514,7 @@ export function CertificateManagementPage() {
                 onChange={(event) => setDraft((current) => ({ ...current, satisCode: event.target.value }))}
                 size="small"
                 slotProps={{ htmlInput: { maxLength: MAX_SATIS_CODE } }}
-                sx={fieldSx}
+                sx={standardFieldSx}
                 value={detailDraft.satisCode ?? ""}
               />
               <TextField
@@ -534,7 +526,7 @@ export function CertificateManagementPage() {
                 onChange={(event) => setDraft((current) => ({ ...current, satisName: event.target.value }))}
                 size="small"
                 slotProps={{ htmlInput: { maxLength: MAX_SATIS_NAME } }}
-                sx={fieldSx}
+                sx={standardFieldSx}
                 value={detailDraft.satisName ?? ""}
               />
               <FormControlLabel
@@ -546,17 +538,16 @@ export function CertificateManagementPage() {
                   />
                 }
                 label="사용"
+                sx={{ gridColumn: "1 / -1", justifySelf: "start" }}
               />
+            </DetailFormSection>
 
-              <Divider />
-
-              <AuditFields
-                createdAt={selectedRow?.createdAt}
-                createdBy={selectedRow?.createdId}
-                updatedAt={selectedRow?.lastChangedAt}
-                updatedBy={selectedRow?.lastChangedId}
-              />
-            </Stack>
+            <AuditFields
+              createdAt={selectedRow?.createdAt}
+              createdBy={selectedRow?.createdId}
+              updatedAt={selectedRow?.lastChangedAt}
+              updatedBy={selectedRow?.lastChangedId}
+            />
           </CardContent>
         </Card>
       </Box>

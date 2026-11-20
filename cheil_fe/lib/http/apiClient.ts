@@ -60,9 +60,11 @@ apiClient.interceptors.request.use((config) => {
   }
 
   const loginHeaders = buildLoginHeaders();
-  if (loginHeaders.Authorization) {
+  if (explicitAuthorization) {
+    headers.set("Authorization", explicitAuthorization);
+  } else if (loginHeaders.Authorization) {
     headers.set("Authorization", loginHeaders.Authorization);
-  } else if (!explicitAuthorization) {
+  } else {
     headers.delete("Authorization");
   }
 
@@ -165,15 +167,16 @@ export async function logoutSession(): Promise<void> {
         "/auth/logout",
         undefined,
         {
+          adapter: "fetch",
+          fetchOptions: { keepalive: true },
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
           },
+          validateStatus: () => true,
         },
       );
     }
   } catch {
-    // Ignore logout failures and clear the local session regardless.
-  } finally {
-    clearAuthSession();
+    // Local logout is complete even if the server request fails.
   }
 }

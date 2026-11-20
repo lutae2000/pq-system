@@ -6,7 +6,6 @@ import com.cheil.cheil_be.domain.client.Client;
 
 public record ClientResponse(
         String clientCode,
-        String orderName,
         String orderEngName,
         String businessNo,
         String corpNo,
@@ -31,7 +30,6 @@ public record ClientResponse(
     static ClientResponse from(Client client) {
         return new ClientResponse(
                 client.clientCode(),
-                client.orderName(),
                 client.orderEngName(),
                 client.businessNo(),
                 client.corpNo(),

@@ -3,14 +3,14 @@
 import { Box, CircularProgress, Toolbar, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useState, type ReactNode } from "react";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TabFrameOutlet } from "@/components/layout/TabFrameOutlet";
 import { TopHeader, TOP_HEADER_HEIGHT } from "@/components/layout/TopHeader";
 import { useIdleLogout } from "@/hooks/useIdleLogout";
-import { getAuthSessionStorageSnapshot, ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, subscribeAuthSession, type AuthSession } from "@/lib/auth/authSession";
-import { frontendIdleTimeoutMs } from "@/lib/config/timeouts";
+import { ROUTE_GUARD_ENABLED, readAuthSession, redirectToLogin, type AuthSession } from "@/lib/auth/authSession";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { NoticeLayerDialog } from "@/modules/system/notices/NoticeLayerDialog";
 import { NotificationCenterDialog } from "@/modules/system/notices/NotificationCenterDialog";
 import { getNotificationPreferences, listNoticesDashboard } from "@/modules/system/notices/api";
@@ -90,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [systemNoticeOpen, setSystemNoticeOpen] = useState(false);
   const [notificationRetentionStart] = useState(() => Date.now() - notificationRetentionMs);
   const [readNoticeVersion, setReadNoticeVersion] = useState(0);
-  const authSessionSnapshot = useSyncExternalStore(subscribeAuthSession, getAuthSessionStorageSnapshot, () => "");
+  const currentSession = useAuthSession();
   const [authState, dispatchAuthState] = useReducer(
     (_state: "checking" | "allowed" | "blocked", nextState: "checking" | "allowed" | "blocked") => nextState,
     ROUTE_GUARD_ENABLED && !isPublicRoute ? "checking" : "allowed",
@@ -106,24 +106,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     enabled: shouldLoadNotices && authState === "allowed",
   });
 
-  const currentSession = mounted ? readAuthSession() : null;
   const notificationUserKey = currentSession?.employeeNo ?? currentSession?.userName ?? "anonymous";
   const readNoticeIds = useMemo(() => {
     void readNoticeVersion;
-    return authSessionSnapshot || mounted
+    return mounted
       ? readStoredIds(`${noticeReadKey}:${notificationUserKey}`)
       : new Set<string>();
-  }, [authSessionSnapshot, mounted, notificationUserKey, readNoticeVersion]);
+  }, [mounted, notificationUserKey, readNoticeVersion]);
   const hiddenNoticeIds = useMemo(() => {
     void readNoticeVersion;
-    return authSessionSnapshot || mounted
+    return mounted
       ? readStoredIds(`${noticeHiddenKey}:${notificationUserKey}`)
       : new Set<string>();
-  }, [authSessionSnapshot, mounted, notificationUserKey, readNoticeVersion]);
+  }, [mounted, notificationUserKey, readNoticeVersion]);
   const sessionEnabled = mounted && !isPublicRoute && authState === "allowed" && Boolean(currentSession);
   const { remainingMs } = useIdleLogout({
-    enabled: sessionEnabled,
-    timeoutMs: frontendIdleTimeoutMs,
+    enabled: mounted && !isPublicRoute,
+    session: currentSession,
   });
 
   const effectiveDrawerWidth = isSidebarOpen ? drawerWidth : 0;
@@ -197,7 +196,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     const session = readAuthSession();
     if (!session) {
       dispatchAuthState("blocked");
-      redirectToLogin("/login");
+      if (!currentSession) {
+        redirectToLogin("/login");
+      }
       return;
     }
 
@@ -208,7 +209,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     dispatchAuthState("allowed");
-  }, [isPublicRoute, pathname, router]);
+  }, [currentSession, isPublicRoute, pathname, router]);
 
   useEffect(() => {
     if (isPublicRoute || authState !== "allowed" || !shouldLoadNotices) {

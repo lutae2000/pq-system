@@ -8,7 +8,6 @@ import com.cheil.cheil_be.domain.client.Client;
 
 public record ClientUpsertCommand(
         String clientCode,
-        String orderName,
         String orderEngName,
         String businessNo,
         String corpNo,
@@ -30,11 +29,10 @@ public record ClientUpsertCommand(
 
     public ClientUpsertCommand {
         clientCode = InputValues.requiredText(clientCode, 20, "clientCode");
-        orderName = InputValues.requiredText(orderName, 300, "orderName");
         orderEngName = optional(orderEngName, 300, "orderEngName");
         businessNo = optional(businessNo, 20, "businessNo");
         corpNo = optional(corpNo, 20, "corpNo");
-        orderNameLong = optional(orderNameLong, 300, "orderNameLong");
+        orderNameLong = InputValues.requiredText(orderNameLong, 300, "orderNameLong");
         owner = optional(owner, 100, "owner");
         businessSectors = optional(businessSectors, 100, "businessSectors");
         businessItems = optional(businessItems, 100, "businessItems");
@@ -51,11 +49,10 @@ public record ClientUpsertCommand(
     }
 
     public Client toDomain(Client existing, Instant now, String actor) {
-        String resolvedOrderNameLong = StringValues.optional(orderNameLong, orderName);
         String resolvedCreatedId = existing == null ? actor : existing.createdId();
         String resolvedLastChangedId = actor;
         return new Client(
-                clientCode, orderName, orderEngName, businessNo, corpNo, resolvedOrderNameLong,
+                clientCode, orderEngName, businessNo, corpNo, orderNameLong,
                 owner, businessSectors, businessItems, orderClass, zipCode, addr1, addr2,
                 remark, companyType, homeUrl, otype,
                 existing == null ? now : existing.createdAt(),

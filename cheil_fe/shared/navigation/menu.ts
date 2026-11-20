@@ -176,6 +176,11 @@ export async function getMenuItems() {
   }
 
   const permissions = await listMyMenuPermissions();
-  writeAuthSession({ ...session, permissions });
+  const currentSession = readAuthSession();
+  if (currentSession?.accessToken !== session.accessToken) {
+    return fallbackMenuItems;
+  }
+
+  writeAuthSession({ ...currentSession, permissions });
   return buildMenuTree(permissions);
 }

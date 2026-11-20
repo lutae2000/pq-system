@@ -127,13 +127,10 @@ export function ClientCodeDetailDialog({
               <TextField fullWidth label="홈페이지주소" size="small" value={record.homepage} onChange={(event) => onChangeField("homepage", event.target.value)} sx={standardFieldSx} />
             </Field>
             <Field sm={6}>
-              <TextField fullWidth label="발주처명(단명)" size="small" value={record.shortName} onChange={(event) => onChangeField("shortName", event.target.value)} sx={standardFieldSx} />
+              <TextField fullWidth label="발주처명(정식)" required size="small" value={record.longName} onChange={(event) => onChangeField("longName", event.target.value)} sx={standardFieldSx} />
             </Field>
             <Field sm={6}>
               <TextField fullWidth label="발주처영문명" size="small" value={record.englishName} onChange={(event) => onChangeField("englishName", event.target.value)} sx={standardFieldSx} />
-            </Field>
-            <Field sm={12}>
-              <TextField fullWidth label="발주처명(장명)" size="small" value={record.longName} onChange={(event) => onChangeField("longName", event.target.value)} sx={standardFieldSx} />
             </Field>
           </Section>
 

@@ -38,7 +38,6 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 const emptyDraft = (): ClientCodeRecord => ({
   clientCode: "",
-  orderName: "",
   orderEngName: "",
   businessNo: "",
   corpNo: "",
@@ -75,11 +74,10 @@ const optionName = (options: Array<{ name: string; value: string }>, value: stri
 
 const toRequest = (draft: ClientCodeRecord): ClientCodeUpsertRequest => ({
   clientCode: draft.clientCode.trim(),
-  orderName: draft.orderName.trim(),
   orderEngName: text(draft.orderEngName).trim(),
   businessNo: text(draft.businessNo).trim(),
   corpNo: text(draft.corpNo).trim(),
-  orderNameLong: text(draft.orderNameLong).trim(),
+  orderNameLong: draft.orderNameLong.trim(),
   owner: text(draft.owner).trim(),
   businessSectors: text(draft.businessSectors).trim(),
   businessItems: text(draft.businessItems).trim(),
@@ -146,10 +144,9 @@ export function ClientCodesManagementPage() {
   const columns = useMemo<GridColDef<ClientCodeRecord>[]>(
     () => [
       { field: "clientCode", headerName: "코드", width: 90 },
-      { field: "orderName", headerName: "거래처명", minWidth: 180, flex: 1 },
       {
         field: "orderNameLong",
-        headerName: "거래처명(정식)",
+        headerName: "거래처명",
         minWidth: 220,
         flex: 1.2,
         valueGetter: (_value, row) => display(row.orderNameLong),
@@ -239,8 +236,8 @@ export function ClientCodesManagementPage() {
       showError("등록 권한이 없습니다.");
       return;
     }
-    if (!draft.clientCode.trim() || !draft.orderName.trim()) {
-      showError("거래처 코드와 거래처명은 필수입니다.");
+    if (!draft.clientCode.trim() || !draft.orderNameLong.trim()) {
+      showError("거래처 코드와 거래처명(정식)은 필수입니다.");
       return;
     }
     saveMutation.mutate({ clientCode: selectedClientCode, request: toRequest(draft) });
@@ -357,7 +354,7 @@ export function ClientCodesManagementPage() {
                 거래처 상세
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                {selectedClientCode ? `${selectedClientCode} / ${display(draft.orderName)}` : "신규 거래처를 작성 중입니다."}
+                {selectedClientCode ? `${selectedClientCode} / ${display(draft.orderNameLong)}` : "신규 거래처를 작성 중입니다."}
               </Typography>
             </Box>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "flex-end" }}>
@@ -419,12 +416,12 @@ export function ClientCodesManagementPage() {
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
               <TextField
                 fullWidth
-                label="거래처명(약식)"
-                onChange={(event) => updateDraft("orderName", event.target.value)}
+                label="거래처명"
+                onChange={(event) => updateDraft("orderNameLong", event.target.value)}
                 required
                 size="small"
                 sx={standardFieldSx}
-                value={draft.orderName}
+                value={draft.orderNameLong}
               />
               <TextField
                 fullWidth
@@ -435,15 +432,6 @@ export function ClientCodesManagementPage() {
                 value={text(draft.orderEngName)}
               />
             </Box>
-
-            <TextField
-              fullWidth
-              label="거래처명(정식)"
-              onChange={(event) => updateDraft("orderNameLong", event.target.value)}
-              size="small"
-              sx={standardFieldSx}
-              value={text(draft.orderNameLong)}
-            />
 
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
               <TextField
@@ -558,7 +546,7 @@ export function ClientCodesManagementPage() {
         open={Boolean(deleteTarget)}
         loading={deleteMutation.isPending}
         message="거래처를 삭제하시겠습니까?"
-        targetLabel={deleteTarget ? `${deleteTarget.clientCode} - ${deleteTarget.orderName}` : undefined}
+        targetLabel={deleteTarget ? `${deleteTarget.clientCode} - ${deleteTarget.orderNameLong}` : undefined}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.clientCode); }}
       />

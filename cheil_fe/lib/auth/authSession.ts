@@ -58,19 +58,12 @@ const parseSession = (value: string | null): AuthSession | null => {
   }
 };
 
-const isExpired = (session: AuthSession) => {
-  const expiresAtValue = session.accessTokenExpiresAt ?? session.sessionExpiresAt;
-  if (!expiresAtValue) {
-    return false;
-  }
-
-  const expiresAt = new Date(expiresAtValue).getTime();
-  if (Number.isNaN(expiresAt)) {
-    return false;
-  }
-
-  return Date.now() >= expiresAt;
-};
+export const getAuthSessionExpiryMs = ({ accessTokenExpiresAt, sessionExpiresAt }: AuthSession) =>
+  Math.min(
+    ...[accessTokenExpiresAt, sessionExpiresAt]
+      .map((value) => Date.parse(value ?? ""))
+      .filter(Number.isFinite),
+  );
 
 export const readAuthSessionSnapshot = (): AuthSession | null => {
   if (!isBrowser()) {
@@ -111,12 +104,7 @@ export const readAuthSession = (): AuthSession | null => {
     return null;
   }
 
-  if (isExpired(session)) {
-    window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
-    return null;
-  }
-
-  return session;
+  return Date.now() < getAuthSessionExpiryMs(session) ? session : null;
 };
 
 export const hasAuthSession = () => readAuthSession() !== null;

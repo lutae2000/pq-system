@@ -4,7 +4,6 @@ import java.time.Instant;
 
 public record Client(
         String clientCode,
-        String orderName,
         String orderEngName,
         String businessNo,
         String corpNo,

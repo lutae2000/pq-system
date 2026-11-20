@@ -26,7 +26,7 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
             WHERE (CAST(:keyword AS VARCHAR) IS NULL
                    OR LOWER(management.item_name) LIKE CAST(:keyword AS VARCHAR)
                    OR LOWER(COALESCE(management.remark, '')) LIKE CAST(:keyword AS VARCHAR)
-                   OR LOWER(COALESCE(client.order_name_long, client.order_name, management.client_code)) LIKE CAST(:keyword AS VARCHAR))
+                   OR LOWER(COALESCE(client.order_name, management.client_code)) LIKE CAST(:keyword AS VARCHAR))
               AND (CAST(:clientCode AS VARCHAR) IS NULL
                    OR LOWER(management.client_code) LIKE CAST(:clientCode AS VARCHAR))
             """;
@@ -38,7 +38,7 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
         String listSql = """
                 SELECT management.id,
                        management.client_code,
-                       COALESCE(client.order_name_long, client.order_name, management.client_code) AS client_name,
+                       COALESCE(client.order_name, management.client_code) AS client_name,
                        management.item_name,
                        management.applied_yn,
                        management.score,
@@ -79,7 +79,7 @@ public class ShinindoManagementRepositoryAdapter implements ShinindoManagementRe
         return jdbcClient.sql("""
                         SELECT management.id,
                                management.client_code,
-                               COALESCE(client.order_name_long, client.order_name, management.client_code) AS client_name,
+                               COALESCE(client.order_name, management.client_code) AS client_name,
                                management.item_name,
                                management.applied_yn,
                                management.score,

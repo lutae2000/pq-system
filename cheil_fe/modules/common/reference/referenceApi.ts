@@ -175,7 +175,7 @@ export async function getClientReferences(params: ClientReferenceSearchParams = 
   return toResult<ClientCodeRecord>(
     page.content,
     (client) => ({
-      label: client.orderNameLong?.trim() ? `${client.orderName} (${client.orderNameLong})` : client.orderName,
+      label: client.orderNameLong || client.clientCode,
       value: client.clientCode,
     }),
     sortByLabel,

@@ -89,7 +89,6 @@ public class JpaClientRepository implements ClientRepository {
             String keyword = "%" + condition.businessName().trim().toLowerCase(Locale.ROOT) + "%";
             predicate.and(
                     clientEntity.clientCode.lower().like(keyword)
-                            .or(clientEntity.orderName.lower().like(keyword))
                             .or(clientEntity.orderNameLong.lower().like(keyword))
                             .or(clientEntity.orderEngName.lower().like(keyword))
                             .or(clientEntity.businessNo.lower().like(keyword))

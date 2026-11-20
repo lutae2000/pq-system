@@ -48,7 +48,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         QClientEntity client = new QClientEntity("client");
         QDepartmentEntity department = new QDepartmentEntity("department");
         var query = queryFactory
-                .select(bidNoticeEntity, client.orderName, department.deptName)
+                .select(bidNoticeEntity, client.orderNameLong, department.deptName)
                 .from(bidNoticeEntity)
                 .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
                 .leftJoin(department).on(department.deptCode.eq(bidNoticeEntity.departmentCode))
@@ -106,7 +106,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         QClientEntity client = new QClientEntity("client");
         QDepartmentEntity department = new QDepartmentEntity("department");
         Tuple row = queryFactory
-                .select(bidNoticeEntity, client.orderName, department.deptName)
+                .select(bidNoticeEntity, client.orderNameLong, department.deptName)
                 .from(bidNoticeEntity)
                 .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
                 .leftJoin(department).on(department.deptCode.eq(bidNoticeEntity.departmentCode))
@@ -117,7 +117,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
 
     private BidNoticeListRow toRow(Tuple row, QClientEntity client, QDepartmentEntity department) {
         BidNotice bidNotice = row.get(bidNoticeEntity).toDomain();
-        String clientName = row.get(client.orderName);
+        String clientName = row.get(client.orderNameLong);
         String orderClientName = StringUtils.hasText(clientName) ? clientName : bidNotice.orderClient();
         String departmentName = row.get(department.deptName);
         return new BidNoticeListRow(bidNotice, orderClientName,

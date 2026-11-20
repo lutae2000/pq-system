@@ -97,14 +97,14 @@ function ClientField({ source, enabled = true, onChange, readOnly = false, value
   useEffect(() => {
     if (!searchOnInput || readOnly || value || !initialSearchKeyword.trim() || !result.isSuccess) return;
     const name = initialSearchKeyword.trim();
-    const matched = result.items.find((client) => client.orderName?.trim().toLowerCase() === name.toLowerCase());
-    onChange(matched ? (valueMode === "code" ? matched.clientCode : matched.orderName) : name);
+    const matched = result.items.find((client) => client.orderNameLong.trim().toLowerCase() === name.toLowerCase());
+    onChange(matched ? (valueMode === "code" ? matched.clientCode : matched.orderNameLong) : name);
   }, [initialSearchKeyword, onChange, readOnly, result.isSuccess, result.items, searchOnInput, value, valueMode]);
 
   const options: ReferenceOption[] = searchOnInput
     ? result.items.map((client) => ({
-        label: client.orderName ? `${client.orderName} (${client.clientCode})` : client.clientCode,
-        value: valueMode === "code" ? client.clientCode : client.orderName || client.clientCode,
+        label: client.orderNameLong ? `${client.orderNameLong} (${client.clientCode})` : client.clientCode,
+        value: valueMode === "code" ? client.clientCode : client.orderNameLong || client.clientCode,
       }))
     : result.options;
   return <FieldControl {...props} loading={result.isLoading} onChange={onChange} onSearchChange={searchOnInput ? setKeyword : props.onSearchChange} options={options} readOnly={readOnly} value={value} />;

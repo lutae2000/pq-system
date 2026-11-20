@@ -36,7 +36,7 @@ public class ClientController {
     /**
      * 거래처 목록을 clientCode 오름차순으로 페이지 단위 조회합니다.
      * <p>
-     * businessName은 거래처 코드, 약식명, 정식명, 영문명, 사업자번호를 통합 검색합니다.
+     * businessName은 거래처 코드, 정식명, 영문명, 사업자번호를 통합 검색합니다.
      * orderClass는 거래처 분류 코드, companyType은 상위기관 코드를 정확히 일치 검색합니다.
      */
     @GetMapping

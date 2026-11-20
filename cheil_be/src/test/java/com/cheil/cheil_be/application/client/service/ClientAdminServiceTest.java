@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import com.cheil.cheil_be.application.client.model.ClientSearchCondition;
+import com.cheil.cheil_be.application.client.model.ClientUpsertCommand;
 import com.cheil.cheil_be.application.client.port.out.ClientRepository;
 import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
@@ -63,5 +64,29 @@ class ClientAdminServiceTest {
                 .isInstanceOfSatisfying(ApplicationException.class, exception ->
                         assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
         verify(repository, never()).findAll(any(), any());
+    }
+
+    @Test
+    void createsClientWithFormalName() {
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Client saved = service.create(commandWithFormalName(" 정식 발주처 "));
+
+        assertThat(saved.orderNameLong()).isEqualTo("정식 발주처");
+        verify(repository).save(saved);
+    }
+
+    @Test
+    void rejectsBlankFormalName() {
+        assertThatThrownBy(() -> commandWithFormalName("  "))
+                .isInstanceOfSatisfying(ApplicationException.class, exception ->
+                        assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
+    }
+
+    private static ClientUpsertCommand commandWithFormalName(String name) {
+        return new ClientUpsertCommand(
+                "C1", null, null, null, name,
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
     }
 }

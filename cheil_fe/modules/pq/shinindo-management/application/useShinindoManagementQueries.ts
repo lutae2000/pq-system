@@ -58,14 +58,12 @@ export function useShinindoClientOptions({
     staleTime: 60 * 1000,
   });
   const mappedOptions = (clientsQuery.data?.content ?? []).map((client) => ({
-    label: client.orderNameLong?.trim() ? `${client.orderName} (${client.orderNameLong})` : client.orderName,
+    label: client.orderNameLong || client.clientCode,
     value: client.clientCode,
   }));
   const selectedClient = selectedClientQuery.data
     ? {
-        label: selectedClientQuery.data.orderNameLong?.trim()
-          ? `${selectedClientQuery.data.orderName} (${selectedClientQuery.data.orderNameLong})`
-          : selectedClientQuery.data.orderName,
+        label: selectedClientQuery.data.orderNameLong || selectedClientQuery.data.clientCode,
         value: selectedClientQuery.data.clientCode,
       }
     : null;

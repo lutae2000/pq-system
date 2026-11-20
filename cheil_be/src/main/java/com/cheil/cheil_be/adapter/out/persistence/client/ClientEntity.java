@@ -27,9 +27,6 @@ class ClientEntity {
     @Column(name = "client_code", nullable = false, length = 20)
     private String clientCode;
 
-    @Column(name = "order_name", nullable = false, length = 300)
-    private String orderName;
-
     @Column(name = "order_eng_name", length = 300)
     private String orderEngName;
 
@@ -39,7 +36,7 @@ class ClientEntity {
     @Column(name = "corp_no", length = 20)
     private String corpNo;
 
-    @Column(name = "order_name_long", length = 300)
+    @Column(name = "order_name", nullable = false, length = 300)
     private String orderNameLong;
 
     @Column(name = "owner", length = 100)
@@ -90,7 +87,6 @@ class ClientEntity {
     static ClientEntity from(Client client) {
         return ClientEntity.builder()
                 .clientCode(client.clientCode())
-                .orderName(client.orderName())
                 .orderEngName(client.orderEngName())
                 .businessNo(client.businessNo())
                 .corpNo(client.corpNo())
@@ -115,7 +111,6 @@ class ClientEntity {
 
     void updateFrom(Client client) {
         clientCode = client.clientCode();
-        orderName = client.orderName();
         orderEngName = client.orderEngName();
         businessNo = client.businessNo();
         corpNo = client.corpNo();
@@ -140,7 +135,6 @@ class ClientEntity {
     Client toDomain() {
         return new Client(
                 clientCode,
-                orderName,
                 orderEngName,
                 businessNo,
                 corpNo,

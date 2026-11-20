@@ -20,7 +20,6 @@ export type ClientCodeRecord = {
   postalCode: string;
   representative: string;
   region: ClientCodeRegion;
-  shortName: string;
 };
 
 export type ClientCodeFilters = {
