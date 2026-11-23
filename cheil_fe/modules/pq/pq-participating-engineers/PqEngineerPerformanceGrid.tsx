@@ -21,6 +21,8 @@ export function createEngineerHistoryPerformanceColumns(
   return [
     { field: "seq", headerName: "이력 ID", minWidth: 80, flex: 1, align: "center", headerAlign: "center" },
     { field: "jobName", headerName: "이력명", minWidth: 240, flex: 1, align: "center", headerAlign: "center" },
+    { field: "contractFromDate", headerName: "계약 시작일", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
+    { field: "contractToDate", headerName: "계약 종료일", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "startDate", headerName: "참여시작", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "endDate", headerName: "참여종료", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "jobClass", headerName: "참여분야직무", width: 120, valueFormatter: (value) => formatReferenceLabel(jobClassLabelByCode, value), align: "center", headerAlign: "center" },

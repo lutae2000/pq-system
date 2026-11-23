@@ -1459,7 +1459,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     userSlotProps?.root?.onDragStartCapture?.(event);
 
     const target = event.target;
-    if (!(target instanceof HTMLElement) || !target.closest(".MuiDataGrid-sortButton")) {
+    if (!(target instanceof Element) || !target.closest(".MuiDataGrid-sortButton")) {
       return;
     }
 
@@ -1615,6 +1615,9 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
           "& .MuiDataGrid-sortButton, & .MuiDataGrid-sortIcon": {
             WebkitUserDrag: "none",
             userSelect: "none",
+          },
+          "& .MuiDataGrid-sortIcon, & .MuiDataGrid-sortIcon *": {
+            pointerEvents: "none",
           },
           "& .MuiDataGrid-cell": {
             alignContent: "center",
