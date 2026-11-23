@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDoc
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -68,16 +70,41 @@ class BidNoticeControllerRestDocsTest {
     private ServiceCredentialRegistry serviceCredentialRegistry;
 
     @Test
-    void listPassesOrderClientAndRemarkFiltersToUseCase() throws Exception {
+    void listPassesFiltersAndSortToUseCase() throws Exception {
         when(bidNoticeAdminUseCase.findAll(any(), any())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/pq/bid-notice")
                         .param("orderClient", "수자원")
-                        .param("remark", "재공고"))
+                        .param("orderMethod", "FAK")
+                        .param("remark", "재공고")
+                        .param("keyword", "설계용역")
+                        .param("departmentCode", "100906")
+                        .param("superDecideEmpno", "150801")
+                        .param("bidSuccessYn", "Y")
+                        .param("businessType", "CAA")
+                        .param("bidClosingDateFrom", "20261101")
+                        .param("bidClosingDateTo", "20261130")
+                        .param("bidDateFrom", "20261201")
+                        .param("bidDateTo", "20261231")
+                        .param("pqSubmitDateFrom", "20261115")
+                        .param("pqSubmitDateTo", "20261122")
+                        .param("participationStatuses", "Y", "N")
+                        .param("sort", "pqSubmitDate,asc"))
                 .andExpect(status().isOk());
 
         verify(bidNoticeAdminUseCase).findAll(argThat(condition ->
-                "수자원".equals(condition.orderClient()) && "재공고".equals(condition.remark())), any());
+                        "수자원".equals(condition.orderClient()) && "FAK".equals(condition.orderMethod())
+                                && "재공고".equals(condition.remark()) && "CAA".equals(condition.businessType())
+                                && "설계용역".equals(condition.keyword()) && "100906".equals(condition.departmentCode())
+                                && "150801".equals(condition.superDecideEmpno()) && "Y".equals(condition.bidSuccessYn())
+                                && LocalDate.of(2026, 11, 1).equals(condition.bidClosingDateFrom())
+                                && LocalDate.of(2026, 11, 30).equals(condition.bidClosingDateTo())
+                                && LocalDate.of(2026, 12, 1).equals(condition.bidDateFrom())
+                                && LocalDate.of(2026, 12, 31).equals(condition.bidDateTo())
+                                && LocalDate.of(2026, 11, 15).equals(condition.pqSubmitDateFrom())
+                                && LocalDate.of(2026, 11, 22).equals(condition.pqSubmitDateTo())
+                                && List.of("Y", "N").equals(condition.participationStatuses())),
+                argThat(pageable -> pageable.getSort().equals(Sort.by("pqSubmitDate"))));
     }
 
     @Test

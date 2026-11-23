@@ -5,6 +5,7 @@ export type DashboardBidNoticeCalendarRecord = {
   bidSeq: number;
   projectName: string;
   orderClient: string | null;
+  orderClientName?: string | null;
   eventType: "PQ_SUBMIT" | "BID_DATE" | "INTERVIEW_DATE";
   scheduledAt: string;
   scheduledDate: string;

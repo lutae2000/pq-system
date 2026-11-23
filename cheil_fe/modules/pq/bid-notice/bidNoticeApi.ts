@@ -78,11 +78,14 @@ export type BidNoticeSearchParams = {
   departmentCode: string;
   keyword: string;
   orderClient?: string;
+  orderMethod?: string;
   page?: number;
+  participationStatuses?: string[];
   pqSubmitDateFrom: string;
   pqSubmitDateTo: string;
   remark?: string;
   size?: number;
+  sort?: string[];
   superDecideEmpno: string;
 };
 
@@ -98,6 +101,7 @@ const normalizeQueryValue = (value: string | number | null | undefined) => {
 export async function listBidNotices(params: BidNoticeSearchParams): Promise<BidNoticePageResponse> {
   return apiRequest(
     apiClient.get<BidNoticePageResponse>(BID_NOTICES_API, {
+      paramsSerializer: { indexes: null },
       params: {
         bidClosingDateFrom: normalizeQueryValue(params.bidClosingDateFrom),
         bidClosingDateTo: normalizeQueryValue(params.bidClosingDateTo),
@@ -109,11 +113,14 @@ export async function listBidNotices(params: BidNoticeSearchParams): Promise<Bid
         departmentCode: normalizeQueryValue(params.departmentCode),
         keyword: normalizeQueryValue(params.keyword.trim()),
         orderClient: params.orderClient?.trim() || undefined,
+        orderMethod: normalizeQueryValue(params.orderMethod),
         page: Math.max(0, Math.trunc(params.page ?? 0)),
+        participationStatuses: params.participationStatuses,
         pqSubmitDateFrom: normalizeQueryValue(params.pqSubmitDateFrom),
         pqSubmitDateTo: normalizeQueryValue(params.pqSubmitDateTo),
         remark: params.remark?.trim() || undefined,
         size: params.size ?? BID_NOTICE_PAGE_SIZE,
+        sort: params.sort,
         superDecideEmpno: normalizeQueryValue(params.superDecideEmpno),
       },
     }),

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEventType;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeDashboardSummaryRepository;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeCalendarRow;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDashboardSummary;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDepartmentSummary;
 import java.math.BigDecimal;
@@ -59,7 +60,7 @@ class BidNoticeDashboardServiceTest {
         BidNotice bidNotice = mock(BidNotice.class);
         when(bidNotice.bidSeq()).thenReturn(10L);
         when(bidNotice.projectName()).thenReturn("프로젝트");
-        when(bidNotice.orderClient()).thenReturn("발주처");
+        when(bidNotice.orderClient()).thenReturn("C001");
         when(bidNotice.pqSubmitDate()).thenReturn(LocalDateTime.of(2026, 10, 20, 9, 0));
         when(bidNotice.bidDate()).thenReturn(LocalDateTime.of(2026, 10, 5, 9, 0));
         when(bidNotice.interviewDate()).thenReturn(LocalDate.of(2026, 10, 12));
@@ -67,10 +68,15 @@ class BidNoticeDashboardServiceTest {
                 LocalDate.of(2026, 10, 1),
                 LocalDate.of(2026, 10, 31),
                 null
-        )).thenReturn(List.of(bidNotice));
+        )).thenReturn(List.of(new BidNoticeCalendarRow(bidNotice, "수요기관")));
 
         var events = service.findCalendarByMonth(2026, 10, " All ");
 
+        assertThat(events).allSatisfy(event -> {
+            assertThat(event.projectName()).isEqualTo("프로젝트");
+            assertThat(event.orderClient()).isEqualTo("C001");
+            assertThat(event.orderClientName()).isEqualTo("수요기관");
+        });
         assertThat(events).extracting(event -> event.eventType())
                 .containsExactly(
                         BidNoticeCalendarEventType.BID_DATE,

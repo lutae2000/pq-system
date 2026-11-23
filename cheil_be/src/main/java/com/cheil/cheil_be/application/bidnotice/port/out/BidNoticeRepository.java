@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeCalendarRow;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
@@ -16,7 +17,7 @@ public interface BidNoticeRepository {
 
     Page<BidNoticeListRow> findAll(BidNoticeSearchCondition condition, Pageable pageable);
 
-    List<BidNotice> findAllByCalendarDateBetween(LocalDate startDate, LocalDate endDate, String departmentCode);
+    List<BidNoticeCalendarRow> findAllByCalendarDateBetween(LocalDate startDate, LocalDate endDate, String departmentCode);
 
     Optional<BidNotice> findByBidSeq(Long bidSeq);
 

@@ -74,7 +74,7 @@ export type BidNoticeFilters = {
   keyword: string;
   orderClient: string;
   remark: string;
-  bidMethod: BidMethod | "";
+  orderMethod: string;
   businessType: string;
   periodType: BidNoticePeriodType;
   periodStartDate: string;

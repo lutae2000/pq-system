@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeDashboardUseCase;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeCalendarRow;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDashboardSummary;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeDepartmentSummary;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeCalendarEvent;
@@ -72,12 +73,16 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
 
         return bidNoticeRepository.findAllByCalendarDateBetween(startDate, endDate, normalizedDepartmentCode)
                 .stream()
-                .flatMap(bidNotice -> java.util.stream.Stream.of(
-                        toEvent(bidNotice, BidNoticeCalendarEventType.PQ_SUBMIT, bidNotice.pqSubmitDate(), yearMonth),
-                        toEvent(bidNotice, BidNoticeCalendarEventType.BID_DATE, bidNotice.bidDate(), yearMonth),
-                        toEvent(bidNotice, BidNoticeCalendarEventType.INTERVIEW_DATE,
-                                bidNotice.interviewDate() == null ? null : bidNotice.interviewDate().atStartOfDay(), yearMonth)
-                ))
+                .flatMap(row -> {
+                    BidNotice bidNotice = row.bidNotice();
+                    LocalDate interviewDate = bidNotice.interviewDate();
+                    return java.util.stream.Stream.of(
+                            toEvent(row, BidNoticeCalendarEventType.PQ_SUBMIT, bidNotice.pqSubmitDate(), yearMonth),
+                            toEvent(row, BidNoticeCalendarEventType.BID_DATE, bidNotice.bidDate(), yearMonth),
+                            toEvent(row, BidNoticeCalendarEventType.INTERVIEW_DATE,
+                                    interviewDate == null ? null : interviewDate.atStartOfDay(), yearMonth)
+                    );
+                })
                 .filter(Objects::nonNull)
                 .sorted(Comparator
                         .comparing(BidNoticeCalendarEvent::scheduledAt)
@@ -87,7 +92,7 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
     }
 
     private BidNoticeCalendarEvent toEvent(
-            BidNotice bidNotice,
+            BidNoticeCalendarRow row,
             BidNoticeCalendarEventType eventType,
             LocalDateTime scheduledAt,
             YearMonth yearMonth
@@ -95,10 +100,12 @@ public class BidNoticeDashboardService implements BidNoticeDashboardUseCase {
         if (scheduledAt == null || !YearMonth.from(scheduledAt).equals(yearMonth)) {
             return null;
         }
+        BidNotice bidNotice = row.bidNotice();
         return new BidNoticeCalendarEvent(
                 bidNotice.bidSeq(),
                 bidNotice.projectName(),
                 bidNotice.orderClient(),
+                row.orderClientName(),
                 eventType,
                 scheduledAt,
                 scheduledAt.toLocalDate()

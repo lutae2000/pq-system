@@ -598,9 +598,9 @@ export function BidNoticeDetailDialog({
 
                   <CategoryBlock title="입찰 일정">
                     <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr" }}>
-                      <DateTimeField label="PQ심사 신청 마감일" onChange={(value) => onFieldChange("bidClosingDate", value)} readOnly={readOnly} value={record.bidClosingDate} />
-                      <DateTimeField label="입찰서 마감일" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
-                      <DateTimeField label="투찰 마감일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
+                      <DateTimeField label="협정서 제출 마감일" onChange={(value) => onFieldChange("bidClosingDate", value)} readOnly={readOnly} value={record.bidClosingDate} />
+                      <DateTimeField label="입찰서 제출 마감일" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
+                      <DateTimeField label="개찰일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
                     </Box>
                   </CategoryBlock>
 

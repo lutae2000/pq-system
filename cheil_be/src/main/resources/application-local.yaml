@@ -16,12 +16,12 @@ spring:
         highlight_sql: true
   datasource:
     driver-class-name: com.p6spy.engine.spy.P6SpyDriver
-#    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
-#    username: ${POSTGRES_USER:cheil}
-#    password: ${POSTGRES_PASSWORD:cheil}
-    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:192.168.2.11}:${POSTGRES_PORT:5432}/cheileng?currentSchema=cheileng
-    username: ${POSTGRES_USER:chlopt}
-    password: ${POSTGRES_PASSWORD:C35ky$8!}
+    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:cheil_local}
+    username: ${POSTGRES_USER:cheil}
+    password: ${POSTGRES_PASSWORD:cheil}
+#    url: jdbc:p6spy:postgresql://${POSTGRES_HOST:192.168.2.11}:${POSTGRES_PORT:5432}/cheileng?currentSchema=cheileng
+#    username: ${POSTGRES_USER:chlopt}
+#    password: ${POSTGRES_PASSWORD:C35ky$8!}
   data:
     redis:
       host: ${VALKEY_HOST:localhost}

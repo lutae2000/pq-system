@@ -3,9 +3,10 @@
 import dayjs from "dayjs";
 import koLocale from "@fullcalendar/react/locales/ko";
 import EventCalendar from "@fullcalendar/mui/monarch/EventCalendar";
-import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Chip, FormControlLabel, LinearProgress, Stack, Switch, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { dashboardQueryKeys } from "@/modules/dashboard/application/queryKeys";
 
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { useTabActivity } from "@/components/layout/TabActivityContext";
@@ -61,9 +62,10 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
   const [activeStatuses, setActiveStatuses] = useState<DashboardScheduleEventType[]>(() => scheduleLabels.map((item) => item.type));
   const [yearMonth, setYearMonth] = useState(dayjs().format("YYYYMM"));
   const [departmentCode, setDepartmentCode] = useState("");
+  const [showInstitutionOnly, setShowInstitutionOnly] = useState(true);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["dashboard-bid-notice-calendar", yearMonth, departmentCode],
+    queryKey: dashboardQueryKeys.bidNoticeCalendar(yearMonth, departmentCode),
     queryFn: () => listDashboardBidNoticeCalendar(yearMonth, departmentCode),
     enabled: isTabActive,
   });
@@ -71,13 +73,17 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
   const events = useMemo(
     () =>
       (data ?? [])
-        .map(toDashboardScheduleEvent)
-        .filter((event) => activeStatuses.includes(event.status))
-        .map((event) => ({
-          ...event,
-          allDay: event.eventType === "INTERVIEW_DATE" || !event.start.includes("T"),
-        })),
-    [activeStatuses, data],
+        .filter((item) => activeStatuses.includes(item.eventType))
+        .map((item) => {
+          const event = toDashboardScheduleEvent(item);
+          return {
+            ...event,
+            title: showInstitutionOnly ? item.orderClientName?.trim() || "수요기관 미등록" : event.title,
+            projectName: event.title,
+            allDay: event.eventType === "INTERVIEW_DATE" || !event.start.includes("T"),
+          };
+        }),
+    [activeStatuses, data, showInstitutionOnly],
   );
 
   return (
@@ -127,20 +133,33 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           })}
         </Box>
 
-        <Box sx={{ alignItems: "center", display: "flex", flex: "0 0 auto", gap: 1 }}>
-          <Typography sx={{ color: "text.secondary", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap" }}>
-            부서
-          </Typography>
-          <AutoCompleteField mode="select"
-            label=""
-            onChange={(value) => setDepartmentCode(value)}
-            source={{ type: "department" }} enabled={isTabActive}
-            placeholder="전체"
-            placeholderDisabled={false}
-            size="small"
-            sx={{ width: 150 }}
-            value={departmentCode}
+        <Box sx={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showInstitutionOnly}
+                onChange={(_, checked) => setShowInstitutionOnly(checked)}
+                size="small"
+              />
+            }
+            label="수요기관만 표시"
+            sx={{ m: 0, whiteSpace: "nowrap" }}
           />
+          <Box sx={{ alignItems: "center", display: "flex", gap: 1 }}>
+            <Typography sx={{ color: "text.secondary", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap" }}>
+              부서
+            </Typography>
+            <AutoCompleteField mode="select"
+              label=""
+              onChange={(value) => setDepartmentCode(value)}
+              source={{ type: "department" }} enabled={isTabActive}
+              placeholder="전체"
+              placeholderDisabled={false}
+              size="small"
+              sx={{ width: 150 }}
+              value={departmentCode}
+            />
+          </Box>
         </Box>
       </Box>
 
@@ -206,10 +225,10 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           }}
           editable={false}
           eventContrastColor="#111827"
-          eventOrder="categoryOrder,start,title"
+          eventOrder="categoryOrder,start,projectName"
           eventOrderStrict
           eventDidMount={(info) => {
-            info.el.title = info.event.title;
+            info.el.title = info.event.extendedProps.projectName ?? info.event.title;
 
             if (info.view.type === "dayGridMonth") {
               info.el.classList.add("dashboard-calendar-month-event");
@@ -223,12 +242,12 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
               return;
             }
 
-            const event = info.event.extendedProps as Partial<DashboardScheduleEvent>;
+            const event = info.event.extendedProps as Partial<DashboardScheduleEvent> & { projectName?: string };
             onScheduleClick({
               bidSeq: event.bidSeq ?? 0,
               eventType: event.eventType ?? event.status ?? "PQ_SUBMIT",
               id: info.event.id,
-              title: info.event.title,
+              title: event.projectName ?? info.event.title,
               start: info.event.startStr,
               end: info.event.endStr || undefined,
               color: event.color ?? "#2563eb",

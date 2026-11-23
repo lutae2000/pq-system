@@ -7,6 +7,7 @@ public record BidNoticeCalendarEvent(
         Long bidSeq,
         String projectName,
         String orderClient,
+        String orderClientName,
         BidNoticeCalendarEventType eventType,
         LocalDateTime scheduledAt,
         LocalDate scheduledDate

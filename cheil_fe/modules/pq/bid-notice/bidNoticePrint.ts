@@ -32,7 +32,6 @@ const localDateText = (date = new Date()) =>
 const PRINT_ROWS_PER_PAGE = 11;
 
 export type BidNoticePrintLabelMaps = {
-  bidMethod?: Record<string, string>;
   bidType?: Record<string, string>;
   businessType?: Record<string, string>;
   department?: Record<string, string>;

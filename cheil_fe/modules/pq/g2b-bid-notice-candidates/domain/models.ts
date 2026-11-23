@@ -1,3 +1,4 @@
+import { dateTimeText, toDateInputValue } from "@/modules/common/formatters";
 import type { G2bBidNoticeCandidateApiRecord } from "@/modules/pq/g2b-bid-notice-candidates/api";
 
 export type G2bBidNoticeCandidateAttachment = {
@@ -46,8 +47,7 @@ export type G2bBidNoticeCandidateRow = {
   sucsfbidMthdAppStd: string;
   asignBdgtAmt: string;
   bidDate: string;
-  bidSubmissionDate: string;
-  pqSubmitDate: string;
+  agreementSubmissionDeadline: string;
   bidNtceNm: string;
   ntceInsttNm: string;
   dminsttNm: string;
@@ -56,7 +56,6 @@ export type G2bBidNoticeCandidateRow = {
   bidBeginDt: string;
   bidQlfctRgstDt: string;
   bidWgrnteeRcptClseDt: string;
-  bidClseDt: string;
   opengDt: string;
   bidNtceUrl: string;
   importedAt: string;
@@ -77,6 +76,17 @@ export const emptyG2bBidNoticeCandidateSearchFilters = (): G2bBidNoticeCandidate
   bidNtceDateTo: formatLocalDate(new Date()),
 });
 
+const candidateDateTime = (value: string | null) => {
+  const compact = /^(\d{8})(\d{2})(\d{2})(?:\d{2})?$/.exec(value?.trim() ?? "");
+  if (compact) {
+    const [, date, hour, minute] = compact;
+    return `${toDateInputValue(date)} ${hour}:${minute}`;
+  }
+  const trimmed = value?.trim() ?? "";
+  const formatted = /^\d{8}$/.test(trimmed) ? toDateInputValue(trimmed) : dateTimeText(trimmed);
+  return /^\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?$/.test(formatted) ? formatted : "";
+};
+
 export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecord): G2bBidNoticeCandidateRow => ({
   id: record.id,
   bidNtceNo: record.bidNtceNo ?? "",
@@ -86,7 +96,7 @@ export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecor
   bidMethdNm: record.bidMethdNm ?? "",
   cmmnSpldmdAgrmntRcptdocMethd: record.cmmnSpldmdAgrmntRcptdocMethd ?? "",
   pqApplDocRcptMthdNm: record.pqApplDocRcptMthdNm ?? "",
-  pqApplDocRcptDt: record.pqApplDocRcptDt ?? "",
+  pqApplDocRcptDt: candidateDateTime(record.pqApplDocRcptDt),
   cntrctCnclsMthdNm: record.cntrctCnclsMthdNm ?? "",
   srvceDivNm: record.srvceDivNm ?? "",
   prtcptLmtRgnCd: record.prtcptLmtRgnCd ?? "",
@@ -97,19 +107,18 @@ export const toG2bBidNoticeCandidateRow = (record: G2bBidNoticeCandidateApiRecor
   pubPrcrmntClsfcNm: record.pubPrcrmntClsfcNm ?? "",
   sucsfbidMthdAppStd: record.sucsfbidMthdAppStd ?? "",
   asignBdgtAmt: record.asignBdgtAmt ?? "",
-  bidDate: record.bidDate ?? "",
-  bidSubmissionDate: record.bidSubmissionDate ?? "",
-  pqSubmitDate: record.pqSubmitDate ?? "",
+  bidDate: candidateDateTime(record.bidClseDt) || candidateDateTime(record.bidDate),
+  // The candidate API stores the joint agreement deadline under this legacy key.
+  agreementSubmissionDeadline: candidateDateTime(record.pqSubmitDate),
   bidNtceNm: record.bidNtceNm ?? "",
   ntceInsttNm: record.ntceInsttNm ?? "",
   dminsttNm: record.dminsttNm ?? "",
   dminsttCd: record.dminsttCd ?? "",
-  bidNtceDate: record.bidNtceDate ?? "",
-  bidBeginDt: record.bidBeginDt ?? "",
-  bidQlfctRgstDt: record.bidQlfctRgstDt ?? "",
-  bidWgrnteeRcptClseDt: record.bidWgrnteeRcptClseDt ?? "",
-  bidClseDt: record.bidClseDt ?? "",
-  opengDt: record.opengDt ?? "",
+  bidNtceDate: candidateDateTime(record.bidNtceDate),
+  bidBeginDt: candidateDateTime(record.bidBeginDt),
+  bidQlfctRgstDt: candidateDateTime(record.bidQlfctRgstDt),
+  bidWgrnteeRcptClseDt: candidateDateTime(record.bidWgrnteeRcptClseDt),
+  opengDt: candidateDateTime(record.opengDt) || candidateDateTime(record.bidSubmissionDate),
   bidNtceUrl: record.bidNtceUrl ?? "",
   importedAt: record.importedAt ?? "",
   importedBidSeq: record.importedBidSeq ?? null,

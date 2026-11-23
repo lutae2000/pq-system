@@ -89,8 +89,8 @@ export const filterBidNoticeRecords = (records: BidNoticeRecord[], filters: BidN
           record.pqDecideEmpno,
           record.writerName,
         ].some((value) => value.includes(keyword));
-      const matchesBidMethod = !filters.bidMethod || record.bidMethod === filters.bidMethod;
-      const matchesBusinessType = !filters.businessType || record.businessTypeLabel.includes(filters.businessType);
+      const matchesOrderMethod = !filters.orderMethod || record.procurementMethod === filters.orderMethod;
+      const matchesBusinessType = !filters.businessType || record.businessType === filters.businessType;
       const matchesDepartment = !filters.department || record.department === filters.department;
       const matchesRegistrant = !filters.superDecideEmpno || record.writerName === filters.superDecideEmpno;
       const matchesStatus = filters.participationStatuses.length === 0 || filters.participationStatuses.includes(record.finalParticipationStatus);
@@ -103,7 +103,7 @@ export const filterBidNoticeRecords = (records: BidNoticeRecord[], filters: BidN
 
       return (
         matchesKeyword &&
-        matchesBidMethod &&
+        matchesOrderMethod &&
         matchesBusinessType &&
         matchesDepartment &&
         matchesRegistrant &&

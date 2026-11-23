@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { dashboardQueryKeys } from "@/modules/dashboard/application/queryKeys";
 import { createBidNotice, deleteBidNotice, getBidNotice, updateBidNotice } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { bidNoticeQueryKeys } from "@/modules/pq/bid-notice/application/queryKeys";
 import { toBidNoticeRecord, toBidNoticeRequest } from "@/modules/pq/bid-notice/application/mapper";
@@ -37,6 +38,7 @@ export function useBidNoticeCommands({ canCreate, canDelete, canRead, canUpdate,
     },
     onSuccess: (saved) => {
       void queryClient.invalidateQueries({ queryKey: bidNoticeQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.bidNoticeCalendars });
       onSaved(toBidNoticeRecord(saved));
     },
     onError: (error) => onError(error, "저장에 실패했습니다."),
@@ -49,6 +51,7 @@ export function useBidNoticeCommands({ canCreate, canDelete, canRead, canUpdate,
     },
     onSuccess: (_data, bidSeq) => {
       void queryClient.invalidateQueries({ queryKey: bidNoticeQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKeys.bidNoticeCalendars });
       void queryClient.invalidateQueries({ queryKey: bidNoticeQueryKeys.attachments(bidSeq) });
       onDeleted();
     },

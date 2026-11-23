@@ -1,12 +1,16 @@
 package com.cheil.cheil_be.config.observability;
 
 import java.util.EnumSet;
+import java.util.List;
 
 import javax.sql.DataSource;
 
+import net.ttddyy.dsproxy.ExecutionInfo;
+import net.ttddyy.dsproxy.QueryInfo;
 import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;
 import net.ttddyy.observation.tracing.DataSourceObservationListener;
 import net.ttddyy.observation.tracing.JdbcObservationDocumentation;
+import net.ttddyy.observation.tracing.QueryContext;
 import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
@@ -23,12 +27,17 @@ import org.springframework.stereotype.Component;
 public class JdbcObservationDataSourcePostProcessor implements BeanPostProcessor {
 
     private final ObjectProvider<ObservationRegistry> observationRegistryProvider;
+    private final boolean includeParameterValues;
+    private final boolean renderQueryParameters;
 
-    @Value("${app.observability.jdbc.include-parameter-values:false}")
-    private boolean includeParameterValues;
-
-    public JdbcObservationDataSourcePostProcessor(ObjectProvider<ObservationRegistry> observationRegistryProvider) {
+    public JdbcObservationDataSourcePostProcessor(
+            ObjectProvider<ObservationRegistry> observationRegistryProvider,
+            @Value("${app.observability.jdbc.include-parameter-values:false}") boolean includeParameterValues,
+            @Value("${app.observability.jdbc.render-query-parameters:false}") boolean renderQueryParameters
+    ) {
         this.observationRegistryProvider = observationRegistryProvider;
+        this.includeParameterValues = includeParameterValues;
+        this.renderQueryParameters = renderQueryParameters;
     }
 
     @Override
@@ -37,8 +46,19 @@ public class JdbcObservationDataSourcePostProcessor implements BeanPostProcessor
             return bean;
         }
 
-        DataSourceObservationListener listener = new DataSourceObservationListener(observationRegistryProvider::getObject);
-        listener.setIncludeParameterValues(includeParameterValues);
+        DataSourceObservationListener listener = new DataSourceObservationListener(observationRegistryProvider::getObject) {
+            @Override
+            public void afterQuery(ExecutionInfo execution, List<QueryInfo> queries) {
+                if (includeParameterValues && renderQueryParameters) {
+                    QueryContext context = execution.getCustomValue(QueryContext.class.getName(), QueryContext.class);
+                    if (context != null) {
+                        context.setQueries(queries.stream().map(JdbcTraceQueryRenderer::render).toList());
+                    }
+                }
+                super.afterQuery(execution, queries);
+            }
+        };
+        listener.setIncludeParameterValues(includeParameterValues && !renderQueryParameters);
         listener.setSupportedTypes(EnumSet.of(
                 JdbcObservationDocumentation.CONNECTION,
                 JdbcObservationDocumentation.QUERY,

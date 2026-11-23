@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.bidnotice;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,6 +42,7 @@ public class BidNoticeController {
     public ResponseEntity<PageResponse<BidNoticeResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String orderClient,
+            @RequestParam(required = false) String orderMethod,
             @RequestParam(required = false) String remark,
             @RequestParam(required = false) String departmentCode,
             @RequestParam(required = false) String superDecideEmpno,
@@ -55,6 +57,7 @@ public class BidNoticeController {
             @RequestParam(required = false) String pqSubmitDateFrom,
             @RequestParam(required = false) String pqSubmitDateTo,
             @RequestParam(required = false) String bidSuccessYn,
+            @RequestParam(required = false) List<String> participationStatuses,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         BidNoticeResponseMapper.BidNoticeResponseLookup lookup = bidNoticeResponseMapper.snapshotForList();
@@ -62,6 +65,7 @@ public class BidNoticeController {
                 new BidNoticeSearchCondition(
                         keyword,
                         orderClient,
+                        orderMethod,
                         remark,
                         departmentCode,
                         superDecideEmpno,
@@ -75,7 +79,8 @@ public class BidNoticeController {
                         parseDate(bidDateTo),
                         parseDate(pqSubmitDateFrom),
                         parseDate(pqSubmitDateTo),
-                        bidSuccessYn
+                        bidSuccessYn,
+                        participationStatuses
                 ),
                 PageRequests.of(pageable)
         );

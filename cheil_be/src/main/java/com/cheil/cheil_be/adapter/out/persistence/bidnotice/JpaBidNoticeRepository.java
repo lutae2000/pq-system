@@ -5,6 +5,7 @@ import static com.cheil.cheil_be.adapter.out.persistence.bidnotice.QBidNoticeEnt
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -14,17 +15,21 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.ComparableExpressionBase;
 import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSearchCondition;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeCalendarRow;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.application.bidnotice.port.out.BidNoticeRepository;
 import com.cheil.cheil_be.adapter.out.persistence.client.QClientEntity;
@@ -53,10 +58,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
                 .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
                 .leftJoin(department).on(department.deptCode.eq(bidNoticeEntity.departmentCode))
                 .where(predicate)
-                .orderBy(
-                        bidNoticeEntity.bidDate.desc().nullsLast(),
-                        bidNoticeEntity.bidSeq.desc()
-                );
+                .orderBy(listOrder(pageable.getSort(), client, department));
 
         if (pageable.isPaged()) {
             query.offset(pageable.getOffset()).limit(pageable.getPageSize());
@@ -79,14 +81,50 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         );
     }
 
+    private OrderSpecifier<?>[] listOrder(Sort sort, QClientEntity client, QDepartmentEntity department) {
+        List<OrderSpecifier<?>> order = new ArrayList<>();
+        for (Sort.Order requested : sort) {
+            ComparableExpressionBase<?> field = switch (requested.getProperty()) {
+                case "bidSeq" -> bidNoticeEntity.bidSeq;
+                case "participateYn" -> bidNoticeEntity.participateYn;
+                case "bidSuccessYn" -> bidNoticeEntity.bidSuccessYn;
+                case "departmentName" -> department.deptName.coalesce(bidNoticeEntity.departmentCode);
+                case "businessType" -> bidNoticeEntity.businessType;
+                case "orderClientName" -> client.orderNameLong.coalesce(bidNoticeEntity.orderClient);
+                case "projectName" -> bidNoticeEntity.projectName;
+                case "announceDate" -> bidNoticeEntity.announceDate;
+                case "pqSubmitDate" -> bidNoticeEntity.pqSubmitDate;
+                case "bidClosingDate" -> bidNoticeEntity.bidClosingDate;
+                case "bidSubmissionDate" -> bidNoticeEntity.bidSubmissionDate;
+                case "bidDate" -> bidNoticeEntity.bidDate;
+                case "designAmt" -> bidNoticeEntity.designAmt;
+                case "superDecideEmpno" -> bidNoticeEntity.superDecideEmpno;
+                default -> null;
+            };
+            if (field != null) {
+                order.add(requested.isAscending() ? field.asc().nullsLast() : field.desc().nullsLast());
+            }
+        }
+        if (order.isEmpty()) {
+            order.add(bidNoticeEntity.bidDate.desc().nullsLast());
+        }
+        if (sort.getOrderFor("bidSeq") == null) {
+            order.add(bidNoticeEntity.bidSeq.desc());
+        }
+        return order.toArray(OrderSpecifier<?>[]::new);
+    }
+
     @Override
-    public List<BidNotice> findAllByCalendarDateBetween(LocalDate startDate, LocalDate endDate, String departmentCode) {
-        BooleanBuilder predicate = new BooleanBuilder();
+    public List<BidNoticeCalendarRow> findAllByCalendarDateBetween(LocalDate startDate, LocalDate endDate, String departmentCode) {
+        BooleanBuilder predicate = new BooleanBuilder(bidNoticeEntity.participateYn.eq("Y"));
         predicate.and(calendarDateBetween(startDate, endDate));
         addEqualsIfPresent(predicate, bidNoticeEntity.departmentCode, normalizeDepartmentCode(departmentCode));
 
+        QClientEntity client = new QClientEntity("client");
         return queryFactory
-                .selectFrom(bidNoticeEntity)
+                .select(bidNoticeEntity, client.orderNameLong)
+                .from(bidNoticeEntity)
+                .leftJoin(client).on(client.clientCode.eq(bidNoticeEntity.orderClient))
                 .where(predicate)
                 .orderBy(
                         bidNoticeEntity.pqSubmitDate.asc().nullsLast(),
@@ -95,7 +133,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
                 )
                 .fetch()
                 .stream()
-                .map(BidNoticeEntity::toDomain)
+                .map(row -> new BidNoticeCalendarRow(row.get(bidNoticeEntity).toDomain(), row.get(client.orderNameLong)))
                 .toList();
     }
 
@@ -197,6 +235,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         }
 
         addEqualsIfPresent(predicate, bidNoticeEntity.departmentCode, condition.departmentCode());
+        addEqualsIfPresent(predicate, bidNoticeEntity.orderMethod, condition.orderMethod());
         addEqualsIfPresent(predicate, bidNoticeEntity.superDecideEmpno, condition.superDecideEmpno());
         addEqualsIfPresent(predicate, bidNoticeEntity.bidType, condition.bidType());
         addEqualsIfPresent(predicate, bidNoticeEntity.businessType, condition.businessType());
@@ -206,6 +245,9 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
         addDateRangeIfPresent(predicate, bidNoticeEntity.bidDate, condition.bidDateFrom(), condition.bidDateTo());
         addDateRangeIfPresent(predicate, bidNoticeEntity.pqSubmitDate, condition.pqSubmitDateFrom(), condition.pqSubmitDateTo());
         addEqualsIfPresent(predicate, bidNoticeEntity.bidSuccessYn, condition.bidSuccessYn());
+        if (!condition.participationStatuses().isEmpty()) {
+            predicate.and(bidNoticeEntity.participateYn.in(condition.participationStatuses()));
+        }
 
         return predicate;
     }

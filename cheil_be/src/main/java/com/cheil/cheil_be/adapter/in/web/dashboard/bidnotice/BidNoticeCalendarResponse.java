@@ -9,6 +9,7 @@ public record BidNoticeCalendarResponse(
         Long bidSeq,
         String projectName,
         String orderClient,
+        String orderClientName,
         String eventType,
         LocalDateTime scheduledAt,
         LocalDate scheduledDate
@@ -19,6 +20,7 @@ public record BidNoticeCalendarResponse(
                 event.bidSeq(),
                 event.projectName(),
                 event.orderClient(),
+                event.orderClientName(),
                 event.eventType().name(),
                 event.scheduledAt(),
                 event.scheduledDate()

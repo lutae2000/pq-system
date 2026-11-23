@@ -4,7 +4,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Card, CardContent, Chip, Stack, TextField, Typography } from "@mui/material";
-import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRowParams } from "@mui/x-data-grid";
+import { useGridApiRef, type GridColDef, type GridPaginationModel, type GridRowParams, type GridSortModel } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
@@ -19,7 +19,6 @@ import { compactFieldSx } from "@/components/common/FormControls";
 import { PeriodRangeField } from "@/components/common/PeriodRangeField";
 import { dateOnly, formatMoney } from "@/modules/common/formatters";
 import { openBidNoticePrintWindow } from "@/modules/pq/bid-notice/bidNoticePrint";
-import { BID_NOTICE_PAGE_SIZE, listBidNotices } from "@/modules/pq/bid-notice/bidNoticeApi";
 import {
   formatBidSuccessForXlsx,
   formatDepartmentForXlsx,
@@ -30,7 +29,7 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options, useDepartmentOptions, useUserOptions } from "@/modules/common/reference/useReferenceOptions";
 import { useBidNoticeCommands } from "@/modules/pq/bid-notice/application/useBidNoticeCommands";
-import { useBidNoticeList, useImportedBidNoticeAttachments } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
+import { loadBidNoticesForPrint, useBidNoticeList, useImportedBidNoticeAttachments } from "@/modules/pq/bid-notice/application/useBidNoticeQueries";
 import { toBidNoticeRecord, toSearchParams } from "@/modules/pq/bid-notice/application/mapper";
 import { emptyDraft } from "@/modules/pq/bid-notice/domain/rules";
 import type {
@@ -56,7 +55,7 @@ const bidSuccessOptions = [
 
 const buildDefaultFilters = (): BidNoticeFilters => {
   return {
-    bidMethod: "",
+    orderMethod: "",
     department: "",
     superDecideEmpno: "",
     keyword: "",
@@ -69,6 +68,23 @@ const buildDefaultFilters = (): BidNoticeFilters => {
     bidSuccessYn: "",
     participationStatuses: [],
   };
+};
+
+const bidNoticeSortFields: Partial<Record<string, string>> = {
+  bidNo: "bidSeq",
+  participationStatus: "participateYn",
+  bidSuccessYn: "bidSuccessYn",
+  department: "departmentName",
+  businessTypeLabel: "businessType",
+  client: "orderClientName",
+  projectName: "projectName",
+  noticeDate: "announceDate",
+  pqSubmissionDate: "pqSubmitDate",
+  bidClosingDate: "bidClosingDate",
+  bidSubmissionDate: "bidSubmissionDate",
+  bidDate: "bidDate",
+  designAmt: "designAmt",
+  writerName: "superDecideEmpno",
 };
 
 const handleSearchEnter =
@@ -99,22 +115,24 @@ export function BidNoticePage() {
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 20 });
+  const [sortModel, setSortModel] = useState<GridSortModel>([]);
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
   const hasG2bNotice = Boolean(draft.g2bBidNtceNo.trim() && draft.g2bBidNtceOrd.trim());
   const sourceAttachmentsQuery = useImportedBidNoticeAttachments(draft.seqNo, open && hasG2bNotice);
   const sourceCandidate = hasG2bNotice ? sourceAttachmentsQuery.data : null;
-  const searchParams = useMemo(() => toSearchParams(filters, paginationModel), [filters, paginationModel]);
+  const searchParams = useMemo(() => ({
+    ...toSearchParams(filters, paginationModel),
+    sort: sortModel.flatMap(({ field, sort }) => {
+      const property = bidNoticeSortFields[field];
+      return property && sort ? [`${property},${sort}`] : [];
+    }),
+  }), [filters, paginationModel, sortModel]);
   const bidNoticesQuery = useBidNoticeList(searchParams, searchRevision, tabQueryEnabled);
-  const bidMethodOptions = useCommonCodeLevel2Options("ZA");
   const orderMethodOptions = useCommonCodeLevel2Options("FA", { useYn: "Y" }, undefined, "level2Code");
   const bidTypeOptions = useCommonCodeLevel2Options("MB");
   const businessTypeOptions = useCommonCodeLevel2Options("CA");
-  const businessTypeSearchOptions = useMemo(
-    () => businessTypeOptions.options.map((option) => ({ label: option.label, value: option.label })),
-    [businessTypeOptions.options],
-  );
   const finalParticipationOptions = useCommonCodeLevel2Options("YA");
   const departmentOptions = useDepartmentOptions({ useYn: true });
   const registrantOptions = useUserOptions({ useYn: "Y" });
@@ -130,7 +148,6 @@ export function BidNoticePage() {
 
   const printLabelMaps = useMemo(
     () => ({
-      bidMethod: bidMethodOptions.labelByValue,
       bidType: bidTypeOptions.labelByValue,
       businessType: businessTypeOptions.labelByValue,
       department: departmentOptions.labelByValue,
@@ -138,7 +155,6 @@ export function BidNoticePage() {
       registrant: userNameByEmployeeNo,
     }),
     [
-      bidMethodOptions.labelByValue,
       bidTypeOptions.labelByValue,
       businessTypeOptions.labelByValue,
       departmentOptions.labelByValue,
@@ -304,8 +320,8 @@ export function BidNoticePage() {
         width: 110,
         renderCell: ({ row }) => dateOnly(row.pqSubmissionDate),
       },
-      { field: "bidClosingDate", headerName: "입찰등록 마감", width: 145 },
-      { field: "bidSubmissionDate", headerName: "투찰마감", width: 145 },
+      { field: "bidClosingDate", headerName: "협정서 제출 마감일", width: 145 },
+      { field: "bidSubmissionDate", headerName: "개찰일", width: 145 },
       { field: "bidDate", headerName: "입찰일", width: 145 },
       {
         field: "designAmt",
@@ -367,13 +383,8 @@ export function BidNoticePage() {
     }
     printWindow.document.body.textContent = "인쇄 데이터를 불러오는 중입니다...";
     try {
-      const firstPage = await listBidNotices(toSearchParams(filters, { page: 0, pageSize: BID_NOTICE_PAGE_SIZE }));
-      const allRecords = [...firstPage.content];
-      for (let page = 1; page < firstPage.totalPages; page += 1) {
-        const nextPage = await listBidNotices(toSearchParams(filters, { page, pageSize: BID_NOTICE_PAGE_SIZE }));
-        allRecords.push(...nextPage.content);
-      }
-      openBidNoticePrintWindow(allRecords.map(toBidNoticeRecord), filters, printLabelMaps, showError, printWindow);
+      const allRecords = await loadBidNoticesForPrint(searchParams);
+      openBidNoticePrintWindow(allRecords, filters, printLabelMaps, showError, printWindow);
     } catch (error) {
       printWindow.close();
       showError(error instanceof Error ? error.message : "인쇄 데이터를 불러오지 못했습니다.");
@@ -407,6 +418,21 @@ export function BidNoticePage() {
                     value={searchDraft.keyword}
                   />
                 </Box>
+              </Box>
+
+              <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
+                <Typography component="label" htmlFor="bid-notice-search-order-client" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
+                  발주처
+                </Typography>
+                <TextField
+                    id="bid-notice-search-order-client"
+                    fullWidth
+                    onChange={(event) => setSearchDraft((current) => ({ ...current, orderClient: event.target.value }))}
+                    onKeyDown={handleSearchEnter(handleSearch)}
+                    size="small"
+                    sx={compactFieldSx}
+                    value={searchDraft.orderClient}
+                />
               </Box>
 
               <PeriodRangeField
@@ -452,7 +478,7 @@ export function BidNoticePage() {
               <CheckboxSelectInput
                 label="참여 상태"
                 name="participationStatuses"
-                onChange={(name, value) => setSearchDraft((current) => ({ ...current, [name]: value }))}
+                onChange={(_, value) => setSearchDraft((current) => ({ ...current, participationStatuses: value }))}
                 options={finalParticipationOptions.options}
                 sx={compactFieldSx}
                 value={searchDraft.participationStatuses}
@@ -473,7 +499,7 @@ export function BidNoticePage() {
                 label="사업구분"
                 labelPlacement="top"
                 onChange={(value) => setSearchDraft((current) => ({ ...current, businessType: value }))}
-                options={businessTypeSearchOptions}
+                options={businessTypeOptions.options}
                 placeholder="전체"
                 placeholderDisabled={false}
                 sx={compactFieldSx}
@@ -481,30 +507,15 @@ export function BidNoticePage() {
               />
 
               <AutoCompleteField mode="select"
-                label="입찰방식"
+                label="발주방법"
                 labelPlacement="top"
-                onChange={(value) => setSearchDraft((current) => ({ ...current, bidMethod: value as BidNoticeFilters["bidMethod"] }))}
-                options={bidMethodOptions.options}
+                onChange={(value) => setSearchDraft((current) => ({ ...current, orderMethod: value }))}
+                options={orderMethodOptions.options}
                 placeholder="전체"
                 placeholderDisabled={false}
                 sx={compactFieldSx}
-                value={searchDraft.bidMethod}
+                value={searchDraft.orderMethod}
               />
-
-              <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
-                <Typography component="label" htmlFor="bid-notice-search-order-client" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
-                  발주처
-                </Typography>
-                <TextField
-                  id="bid-notice-search-order-client"
-                  fullWidth
-                  onChange={(event) => setSearchDraft((current) => ({ ...current, orderClient: event.target.value }))}
-                  onKeyDown={handleSearchEnter(handleSearch)}
-                  size="small"
-                  sx={compactFieldSx}
-                  value={searchDraft.orderClient}
-                />
-              </Box>
 
               <Box sx={{ display: "grid", gap: 0.75, alignSelf: "start" }}>
                 <Typography component="label" htmlFor="bid-notice-search-remark" sx={{ color: "text.secondary", fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>
@@ -564,8 +575,14 @@ export function BidNoticePage() {
             onPaginationModelChange={setPaginationModel}
             paginationMode="server"
             paginationModel={paginationModel}
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={(model) => {
+              setSortModel(model);
+              setPaginationModel((current) => current.page === 0 ? current : { ...current, page: 0 });
+            }}
             showXlsxExportButton
-            showPrintButton
+            showPrintButton={canRead}
             showPageNumbers
             pageSizeOptions={[20, 40, 80, 120]}
             getRowId={(row) => row.id}

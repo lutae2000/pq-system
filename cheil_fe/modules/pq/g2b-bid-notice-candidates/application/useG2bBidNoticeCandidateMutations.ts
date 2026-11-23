@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { dashboardQueryKeys } from "@/modules/dashboard/application/queryKeys";
 import { deleteG2bBidNoticeCandidates, syncG2bBidNoticeCandidates } from "@/modules/pq/g2b-bid-notice-candidates/api";
 import { g2bBidNoticeCandidateQueryKeys } from "@/modules/pq/g2b-bid-notice-candidates/application/queryKeys";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
@@ -21,6 +22,7 @@ export function useG2bBidNoticeCandidateMutations({ onDeleted, onError, onInputS
       onInputSaved(saved);
       await Promise.all([
         client.invalidateQueries({ queryKey: ["bid-notices"] }),
+        client.invalidateQueries({ queryKey: dashboardQueryKeys.bidNoticeCalendars }),
         client.invalidateQueries({ queryKey: g2bBidNoticeCandidateQueryKeys.all }),
         client.invalidateQueries({ queryKey: ["file-attachments", "BID_NOTICE", String(saved.bidSeq)] }),
       ]);
