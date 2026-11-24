@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
@@ -305,12 +306,10 @@ export function NewTechnologyDevelopmentManagementPage() {
           <MenuItem value="">전체</MenuItem>
           <MenuItem value="Y">유효</MenuItem>
         </TextField>
-        <TextField
+        <DateInput fullWidth={false}
           label="공고일"
-          onChange={(event) => setScoreReferenceDate(compactDate(event.target.value))}
-          placeholder="YYYYMMDD"
+          onChange={(value) => setScoreReferenceDate(compactDate(value))}
           size="small"
-          slotProps={{ htmlInput: { maxLength: 8 } }}
           sx={standardFieldSx}
           value={compactDate(scoreReferenceDate)}
         />
@@ -446,22 +445,18 @@ export function NewTechnologyDevelopmentManagementPage() {
                   </TextField>
                   <TextField disabled={draft.technologyType !== "특허"} label="출원번호" onChange={(event) => updateDraft("applicationNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.applicationNo)} />
                   <TextField label="등록번호" onChange={(event) => updateDraft("registrationNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.registrationNo)} />
-                  <TextField
+                  <DateInput fullWidth={false}
                       label="출원일"
-                      onChange={(event) => updateDraft("applicationDate", compactDate(event.target.value))}
+                      onChange={(value) => updateDraft("applicationDate", compactDate(value))}
                       size="small"
-                      slotProps={{ inputLabel: { shrink: true } }}
                       sx={standardFieldSx}
-                      type="date"
                       value={toDateInputValue(draft.applicationDate)}
                   />
-                  <TextField
+                  <DateInput fullWidth={false}
                     label="유효기간"
-                    onChange={(event) => updateDraft("validUntil", compactDate(event.target.value))}
+                    onChange={(value) => updateDraft("validUntil", compactDate(value))}
                     size="small"
-                    slotProps={{ inputLabel: { shrink: true } }}
                     sx={standardFieldSx}
-                    type="date"
                     value={toDateInputValue(draft.validUntil)}
                   />
                   <TextField label="내용" minRows={5} multiline onChange={(event) => updateDraft("summary", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.summary)} />

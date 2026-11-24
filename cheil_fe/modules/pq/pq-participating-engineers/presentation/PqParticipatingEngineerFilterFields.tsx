@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import { SearchOutlined as SearchOutlinedIcon } from "@mui/icons-material";
 import { Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
 
@@ -131,15 +132,13 @@ export function PqParticipatingEngineerFilterFields({
             업무중복도 산정
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ width: "100%" }}>
-            <TextField
+            <DateInput fullWidth={false}
               disabled={disabled}
               label="기준일"
               size="small"
-              type="date"
               value={filters.referenceDate}
-              onChange={(event) => onChange({ referenceDate: event.target.value })}
+              onChange={(value) => onChange({ referenceDate: value })}
               sx={{ ...standardFieldSx, width: { xs: "100%", sm: 170 } }}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               disabled={disabled}

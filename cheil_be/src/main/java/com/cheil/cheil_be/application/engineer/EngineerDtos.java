@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.engineer;
 
+import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
+
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -93,7 +95,10 @@ public final class EngineerDtos {
             Integer joinDay,
             Integer partDay,
             Integer selectDay,
-            String remark
+            String remark,
+            String contractFromDate,
+            String contractToDate,
+            ParticipationContractPeriod participationContractPeriod
     ) {
     }
 

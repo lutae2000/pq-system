@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
@@ -502,14 +503,12 @@ export function WorkOverlapContractManagementPage() {
             resetLabel="초기화"
             searchLabel="조회"
           >
-            <TextField
+            <DateInput fullWidth={false}
               label="기준일"
-              onChange={(event) => setFilters((current) => ({ ...current, referenceDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, referenceDate: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.referenceDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               select
@@ -558,23 +557,19 @@ export function WorkOverlapContractManagementPage() {
               value={filters.engineerName}
             />
             <Box sx={{ flexBasis: "100%", height: 0, m: 0, p: 0 }} />
-            <TextField
+            <DateInput fullWidth={false}
               label="계약시작일 From"
-              onChange={(event) => setFilters((current) => ({ ...current, constructionStartDateFrom: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, constructionStartDateFrom: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.constructionStartDateFrom}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
-            <TextField
+            <DateInput fullWidth={false}
               label="계약시작일 To"
-              onChange={(event) => setFilters((current) => ({ ...current, constructionStartDateTo: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, constructionStartDateTo: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.constructionStartDateTo}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               select

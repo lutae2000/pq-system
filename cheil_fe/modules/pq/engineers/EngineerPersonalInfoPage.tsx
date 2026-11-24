@@ -1,5 +1,7 @@
 "use client";
 
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
+import { DateInput } from "@/components/common/DateTimeInput";
 import {
   Box,
   Autocomplete,
@@ -262,52 +264,15 @@ function renderDate8EditCell(params: GridRenderEditCellParams) {
 }
 
 function Date8EditInput(params: GridRenderEditCellParams) {
-  const [value, setValue] = useState(() => String(params.value ?? ""));
-
   return (
-    <TextField
-      autoFocus={params.hasFocus}
-      fullWidth
-      placeholder="YYYYMMDD"
-      size="small"
-      sx={{
-        "& .MuiInputBase-input": {
-          fontSize: 13,
-          px: 1,
-          textAlign: "center",
-        },
-      }}
-      value={value}
-      onChange={(event) => {
-        const nextValue = event.target.value;
-        setValue(nextValue);
-        void params.api.setEditCellValue({ id: params.id, field: params.field, value: nextValue }, event);
-      }}
-      onBlur={(event) => {
-        const normalizedValue = normalizeDate8((event.target as HTMLInputElement).value);
-        setValue(normalizedValue);
-        void params.api.setEditCellValue({ id: params.id, field: params.field, value: normalizedValue });
-      }}
+    <GridDateEditInput
+      params={params}
       onKeyDown={(event) => {
         if (event.key === "Tab") {
-          const normalizedValue = normalizeDate8((event.target as HTMLInputElement).value);
-          setValue(normalizedValue);
-          void params.api.setEditCellValue({ id: params.id, field: params.field, value: normalizedValue }, event);
           event.preventDefault();
           event.stopPropagation();
           moveToNextEditableCell(params, event.shiftKey);
         }
-        if (event.key === "Enter") {
-          const normalizedValue = normalizeDate8((event.target as HTMLInputElement).value);
-          setValue(normalizedValue);
-          void params.api.setEditCellValue({ id: params.id, field: params.field, value: normalizedValue }, event);
-        }
-      }}
-      slotProps={{
-        htmlInput: {
-          inputMode: "numeric",
-          maxLength: 8,
-        },
       }}
     />
   );
@@ -2262,15 +2227,13 @@ export function EngineerPersonalInfoPage() {
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }}>
-                    <TextField
+                    <DateInput
                       fullWidth
                       label="생일"
                       size="small"
-                      type="date"
                       sx={fieldSx}
-                      slotProps={{ inputLabel: { shrink: true } }}
                       value={selectedEngineer?.detail.birthDate ?? ""}
-                      onChange={(event) => updateSelectedEngineerDetailField("birthDate", event.target.value)}
+                      onChange={(value) => updateSelectedEngineerDetailField("birthDate", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }}>

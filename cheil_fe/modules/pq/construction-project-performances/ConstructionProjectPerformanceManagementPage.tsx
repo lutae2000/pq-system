@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { Alert, Box, Button, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Tooltip, Typography } from "@mui/material";
@@ -370,32 +371,26 @@ export function ConstructionProjectPerformanceManagementPage() {
               sx={standardFieldSx}
               value={filters.client}
             />
-            <TextField
+            <DateInput fullWidth={false}
               label="기준일"
-              onChange={(event) => setFilters((current) => ({ ...current, referenceDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, referenceDate: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.referenceDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
-            <TextField
+            <DateInput fullWidth={false}
               label="계약 시작일"
-              onChange={(event) => setFilters((current) => ({ ...current, contractFromDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, contractFromDate: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.contractFromDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
-            <TextField
+            <DateInput fullWidth={false}
               label="계약 종료일"
-              onChange={(event) => setFilters((current) => ({ ...current, contractToDate: event.target.value }))}
+              onChange={(value) => setFilters((current) => ({ ...current, contractToDate: value }))}
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={filters.contractToDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
           </SearchPanel>
 

@@ -2,7 +2,6 @@ import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
 
 const G2B_BID_NOTICE_CANDIDATES_API = "/pq/g2b-bid-notice-candidates";
-export const G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE = 50;
 
 export type G2bBidNoticeCandidateApiRecord = {
   id: number;

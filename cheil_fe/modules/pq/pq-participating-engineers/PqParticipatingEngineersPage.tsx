@@ -648,6 +648,9 @@ export function PqParticipatingEngineersPage() {
                     </Button>
                   </Stack>
                 </Box>
+                {candidatesQuery.isError ? (
+                  <Alert severity="error" sx={{ mb: 1 }}>{candidatesQuery.error.message}</Alert>
+                ) : null}
                 <CandidateEngineerGrid
                   columns={candidateColumns}
                   loading={candidatesQuery.isLoading || candidatesQuery.isFetching}
@@ -726,7 +729,6 @@ export function PqParticipatingEngineersPage() {
                     taskPeriodUnit={appliedFilters.taskPeriodUnit}
                     taskPeriodValue={appliedFilters.taskPeriodValue}
                     cardHeight={performanceCardHeight}
-                    defaultPageSize={performanceFocusMode ? 25 : 10}
                   /> : (
                     <Box sx={{ alignItems: "center", display: "flex", justifyContent: "center", minHeight: 240 }}>
                       <Typography color="text.secondary" variant="body2">

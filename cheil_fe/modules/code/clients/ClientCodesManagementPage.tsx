@@ -15,7 +15,7 @@ import {
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { KakaoPostcodeFields } from "@/components/common/KakaoPostcodeFields";
@@ -27,7 +27,6 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { useClientCodeManagement } from "@/modules/code/clients/application/useClientCodeManagement";
 import {
-  CLIENT_CODE_PAGE_SIZE,
   type ClientCodeRecord,
   type ClientCodeSearchParams,
   type ClientCodeUpsertRequest,
@@ -102,7 +101,7 @@ export function ClientCodesManagementPage() {
   const [orderClassFilter, setOrderClassFilter] = useState("All");
   const [companyTypeFilter, setCompanyTypeFilter] = useState("All");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(CLIENT_CODE_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(DEFAULT_GRID_PAGE_SIZE);
   const [searchTick, setSearchTick] = useState(0);
   const [selectedClientCode, setSelectedClientCode] = useState("");
   const [draft, setDraft] = useState<ClientCodeRecord>(() => emptyDraft());

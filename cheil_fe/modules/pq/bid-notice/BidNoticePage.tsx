@@ -11,7 +11,7 @@ import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent a
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ResizeHandle } from "@/components/common/ResizeHandle";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -114,7 +114,7 @@ export function BidNoticePage() {
   const [searchDraft, setSearchDraft] = useState<BidNoticeFilters>(() => buildDefaultFilters());
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 20 });
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
   const [sortModel, setSortModel] = useState<GridSortModel>([]);
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
@@ -584,7 +584,7 @@ export function BidNoticePage() {
             showXlsxExportButton
             showPrintButton={canRead}
             showPageNumbers
-            pageSizeOptions={[20, 40, 80, 120]}
+            pageSizeOptions={[20, 40, 80, 100]}
             getRowId={(row) => row.id}
             onRowDoubleClick={(params: GridRowParams<BidNoticeRecord>) => openEditor(params.row)}
             rowCount={bidNoticesQuery.data?.totalElements ?? 0}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { hashKey, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import {
@@ -69,7 +69,9 @@ export function usePqParticipatingEngineerQueries({
     enabled: enabled && Boolean(bidSeq) && conditionsLoaded,
     placeholderData: (previousData, previousQuery) => {
       const previousFilters = previousQuery?.queryKey[2] as PqParticipatingEngineerCandidateSearchParams | undefined;
-      return previousFilters?.bidSeq === bidSeq && previousFilters?.workDutyId === workDutyId ? previousData : undefined;
+      return previousFilters && previousQuery?.queryKey[3] === candidateSearchRevision
+        && hashKey([{ ...previousFilters, page: candidatePage }]) === hashKey([candidateQueryFilters])
+        ? previousData : undefined;
     },
   });
 
@@ -91,7 +93,7 @@ export function usePqParticipatingEngineerQueries({
     }),
     [candidatePage, candidatePageSize],
   );
-  const candidatesPage = candidatesQuery.data ?? emptyCandidatePage;
+  const candidatesPage = candidatesQuery.isError ? emptyCandidatePage : candidatesQuery.data ?? emptyCandidatePage;
 
   return {
     candidates: candidatesPage.content,

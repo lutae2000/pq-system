@@ -432,7 +432,6 @@ export function RolePermissionManagementPage() {
                   columns={roleColumns}
                   getRowId={(row) => row.roleCode}
                   hideFooterSelectedRowCount
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 50 } } }}
                   loading={rolesQuery.isFetching || menusQuery.isFetching}
                   onRowClick={(params) => {
                     setIsNewRole(false);

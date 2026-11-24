@@ -1,12 +1,13 @@
 "use client";
 
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import { Box, Button, FormControlLabel, IconButton, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Button, FormControlLabel, IconButton, Switch, Tooltip, Typography } from "@mui/material";
 import {
   GridActionsCellItem,
   GridRowEditStopReasons,
@@ -16,30 +17,28 @@ import {
   type GridRenderEditCellParams,
   type GridRowModesModel,
 } from "@mui/x-data-grid";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EnterpriseDataGrid, useEnterpriseRowActionConfirm, type EnterpriseRowActionConfirm } from "@/components/common/EnterpriseDataGrid";
-import { standardFieldSx } from "@/components/common/FormControls";
 import { toDateInputValueFromDigits as toDateInputValue } from "@/modules/common/formatters";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
   createCompanyPerformanceContractPeriod,
   deleteCompanyPerformanceContractPeriod,
-  listCompanyPerformanceContractPeriods,
   updateCompanyPerformanceContractPeriod,
   type CompanyPerformanceContractPeriodRecord,
   type CompanyPerformanceContractPeriodRequest,
   type CompanyPerformanceRecord,
 } from "@/modules/pq/company-performance/api";
+import { companyPerformanceQueryKeys } from "@/modules/pq/company-performance/application/queryKeys";
+import { useCompanyPerformanceContractPeriods } from "@/modules/pq/company-performance/application/useCompanyPerformanceQueries";
 import { tempId, text } from "@/modules/pq/company-performance/detail-tabs/detailTabUtils";
 
 type CompanyPerformanceContractPeriodsGridProps = {
   readOnly?: boolean;
   record: CompanyPerformanceRecord;
 };
-
-const toYmdText = (value: string | null | undefined) => text(value).replace(/\D/g, "").slice(0, 8);
 
 const toApiDateValue = (value: string | null | undefined) => {
   const normalized = text(value).replace(/\D/g, "").slice(0, 8);
@@ -79,20 +78,7 @@ const toRequest = (row: CompanyPerformanceContractPeriodRecord): CompanyPerforma
 });
 
 function DateEditCell(params: GridRenderEditCellParams<CompanyPerformanceContractPeriodRecord, string | null>) {
-  return (
-    <TextField
-      autoFocus
-      fullWidth
-      onChange={(event) => {
-        void params.api.setEditCellValue({ id: params.id, field: params.field, value: toYmdText(event.target.value) }, event);
-      }}
-      placeholder="YYYYMMDD"
-      size="small"
-      slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 8, pattern: "\\d{8}" } }}
-      sx={standardFieldSx}
-      value={toYmdText(params.value)}
-    />
-  );
+  return <GridDateEditInput params={params} />;
 }
 
 export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record }: CompanyPerformanceContractPeriodsGridProps) {
@@ -104,11 +90,7 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
   const [rowModesModel, setRowModesModel] = useState<GridRowModesModel>({});
   const initializedSeqRef = useRef<number | null>(null);
 
-  const contractPeriodsQuery = useQuery({
-    queryKey: ["company-performance-contract-periods", record.seq],
-    queryFn: () => listCompanyPerformanceContractPeriods(record.seq),
-    enabled: Boolean(record.seq),
-  });
+  const contractPeriodsQuery = useCompanyPerformanceContractPeriods(record.seq);
 
   useEffect(() => {
     if (!record.seq) {
@@ -135,7 +117,7 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
   );
 
   const invalidateContractPeriods = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["company-performance-contract-periods", record.seq] }),
+    () => queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.contractPeriods(record.seq) }),
     [queryClient, record.seq],
   );
 
@@ -160,7 +142,7 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
     },
     onSuccess: (_saved, row) => {
       setNewRows((current) => current.filter((item) => item.id !== row.id));
-      void invalidateContractPeriods();
+      return invalidateContractPeriods();
     },
   });
 
@@ -174,9 +156,10 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
       }
       return deleteCompanyPerformanceContractPeriod(record.seq, id);
     },
-    onSuccess: () => {
-      void invalidateContractPeriods();
-    },
+    onSuccess: () => Promise.all([
+      invalidateContractPeriods(),
+      queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.engineers(record.seq) }),
+    ]),
   });
 
   const confirmProcessRowUpdate = useCallback(
@@ -206,18 +189,22 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
 
   const addRow = () => {
     const id = tempId();
-    const newRow: CompanyPerformanceContractPeriodRecord = {
-      contractFromDate: null,
-      contractToDate: null,
-      dayCount: 0,
-      id,
-      isNew: true,
-      monthCount: 0,
-      seq: record.seq,
-      sortSeq: rows.length + 1,
-    };
     setExpanded(true);
-    setNewRows((current) => [newRow, ...current]);
+    setNewRows((current) => {
+      const lastSortSeq = [...(contractPeriodsQuery.data ?? []), ...current]
+        .reduce((max, row) => Math.max(max, row.sortSeq ?? 0), 0);
+      const newRow: CompanyPerformanceContractPeriodRecord = {
+        contractFromDate: null,
+        contractToDate: null,
+        dayCount: 0,
+        id,
+        isNew: true,
+        monthCount: 0,
+        seq: record.seq,
+        sortSeq: lastSortSeq + 1,
+      };
+      return [newRow, ...current];
+    });
     setRowModesModel((current) => ({ ...current, [id]: { mode: GridRowModes.Edit, fieldToFocus: "contractFromDate" } }));
   };
 
@@ -239,6 +226,14 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
 
   const columns = useMemo<GridColDef<CompanyPerformanceContractPeriodRecord>[]>(
     () => [
+      {
+        align: "center",
+        field: "sortSeq",
+        headerAlign: "center",
+        headerName: "행번호",
+        type: "number",
+        width: 72,
+      },
       {
         editable: true,
         field: "contractFromDate",
@@ -357,7 +352,7 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
         </Tooltip>
         {expanded && !readOnly ? (
           <Button
-            disabled={!canCreate || !record.seq || saveMutation.isPending}
+            disabled={!canCreate || !record.seq || !contractPeriodsQuery.data || saveMutation.isPending || deleteMutation.isPending}
             onClick={addRow}
             size="small"
             startIcon={<AddOutlinedIcon />}

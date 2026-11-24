@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -224,23 +225,25 @@ export function CompanyPerformanceDetailDialog({
                 >
                   <Field label="계약기간">
                     <Box sx={{ alignItems: "center", display: "grid", gap: 0.5, gridTemplateColumns: "1fr 10px 1fr" }}>
-                      <TextField
+                      <DateInput fullWidth={false}
                         disabled={readOnly}
-                        onChange={(event) => onFieldChange("contractFromDate", toContractDateValue(event.target.value))}
+                        label="계약시작일"
+                        showLabel={false}
+                        onChange={(value) => onFieldChange("contractFromDate", toContractDateValue(value))}
                         size="small"
                         sx={standardFieldSx}
-                        type="date"
                         value={toDateInputValue(record.contractFromDate)}
                       />
                       <Typography color="text.secondary" sx={{ textAlign: "center" }}>
                         -
                       </Typography>
-                      <TextField
+                      <DateInput fullWidth={false}
                         disabled={readOnly}
-                        onChange={(event) => onFieldChange("contractToDate", toContractDateValue(event.target.value))}
+                        label="계약종료일"
+                        showLabel={false}
+                        onChange={(value) => onFieldChange("contractToDate", toContractDateValue(value))}
                         size="small"
                         sx={standardFieldSx}
-                        type="date"
                         value={toDateInputValue(record.contractToDate)}
                       />
                     </Box>
@@ -250,12 +253,13 @@ export function CompanyPerformanceDetailDialog({
                   </Field>
                   {showStopDate ? (
                     <Field label="중지일">
-                      <TextField
+                      <DateInput fullWidth={false}
                         disabled={readOnly}
-                        onChange={(event) => onFieldChange("stopDate", toContractDateValue(event.target.value))}
+                        label="공사중지일"
+                        showLabel={false}
+                        onChange={(value) => onFieldChange("stopDate", toContractDateValue(value))}
                         size="small"
                         sx={standardFieldSx}
-                        type="date"
                         value={toDateInputValue(record.stopDate)}
                       />
                     </Field>

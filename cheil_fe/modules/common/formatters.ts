@@ -59,11 +59,17 @@ export const dateTimeText = (value: string | null | undefined) => {
   return normalized.length > 10 ? normalized.slice(0, 16) : normalized;
 };
 
-export type DateInputMode = "date" | "date-time";
+export type DateInputMode = "date" | "date-time" | "month" | "year";
 
 export function parseDateInput(value: string, mode: DateInputMode): string | null {
   const input = value.trim();
   if (!input) return "";
+
+  if (mode === "year") return /^(?!0000)\d{4}$/.test(input) ? input : null;
+  if (mode === "month") {
+    const month = /^(?!0000)(\d{4})-?(0[1-9]|1[0-2])$/.exec(input);
+    return month ? `${month[1]}-${month[2]}` : null;
+  }
 
   const pattern = mode === "date-time"
     ? /^(\d{8}|\d{4}-\d{2}-\d{2})[ T]?(\d{2}):?(\d{2})$/

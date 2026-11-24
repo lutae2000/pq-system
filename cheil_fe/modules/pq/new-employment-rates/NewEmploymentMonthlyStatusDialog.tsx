@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from "@mui/material";
@@ -76,13 +77,12 @@ export function NewEmploymentMonthlyStatusDialog({
       <DialogTitle>{isNew ? "월별 고용현황 등록" : "월별 고용현황 수정"}</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, pt: 0.5 }}>
-          <TextField
+          <DateInput fullWidth={false} mode="month"
             label="기준년월"
-            onChange={(event) => handleChange("baseYearMonth", yearMonthValue(event.target.value))}
+            onChange={(value) => handleChange("baseYearMonth", yearMonthValue(value))}
             size="small"
             sx={standardFieldSx}
             value={yearMonthValue(activeForm?.baseYearMonth)}
-            placeholder="YYYYMM"
           />
           <TextField
             label="고용인원"

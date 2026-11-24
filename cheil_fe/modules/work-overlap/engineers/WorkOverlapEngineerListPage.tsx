@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import EngineeringOutlinedIcon from "@mui/icons-material/EngineeringOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
@@ -870,16 +871,14 @@ export function WorkOverlapEngineerListPage() {
                 width: "100%",
               }}
             >
-              <TextField
+              <DateInput fullWidth={false}
                 label="기준일"
-                onChange={(event) => setFilters((current) => ({ ...current, referenceDate: event.target.value }))}
+                onChange={(value) => setFilters((current) => ({ ...current, referenceDate: value }))}
                 error={!isReferenceDateValid}
                 helperText={isReferenceDateValid ? undefined : "필수값입니다."}
                 size="small"
                 sx={{ ...standardFieldSx, flex: "0 0 180px", width: "auto" }}
-                type="date"
                 value={filters.referenceDate}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 label="과업기간"

@@ -32,6 +32,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.cheil.cheil_be.application.pqparticipatingengineer.service.PqParticipatingEngineerQueryService;
+import com.cheil.cheil_be.application.pqparticipatingengineer.port.in.FindCandidateEngineersUseCase;
 
 @WebMvcTest(PqParticipatingEngineerController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -40,6 +41,7 @@ class PqParticipatingEngineerControllerRestDocsTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private PqParticipatingEngineerQueryService queryService;
+    @MockitoBean private FindCandidateEngineersUseCase findCandidateEngineersUseCase;
     @MockitoBean private com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService loginAccessTokenService;
     @MockitoBean private com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase validateLoginSessionUseCase;
     @MockitoBean private com.cheil.cheil_be.config.security.AppSecurityProperties appSecurityProperties;
@@ -48,7 +50,7 @@ class PqParticipatingEngineerControllerRestDocsTest {
 
     @Test
     void listCandidatesDocumentsQueryAndPageContract() throws Exception {
-        when(queryService.findCandidates(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(findCandidateEngineersUseCase.findCandidates(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
         mockMvc.perform(get("/pq/participating-engineers/candidates").param("bidSeq", "20261072").param("workDutyId", "01").param("page", "0").param("size", "20"))
                 .andExpect(status().isOk()).andDo(document("pq-participating-engineers-candidates", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()),
                         queryParameters(parameterWithName("bidSeq").description("Bid notice sequence.").optional(), parameterWithName("workDutyId").description("Work duty identifier.").optional(), parameterWithName("keyword").description("Name or ID search.").optional(), parameterWithName("certificationName").description("Certification filter.").optional(), parameterWithName("constructionManagementGrade").description("Construction management grade filter.").optional(), parameterWithName("designGrade").description("Design grade filter.").optional(), parameterWithName("jobField").description("Job field filter.").optional(), parameterWithName("specialtyField").description("Specialty field filter.").optional(), parameterWithName("retireYn").description("Retirement filter.").optional(), parameterWithName("projectHistoryConditions").description("Project history conditions JSON.").optional(), parameterWithName("page").description("Zero-based page number.").optional(), parameterWithName("size").description("Page size.").optional()),

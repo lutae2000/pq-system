@@ -1,5 +1,8 @@
 package com.cheil.cheil_be.adapter.in.web.engineerperformancedoc;
 
+import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
+import lombok.With;
+
 import java.time.Instant;
 import java.math.BigDecimal;
 
@@ -42,6 +45,7 @@ public record EngineerProjectHistoryReviewResponse(
         Instant createdAt,
         String createdId,
         Instant lastChangedAt,
-        String lastChangedId
+        String lastChangedId,
+        @With ParticipationContractPeriod participationContractPeriod
 ) {
 }

@@ -200,14 +200,6 @@ export function EducationReminderBasicInfoRightPanel({
               getRowId={(row) => row.engineerId}
               hideFooterSelectedRowCount
               checkboxSelection
-              initialState={{
-                pagination: {
-                  paginationModel: {
-                    page: 0,
-                    pageSize: 25,
-                  },
-                },
-              }}
               loading={assignedEngineersLoading}
               onRowSelectionModelChange={onAssignmentSelectionModelChange}
               rowSelectionModel={rowSelectionModel}

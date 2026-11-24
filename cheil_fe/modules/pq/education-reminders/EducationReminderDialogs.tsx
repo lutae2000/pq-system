@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
@@ -124,25 +125,21 @@ export function EducationReminderTargetDialog({ onClose, onSave, open, record, t
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
+            <DateInput fullWidth={false}
               label="이수 마감일"
-              onChange={(event) => setForm((current) => ({ ...current, dueDate: event.target.value }))}
+              onChange={(value) => setForm((current) => ({ ...current, dueDate: value }))}
               required
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={form.dueDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
-            <TextField
+            <DateInput fullWidth={false}
               label="발송 예정일"
-              onChange={(event) => setForm((current) => ({ ...current, sendPlanDate: event.target.value }))}
+              onChange={(value) => setForm((current) => ({ ...current, sendPlanDate: value }))}
               required
               size="small"
               sx={standardFieldSx}
-              type="date"
               value={form.sendPlanDate}
-              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField disabled label="발송 채널" size="small" sx={standardFieldSx} value={selectedTemplate.channel} />
             <TextField

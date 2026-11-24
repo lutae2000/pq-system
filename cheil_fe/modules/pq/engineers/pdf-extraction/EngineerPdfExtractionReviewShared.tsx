@@ -1,5 +1,7 @@
 "use client";
 
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
+
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ManageSearchOutlinedIcon from "@mui/icons-material/ManageSearchOutlined";
 import {
@@ -113,7 +115,7 @@ const sectionColumns: Record<
     { field: "enddt", headerName: "참여종료일", minWidth: 100 },
     { field: "recognition_days", headerName: "인정일", minWidth: 90 },
     { field: "participation_days", headerName: "참여일", minWidth: 90 },
-    { field: "jobclass", headerName: "참여분야직위", minWidth: 160 },
+    { field: "jobclass", headerName: "책임정도", minWidth: 160 },
     { field: "jobpart", headerName: "직무분야", minWidth: 70 },
     { field: "propart", headerName: "전문분야", minWidth: 130 },
     { field: "englevel", headerName: "등급", minWidth: 70 },
@@ -454,7 +456,9 @@ export function ExtractionGrid({
           },
           renderCell: (params: GridRenderCellParams<ExtractionGridRow>) =>
             String(params.value ?? ""),
-          renderEditCell: selectFields.has(field)
+          renderEditCell: dateFields.has(field)
+            ? (params: GridRenderEditCellParams<ExtractionGridRow>) => <GridDateEditInput params={params} />
+            : selectFields.has(field)
             ? (params: GridRenderEditCellParams<ExtractionGridRow, string>) => {
                 const labels =
                   valueLabels?.[field] ??

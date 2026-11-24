@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -167,18 +168,16 @@ export function ServicePerformanceDetailDialog({
                   sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
                   value={text(draft.fieldName)}
                 />
-                <TextField
+                <DateInput fullWidth={false}
                   disabled={!isEditable}
                   label="평가일"
-                  onChange={(event) =>
-                    onDraftChange("evaluationDate", event.target.value)
+                  onChange={(value) =>
+                    onDraftChange("evaluationDate", value)
                   }
                   required
                   size="small"
                   sx={{ ...standardFieldSx, gridColumn: { xs: "1 / -1", sm: "span 4" } }}
-                  type="date"
                   value={dashedDate(draft.evaluationDate)}
-                  slotProps={{ inputLabel: { shrink: true } }}
                 />
                 <TextField
                   disabled={!isEditable}

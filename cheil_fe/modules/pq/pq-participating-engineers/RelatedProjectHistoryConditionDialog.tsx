@@ -1,5 +1,8 @@
 "use client";
 
+import { DateTimeInput } from "@/components/common/DateTimeInput";
+import { parseDateInput } from "@/modules/common/formatters";
+
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
@@ -156,8 +159,11 @@ const normalizeLogicalOperator = (operator: string | undefined, index: number): 
   return operator === "OR" ? "OR" : "AND";
 };
 
-const normalizeCondition = (condition: RelatedProjectHistoryCondition, index: number): RelatedProjectHistoryCondition => {
-  const valueType = conditionValueType(condition);
+const normalizeCondition = (
+  condition: RelatedProjectHistoryCondition,
+  index: number,
+  valueType: PqParticipatingEngineerProjectHistoryConditionValueType,
+): RelatedProjectHistoryCondition => {
   const availableOperators = operatorsByValueType[valueType];
   const candidateOperator = condition.operator;
   const operator = candidateOperator && availableOperators.includes(candidateOperator) ? candidateOperator : defaultOperator(valueType);
@@ -370,8 +376,18 @@ export function RelatedProjectHistoryConditionDialog({
     );
   };
 
+  const normalizedDraft = draft.map((condition, index) => {
+    const configuredType = condition.conditionType === "general" ? valueTypeByGeneralCode.get(condition.generalCode ?? "") : undefined;
+    return normalizeCondition(condition, index, configuredType ?? conditionValueType(condition));
+  });
+  const hasIncompleteConditions = normalizedDraft.some((condition) => {
+    if (!needsValueInput(condition)) return false;
+    const valid = (value?: string) => condition.valueType === "date" ? Boolean(parseDateInput(value ?? "", "date")) : Boolean(value?.trim());
+    return !valid(condition.value) || (condition.operator === "BETWEEN" && !valid(condition.valueTo));
+  });
+
   const handleApply = () => {
-    onApply(draft.map((condition, index) => normalizeCondition(condition, index)));
+    if (!hasIncompleteConditions) onApply(normalizedDraft);
   };
 
   const constructionColumns = useMemo<GridColDef<ConstructionKindRow>[]>(
@@ -460,7 +476,6 @@ export function RelatedProjectHistoryConditionDialog({
                   columns={constructionColumns}
                   getRowId={(row) => row.id}
                   hideFooterSelectedRowCount
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 40 } } }}
                   loading={constructionTypesQuery.isLoading || constructionTypesQuery.isFetching}
                   onRowDoubleClick={(params: GridRowParams<ConstructionKindRow>) =>
                     addCondition({
@@ -493,7 +508,6 @@ export function RelatedProjectHistoryConditionDialog({
                   columns={generalColumns}
                   getRowId={(row) => row.code}
                   hideFooterSelectedRowCount
-                  initialState={{ pagination: { paginationModel: { page: 0, pageSize: 40 } } }}
                   loading={generalConditionsQuery.isLoading || generalConditionsQuery.isFetching}
                   onRowDoubleClick={(params: GridRowParams<CodeOption>) =>
                     addCondition({
@@ -521,7 +535,6 @@ export function RelatedProjectHistoryConditionDialog({
                     columns={outlineCategoryColumns}
                     getRowId={(row) => row.id}
                     hideFooterSelectedRowCount
-                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 40 } } }}
                     loading={outlineCodesQuery.isLoading || outlineCodesQuery.isFetching}
                     onRowClick={(params: GridRowParams<OutlineCategoryRow>) => setSelectedOutlineCategoryCode(params.row.code)}
                     pageSizeOptions={[20, 40, 100]}
@@ -535,7 +548,6 @@ export function RelatedProjectHistoryConditionDialog({
                     columns={outlineDetailColumns}
                     getRowId={(row) => row.id}
                     hideFooterSelectedRowCount
-                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 40 } } }}
                     loading={outlineCodesQuery.isLoading || outlineCodesQuery.isFetching}
                     onRowDoubleClick={(params: GridRowParams<OutlineDetailRow>) =>
                       addCondition({
@@ -587,12 +599,10 @@ export function RelatedProjectHistoryConditionDialog({
                     </Typography>
                   </Box>
                 ) : (
-                  draft.map((condition, index) => {
-                    const valueType =
-                      conditionValueType(condition);
+                  normalizedDraft.map((condition, index) => {
+                    const valueType = conditionValueType(condition);
                     const availableOperators = operatorsByValueType[valueType];
-                    const configuredOperator = condition.operator ?? defaultOperator(valueType);
-                    const operator = availableOperators.includes(configuredOperator) ? configuredOperator : defaultOperator(valueType);
+                    const operator = condition.operator ?? defaultOperator(valueType);
                     const valueOptions =
                       condition.conditionType === "general" && valueType === "code"
                         ? conditionOptionsByCode.get(condition.generalCode ?? "") ?? []
@@ -691,29 +701,43 @@ export function RelatedProjectHistoryConditionDialog({
                               value={selectedValueOption}
                             />
                           ) : null}
-                          {needsValueInput(condition) && !hasValueOptions ? (
+                          {needsValueInput(condition) && !hasValueOptions ? valueType === "date" ? (
+                            <DateTimeInput
+                              disabled={disabled}
+                              label={operator === "BETWEEN" ? `${valueLabel(condition)} 시작` : valueLabel(condition)}
+                              mode="date"
+                              onChange={(value) => updateCondition(condition.id, { value })}
+                              value={condition.value ?? ""}
+                            />
+                          ) : (
                             <TextField
                               disabled={disabled}
                               label={operator === "BETWEEN" ? `${valueLabel(condition)} 시작` : valueLabel(condition)}
                               onChange={(event) => updateCondition(condition.id, { value: event.target.value })}
                               placeholder={condition.conditionType === "outline" ? "예: 1000" : undefined}
                               size="small"
-                              slotProps={valueType === "date" ? { inputLabel: { shrink: true } } : undefined}
                               sx={standardFieldSx}
-                              type={valueType === "number" ? "number" : valueType === "date" ? "date" : "text"}
+                              type={valueType === "number" ? "number" : "text"}
                               value={condition.value ?? ""}
                             />
                           ) : null}
-                          {operator === "BETWEEN" ? (
+                          {operator === "BETWEEN" ? valueType === "date" ? (
+                            <DateTimeInput
+                              disabled={disabled}
+                              label={`${valueLabel(condition)} 끝`}
+                              mode="date"
+                              onChange={(valueTo) => updateCondition(condition.id, { valueTo })}
+                              value={condition.valueTo ?? ""}
+                            />
+                          ) : (
                             <TextField
                               disabled={disabled}
                               label={`${valueLabel(condition)} 끝`}
                               onChange={(event) => updateCondition(condition.id, { valueTo: event.target.value })}
                               placeholder={condition.conditionType === "outline" ? "예: 2000" : undefined}
                               size="small"
-                              slotProps={valueType === "date" ? { inputLabel: { shrink: true } } : undefined}
                               sx={standardFieldSx}
-                              type={valueType === "number" ? "number" : valueType === "date" ? "date" : "text"}
+                              type={valueType === "number" ? "number" : "text"}
                               value={condition.valueTo ?? ""}
                             />
                           ) : null}
@@ -728,10 +752,13 @@ export function RelatedProjectHistoryConditionDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+        {hasIncompleteConditions ? (
+          <Typography color="error" sx={{ mr: "auto" }} variant="body2">비어 있는 조건값이나 범위의 끝값을 입력해 주세요.</Typography>
+        ) : null}
         <Button color="inherit" disabled={applyLoading} onClick={onClose} type="button" variant="outlined">
           {"취소"}
         </Button>
-        <Button disabled={disabled || applyLoading} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">
+        <Button disabled={disabled || applyLoading || hasIncompleteConditions} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">
           {"적용"}
         </Button>
       </DialogActions>

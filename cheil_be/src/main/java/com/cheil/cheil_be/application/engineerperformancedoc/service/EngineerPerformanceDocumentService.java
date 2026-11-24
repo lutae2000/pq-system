@@ -28,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewSyncRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
+import com.cheil.cheil_be.application.companyperformance.port.out.ParticipationContractPeriodRepository;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
@@ -43,6 +44,7 @@ public class EngineerPerformanceDocumentService {
     private final JdbcClient jdbcClient;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final ProjectHistoryConditionJsonCodec conditionJsonCodec;
+    private final ParticipationContractPeriodRepository participationContractPeriodRepository;
 
     @Transactional(readOnly = true)
     public List<EngineerProjectHistoryReviewResponse> findProjectHistories(
@@ -62,7 +64,7 @@ public class EngineerPerformanceDocumentService {
                 conditions.isEmpty() ? Map.of() : conditionMetadataService.findAll()
         );
 
-        return jdbcClient.sql("""
+        var rows = jdbcClient.sql("""
                         SELECT
                             NULL::BIGINT AS review_id,
                             NULL::BIGINT AS bid_seq,
@@ -118,6 +120,7 @@ public class EngineerPerformanceDocumentService {
                 .params(params)
                 .query(this::mapResponse)
                 .list();
+        return withParticipationContractPeriods(rows);
     }
 
     @Transactional(readOnly = true)
@@ -192,10 +195,11 @@ public class EngineerPerformanceDocumentService {
                 ORDER BY r.display_order NULLS LAST, r.review_id
                 """;
 
-        return jdbcClient.sql(sql)
+        var rows = jdbcClient.sql(sql)
                 .params(params)
                 .query(this::mapResponse)
                 .list();
+        return withParticipationContractPeriods(rows);
     }
 
     @Transactional
@@ -356,7 +360,7 @@ public class EngineerPerformanceDocumentService {
     }
 
     private EngineerProjectHistoryReviewResponse findByReviewId(Long reviewId) {
-        return jdbcClient.sql("""
+        var row = jdbcClient.sql("""
                         SELECT
                             r.review_id,
                             r.bid_seq,
@@ -414,6 +418,20 @@ public class EngineerPerformanceDocumentService {
                 .query(this::mapResponse)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review result was not found."));
+        return withParticipationContractPeriods(List.of(row)).getFirst();
+    }
+
+    private List<EngineerProjectHistoryReviewResponse> withParticipationContractPeriods(
+            List<EngineerProjectHistoryReviewResponse> rows
+    ) {
+        if (rows.isEmpty()) {
+            return rows;
+        }
+        var periods = participationContractPeriodRepository.findByProjectHistoryIds(
+                rows.stream().map(row -> row.sourceSeq().longValue()).distinct().toList());
+        return rows.stream()
+                .map(row -> row.withParticipationContractPeriod(periods.get(row.sourceSeq().longValue())))
+                .toList();
     }
 
     private void ensureSourceHistoryExists(String engineerId, Integer sourceSeq) {
@@ -485,7 +503,8 @@ public class EngineerPerformanceDocumentService {
                 getInstant(rs, "created_at"),
                 rs.getString("created_id"),
                 getInstant(rs, "last_changed_at"),
-                rs.getString("last_changed_id")
+                rs.getString("last_changed_id"),
+                null
         );
     }
 

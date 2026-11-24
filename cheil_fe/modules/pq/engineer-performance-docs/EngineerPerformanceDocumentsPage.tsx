@@ -32,7 +32,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import { ResizableCard } from "@/components/common/ResizableCard";
 import { attachedVerticalResizeHandleSx } from "@/components/common/ResizeHandle";
@@ -46,6 +46,7 @@ import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat
 import { formatLocalizedNumber } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 
 import { useRelatedProjectHistoryConditions } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
@@ -102,6 +103,16 @@ const center = {
   align: "center",
   headerAlign: "center",
 } as const;
+
+const participationRatioColumn = {
+  field: "participationRatio",
+  headerName: "참여도",
+  type: "number",
+  width: 90,
+  ...center,
+  valueGetter: (_value, row) => calculateHistoryParticipationRatio(row),
+  valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
+} satisfies GridColDef<EngineerProjectHistoryReviewRecord>;
 
 const selectorGridHeight = { xs: 520, md: 580 } as const;
 const DEFAULT_SELECTOR_PANEL_WIDTH = 440;
@@ -161,8 +172,8 @@ export function EngineerPerformanceDocumentsPage() {
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
-  const [historyPaginationModel, setHistoryPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
-  const [reviewPaginationModel, setReviewPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [historyPaginationModel, setHistoryPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
+  const [reviewPaginationModel, setReviewPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
   const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([]);
   const [historySelectionAnchorId, setHistorySelectionAnchorId] = useState<string | null>(null);
   const [reviewSelectionAnchorId, setReviewSelectionAnchorId] = useState<string | null>(null);
@@ -490,7 +501,7 @@ export function EngineerPerformanceDocumentsPage() {
 
   const participationPositionColumn = useMemo(() => ({
     field: "jobClass",
-    headerName: "참여분야 직위",
+    headerName: "책임정도",
     width: 130,
     ...center,
     valueFormatter: (value: unknown) => formatReferenceLabel(labelByJobClass, value),
@@ -509,6 +520,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "contractToDate", headerName: "계약종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "startDate", headerName: "참여시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "endDate", headerName: "참여종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
+      participationRatioColumn,
       { field: "duty", headerName: "담당업무", width: 120, ...center },
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
@@ -556,6 +568,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "contractToDate", headerName: "계약종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "startDate", headerName: "참여시작", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
       { field: "endDate", headerName: "참여종료", width: 110, ...center, valueFormatter: (value) => formatDateYmd(value) },
+      participationRatioColumn,
       { field: "duty", headerName: "담당업무", width: 120, ...center },
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
@@ -572,6 +585,7 @@ export function EngineerPerformanceDocumentsPage() {
       "contractToDate",
       "startDate",
       "endDate",
+      "participationRatio",
       "jobClass",
       "compName",
       "grade",
@@ -596,6 +610,7 @@ export function EngineerPerformanceDocumentsPage() {
       "contractToDate",
       "startDate",
       "endDate",
+      "participationRatio",
       "jobClass",
       "compName",
       "grade",

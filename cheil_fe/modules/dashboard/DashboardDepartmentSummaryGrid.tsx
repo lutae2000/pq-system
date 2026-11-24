@@ -36,7 +36,7 @@ export function DashboardDepartmentSummaryGrid({ rows, loading }: { rows: Dashbo
       getRowId={(row) => row.departmentCode ?? "unassigned"}
       hideFooterSelectedRowCount
       loading={loading}
-      pageSizeOptions={[10, 20, 50]}
+      pageSizeOptions={[10, 20, 50, 100]}
       rows={rows}
       showToolbar={false}
       wrapperMinHeight={340}

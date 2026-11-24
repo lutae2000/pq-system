@@ -169,12 +169,13 @@ function forceGridRowViewMode<Row extends GridValidRowModel>(
   }
 }
 
+export const DEFAULT_GRID_PAGE_SIZE = 100;
 const MAX_MIT_PAGE_SIZE = 100;
 const enterpriseGridStateCache = new Map<string, GridInitialState>();
 const gridEventPriorityOptions = { isFirst: true };
 const GRID_CHECKBOX_SELECTION_FIELD = "__check__";
 
-const clampPageSize = (pageSize: number | undefined, fallback = 10) => {
+const clampPageSize = (pageSize: number | undefined, fallback = DEFAULT_GRID_PAGE_SIZE) => {
   const resolvedPageSize = Number.isFinite(pageSize) ? (pageSize as number) : fallback;
   return Math.min(Math.max(1, Math.trunc(resolvedPageSize)), MAX_MIT_PAGE_SIZE);
 };
@@ -494,8 +495,7 @@ function EnterpriseFooter({ pageSizeOptions = [], showPageInfo = false, showPage
                 label="행 수"
                 onChange={(event) => {
                   const nextPageSize = clampPageSize(Number(event.target.value), paginationModel.pageSize);
-                  apiRef.current.setPageSize(nextPageSize);
-                  apiRef.current.setPage(0);
+                  apiRef.current.setPaginationModel({ page: 0, pageSize: nextPageSize });
                 }}
                 select
                 size="small"
@@ -856,7 +856,7 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
     [userOnColumnWidthChange],
   );
   const resolvedPageSizeOptions = useMemo(() => {
-    const options = pageSizeOptions ?? [10, 20, 40];
+    const options = pageSizeOptions ?? [10, 20, 40, DEFAULT_GRID_PAGE_SIZE];
     const normalizedOptions = options.map(normalizePageSizeOption);
     const seenValues = new Set<number>();
 

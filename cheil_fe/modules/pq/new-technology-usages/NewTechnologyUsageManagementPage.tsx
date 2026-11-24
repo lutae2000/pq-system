@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import KeyboardDoubleArrowLeftOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowLeftOutlined";
 import KeyboardDoubleArrowRightOutlinedIcon from "@mui/icons-material/KeyboardDoubleArrowRightOutlined";
@@ -415,8 +416,8 @@ export function NewTechnologyUsageManagementPage() {
                   <TextField label="명칭" onChange={(event) => updateDraft("title", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.title)} />
                   <TextField label="개발자" onChange={(event) => updateDraft("developers", event.target.value)} size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.developers)} />
                   <TextField label="공사명" onChange={(event) => updateDraft("projectName", event.target.value)} size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.projectName)} />
-                  <TextField label="고시일" onChange={(event) => updateDateDraft("noticeDate", event.target.value)} placeholder="YYYY-MM-DD" size="small" slotProps={{ htmlInput: { maxLength: 10 } }} sx={standardFieldSx} value={formatCompactDate(draft.noticeDate)} />
-                  <TextField label="사용 만료일" onChange={(event) => updateDateDraft("usageExpirationDate", event.target.value)} placeholder="YYYY-MM-DD" size="small" slotProps={{ htmlInput: { maxLength: 10 } }} sx={standardFieldSx} value={formatCompactDate(draft.usageExpirationDate)} />
+                  <DateInput fullWidth={false} label="고시일" onChange={(value) => updateDateDraft("noticeDate", value)} size="small" sx={standardFieldSx} value={formatCompactDate(draft.noticeDate)} />
+                  <DateInput fullWidth={false} label="사용 만료일" onChange={(value) => updateDateDraft("usageExpirationDate", value)} size="small" sx={standardFieldSx} value={formatCompactDate(draft.usageExpirationDate)} />
                   <TextField label="건수" onChange={(event) => updateNumberDraft("usageCount", event.target.value, true)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.usageCount)} />
                   <TextField label="금액" onChange={(event) => updateNumberDraft("amountThousand", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.amountThousand)} />
                   <TextField label="기준점수" onChange={(event) => updateNumberDraft("score", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.score)} />

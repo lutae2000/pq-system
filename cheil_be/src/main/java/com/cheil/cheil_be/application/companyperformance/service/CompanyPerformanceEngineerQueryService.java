@@ -1,92 +1,83 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
-import com.cheil.cheil_be.application.common.validation.InputValues;
-
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
 import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
 
-import com.cheil.cheil_be.adapter.in.web.companyperformance.*;
+import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceEngineerCommand;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceEngineerResult;
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceEngineerUseCase;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceEngineerRepository;
+import com.cheil.cheil_be.application.engineer.EngineerCandidate;
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
+import com.cheil.cheil_be.common.text.StringValues;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.cheil.cheil_be.application.common.exception.ApplicationException;
-import com.cheil.cheil_be.common.text.StringValues;
 
 @Service
 @RequiredArgsConstructor
-public class CompanyPerformanceEngineerQueryService {
+public class CompanyPerformanceEngineerQueryService implements CompanyPerformanceEngineerUseCase {
   private final EngineerMasterRepository engineerMasterRepository;
   private final CompanyPerformanceEngineerRepository repository;
 
+  @Override
   @Transactional(readOnly = true)
-  public List<CompanyPerformanceEngineerCandidateResponse> findEngineerCandidates(
+  public List<EngineerCandidate> findEngineerCandidates(
       String keyword, Integer limit) {
     int size = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
     String text = StringValues.normalize(keyword);
-    return engineerMasterRepository
-        .findCompanyPerformanceCandidates(text, PageRequest.of(0, size))
-        .stream()
-        .map(
-            e ->
-                new CompanyPerformanceEngineerCandidateResponse(
-                    e.engineerId(),
-                    e.name(),
-                    e.birthDate(),
-                    e.department(),
-                    e.position(),
-                    e.dutyPart(),
-                    e.proPart(),
-                    e.designGrade()))
-        .toList();
+    return engineerMasterRepository.findCompanyPerformanceCandidates(text, PageRequest.of(0, size));
   }
 
+  @Override
   @Transactional(readOnly = true)
-  public List<CompanyPerformanceEngineerResponse> findByPerformanceSeq(Long seq) {
+  public List<CompanyPerformanceEngineerResult> findByPerformanceSeq(Long seq) {
     return seq == null ? List.of() : repository.findByPerformanceSeq(seq);
   }
 
+  @Override
   @Transactional
-  public CompanyPerformanceEngineerResponse create(
-      Long seq, CompanyPerformanceEngineerRequest request) {
-    String id = requiredText(request == null ? null : request.engineerId(), "engineerId");
-    int updated = repository.create(seq, normalize(request, id));
-    if (updated != 1)
-      throw new IllegalStateException("Engineer history could not be saved.");
-    Long latest = repository.findLatestId(seq, id);
-    return findById(seq, latest);
+  public CompanyPerformanceEngineerResult create(Long seq, CompanyPerformanceEngineerCommand command) {
+    Long id = repository.create(seq, normalize(seq, command));
+    return findById(seq, id);
   }
 
+  @Override
   @Transactional
-  public CompanyPerformanceEngineerResponse update(
-      Long seq, Long id, CompanyPerformanceEngineerRequest request) {
-    String engineerId = requiredText(request == null ? null : request.engineerId(), "engineerId");
-    if (repository.update(seq, id, normalize(request, engineerId)) != 1) {
+  public CompanyPerformanceEngineerResult update(Long seq, Long id, CompanyPerformanceEngineerCommand command) {
+    if (repository.update(seq, id, normalize(seq, command)) != 1) {
       throw ApplicationException.notFound("Engineer history was not found.");
     }
     return findById(seq, id);
   }
 
+  @Override
   @Transactional
   public void delete(Long seq, Long id) {
     if (repository.delete(seq, id) != 1) throw ApplicationException.notFound("Engineer history was not found.");
   }
 
-  private CompanyPerformanceEngineerResponse findById(Long seq, Long id) {
+  private CompanyPerformanceEngineerResult findById(Long seq, Long id) {
     var row = id == null ? null : repository.findById(seq, id);
     if (row == null) throw ApplicationException.notFound("Engineer history was not found.");
     return row;
   }
 
-  private CompanyPerformanceEngineerRequest normalize(
-      CompanyPerformanceEngineerRequest r, String id) {
-    return new CompanyPerformanceEngineerRequest(
+  private CompanyPerformanceEngineerCommand normalize(Long seq, CompanyPerformanceEngineerCommand r) {
+    String id = requiredText(r == null ? null : r.engineerId(), "engineerId");
+    Long contractPeriodId = r.contractPeriodId();
+    if (contractPeriodId != null
+        && (contractPeriodId <= 0 || !repository.contractPeriodBelongsToPerformance(seq, contractPeriodId))) {
+      throw ApplicationException.badRequest("해당 회사실적의 용역차수별 계약기간을 선택해 주세요.");
+    }
+    return new CompanyPerformanceEngineerCommand(
         id,
         date(r.participationStartDate()),
         date(r.participationEndDate()),
+        contractPeriodId,
         trimToNull(r.category()),
         trimToNull(r.participationFieldPosition()),
         yn(r.actualParticipationYn()),

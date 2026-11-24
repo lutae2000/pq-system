@@ -9,6 +9,7 @@ import { useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
+import { DEFAULT_GRID_PAGE_SIZE } from "@/components/common/EnterpriseDataGrid";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
@@ -20,7 +21,6 @@ import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, te
 import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 import {
-  G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE,
   getImportedG2bBidNoticeCandidate,
   getImportedG2bBidNoticeCandidateByNoticeNumber,
   markG2bBidNoticeCandidateImported,
@@ -262,7 +262,7 @@ export function G2bBidNoticeCandidatePage() {
     filters.bidNtceNo = notificationBidNtceNo;
     return filters;
   });
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: G2B_BID_NOTICE_CANDIDATE_PAGE_SIZE });
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
   const [detailRecord, setDetailRecord] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: number[]; detail: boolean } | null>(null);
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);

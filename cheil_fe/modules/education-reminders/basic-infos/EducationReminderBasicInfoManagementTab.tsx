@@ -57,7 +57,6 @@ type AssignmentSelectionState = {
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const INITIAL_PAGE_SIZE = 25;
 
 const emptyFilterState = (): FilterState => ({
   active: "",
@@ -400,14 +399,6 @@ export function EducationReminderBasicInfoManagementTab() {
               columns={basicInfoColumns}
               getRowId={(row) => row.code}
               hideFooterSelectedRowCount
-              initialState={{
-                pagination: {
-                  paginationModel: {
-                    page: 0,
-                    pageSize: INITIAL_PAGE_SIZE,
-                  },
-                },
-              }}
               onRowClick={(params: GridRowParams<EducationReminderBasicInfoRecord>) => {
                 setCreatingNew(false);
                 setShowAssignmentPanel(false);

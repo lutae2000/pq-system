@@ -65,7 +65,6 @@ const emptyFilters = (): EngineerSelectFilters => ({
 });
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const INITIAL_PAGE_SIZE = 25;
 const centerColumn = { align: "center" as const, headerAlign: "center" as const };
 
 const toRow = (profile: EngineerProfile): EngineerRow => ({
@@ -279,14 +278,6 @@ export function EngineerSelectDialog({
             rowSelectionModel={rowSelectionModel}
             rows={filteredRows}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  page: 0,
-                  pageSize: INITIAL_PAGE_SIZE,
-                },
-              },
-            }}
             showPageNumbers
             wrapperMinHeight={420}
             sx={{

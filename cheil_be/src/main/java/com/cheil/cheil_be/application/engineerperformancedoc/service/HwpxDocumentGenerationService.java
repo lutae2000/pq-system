@@ -1392,7 +1392,7 @@ public class HwpxDocumentGenerationService {
           HwpxFieldFormatter.formatDate(basicValues.graduationDate(), "yyyy년MM월");
       case "basic.licenseName" -> basicValues.licenseName();
       case "basic.licenseIssueDate" ->
-          HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy-MM-dd");
+          HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), fieldName);
       case "basic.licenseIssueDateDot" ->
           HwpxFieldFormatter.formatDate(basicValues.licenseIssueDate(), "yyyy.mm.dd");
       case "basic.licenseIssueDateShort" ->

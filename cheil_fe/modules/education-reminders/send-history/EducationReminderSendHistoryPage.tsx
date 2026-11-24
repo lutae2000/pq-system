@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import { useMemo, useState } from "react";
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import type { GridColDef, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
@@ -252,20 +253,16 @@ export function EducationReminderSendHistoryPage() {
         searchDisabled={query.isLoading}
         searchLabel="조회"
       >
-        <TextField
+        <DateInput fullWidth={false}
           label="요청 시작일"
-          onChange={(event) => setFilters((current) => ({ ...current, requestedFrom: event.target.value }))}
+          onChange={(value) => setFilters((current) => ({ ...current, requestedFrom: value }))}
           size="small"
-          slotProps={{ inputLabel: { shrink: true } }}
-          type="date"
           value={filters.requestedFrom}
         />
-        <TextField
+        <DateInput fullWidth={false}
           label="요청 종료일"
-          onChange={(event) => setFilters((current) => ({ ...current, requestedTo: event.target.value }))}
+          onChange={(value) => setFilters((current) => ({ ...current, requestedTo: value }))}
           size="small"
-          slotProps={{ inputLabel: { shrink: true } }}
-          type="date"
           value={filters.requestedTo}
         />
         <TextField
@@ -305,14 +302,6 @@ export function EducationReminderSendHistoryPage() {
                   columns={columns}
                   getRowId={(row) => row.logId}
                   hideFooterSelectedRowCount
-                  initialState={{
-                    pagination: {
-                      paginationModel: {
-                        page: 0,
-                        pageSize: 50,
-                      },
-                    },
-                  }}
                   loading={query.isLoading || query.isFetching}
                   onRowClick={(params: GridRowParams<EducationReminderSendHistoryRecord>) => setSelectedRowId(params.row.logId)}
                   onRowSelectionModelChange={setSelectedRowSelection}

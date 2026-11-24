@@ -42,7 +42,6 @@ type FilterState = {
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const INITIAL_PAGE_SIZE = 25;
 
 const emptyFilterState = (): FilterState => ({
   active: "",
@@ -291,14 +290,6 @@ export function EducationReminderTemplateManagementTab() {
                   columns={columns}
                   getRowId={(row) => row.id}
                   hideFooterSelectedRowCount
-                  initialState={{
-                    pagination: {
-                      paginationModel: {
-                        page: 0,
-                        pageSize: INITIAL_PAGE_SIZE,
-                      },
-                    },
-                  }}
                   onRowClick={(params: GridRowParams<EducationReminderTemplateRecord>) => {
                     setSelectedId(params.row.id);
                     setIsCreating(false);

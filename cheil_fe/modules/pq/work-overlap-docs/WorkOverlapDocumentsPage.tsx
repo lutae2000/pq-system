@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
@@ -718,7 +719,7 @@ export function WorkOverlapDocumentsPage() {
               </Typography>
               <Grid container spacing={1.5}>
                 <Grid size={{ xs: 12, sm: "auto" }}>
-                  <TextField fullWidth sx={{ width: { xs: "100%", sm: 170 } }} label="기준일" onChange={(event) => setReferenceDate(event.target.value)} size="small" type="date" value={referenceDate} slotProps={{ inputLabel: { shrink: true } }} />
+                  <DateInput fullWidth sx={{ width: { xs: "100%", sm: 170 } }} label="기준일" onChange={(value) => setReferenceDate(value)} size="small" value={referenceDate} />
                 </Grid>
                 <Grid size={{ xs: 12, sm: "auto" }}>
                   <TextField fullWidth sx={{ width: { xs: "100%", sm: 140 } }} label="과업기간" onChange={(event) => setTaskPeriodValue(event.target.value.replace(/\D/g, ""))} size="small" value={taskPeriodValue} slotProps={{ htmlInput: { inputMode: "numeric" } }} />

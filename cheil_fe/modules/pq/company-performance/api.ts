@@ -83,6 +83,7 @@ export type CompanyPerformanceEngineerRecord = {
   name: string | null;
   participationStartDate: string | null;
   participationEndDate: string | null;
+  contractPeriodId: number | null;
   category: string | null;
   participationFieldPosition: string | null;
   actualParticipationYn: string | null;

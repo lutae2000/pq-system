@@ -4,12 +4,14 @@ import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 
@@ -23,6 +25,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.ParticipationContractPeriodRepository;
+import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
+import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
 
 @ExtendWith(MockitoExtension.class)
 class EngineerAdminServiceTest {
@@ -46,6 +52,12 @@ class EngineerAdminServiceTest {
     private EngineerProjectHistoryRepository projectHistoryRepository;
 
     @Mock
+    private CompanyPerformanceRepository companyPerformanceRepository;
+
+    @Mock
+    private ParticipationContractPeriodRepository participationContractPeriodRepository;
+
+    @Mock
     private EngineerSchoolRepository schoolRepository;
 
     @InjectMocks
@@ -53,6 +65,52 @@ class EngineerAdminServiceTest {
 
     @Captor
     private ArgumentCaptor<Iterable<Long>> deleteIdsCaptor;
+
+    @Test
+    void profileIncludesContractDatesFromTheCompanyProjectLinkedToEachHistory() {
+        var master = new EngineerMasterEntity();
+        master.engrId = "ENG-1";
+        when(masterRepository.findById("ENG-1")).thenReturn(Optional.of(master));
+
+        var linked = new EngineerProjectHistoryEntity();
+        linked.id = 1L;
+        linked.seq = 10;
+        linked.startDt = "20240301";
+        linked.endDt = "20240401";
+        var missing = new EngineerProjectHistoryEntity();
+        missing.id = 2L;
+        missing.seq = 20;
+        var unlinked = new EngineerProjectHistoryEntity();
+        unlinked.id = 3L;
+        when(projectHistoryRepository.findByEngrIdOrderByStartDtDescIdDesc("ENG-1"))
+                .thenReturn(List.of(linked, missing, unlinked));
+
+        var project = mock(CompanyPerformance.class);
+        when(project.seq()).thenReturn(10L);
+        when(project.jobName()).thenReturn("Linked project");
+        when(project.contractFromDate()).thenReturn("20240201");
+        when(project.contractToDate()).thenReturn("20240501");
+        when(companyPerformanceRepository.findByIds(List.of(10L, 20L))).thenReturn(List.of(project));
+        var participationPeriod = new ParticipationContractPeriod("20240215", "20240415");
+        when(participationContractPeriodRepository.findByProjectHistoryIds(List.of(1L, 2L, 3L)))
+                .thenReturn(Map.of(1L, participationPeriod));
+
+        var histories = service.findByEngrId("ENG-1").careerDetails();
+        assertThat(histories).extracting(EngineerDtos.CareerDetail::recordId).containsExactly(1L, 2L, 3L);
+        assertThat(histories.getFirst()).satisfies(history -> {
+            assertThat(history.jobName()).isEqualTo("Linked project");
+            assertThat(history.startDt()).isEqualTo("20240301");
+            assertThat(history.endDt()).isEqualTo("20240401");
+            assertThat(history.contractFromDate()).isEqualTo("20240201");
+            assertThat(history.contractToDate()).isEqualTo("20240501");
+            assertThat(history.participationContractPeriod()).isEqualTo(participationPeriod);
+        });
+        assertThat(histories.subList(1, histories.size())).allSatisfy(history -> {
+            assertThat(history.contractFromDate()).isNull();
+            assertThat(history.contractToDate()).isNull();
+            assertThat(history.participationContractPeriod()).isNull();
+        });
+    }
 
     @Test
     void createUsesDatabaseAllocatedIdInsteadOfSubmittedId() {

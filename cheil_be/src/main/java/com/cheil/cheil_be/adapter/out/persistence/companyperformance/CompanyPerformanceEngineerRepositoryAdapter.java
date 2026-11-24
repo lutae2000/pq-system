@@ -1,7 +1,7 @@
 package com.cheil.cheil_be.adapter.out.persistence.companyperformance;
 
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceEngineerRequest;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceEngineerResponse;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceEngineerCommand;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceEngineerResult;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceEngineerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -23,6 +23,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
             m.namekor,
             h.startdt,
             h.enddt,
+            h.contract_period_id,
             h.jobclass,
             h.jobtag,
             h.joinyn,
@@ -40,7 +41,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     private final JdbcClient jdbcClient;
 
     @Override
-    public List<CompanyPerformanceEngineerResponse> findByPerformanceSeq(Long seq) {
+    public List<CompanyPerformanceEngineerResult> findByPerformanceSeq(Long seq) {
         return jdbcClient.sql("""
                         SELECT %s
                         FROM pq_engineer_project_history h
@@ -54,7 +55,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     }
 
     @Override
-    public CompanyPerformanceEngineerResponse findById(Long seq, Long id) {
+    public CompanyPerformanceEngineerResult findById(Long seq, Long id) {
         return jdbcClient.sql("""
                         SELECT %s
                         FROM pq_engineer_project_history h
@@ -69,28 +70,31 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     }
 
     @Override
-    public int create(Long seq, CompanyPerformanceEngineerRequest request) {
+    public Long create(Long seq, CompanyPerformanceEngineerCommand command) {
         return bind(jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history (
-                            engr_id, seq, startdt, enddt, jobclass, jobtag, joinyn, returnyn,
+                            engr_id, seq, startdt, enddt, contract_period_id, jobclass, jobtag, joinyn, returnyn,
                             englevel, compname, deptname, grade, duty, jobpart, propart, remark
                         ) VALUES (
-                            :engineerId, :seq, :startDt, :endDt, :jobClass, :jobTag, :joinYn, :returnYn,
+                            :engineerId, :seq, :startDt, :endDt, :contractPeriodId, :jobClass, :jobTag, :joinYn, :returnYn,
                             :engLevel, :compName, :deptName, :grade, :duty, :jobPart, :proPart, :remark
                         )
-                        """), params(seq, request))
-                .update();
+                        RETURNING id
+                        """), params(seq, command))
+                .query(Long.class)
+                .single();
     }
 
     @Override
-    public int update(Long seq, Long id, CompanyPerformanceEngineerRequest request) {
-        Map<String, Object> params = params(seq, request);
+    public int update(Long seq, Long id, CompanyPerformanceEngineerCommand command) {
+        Map<String, Object> params = params(seq, command);
         params.put("id", id);
         return bind(jdbcClient.sql("""
                         UPDATE pq_engineer_project_history
                         SET engr_id = :engineerId,
                             startdt = :startDt,
                             enddt = :endDt,
+                            contract_period_id = :contractPeriodId,
                             jobclass = :jobClass,
                             jobtag = :jobTag,
                             joinyn = :joinYn,
@@ -118,27 +122,27 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     }
 
     @Override
-    public Long findLatestId(Long seq, String engineerId) {
+    public boolean contractPeriodBelongsToPerformance(Long seq, Long contractPeriodId) {
         return jdbcClient.sql("""
                         SELECT id
-                        FROM pq_engineer_project_history
-                        WHERE seq = :seq AND engr_id = :engineerId
-                        ORDER BY id DESC
-                        LIMIT 1
+                        FROM company_performance_contract_periods
+                        WHERE id = :contractPeriodId AND seq = :seq
+                        FOR KEY SHARE
                         """)
-                .param("seq", seq.intValue())
-                .param("engineerId", engineerId)
+                .param("seq", seq)
+                .param("contractPeriodId", contractPeriodId)
                 .query(Long.class)
                 .optional()
-                .orElse(null);
+                .isPresent();
     }
 
-    private Map<String, Object> params(Long seq, CompanyPerformanceEngineerRequest request) {
+    private Map<String, Object> params(Long seq, CompanyPerformanceEngineerCommand request) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("seq", seq.intValue());
         params.put("engineerId", request.engineerId());
         params.put("startDt", digits(request.participationStartDate()));
         params.put("endDt", digits(request.participationEndDate()));
+        params.put("contractPeriodId", request.contractPeriodId());
         params.put("jobClass", request.participationFieldPosition());
         params.put("jobTag", request.category());
         params.put("joinYn", request.actualParticipationYn());
@@ -162,10 +166,10 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
         return bound;
     }
 
-    private CompanyPerformanceEngineerResponse map(ResultSet rs) throws SQLException {
-        return new CompanyPerformanceEngineerResponse(
+    private CompanyPerformanceEngineerResult map(ResultSet rs) throws SQLException {
+        return new CompanyPerformanceEngineerResult(
                 rs.getLong("id"), rs.getString("engr_id"), rs.getString("namekor"),
-                rs.getString("startdt"), rs.getString("enddt"), rs.getString("jobtag"),
+                rs.getString("startdt"), rs.getString("enddt"), rs.getObject("contract_period_id", Long.class), rs.getString("jobtag"),
                 rs.getString("jobclass"), rs.getString("joinyn"), rs.getString("returnyn"),
                 rs.getObject("englevel", String.class), rs.getString("compname"),
                 rs.getString("deptname"), rs.getString("grade"), rs.getString("duty"),

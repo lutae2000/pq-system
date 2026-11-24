@@ -8,7 +8,7 @@ import { Typography, Box } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { todayLocalDate } from "@/modules/common/formatters";
 import type { WorkOverlapEngineerContractRecord } from "@/modules/work-overlap/engineers/api";
 import { buildWorkOverlapContractColumns } from "@/modules/work-overlap/engineers/workOverlapContractColumns";
@@ -18,7 +18,7 @@ const ContractDetailDialog = dynamic(() => import("@/modules/work-overlap/contra
 
 type Props = { canRead: boolean; engineerId: string; referenceDate: string; remainingDays: string; taskPeriodUnit: "일" | "개월"; taskPeriodValue: string; gridHeight: number };
 export function PqEngineerWorkOverlapTab({ canRead, engineerId, referenceDate, remainingDays, taskPeriodUnit, taskPeriodValue, gridHeight }: Props) {
-  const [pagination, setPagination] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [pagination, setPagination] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
   const [detailRecord, setDetailRecord] = useState<WorkOverlapEngineerContractRecord | null>(null);
   const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
   const [deselectedContractIds, setDeselectedContractIds] = useState<string[]>([]);

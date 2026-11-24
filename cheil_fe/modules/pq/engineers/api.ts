@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
-import type { EngineerProfile, EngineerSummary } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
+import type { CareerDetailRecord, EngineerProfile, EngineerSummary } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 
 export type BackendEngineerBasic = {
   birthday: string | null;
@@ -59,6 +59,9 @@ export type BackendEngineerEducation = {
 
 export type BackendEngineerCareerDetail = {
   compName: string | null;
+  contractFromDate?: string | null;
+  contractToDate?: string | null;
+  participationContractPeriod?: CareerDetailRecord["participationContractPeriod"];
   deptName: string | null;
   duty: string | null;
   engLevel: number | null;
@@ -344,6 +347,9 @@ function mapProfile(profile: BackendEngineerProfile): EngineerProfileView {
       active: true,
       attachments: emptyArray<AttachmentItem>(),
       compName: text(item.compName),
+      contractFromDate: item.contractFromDate ?? null,
+      contractToDate: item.contractToDate ?? null,
+      participationContractPeriod: item.participationContractPeriod ?? null,
       deptName: text(item.deptName),
       duty: text(item.duty),
       engLevel: item.engLevel,

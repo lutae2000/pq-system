@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
@@ -180,73 +181,61 @@ export function ConstructionProjectPerformanceDialog({
             <Stack spacing={0} sx={{ display: "contents" }}>
               <Section icon={<CalendarMonthOutlinedIcon fontSize="small" />} order={2} title="계약기간">
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled={formDisabled}
                     label="계약 시작일"
-                    onChange={(event) => onFieldChange("contractFromDate", event.target.value || null)}
+                    onChange={(value) => onFieldChange("contractFromDate", value || null)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(draft.contractFromDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled={formDisabled}
                     label="계약 종료일"
-                    onChange={(event) => onFieldChange("contractToDate", event.target.value || null)}
+                    onChange={(value) => onFieldChange("contractToDate", value || null)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(draft.contractToDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Box>
               </Section>
 
               <Section icon={<CalendarMonthOutlinedIcon fontSize="small" />} order={3} rightColumn title="최근 3년간 수행기간">
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled
                     label="수행 시작일"
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(recentThreeYearPeriod.fromDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled
                     label="수행 종료일"
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(recentThreeYearPeriod.toDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Box>
               </Section>
 
               <Section icon={<CalendarMonthOutlinedIcon fontSize="small" />} order={4} title="공사기간">
                 <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled={formDisabled}
                     label="공사 시작일"
-                    onChange={(event) => onFieldChange("constructionFromDate", event.target.value || null)}
+                    onChange={(value) => onFieldChange("constructionFromDate", value || null)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(draft.constructionFromDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  <TextField
+                  <DateInput fullWidth={false}
                     disabled={formDisabled}
                     label="공사 종료일"
-                    onChange={(event) => onFieldChange("constructionToDate", event.target.value || null)}
+                    onChange={(value) => onFieldChange("constructionToDate", value || null)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={formatDateInputValue(draft.constructionToDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Box>
               </Section>

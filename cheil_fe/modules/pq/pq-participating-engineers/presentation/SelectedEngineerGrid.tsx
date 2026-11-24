@@ -41,7 +41,6 @@ function SelectedEngineerGridComponent({ columns, height, onRowClick, onSelectio
       rows={rows}
       rowSelectionModel={{ type: "include", ids: new Set(selectedEngineerIdSet) }}
       getRowClassName={getRowClassName}
-      initialState={{ pagination: { paginationModel: { page: 0, pageSize: 25 } } }}
       stateCacheKey="pq-participating-engineers:selected-engineers:v2"
       wrapperMinHeight={height}
       sx={{

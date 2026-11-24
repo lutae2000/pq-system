@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
+import com.cheil.cheil_be.application.pqparticipatingengineer.model.CandidateEngineerFilters;
+import com.cheil.cheil_be.application.pqparticipatingengineer.port.in.FindCandidateEngineersUseCase;
 import com.cheil.cheil_be.application.pqparticipatingengineer.service.PqParticipatingEngineerQueryService;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
@@ -29,6 +31,7 @@ import com.cheil.cheil_be.common.web.PageResponse;
 public class PqParticipatingEngineerController {
 
     private final PqParticipatingEngineerQueryService queryService;
+    private final FindCandidateEngineersUseCase findCandidateEngineersUseCase;
 
     /**
      * 선정/후보 기술자 후보 목록을 조회한다.
@@ -47,19 +50,11 @@ public class PqParticipatingEngineerController {
             @RequestParam(required = false) String projectHistoryConditions,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        Page<PqParticipatingEngineerCandidateResponse> result = queryService.findCandidates(
-                bidSeq,
-                workDutyId,
-                keyword,
-                certificationName,
-                constructionManagementGrade,
-                designGrade,
-                jobField,
-                specialtyField,
-                retireYn,
-                projectHistoryConditions,
-                PageRequests.of(pageable)
-        );
+        CandidateEngineerFilters filters = new CandidateEngineerFilters(bidSeq, workDutyId, keyword, certificationName,
+                constructionManagementGrade, designGrade, jobField, specialtyField, retireYn);
+        Page<PqParticipatingEngineerCandidateResponse> result = findCandidateEngineersUseCase
+                .findCandidates(filters, projectHistoryConditions, PageRequests.of(pageable))
+                .map(PqParticipatingEngineerCandidateResponse::from);
         return ResponseEntity.ok(PageResponse.from(result));
     }
 

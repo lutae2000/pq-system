@@ -8,6 +8,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
+import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { CareerDetailRecord } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import { historyGridSx } from "@/modules/pq/engineers/history-tabs/historyTabCommon";
 
@@ -54,8 +55,16 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         valueFormatter: (value) => formatDate(value),
       },
       {
+        field: "participationRatio",
+        headerName: "참여도",
+        type: "number",
+        width: 95,
+        valueGetter: (_value, row) => calculateHistoryParticipationRatio(row),
+        valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
+      },
+      {
         field: "jobClass",
-        headerName: "참여분야 직위",
+        headerName: "책임정도",
         width: 120,
         valueFormatter: (value) => formatReferenceLabel(jobClassLabelByCode, value),
       },
@@ -108,7 +117,6 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         enableCellSelection={false}
         getRowId={(row) => `${row.seq}-${row.id}`}
         hideFooterSelectedRowCount
-        initialState={{ pagination: { paginationModel: { page: 0, pageSize: 100 } } }}
         onRowDoubleClick={(params: GridRowParams<CareerDetailRecord>) => {
           if (params.row.seq) {
             setDetailSeq(params.row.seq);

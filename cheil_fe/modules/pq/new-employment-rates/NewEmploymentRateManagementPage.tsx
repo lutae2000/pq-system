@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
@@ -27,7 +28,7 @@ import { useMemo, useState } from "react";
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
@@ -43,7 +44,6 @@ import {
 } from "@/modules/pq/new-employment-rates/NewEmploymentMonthlyStatusDialog";
 import {
   NEW_EMPLOYMENT_CERTIFICATE_ATTACHMENT_TYPE,
-  NEW_EMPLOYMENT_RATE_PAGE_SIZE,
   NEW_EMPLOYMENT_RATE_PROGRAM_ATTACHMENT_OWNER_TYPE,
   type NewEmploymentEmployeePageResponse,
   type NewEmploymentEmployeeRecord,
@@ -253,7 +253,8 @@ export function NewEmploymentRateManagementPage() {
   const [baseYearMonth, setBaseYearMonth] = useState(currentYearMonth);
   const [departmentCode, setDepartmentCode] = useState("");
   const [selectedYearMonth, setSelectedYearMonth] = useState(currentYearMonth);
-  const [page, setPage] = useState(0);
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
+  const { page, pageSize } = paginationModel;
   const [draft, setDraft] = useState<NewEmploymentEmployeeRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<NewEmploymentEmployeeRecord | null>(null);
   const [deleteMonthlyStatusTarget, setDeleteMonthlyStatusTarget] = useState<EditableMonthlyStatusRow | null>(null);
@@ -273,9 +274,9 @@ export function NewEmploymentRateManagementPage() {
       selectedYearMonth,
       departmentCode,
       employeeName: appliedEmployeeName,
-      size: NEW_EMPLOYMENT_RATE_PAGE_SIZE,
+      size: pageSize,
     }),
-    [appliedEmployeeName, departmentCode, page, selectedYearMonth],
+    [appliedEmployeeName, departmentCode, page, pageSize, selectedYearMonth],
   );
 
   const selectedEmployeeId = draft.id;
@@ -292,7 +293,7 @@ export function NewEmploymentRateManagementPage() {
     selectedEmployeeId,
   });
 
-  const employeePage = employeesQuery.data ?? emptyEmployeePage(page, NEW_EMPLOYMENT_RATE_PAGE_SIZE);
+  const employeePage = employeesQuery.data ?? emptyEmployeePage(page, pageSize);
   const selectedRecord = detailQuery.data ?? draft;
   const selectedYearMonthLabel = formatMonth(selectedYearMonth);
   const canSave = draft.id > 0 ? canUpdate : canCreate;
@@ -368,7 +369,7 @@ export function NewEmploymentRateManagementPage() {
     setBaseYearMonth(normalizedMonth);
     setSelectedYearMonth(normalizedMonth);
     setAppliedEmployeeName(nextKeyword.trim());
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setDraft(emptyDraft(departmentCode === "All" ? "" : departmentCode, normalizedMonth));
   };
 
@@ -378,7 +379,7 @@ export function NewEmploymentRateManagementPage() {
     setBaseYearMonth(currentYearMonth);
     setDepartmentCode("");
     setSelectedYearMonth(currentYearMonth);
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setDraft(emptyDraft("", currentYearMonth));
   };
 
@@ -452,14 +453,12 @@ export function NewEmploymentRateManagementPage() {
           sx={{ flex: "0 1 260px", minWidth: 240 }}
           value={departmentCode}
         />
-        <TextField
+        <DateInput fullWidth={false} mode="month"
           label="기준년월"
-          onChange={(event) => setBaseYearMonth(yearMonthValue(event.target.value))}
+          onChange={(value) => setBaseYearMonth(yearMonthValue(value))}
           size="small"
           sx={standardFieldSx}
-          type="text"
           value={yearMonthValue(baseYearMonth)}
-          placeholder="YYYYMM"
         />
       </SearchPanel>
 
@@ -571,14 +570,14 @@ export function NewEmploymentRateManagementPage() {
                 columns={employeeColumns}
                 getRowId={(row) => row.id}
                 loading={employeesQuery.isLoading || employeesQuery.isFetching}
-                onPaginationModelChange={(model: GridPaginationModel) => setPage(model.page)}
+                onPaginationModelChange={setPaginationModel}
                 onRowClick={(params: GridRowParams<NewEmploymentEmployeeRecord>) => {
                   setDraft(params.row);
                   setSelectedYearMonth(params.row.baseYearMonth);
                 }}
-                pageSizeOptions={[NEW_EMPLOYMENT_RATE_PAGE_SIZE]}
+                pageSizeOptions={[25, 50, 100]}
                 paginationMode="server"
-                paginationModel={{ page, pageSize: NEW_EMPLOYMENT_RATE_PAGE_SIZE }}
+                paginationModel={paginationModel}
                 rowCount={employeePage.totalElements}
                 rows={employeePage.content ?? EMPTY_EMPLOYEES}
                 showPageInfo
@@ -627,8 +626,8 @@ export function NewEmploymentRateManagementPage() {
               <Box sx={{ display: "grid", gap: 1.25, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
                 <TextField label="사번" onChange={(event) => updateDraft("employeeNo", event.target.value)} size="small" sx={standardFieldSx} value={text(draft.employeeNo)} />
                 <TextField label="이름" onChange={(event) => updateDraft("employeeName", event.target.value)} required size="small" sx={standardFieldSx} value={text(draft.employeeName)} />
-                <TextField label="생년월일" onChange={(event) => updateDraft("birthDate", event.target.value)} size="small" sx={standardFieldSx} type="date" value={dashedDate(draft.birthDate)} slotProps={{ inputLabel: { shrink: true } }} />
-                <TextField label="입사일" onChange={(event) => updateDraft("hireDate", event.target.value)} required size="small" sx={standardFieldSx} type="date" value={dashedDate(draft.hireDate)} slotProps={{ inputLabel: { shrink: true } }} />
+                <DateInput fullWidth={false} label="생년월일" onChange={(value) => updateDraft("birthDate", value)} size="small" sx={standardFieldSx} value={dashedDate(draft.birthDate)} />
+                <DateInput fullWidth={false} label="입사일" onChange={(value) => updateDraft("hireDate", value)} required size="small" sx={standardFieldSx} value={dashedDate(draft.hireDate)} />
                 <AutoCompleteField
                   label="부서"
                   loading={departmentReferences.isLoading}

@@ -1,5 +1,6 @@
 "use client";
 
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
@@ -10,9 +11,13 @@ import {
   GridActionsCellItem,
   GridRowEditStopReasons,
   GridRowModes,
+  gridEditRowsStateSelector,
+  useGridApiContext,
+  useGridSelector,
   type DataGridProps,
   type GridColDef,
   type GridRenderEditCellParams,
+  type GridRowId,
   type GridRowModesModel,
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +43,9 @@ import {
   type CompanyPerformanceEngineerRequest,
   type CompanyPerformanceRecord,
 } from "@/modules/pq/company-performance/api";
+import { companyPerformanceQueryKeys } from "@/modules/pq/company-performance/application/queryKeys";
+import { useCompanyPerformanceContractPeriods } from "@/modules/pq/company-performance/application/useCompanyPerformanceQueries";
+import { calculateParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
 import {
   displayBlank,
   displayTarget,
@@ -67,6 +75,7 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
   actualParticipationYn: text(row.actualParticipationYn).toUpperCase() === "Y" ? "Y" : "N",
   category: text(row.category) || null,
   companyAtParticipation: text(row.companyAtParticipation) || null,
+  contractPeriodId: row.contractPeriodId ?? null,
   departmentAtParticipation: text(row.departmentAtParticipation) || null,
   duty: text(row.duty) || null,
   engineerId: text(row.engineerId) || null,
@@ -176,20 +185,26 @@ function EngineerAutocompleteEditCell({
 }
 
 function YmdEditCell(params: GridRenderEditCellParams<CompanyPerformanceEngineerRecord, string | null>) {
-  return (
-    <TextField
-      autoFocus
-      fullWidth
-      onChange={(event) => {
-        void params.api.setEditCellValue({ id: params.id, field: params.field, value: event.target.value.replace(/\D/g, "").slice(0, 8) }, event);
-      }}
-      placeholder="YYYYMMDD"
-      size="small"
-      slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 8 } }}
-      sx={standardFieldSx}
-      value={text(params.value).replace(/\D/g, "").slice(0, 8)}
-    />
-  );
+  return <GridDateEditInput params={params} />;
+}
+
+const selectRowEdits = (apiRef: Parameters<typeof gridEditRowsStateSelector>[0], id: GridRowId) =>
+  gridEditRowsStateSelector(apiRef)[id];
+
+function ParticipationRatioCell({ id, row, getRatio }: {
+  id: GridRowId;
+  row: CompanyPerformanceEngineerRecord;
+  getRatio: (row: CompanyPerformanceEngineerRecord) => number | null;
+}) {
+  const apiRef = useGridApiContext();
+  const edits = useGridSelector(apiRef, selectRowEdits, id);
+  const ratio = getRatio({
+    ...row,
+    participationStartDate: edits?.participationStartDate?.value ?? row.participationStartDate,
+    participationEndDate: edits?.participationEndDate?.value ?? row.participationEndDate,
+    contractPeriodId: toNullableNumber(edits?.contractPeriodId?.value ?? row.contractPeriodId),
+  });
+  return ratio?.toFixed(2) ?? "";
 }
 
 const resolveParticipationGradeValue = (value: string | null, options: CodeOption[]) => {
@@ -212,10 +227,36 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   const [debouncedEngineerKeyword, setDebouncedEngineerKeyword] = useState("");
 
   const engineersQuery = useQuery({
-    queryKey: ["company-performance-engineers", record.seq],
+    queryKey: companyPerformanceQueryKeys.engineers(record.seq),
     queryFn: () => listCompanyPerformanceEngineers(record.seq),
     enabled: Boolean(record.seq),
   });
+  const contractPeriodsQuery = useCompanyPerformanceContractPeriods(record.seq);
+  const contractPeriods = contractPeriodsQuery.data;
+  const contractPeriodsById = useMemo(
+    () => new Map(contractPeriods?.map((period) => [period.id, period])),
+    [contractPeriods],
+  );
+  const contractPeriodOptions = useMemo(
+    () => [
+      { value: "", label: "미선택" },
+      ...(contractPeriods ?? []).map((period) => {
+        const dateRange = `${formatEngineerDate(period.contractFromDate)} ~ ${formatEngineerDate(period.contractToDate)}`;
+        return {
+          value: String(period.id),
+          label: period.sortSeq == null ? dateRange : `${period.sortSeq}번 · ${dateRange}`,
+        };
+      }),
+    ],
+    [contractPeriods],
+  );
+  const getParticipationRatio = useCallback((row: CompanyPerformanceEngineerRecord) => {
+    const period = row.contractPeriodId == null ? undefined : contractPeriodsById.get(row.contractPeriodId);
+    const contract = contractPeriods?.length === 0 ? record : period;
+    return calculateParticipationRatio(
+      row.participationStartDate, row.participationEndDate, contract?.contractFromDate, contract?.contractToDate,
+    );
+  }, [contractPeriods, contractPeriodsById, record]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedEngineerKeyword(engineerKeyword.trim()), 250);
@@ -300,7 +341,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   );
 
   const invalidateEngineers = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["company-performance-engineers", record.seq] }),
+    () => queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.engineers(record.seq) }),
     [queryClient, record.seq],
   );
 
@@ -386,6 +427,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       actualParticipationYn: "Y",
       category: "",
       companyAtParticipation: "(주)제일엔지니어링종합건축사사무소",
+      contractPeriodId: null,
       departmentAtParticipation: "",
       duty: "",
       engineerId: "",
@@ -524,6 +566,26 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         valueGetter: (_value, row) => formatEngineerDate(row.participationEndDate),
       },
       {
+        field: "participationRatio",
+        headerName: "참여도",
+        type: "number",
+        width: 90,
+        valueGetter: (_value, row) => getParticipationRatio(row),
+        valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
+        renderCell: ({ id, row }) => <ParticipationRatioCell id={id} row={row} getRatio={getParticipationRatio} />,
+      },
+      {
+        field: "contractPeriodId",
+        headerName: "용역 차수계약 행",
+        width: 250,
+        editable: true,
+        type: "singleSelect",
+        valueOptions: contractPeriodOptions,
+        valueGetter: (value) => value == null ? "" : String(value),
+        valueSetter: (value, row) => ({ ...row, contractPeriodId: toNullableNumber(value) }),
+        renderCell: ({ formattedValue, value }) => value ? formattedValue : "",
+      },
+      {
         field: "category",
         headerName: "구분",
         width: 90,
@@ -537,7 +599,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       },
       {
         field: "participationFieldPosition",
-        headerName: "참여분야 직위",
+        headerName: "책임정도",
         width: 120,
         editable: true,
         type: "singleSelect",
@@ -670,10 +732,12 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       canDelete,
       canUpdate,
       confirmDeleteRow,
+      contractPeriodOptions,
       deleteMutation.isPending,
       engineerNameById,
       engineerOptions,
       engineerProfilesQuery.isFetching,
+      getParticipationRatio,
       categoryOptions,
       categoryLabelByCode,
       participationFieldPositionLabelByCode,
@@ -711,8 +775,9 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     return saved;
   };
   const gridColumns = useMemo(
-    () => (readOnly ? columns.filter((column) => column.type !== "actions") : columns),
-    [columns, readOnly],
+    () => columns.filter((column) =>
+      !(readOnly && column.type === "actions") && (column.field !== "contractPeriodId" || contractPeriodsById.size > 0)),
+    [columns, contractPeriodsById.size, readOnly],
   );
 
   return (
@@ -729,7 +794,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         getRowId={(row) => row.id}
         isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
-        loading={engineersQuery.isLoading || engineersQuery.isFetching || saveMutation.isPending || deleteMutation.isPending}
+        loading={engineersQuery.isLoading || engineersQuery.isFetching || contractPeriodsQuery.isLoading || saveMutation.isPending || deleteMutation.isPending}
         onProcessRowUpdateError={() => undefined}
         onCellKeyDown={(params, event) => {
           if (

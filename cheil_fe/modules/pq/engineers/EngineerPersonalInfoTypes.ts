@@ -1,4 +1,6 @@
-﻿export type EngineerStatus = "재직" | "휴직" | "퇴직";
+﻿import type { ParticipationContractPeriod } from "@/modules/pq/company-performance/domain/participationRatio";
+
+export type EngineerStatus = "재직" | "휴직" | "퇴직";
 export type AssessmentMethod = "자체평정" | "서면평정" | "현장평정";
 export type DetailTab = "career" | "certificate" | "education" | "award" | "training" | "performance";
 
@@ -112,6 +114,9 @@ export type CareerDetailRecord = {
   active: boolean;
   attachments?: AttachmentItem[];
   compName: string;
+  contractFromDate?: string | null;
+  contractToDate?: string | null;
+  participationContractPeriod?: ParticipationContractPeriod | null;
   deptName: string;
   duty: string;
   engLevel: number | null;

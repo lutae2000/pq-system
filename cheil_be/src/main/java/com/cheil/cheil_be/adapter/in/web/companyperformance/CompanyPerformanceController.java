@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.companyperformance;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +22,7 @@ import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerforma
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceSearchCondition;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceContractPeriodQueryService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceConstructionKindQueryService;
-import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceEngineerQueryService;
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceEngineerUseCase;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceMatchService;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceOutlineQueryService;
 import com.cheil.cheil_be.common.paging.PageRequests;
@@ -37,7 +38,7 @@ public class CompanyPerformanceController {
     private final CompanyPerformanceAdminUseCase companyPerformanceAdminUseCase;
     private final CompanyPerformanceContractPeriodQueryService companyPerformanceContractPeriodQueryService;
     private final CompanyPerformanceConstructionKindQueryService companyPerformanceConstructionKindQueryService;
-    private final CompanyPerformanceEngineerQueryService companyPerformanceEngineerQueryService;
+    private final CompanyPerformanceEngineerUseCase companyPerformanceEngineerUseCase;
     private final CompanyPerformanceMatchService companyPerformanceMatchService;
     private final CompanyPerformanceOutlineQueryService companyPerformanceOutlineQueryService;
 
@@ -111,7 +112,9 @@ public class CompanyPerformanceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false, defaultValue = "30") Integer limit
     ) {
-        return ResponseEntity.ok(companyPerformanceEngineerQueryService.findEngineerCandidates(keyword, limit));
+        return ResponseEntity.ok(companyPerformanceEngineerUseCase.findEngineerCandidates(keyword, limit).stream()
+                .map(CompanyPerformanceEngineerCandidateResponse::from)
+                .toList());
     }
 
     /**
@@ -179,7 +182,9 @@ public class CompanyPerformanceController {
     @GetMapping("/{seq}/engineers")
     public ResponseEntity<List<CompanyPerformanceEngineerResponse>> listEngineers(@PathVariable Long seq) {
         companyPerformanceAdminUseCase.findById(seq);
-        return ResponseEntity.ok(companyPerformanceEngineerQueryService.findByPerformanceSeq(seq));
+        return ResponseEntity.ok(companyPerformanceEngineerUseCase.findByPerformanceSeq(seq).stream()
+                .map(CompanyPerformanceEngineerResponse::from)
+                .toList());
     }
 
     /**
@@ -247,10 +252,11 @@ public class CompanyPerformanceController {
     @PostMapping("/{seq}/engineers")
     public ResponseEntity<CompanyPerformanceEngineerResponse> createEngineer(
             @PathVariable Long seq,
-            @RequestBody CompanyPerformanceEngineerRequest request
+            @Valid @RequestBody CompanyPerformanceEngineerRequest request
     ) {
         companyPerformanceAdminUseCase.findById(seq);
-        return ResponseEntity.ok(companyPerformanceEngineerQueryService.create(seq, request));
+        return ResponseEntity.ok(CompanyPerformanceEngineerResponse.from(
+                companyPerformanceEngineerUseCase.create(seq, request.toCommand())));
     }
 
     /**
@@ -260,10 +266,11 @@ public class CompanyPerformanceController {
     public ResponseEntity<CompanyPerformanceEngineerResponse> updateEngineer(
             @PathVariable Long seq,
             @PathVariable Long engineerHistoryId,
-            @RequestBody CompanyPerformanceEngineerRequest request
+            @Valid @RequestBody CompanyPerformanceEngineerRequest request
     ) {
         companyPerformanceAdminUseCase.findById(seq);
-        return ResponseEntity.ok(companyPerformanceEngineerQueryService.update(seq, engineerHistoryId, request));
+        return ResponseEntity.ok(CompanyPerformanceEngineerResponse.from(
+                companyPerformanceEngineerUseCase.update(seq, engineerHistoryId, request.toCommand())));
     }
 
     /**
@@ -272,7 +279,7 @@ public class CompanyPerformanceController {
     @DeleteMapping("/{seq}/engineers/{engineerHistoryId}")
     public ResponseEntity<Void> deleteEngineer(@PathVariable Long seq, @PathVariable Long engineerHistoryId) {
         companyPerformanceAdminUseCase.findById(seq);
-        companyPerformanceEngineerQueryService.delete(seq, engineerHistoryId);
+        companyPerformanceEngineerUseCase.delete(seq, engineerHistoryId);
         return ResponseEntity.noContent().build();
     }
 

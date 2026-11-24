@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
@@ -10,13 +11,13 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import { Alert, Box, Button, Card, CardContent, Chip, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, type ChipProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
+import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { AuditFields } from "@/components/common/AuditFields";
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
@@ -28,7 +29,6 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import {
   SHININDO_MANAGEMENT_ATTACHMENT_OWNER_TYPE,
   SHININDO_MANAGEMENT_ATTACHMENT_TYPE,
-  SHININDO_MANAGEMENT_PAGE_SIZE,
   type ShinindoManagementPageResponse,
   type ShinindoManagementRecord,
   type ShinindoManagementSearchParams,
@@ -206,7 +206,8 @@ export function ShinindoManagementPage() {
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [clientCode, setClientCode] = useState("");
   const [referenceDate, setReferenceDate] = useState(() => todayLocalDate());
-  const [page, setPage] = useState(0);
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
+  const { page, pageSize } = paginationModel;
   const [draft, setDraft] = useState<ShinindoManagementRecord>(() => emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<ShinindoManagementRecord | null>(null);
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
@@ -218,9 +219,9 @@ export function ShinindoManagementPage() {
       keyword: appliedKeyword,
       referenceDate,
       page,
-      size: SHININDO_MANAGEMENT_PAGE_SIZE,
+      size: pageSize,
     }),
-    [appliedKeyword, clientCode, page, referenceDate],
+    [appliedKeyword, clientCode, page, pageSize, referenceDate],
   );
 
   const selectedId = draft.id;
@@ -230,7 +231,7 @@ export function ShinindoManagementPage() {
     selectedId,
   });
 
-  const pageData = managementsQuery.data ?? emptyPage(page, SHININDO_MANAGEMENT_PAGE_SIZE);
+  const pageData = managementsQuery.data ?? emptyPage(page, pageSize);
   const selectedRecord = detailQuery.data ?? draft;
   const fileOwnerId = selectedId > 0 ? selectedId : "";
 
@@ -322,7 +323,7 @@ export function ShinindoManagementPage() {
     const normalizedKeyword = nextKeyword.trim();
     const shouldRefetch = page === 0 && appliedKeyword === normalizedKeyword;
 
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setAppliedKeyword(normalizedKeyword);
 
     if (shouldRefetch) {
@@ -338,7 +339,7 @@ export function ShinindoManagementPage() {
     setAppliedKeyword("");
     setClientCode("");
     setReferenceDate(nextReferenceDate);
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setDraft(emptyDraft());
     setDeleteTarget(null);
     setSaveConfirmOpen(false);
@@ -384,14 +385,12 @@ export function ShinindoManagementPage() {
         searchDisabled={!canRead}
       >
         <ClientAutocompleteField enabled={tabQueryEnabled} onChange={setClientCode} sx={{ flex: "0 1 320px", minWidth: 320 }} value={clientCode} />
-        <TextField
+        <DateInput fullWidth={false}
           label="기준일"
-          onChange={(event) => setReferenceDate(dashedDate(event.target.value))}
+          onChange={(value) => setReferenceDate(dashedDate(value))}
           size="small"
           sx={standardFieldSx}
-          type="date"
           value={referenceDate}
-          slotProps={{ inputLabel: { shrink: true } }}
         />
       </SearchPanel>
 
@@ -419,12 +418,14 @@ export function ShinindoManagementPage() {
                   columns={columns}
                   getRowId={(row) => row.id}
                   loading={managementsQuery.isLoading || managementsQuery.isFetching}
+                  onPaginationModelChange={setPaginationModel}
                   onRowClick={(params: GridRowParams<ShinindoManagementRecord>) => setDraft(params.row)}
+                  pageSizeOptions={[25, 50, 100]}
                   paginationMode="server"
+                  paginationModel={paginationModel}
                   rowCount={pageData.totalElements}
                   rows={pageData.content ?? EMPTY_ROWS}
                   showXlsxExportButton
-                  hideFooter
                   wrapperMinHeight={620}
                   sx={{ height: 620, "& .MuiDataGrid-row:hover": { cursor: "pointer" } }}
                 />
@@ -471,25 +472,21 @@ export function ShinindoManagementPage() {
                   </TextField>
                   <TextField label={T.itemName} onChange={(event) => updateDraft("itemName", event.target.value)} required size="small" sx={{ ...standardFieldSx, gridColumn: "1 / -1" }} value={text(draft.itemName)} />
                   <TextField label={T.score} onChange={(event) => updateNumberDraft("score", event.target.value)} size="small" sx={standardFieldSx} type="number" value={numberValue(draft.score)} />
-                  <TextField
+                  <DateInput fullWidth={false}
                     label={T.acquiredDate}
                     disabled={text(draft.appliedYn) !== "Y"}
-                    onChange={(event) => updateDraft("acquiredDate", event.target.value)}
+                    onChange={(value) => updateDraft("acquiredDate", value)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={dashedDate(draft.acquiredDate)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
-                  <TextField
+                  <DateInput fullWidth={false}
                     label={T.validUntil}
                     disabled={text(draft.appliedYn) !== "Y"}
-                    onChange={(event) => updateDraft("validUntil", event.target.value)}
+                    onChange={(value) => updateDraft("validUntil", value)}
                     size="small"
                     sx={standardFieldSx}
-                    type="date"
                     value={dashedDate(draft.validUntil)}
-                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                   <TextField label={T.status} disabled size="small" sx={standardFieldSx} value={getValidityLabel(getValidityStatus(draft, referenceDate))} />
                   <TextField label={T.remark} minRows={4} multiline onChange={(event) => updateDraft("remark", event.target.value)} sx={{ gridColumn: "1 / -1" }} value={text(draft.remark)} />

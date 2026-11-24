@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from "@mui/material";
@@ -7,7 +8,7 @@ import type { GridColDef, GridPaginationModel, GridRowParams } from "@mui/x-data
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { compactFieldSx } from "@/components/common/FormControls";
 import { dateOnly, dateTimeText, formatMoney, text } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useDepartmentOptions } from "@/modules/common/reference/useReferenceOptions";
@@ -88,7 +89,7 @@ export function BidNoticeSelectDialog({ open, onClose, onSelect, stateCacheKey, 
   const [draft, setDraft] = useState<BidNoticeSearchState>(() => initialDialogState.draft);
   const [search, setSearch] = useState<BidNoticeSearchState>(() => initialDialogState.search);
   const [selectedRecord, setSelectedRecord] = useState<BidNoticeRecord | null>(() => initialDialogState.selectedRecord);
-  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
 
   const searchParams = useMemo(() => toSearchParams(search), [search]);
   const departmentOptions = useDepartmentOptions({ useYn: true });
@@ -235,23 +236,19 @@ export function BidNoticeSelectDialog({ open, onClose, onSelect, stateCacheKey, 
                 <MenuItem value="BID">입찰기간</MenuItem>
                 <MenuItem value="PQ">PQ제출기간</MenuItem>
               </TextField>
-              <TextField
+              <DateInput fullWidth={false}
                 label="시작일"
-                onChange={(event) => setDraft((current) => ({ ...current, periodStartDate: event.target.value }))}
+                onChange={(value) => setDraft((current) => ({ ...current, periodStartDate: value }))}
                 size="small"
                 sx={{ ...compactFieldSx, minWidth: 150 }}
-                type="date"
                 value={draft.periodStartDate}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
-              <TextField
+              <DateInput fullWidth={false}
                 label="종료일"
-                onChange={(event) => setDraft((current) => ({ ...current, periodEndDate: event.target.value }))}
+                onChange={(value) => setDraft((current) => ({ ...current, periodEndDate: value }))}
                 size="small"
                 sx={{ ...compactFieldSx, minWidth: 150 }}
-                type="date"
                 value={draft.periodEndDate}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 label="업무부서"

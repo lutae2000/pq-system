@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
@@ -437,22 +438,18 @@ export function BidResultsManagementPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField
+        <DateInput fullWidth={false}
           label="개찰일 시작"
-          onChange={(event) => setOpeningDateFrom(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          onChange={(value) => setOpeningDateFrom(value)}
           size="small"
           sx={standardFieldSx}
-          type="date"
           value={openingDateFrom}
         />
-        <TextField
+        <DateInput fullWidth={false}
           label="개찰일 종료"
-          onChange={(event) => setOpeningDateTo(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          onChange={(value) => setOpeningDateTo(value)}
           size="small"
           sx={standardFieldSx}
-          type="date"
           value={openingDateTo}
         />
       </SearchPanel>

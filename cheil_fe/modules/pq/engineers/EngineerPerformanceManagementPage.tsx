@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -812,27 +813,23 @@ export function EngineerPerformanceManagementPage() {
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
-                    <TextField
+                    <DateInput
                       fullWidth
                       label="계약시작일"
                       size="small"
-                      type="date"
                       sx={standardInputSx}
-                      slotProps={{ inputLabel: { shrink: true } }}
                       value={performanceDraft.contractStartDate}
-                      onChange={(event) => updateDraftField("contractStartDate", event.target.value)}
+                      onChange={(value) => updateDraftField("contractStartDate", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 2.5 }}>
-                    <TextField
+                    <DateInput
                       fullWidth
                       label="계약종료일"
                       size="small"
-                      type="date"
                       sx={standardInputSx}
-                      slotProps={{ inputLabel: { shrink: true } }}
                       value={performanceDraft.contractEndDate}
-                      onChange={(event) => updateDraftField("contractEndDate", event.target.value)}
+                      onChange={(value) => updateDraftField("contractEndDate", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -883,27 +880,23 @@ export function EngineerPerformanceManagementPage() {
                   </Grid>
 
                   <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <TextField
+                    <DateInput
                       fullWidth
                       label="참여시작일"
                       size="small"
-                      type="date"
                       sx={standardInputSx}
-                      slotProps={{ inputLabel: { shrink: true } }}
                       value={performanceDraft.participationStartDate}
-                      onChange={(event) => updateDraftField("participationStartDate", event.target.value)}
+                      onChange={(value) => updateDraftField("participationStartDate", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <TextField
+                    <DateInput
                       fullWidth
                       label="참여종료일"
                       size="small"
-                      type="date"
                       sx={standardInputSx}
-                      slotProps={{ inputLabel: { shrink: true } }}
                       value={performanceDraft.participationEndDate}
-                      onChange={(event) => updateDraftField("participationEndDate", event.target.value)}
+                      onChange={(value) => updateDraftField("participationEndDate", value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6, md: 3 }}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
@@ -217,7 +218,7 @@ export function HeadquartersManagementPage() {
                   <TextField disabled={!canUpdate} label="대표자명" size="small" sx={fieldSx} value={profileDraft.representativeName ?? ""} onChange={(event) => updateProfileField("representativeName", event.target.value)} />
                   <TextField disabled={!canUpdate} label="사업자등록번호" size="small" sx={fieldSx} value={profileDraft.businessRegistrationNo ?? ""} onChange={(event) => updateProfileField("businessRegistrationNo", event.target.value)} />
                   <TextField disabled={!canUpdate} label="법인등록번호" size="small" sx={fieldSx} value={profileDraft.corporateRegistrationNo ?? ""} onChange={(event) => updateProfileField("corporateRegistrationNo", event.target.value)} />
-                  <TextField disabled={!canUpdate} label="설립일" size="small" type="date" slotProps={{ inputLabel: { shrink: true } }} sx={fieldSx} value={profileDraft.establishedOn ?? ""} onChange={(event) => updateProfileField("establishedOn", event.target.value)} />
+                  <DateInput fullWidth={false} disabled={!canUpdate} label="설립일" size="small" sx={fieldSx} value={profileDraft.establishedOn ?? ""} onChange={(value) => updateProfileField("establishedOn", value)} />
                   <TextField disabled={!canUpdate} label="전화번호" size="small" sx={fieldSx} value={profileDraft.phoneNo ?? ""} onChange={(event) => updateProfileField("phoneNo", event.target.value)} />
                   <TextField disabled={!canUpdate} label="팩스번호" size="small" sx={fieldSx} value={profileDraft.faxNo ?? ""} onChange={(event) => updateProfileField("faxNo", event.target.value)} />
                   <TextField disabled={!canUpdate} label="주요사업" size="small" sx={fieldSx} value={profileDraft.mainBusiness ?? ""} onChange={(event) => updateProfileField("mainBusiness", event.target.value)} />
@@ -308,8 +309,8 @@ export function HeadquartersManagementPage() {
                 <TextField disabled={!canCreate} label="문서명" size="small" value={attachmentDraft.title} onChange={(event) => setAttachmentDraft((current) => ({ ...current, title: event.target.value }))} />
                 <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                   <TextField disabled={!canCreate} label="기준년도" size="small" type="number" value={attachmentDraft.fiscalYear ?? ""} onChange={(event) => setAttachmentDraft((current) => ({ ...current, fiscalYear: event.target.value ? Number(event.target.value) : null }))} />
-                  <TextField disabled={!canCreate} label="발급일" size="small" type="date" slotProps={{ inputLabel: { shrink: true } }} value={attachmentDraft.issuedOn ?? ""} onChange={(event) => setAttachmentDraft((current) => ({ ...current, issuedOn: event.target.value }))} />
-                  <TextField disabled={!canCreate} label="만료일" size="small" type="date" slotProps={{ inputLabel: { shrink: true } }} value={attachmentDraft.validUntil ?? ""} onChange={(event) => setAttachmentDraft((current) => ({ ...current, validUntil: event.target.value }))} />
+                  <DateInput fullWidth={false} disabled={!canCreate} label="발급일" size="small" value={attachmentDraft.issuedOn ?? ""} onChange={(value) => setAttachmentDraft((current) => ({ ...current, issuedOn: value }))} />
+                  <DateInput fullWidth={false} disabled={!canCreate} label="만료일" size="small" value={attachmentDraft.validUntil ?? ""} onChange={(value) => setAttachmentDraft((current) => ({ ...current, validUntil: value }))} />
                 </Box>
                 <Button component="label" disabled={!canCreate} startIcon={<UploadFileOutlinedIcon />} variant="outlined">
                   파일 선택

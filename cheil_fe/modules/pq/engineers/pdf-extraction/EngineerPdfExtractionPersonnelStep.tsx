@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, Stack, TextField, Typography } from "@mui/material";
@@ -182,7 +183,7 @@ export function EngineerPdfExtractionPersonnelStep({ active, certificationNameBy
     >
       <Grid container spacing={0.75} sx={{ p: 0.75 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="성명" size="small" value={displayBasic.name} onChange={(event) => updateBasic("name", event.target.value)} /></Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField fullWidth label="생년월일" size="small" type="date" value={displayBasic.birthDate} onChange={(event) => updateBasic("birthDate", event.target.value)} slotProps={{ inputLabel: { shrink: true } }} /></Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}><DateInput fullWidth label="생년월일" size="small" value={displayBasic.birthDate} onChange={(value) => updateBasic("birthDate", value)} /></Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}><AutoCompleteField
           enabled={open && active}
           freeSolo

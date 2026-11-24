@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import ExpandMoreOutlinedIcon from "@mui/icons-material/ExpandMoreOutlined";
@@ -613,14 +614,12 @@ export function DepartmentManagementPage() {
                   sx={standardFieldSx}
                   value={draft.chgDutyId}
                 />
-                <TextField
+                <DateInput
                   fullWidth
                   label="종료일"
-                  onChange={(event) => setDraft((current) => ({ ...current, terminateDate: event.target.value }))}
+                  onChange={(value) => setDraft((current) => ({ ...current, terminateDate: value }))}
                   size="small"
-                  slotProps={{ inputLabel: { shrink: true } }}
                   sx={standardFieldSx}
-                  type="date"
                   value={draft.terminateDate}
                 />
                 <Box sx={{ display: "flex", alignItems: "center", minHeight: 40, gap: 1, flexWrap: "wrap" }}>

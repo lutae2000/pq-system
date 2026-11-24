@@ -3,7 +3,6 @@ import { apiRequest } from "@/lib/http/apiRequest";
 
 const SHININDO_MANAGEMENT_API = "/pq/shinindo-management";
 
-export const SHININDO_MANAGEMENT_PAGE_SIZE = 20;
 export const SHININDO_MANAGEMENT_ATTACHMENT_OWNER_TYPE = "SHININDO_MANAGEMENT";
 export const SHININDO_MANAGEMENT_ATTACHMENT_TYPE = "REFERENCE";
 

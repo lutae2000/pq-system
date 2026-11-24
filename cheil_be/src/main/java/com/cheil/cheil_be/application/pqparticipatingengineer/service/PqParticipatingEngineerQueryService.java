@@ -1,15 +1,11 @@
 package com.cheil.cheil_be.application.pqparticipatingengineer.service;
 
-import com.cheil.cheil_be.application.common.validation.InputValues;
-
 import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
 import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
 import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,113 +14,25 @@ import java.util.Map;
 import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerCandidateResponse;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerRequest;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.PqParticipatingEngineerResponse;
 import com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer.ReplacePqParticipatingEngineersRequest;
 import com.cheil.cheil_be.application.engineer.EngineerDtos;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
-import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
-import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
-import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadata;
-import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadataService;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 
-/** PQ 공고에 참여하는 기술인의 후보·선정 목록을 조회하고 변경하는 서비스. */
+/** PQ 공고에 선정된 기술인의 목록을 조회하고 변경하는 서비스. */
 @Service
 @RequiredArgsConstructor
 public class PqParticipatingEngineerQueryService {
 
-    private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
     private final JdbcClient jdbcClient;
     private final EngineerAdminUseCase engineerAdminService;
-    private final ProjectHistoryConditionMetadataService conditionMetadataService;
-    private final ProjectHistoryConditionJsonCodec conditionJsonCodec;
-
-    @Transactional(readOnly = true)
-    public Page<PqParticipatingEngineerCandidateResponse> findCandidates(
-            Long bidSeq,
-            String workDutyId,
-            String keyword,
-            String certificationName,
-            String constructionManagementGrade,
-            String designGrade,
-            String jobField,
-            String specialtyField,
-            String retireYn,
-            String projectHistoryConditions,
-            Pageable pageable
-    ) {
-        List<ProjectHistoryCondition> historyConditions = conditionJsonCodec.parse(projectHistoryConditions);
-        Map<String, ProjectHistoryConditionMetadata> conditionMetadata = historyConditions.isEmpty()
-                ? Map.of()
-                : conditionMetadataService.findAll();
-        QueryParts queryParts = buildCandidateWhere(
-                bidSeq,
-                workDutyId,
-                keyword,
-                certificationName,
-                constructionManagementGrade,
-                designGrade,
-                jobField,
-                specialtyField,
-                retireYn,
-                historyConditions,
-                conditionMetadata
-        );
-
-        String selectSql = """
-                SELECT
-                    m.engr_id,
-                    m.namekor,
-                    m.birthday,
-                    m.deptname,
-                    m.grade,
-                    m.dutypart,
-                    m.propart,
-                    m.design_grade,
-                    m.construction_management_grade,
-                    m.retireyn
-                FROM pq_engineer_master m
-                %s
-                ORDER BY m.namekor NULLS LAST, m.engr_id
-                LIMIT :limit OFFSET :offset
-                """.formatted(queryParts.whereSql());
-        Map<String, Object> selectParams = new LinkedHashMap<>(queryParts.params());
-        selectParams.put("limit", pageable.getPageSize());
-        selectParams.put("offset", pageable.getOffset());
-
-        List<PqParticipatingEngineerCandidateResponse> rows = jdbcClient.sql(selectSql)
-                .params(selectParams)
-                .query((rs, rowNum) -> new PqParticipatingEngineerCandidateResponse(
-                        rs.getString("engr_id"),
-                        rs.getString("namekor"),
-                        rs.getString("birthday"),
-                        rs.getString("deptname"),
-                        rs.getString("grade"),
-                        rs.getString("dutypart"),
-                        rs.getString("propart"),
-                        rs.getString("design_grade"),
-                        rs.getString("construction_management_grade"),
-                        rs.getString("retireyn")
-                ))
-                .list();
-
-        Long total = jdbcClient.sql("SELECT COUNT(*) FROM pq_engineer_master m " + queryParts.whereSql())
-                .params(queryParts.params())
-                .query(Long.class)
-                .single();
-
-        return new PageImpl<>(rows, pageable, total == null ? 0L : total);
-    }
 
     @Transactional(readOnly = true)
     public List<PqParticipatingEngineerResponse> findSelected(Long bidSeq, String workDutyId) {
@@ -379,229 +287,6 @@ public class PqParticipatingEngineerQueryService {
         return findSelected(bidSeq, workDutyId);
     }
 
-    private QueryParts buildCandidateWhere(
-            Long bidSeq,
-            String workDutyId,
-            String keyword,
-            String certificationName,
-            String constructionManagementGrade,
-            String designGrade,
-            String jobField,
-            String specialtyField,
-            String retireYn,
-            List<ProjectHistoryCondition> projectHistoryConditions,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata
-    ) {
-        List<String> conditions = new ArrayList<>();
-        Map<String, Object> params = new LinkedHashMap<>();
-
-        if (StringUtils.hasText(keyword)) {
-            conditions.add("""
-                    (
-                        LOWER(m.namekor) LIKE :keyword
-                        OR LOWER(m.deptname) LIKE :keyword
-                        OR LOWER(m.grade) LIKE :keyword
-                        OR LOWER(m.dutypart) LIKE :keyword
-                        OR LOWER(m.propart) LIKE :keyword
-                    )
-                    """);
-            params.put("keyword", "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
-        }
-        addEquals(conditions, params, "m.retireyn", "retireYn", retireYn);
-        addEquals(conditions, params, "m.construction_management_grade", "constructionManagementGrade", constructionManagementGrade);
-        addEquals(conditions, params, "m.design_grade", "designGrade", designGrade);
-        addEquals(conditions, params, "m.dutypart", "jobField", jobField);
-        addEquals(conditions, params, "m.propart", "specialtyField", specialtyField);
-
-        if (StringUtils.hasText(certificationName)) {
-            conditions.add("""
-                    m.engr_id IN (
-                        SELECT l.engr_id
-                        FROM pq_engineer_license l
-                        WHERE LOWER(l.license_code) LIKE :certificationName
-                    )
-                    """);
-            params.put("certificationName", "%" + certificationName.trim().toLowerCase(Locale.ROOT) + "%");
-        }
-
-        if (bidSeq != null) {
-            conditions.add("""
-                    m.engr_id NOT IN (
-                        SELECT s.engr_id
-                        FROM pq_find_engr_info s
-                        WHERE s.bid_seq = :excludeBidSeq
-                          AND (:excludeWorkDutyId IS NULL OR s.work_duty_id = :excludeWorkDutyId)
-                    )
-                    """);
-            params.put("excludeBidSeq", bidSeq);
-            params.put("excludeWorkDutyId", trimToNull(workDutyId));
-        }
-
-        String historySql = buildProjectHistoryConditionSql(projectHistoryConditions, params, conditionMetadata);
-        if (StringUtils.hasText(historySql)) {
-            conditions.add(historySql);
-        }
-
-        if (conditions.isEmpty()) {
-            return new QueryParts("", params);
-        }
-        return new QueryParts("WHERE " + String.join("\nAND ", conditions), params);
-    }
-
-    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        List<String> fragments = new ArrayList<>();
-        for (int i = 0; i < projectHistoryConditions.size(); i++) {
-            ProjectHistoryCondition condition = projectHistoryConditions.get(i);
-            String conditionType = trimToNull(condition.conditionType());
-            String fragment = switch (conditionType == null ? "" : conditionType) {
-                case "constructionKind" -> constructionKindCondition(condition, params, i);
-                case "general" -> generalCondition(condition, params, i, conditionMetadata);
-                case "outline" -> outlineCondition(condition, params, i, conditionMetadata);
-                default -> "";
-            };
-            if (!StringUtils.hasText(fragment)) {
-                continue;
-            }
-            String logicalOperator = fragments.isEmpty() ? "" : " " + logicalOperator(condition.logicalOperator()) + " ";
-            fragments.add(logicalOperator + fragment);
-        }
-        if (fragments.isEmpty()) {
-            return "";
-        }
-        return "(" + String.join("", fragments) + ")";
-    }
-
-    private String constructionKindCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String level1Code = trimToNull(condition.level1Code());
-        if (!StringUtils.hasText(level1Code)) {
-            return "";
-        }
-        String level1Param = "historyLevel1Code" + index;
-        String level2Param = "historyLevel2Code" + index;
-        String level3Param = "historyLevel3Code" + index;
-        params.put(level1Param, level1Code);
-        params.put(level2Param, trimToNull(condition.level2Code()));
-        params.put(level3Param, trimToNull(condition.level3Code()));
-        String historyAlias = "h" + index;
-        String kindAlias = "k" + index;
-        return """
-                m.engr_id IN (
-                    SELECT %s.engr_id
-                    FROM pq_engineer_project_history %s
-                    WHERE %s.seq IN (
-                        SELECT %s.seq
-                        FROM company_performance_construction_kinds %s
-                        WHERE %s.level1_code = :%s
-                          AND (:%s IS NULL OR %s.level2_code = :%s)
-                          AND (:%s IS NULL OR %s.level3_code = :%s)
-                    )
-                )
-                """.formatted(historyAlias, historyAlias, historyAlias, kindAlias, kindAlias, kindAlias,
-                level1Param, level2Param, kindAlias, level2Param, level3Param, kindAlias, level3Param);
-    }
-
-    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(condition.generalCode()));
-        if (metadata == null) return "";
-        String historyAlias = "h" + index;
-        String targetAlias = "target" + index;
-        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index, metadata.valueType());
-        if (!StringUtils.hasText(predicate)) return "";
-        return """
-                m.engr_id IN (
-                    SELECT %s.engr_id
-                    FROM pq_engineer_project_history %s
-                    WHERE %s.seq IN (
-                        SELECT %s.seq FROM %s %s WHERE %s
-                    )
-                )
-                """.formatted(historyAlias, historyAlias, historyAlias, targetAlias, metadata.table(), targetAlias, predicate);
-    }
-
-    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        String categoryCode = trimToNull(condition.outlineCategoryCode());
-        String subcategoryCode = trimToNull(condition.outlineSubcategoryCode());
-        if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
-            return "";
-        }
-
-        String historyAlias = "h" + index;
-        String targetAlias = "target" + index;
-        List<String> outlineConditions = new ArrayList<>();
-        if (StringUtils.hasText(categoryCode)) {
-            String paramName = "outlineCategoryCode" + index;
-            outlineConditions.add(targetAlias + ".cate_code = :" + paramName);
-            params.put(paramName, categoryCode);
-        }
-        if (StringUtils.hasText(subcategoryCode)) {
-            String paramName = "outlineSubcategoryCode" + index;
-            outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
-            params.put(paramName, subcategoryCode);
-        }
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(categoryCode) + trimToNull(subcategoryCode));
-        if (metadata == null) return "";
-        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
-                metadata.valueType());
-        if (StringUtils.hasText(predicate)) {
-            outlineConditions.add(predicate);
-        }
-
-        return """
-                m.engr_id IN (
-                    SELECT %s.engr_id
-                    FROM pq_engineer_project_history %s
-                    WHERE %s.seq IN (
-                        SELECT %s.seq FROM %s %s WHERE %s
-                    )
-                )
-                """.formatted(historyAlias, historyAlias, historyAlias, targetAlias, metadata.table(), targetAlias,
-                String.join("\nAND ", outlineConditions));
-    }
-
-    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        return comparisonPredicate(column, condition, params, index, null);
-    }
-
-    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            String metadataValueType) {
-        String value = trimToNull(condition.value());
-        String operator = operator(condition.operator());
-        if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
-            return "";
-        }
-
-        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : trimToNull(condition.valueType());
-        boolean numberType = "number".equals(valueType);
-        boolean dateType = "date".equals(valueType);
-        String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
-        String expression = numberType
-                ? "CASE WHEN " + numericText + " ~ '^-?[0-9]+([.][0-9]+)?$' THEN CAST(" + numericText + " AS NUMERIC) END"
-                : column;
-        String paramName = "historyValue" + index;
-        String valueToParamName = "historyValueTo" + index;
-
-        if ("LIKE".equals(operator)) {
-            params.put(paramName, "%" + (value == null ? "" : value.toLowerCase(Locale.ROOT)) + "%");
-            return "LOWER(CAST(" + column + " AS TEXT)) LIKE :" + paramName;
-        }
-        if ("BETWEEN".equals(operator)) {
-            String valueTo = trimToNull(condition.valueTo());
-            if (!StringUtils.hasText(valueTo)) {
-                return "";
-            }
-            params.put(paramName, typedValue(value, paramName, numberType, dateType));
-            params.put(valueToParamName, typedValue(valueTo, valueToParamName, numberType, dateType));
-            return expression + " BETWEEN :" + paramName + " AND :" + valueToParamName;
-        }
-
-        params.put(paramName, typedValue(value, paramName, numberType, dateType));
-        return expression + " " + operator + " :" + paramName;
-    }
-
-
     private PqParticipatingEngineerResponse findSelectedOne(Long bidSeq, String workDutyId, String engrId) {
         return findSelected(bidSeq, workDutyId).stream()
                 .filter(row -> row.engrId().equals(engrId))
@@ -672,50 +357,6 @@ public class PqParticipatingEngineerQueryService {
         );
     }
 
-    private void addEquals(List<String> conditions, Map<String, Object> params, String column, String paramName, String value) {
-        String normalized = trimToNull(value);
-        if (!StringUtils.hasText(normalized)) {
-            return;
-        }
-        conditions.add(column + " = :" + paramName);
-        params.put(paramName, normalized);
-    }
-
-    private String operator(String value) {
-        String normalized = trimToNull(value);
-        if (!StringUtils.hasText(normalized)) {
-            return "=";
-        }
-        String operator = normalized.toUpperCase(Locale.ROOT);
-        // 비교 연산자는 화이트리스트로 제한해야 사용자가 전달한 문자열이 SQL 구조에 들어가지 않습니다.
-        if (!COMPARISON_OPERATORS.contains(operator)) {
-            throw badRequest("지원하지 않는 비교 조건입니다.");
-        }
-        return operator;
-    }
-
-    private String logicalOperator(String value) {
-        return "OR".equalsIgnoreCase(trimToNull(value)) ? "OR" : "AND";
-    }
-
-    private BigDecimal number(String value, String fieldName) {
-        try {
-            return new BigDecimal(value.replace(",", ""));
-        } catch (NumberFormatException exception) {
-            throw badRequest(fieldName + "는 숫자여야 합니다.", exception);
-        }
-    }
-
-    private Object typedValue(String value, String fieldName, boolean numberType, boolean dateType) {
-        if (numberType) {
-            return number(value, fieldName);
-        }
-        if (dateType) {
-            return value.replaceAll("\\D", "");
-        }
-        return value;
-    }
-
     private void validateUpdateIdentity(Long bidSeq, String workDutyId, String engrId, PqParticipatingEngineerRequest request) {
         // 수정 대상의 식별자는 URL path가 소유합니다. body가 다른 대상을 가리키면 조용히 무시하지 않고 요청 오류로 처리합니다.
         if (request.bidSeq() != null && !bidSeq.equals(request.bidSeq())) {
@@ -729,7 +370,5 @@ public class PqParticipatingEngineerQueryService {
         }
     }
 
-    private record QueryParts(String whereSql, Map<String, Object> params) {
-    }
 
 }

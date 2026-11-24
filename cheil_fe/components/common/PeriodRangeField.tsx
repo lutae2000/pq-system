@@ -5,6 +5,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 
 import { standardFieldSx } from "@/components/common/FormControls";
 import { toCompactDate, toDateInputValue } from "@/modules/common/formatters";
+import { DateInput } from "./DateTimeInput";
 
 export type PeriodRangeOption<TValue extends string> = {
   label: string;
@@ -61,23 +62,19 @@ export function PeriodRangeField<TValue extends string>({
             </MenuItem>
           ))}
         </TextField>
-        <TextField
-          fullWidth
-          onChange={(event) => onStartChange(toCompactDate(event.target.value))}
-          size="small"
-          sx={standardFieldSx}
-          type="date"
+        <DateInput
+          label={`${label} 시작일`}
+          onChange={(value) => onStartChange(toCompactDate(value))}
+          showLabel={false}
           value={toDateInputValue(startValue)}
         />
         <Typography color="text.secondary" sx={{ fontSize: 18, lineHeight: 1 }}>
           ~
         </Typography>
-        <TextField
-          fullWidth
-          onChange={(event) => onEndChange(toCompactDate(event.target.value))}
-          size="small"
-          sx={standardFieldSx}
-          type="date"
+        <DateInput
+          label={`${label} 종료일`}
+          onChange={(value) => onEndChange(toCompactDate(value))}
+          showLabel={false}
           value={toDateInputValue(endValue)}
         />
       </Box>

@@ -1,5 +1,7 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
 import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
@@ -59,7 +61,6 @@ type CodeOption = {
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const INITIAL_PAGE_SIZE = 50;
 const UPCOMING_REMINDER_DAYS = 60;
 
 const upcomingSummaryCardSx: SxProps<Theme> = {
@@ -143,22 +144,7 @@ function ApplicationChip({ value }: { value: boolean }) {
 }
 
 function DateEditCell(params: GridRenderEditCellParams<EducationReminderCompletionRecord, string>) {
-  const { api, field, hasFocus, id, value } = params;
-
-  return (
-    <TextField
-      autoFocus={hasFocus}
-      fullWidth
-      placeholder="YYYYMMDD"
-      size="small"
-      value={String(value ?? "").replace(/\D/g, "").slice(0, 8)}
-      onChange={(event) => {
-        const nextValue = event.target.value.replace(/\D/g, "").slice(0, 8);
-        void api.setEditCellValue({ id, field, value: nextValue }, event);
-      }}
-      slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 8 } }}
-    />
-  );
+  return <GridDateEditInput params={params} />;
 }
 
 function ApplicationYnEditCell(params: GridRenderEditCellParams<EducationReminderCompletionRecord, boolean>) {
@@ -666,17 +652,15 @@ function EducationReminderCompletionManagementContent() {
             <MenuItem value="60">60일 내 예정</MenuItem>
         </TextField>
 
-        <TextField
+        <DateInput fullWidth={false} mode="year"
           label="교육예정일"
-          onChange={(event) =>
+          onChange={(value) =>
             setFilters((current) => ({
               ...current,
-              scheduledEducationYear: normalizeDateFilterInput(event.target.value),
+              scheduledEducationYear: normalizeDateFilterInput(value),
             }))
           }
-          placeholder="YYYY"
           size="small"
-          slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 4 } }}
           sx={{ flex: "0 0 100px !important", maxWidth: "100px !important", minWidth: "100px !important", width: "100px !important" }}
           value={filters.scheduledEducationYear}
         />
@@ -718,14 +702,6 @@ function EducationReminderCompletionManagementContent() {
                 getRowId={(row) => row.rowKey}
                 getRowClassName={(params) => completionRowClassName({ highlightTone: getCompletionHighlightTone(params.row) })}
                 hideFooterSelectedRowCount
-                initialState={{
-                  pagination: {
-                    paginationModel: {
-                      page: 0,
-                      pageSize: INITIAL_PAGE_SIZE,
-                    },
-                  },
-                }}
                 loading={activeLoading}
                 isCellEditable={() => canUpdate}
                 onRowSelectionModelChange={setRowSelectionModel}

@@ -1,5 +1,6 @@
 "use client";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
   Autocomplete,
@@ -167,13 +168,11 @@ export function WorkOverlapContractEngineerChangeDialog({
               value={draft?.participationType ?? ""}
             />
 
-            <TextField
+            <DateInput fullWidth={false}
               label="참여날짜"
-              onChange={(event) => onDraftChange((current) => (current ? { ...current, participationDate: event.target.value } : current))}
+              onChange={(value) => onDraftChange((current) => (current ? { ...current, participationDate: value } : current))}
                 size="small"
-                slotProps={{ inputLabel: { shrink: true } }}
                 sx={standardFieldSx}
-                type="date"
                 value={draft?.participationDate ?? ""}
             />
             <FormControlLabel

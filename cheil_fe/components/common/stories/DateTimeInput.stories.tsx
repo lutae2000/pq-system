@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { useState } from "react";
-import { DateTimeInput } from "../DateTimeInput";
+import { DateInput, DateTimeInput } from "../DateTimeInput";
 
 const meta = {
   title: "Common/DateTimeInput",
@@ -14,10 +14,11 @@ type Story = StoryObj<typeof meta>;
 
 function ControlledInput({ value: initialValue, ...args }: React.ComponentProps<typeof DateTimeInput>) {
   const [value, setValue] = useState(initialValue);
+  const Input = args.mode && args.mode !== "date-time" ? DateInput : DateTimeInput;
 
   return (
     <Box sx={{ width: 320 }}>
-      <DateTimeInput {...args} onChange={setValue} value={value} />
+      <Input {...args} onChange={setValue} value={value} />
     </Box>
   );
 }
@@ -36,6 +37,15 @@ export const DateOnly: Story = {
     label: "공고일자",
     mode: "date",
     value: "2026-07-02",
+  },
+  render: (args) => <ControlledInput {...args} />,
+};
+
+export const Month: Story = {
+  args: {
+    label: "기준월",
+    mode: "month",
+    value: "2026-07",
   },
   render: (args) => <ControlledInput {...args} />,
 };

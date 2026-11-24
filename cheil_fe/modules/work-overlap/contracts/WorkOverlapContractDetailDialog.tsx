@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { GridDateEditInput } from "@/components/common/GridDateEditInput";
+import { DateInput } from "@/components/common/DateTimeInput";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
@@ -307,27 +309,7 @@ function YmdEditCell(
     string | null
   >,
 ) {
-  return (
-    <TextField
-      autoFocus
-      fullWidth
-      onChange={(event) => {
-        void params.api.setEditCellValue(
-          {
-            id: params.id,
-            field: params.field,
-            value: event.target.value.replace(/\D/g, "").slice(0, 8),
-          },
-          event,
-        );
-      }}
-      placeholder="YYYYMMDD"
-      size="small"
-      slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 8 } }}
-      sx={standardFieldSx}
-      value={toText(params.value).replace(/\D/g, "").slice(0, 8)}
-    />
-  );
+  return <GridDateEditInput params={params} />;
 }
 
 function CheckboxEditCell(
@@ -1431,99 +1413,87 @@ export function WorkOverlapContractDetailDialog({
                           },
                         }}
                       >
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="공사시작일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "constructionStartDate",
-                              event.target.value || null,
+                              value || null,
                             )
                           }
                           size="small"
                           sx={standardFieldSx}
-                          type="date"
                           value={formatDateInputValue(
                             draft.constructionStartDate,
                           )}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="공사준공일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "constructionCompleteDate",
-                              event.target.value || null,
+                              value || null,
                             )
                           }
                           size="small"
                           sx={standardFieldSx}
-                          type="date"
                           value={formatDateInputValue(
                             draft.constructionCompleteDate,
                           )}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="관리용역 준공일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "managementServiceCompleteDate",
-                              event.target.value || null,
+                              value || null,
                             )
                           }
                           size="small"
                           sx={standardFieldSx}
-                          type="date"
                           value={formatDateInputValue(
                             draft.managementServiceCompleteDate,
                           )}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="중지 시작일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "constructionStopFromDate",
-                              event.target.value || null,
+                              value || null,
                           )
                           }
                           size="small"
                           sx={{ ...standardFieldSx, mt: 0.5 }}
-                          type="date"
                           value={formatDateInputValue(
                             draft.constructionStopFromDate,
                           )}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="중지 종료일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "constructionStopToDate",
-                              event.target.value || null,
+                              value || null,
                           )
                           }
                           size="small"
                           sx={{ ...standardFieldSx, mt: 0.5 }}
-                          type="date"
                           value={formatDateInputValue(
                             draft.constructionStopToDate,
                           )}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
-                        <TextField
+                        <DateInput fullWidth={false}
                           label="재개일"
-                          onChange={(event) =>
+                          onChange={(value) =>
                             updateField(
                               "restartDate",
-                              event.target.value || null,
+                              value || null,
                           )
                           }
                           size="small"
                           sx={{ ...standardFieldSx, mt: 0.5 }}
-                          type="date"
                           value={formatDateInputValue(draft.restartDate)}
-                          slotProps={{ inputLabel: { shrink: true } }}
                         />
                       </Box>
                       {hasPeriodChanges ? (

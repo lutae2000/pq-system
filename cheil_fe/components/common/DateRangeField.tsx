@@ -1,9 +1,8 @@
 "use client";
 
-import { Box, TextField, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
-
-import { standardFieldSx } from "@/components/common/FormControls";
+import { DateInput } from "./DateTimeInput";
 
 export type DateRangeFieldProps = {
   endLabel?: string;
@@ -33,28 +32,23 @@ export function DateRangeField({
   return (
     <Box sx={[{ alignSelf: "start" }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}>
       <Box sx={{ alignItems: "center", display: "grid", gap: 1, gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)" }}>
-        <TextField
-          fullWidth
+        <DateInput
+          ariaLabel={`${label} ${startLabel}`}
           label={label}
-          onChange={(event) => onStartChange(event.target.value)}
-          placeholder={startLabel}
-          size="small"
-          slotProps={{ htmlInput: { max, min }, inputLabel: { shrink: true } }}
-          sx={standardFieldSx}
-          type="date"
+          max={max}
+          min={min}
+          onChange={onStartChange}
           value={startValue}
         />
         <Typography color="text.secondary" sx={{ fontSize: 18, lineHeight: 1 }}>
           ~
         </Typography>
-        <TextField
-          fullWidth
-          onChange={(event) => onEndChange(event.target.value)}
-          placeholder={endLabel}
-          size="small"
-          slotProps={{ htmlInput: { max, min }, inputLabel: { shrink: true } }}
-          sx={standardFieldSx}
-          type="date"
+        <DateInput
+          label={endLabel}
+          max={max}
+          min={min}
+          onChange={onEndChange}
+          showLabel={false}
           value={endValue}
         />
       </Box>
