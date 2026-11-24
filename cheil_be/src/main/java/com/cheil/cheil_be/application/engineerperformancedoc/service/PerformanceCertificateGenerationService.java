@@ -69,12 +69,12 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
                 .distinct()
                 .map(String::valueOf)
                 .toList();
-        Map<String, List<Attachment>> attachmentsByOwnerId = findAttachmentsByOwnerId(OWNER_TYPE, ownerIds);
+        boolean includeParticipantList = request.includeParticipantList();
+        Map<String, List<Attachment>> attachmentsByOwnerId = findPerformanceAttachments(ownerIds, includeParticipantList);
         Map<Long, Integer> remainingPerformanceReferences = performanceReferenceCounts(performanceSeqsByEngineer);
         Map<String, List<RenderedImage>> sharedRenderedAttachments = new HashMap<>();
         Map<String, String> attachmentErrors = new LinkedHashMap<>();
         Set<String> zipNames = new HashSet<>();
-        boolean includeParticipantList = request.includeParticipantList();
 
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
@@ -86,8 +86,7 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
                         attachmentsByOwnerId,
                         remainingPerformanceReferences,
                         sharedRenderedAttachments,
-                        attachmentErrors,
-                        includeParticipantList
+                        attachmentErrors
                 );
                 if (pages.isEmpty()) {
                     continue;
@@ -140,6 +139,18 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
         return result;
     }
 
+    private Map<String, List<Attachment>> findPerformanceAttachments(List<String> ownerIds, boolean includeParticipantList) {
+        Map<String, List<Attachment>> attachmentsByOwnerId = findAttachmentsByOwnerId(OWNER_TYPE, ownerIds);
+        for (List<Attachment> attachments : attachmentsByOwnerId.values()) {
+            attachments.removeIf(attachment -> !isIncludedAttachment(attachment, includeParticipantList));
+            if (includeParticipantList) {
+                attachments.sort(Comparator.comparing(
+                        attachment -> PARTICIPANT_LIST_ATTACHMENT_TYPE.equalsIgnoreCase(attachment.attachmentType())));
+            }
+        }
+        return attachmentsByOwnerId;
+    }
+
     private Map<String, List<Attachment>> findAttachmentsByOwnerId(String ownerType, List<String> ownerIds) {
         Map<String, List<Attachment>> result = new LinkedHashMap<>();
         if (ownerIds.isEmpty()) {
@@ -163,8 +174,7 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
             Map<String, List<Attachment>> attachmentsByOwnerId,
             Map<Long, Integer> remainingPerformanceReferences,
             Map<String, List<RenderedImage>> sharedRenderedAttachments,
-            Map<String, String> attachmentErrors,
-            boolean includeParticipantList
+            Map<String, String> attachmentErrors
     ) {
         List<RenderedImage> pages = new ArrayList<>();
         for (Long performanceSeq : performanceSeqs) {
@@ -173,8 +183,7 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
                     List.of()
             );
             for (Attachment attachment : attachments) {
-                if (!isIncludedAttachment(attachment, includeParticipantList)
-                        || attachmentErrors.containsKey(attachment.fileId())) {
+                if (attachmentErrors.containsKey(attachment.fileId())) {
                     continue;
                 }
                 if (remainingPerformanceReferences.getOrDefault(performanceSeq, 0) > 1
@@ -320,13 +329,11 @@ public class PerformanceCertificateGenerationService implements PerformanceCerti
         List<RenderedImage> pages = new ArrayList<>();
         Map<String, String> attachmentErrors = new LinkedHashMap<>();
         List<String> ownerIds = performanceSeqs.stream().map(String::valueOf).toList();
-        Map<String, List<Attachment>> attachmentsByOwnerId = findAttachmentsByOwnerId(OWNER_TYPE, ownerIds);
+        Map<String, List<Attachment>> attachmentsByOwnerId = findPerformanceAttachments(ownerIds, includeParticipantList);
         for (String ownerId : ownerIds) {
             List<Attachment> attachments = attachmentsByOwnerId.getOrDefault(ownerId, List.of());
             for (Attachment attachment : attachments) {
-                if (isIncludedAttachment(attachment, includeParticipantList)) {
-                    pages.addAll(renderAttachmentForDownload(attachment, attachmentErrors));
-                }
+                pages.addAll(renderAttachmentForDownload(attachment, attachmentErrors));
             }
         }
         if (!attachmentErrors.isEmpty()) {

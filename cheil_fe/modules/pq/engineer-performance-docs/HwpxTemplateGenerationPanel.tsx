@@ -300,7 +300,7 @@ function HwpxTemplateGenerationPanelContent({ bidNotice, profiles, relatedProjec
                 engineerNames={Object.fromEntries(profiles.map((profile) => [profile.summary.id, profile.summary.name]))}
                 filenamePrefix={bidNotice?.projectName ?? undefined}
                 includeParticipantList
-                label="참여자명단 + 실적증명서"
+                label="실적증명서 + 참여자명단"
                 onGeneratingChange={setCertificateGenerating}
                 onError={(text) => setMessage({ severity: "error", text })}
                 onSuccess={(text) => setMessage({ severity: "success", text })}

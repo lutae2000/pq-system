@@ -2,7 +2,10 @@ package com.cheil.cheil_be.adapter.in.web.engineer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
@@ -18,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -66,6 +70,27 @@ class EngineerControllerRestDocsTest {
     }
 
     @Test
+    void masterAcceptsAndReturnsEmployeeNumber() throws Exception {
+        var basic = new EngineerDtos.Basic("E001", "Kim", null, null, null,
+                null, null, false, "N", null, null, "00123");
+        when(service.saveBasic(eq("E001"), any()))
+                .thenReturn(new EngineerDtos.Profile(basic, List.of(), List.of(), List.of(), List.of(), List.of(), List.of()));
+
+        mockMvc.perform(put("/pq/engineers/E001/master").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"employeeNo\":\"00123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.basic.employeeNo").value("00123"));
+        verify(service).saveBasic(eq("E001"), argThat(request -> "00123".equals(request.employeeNo())));
+    }
+
+    @Test
+    void masterRejectsAnEmployeeNumberLongerThanTwentyCharacters() throws Exception {
+        mockMvc.perform(put("/pq/engineers/E001/master").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"employeeNo\":\"123456789012345678901\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void saveEngineerProfileSectionsDocumentsContracts() throws Exception {
         when(service.create(any(), anyBoolean())).thenReturn(profile());
         when(service.update(any(), any())).thenReturn(profile());
@@ -81,7 +106,7 @@ class EngineerControllerRestDocsTest {
                 .andExpect(status().isOk()).andDo(document("pq-engineers-create", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), requestFields(profileRequestFields()), profileFields()));
         mockMvc.perform(put("/pq/engineers/{engrId}", "E001").contentType(MediaType.APPLICATION_JSON).content("{\"basic\":null,\"licenses\":[],\"careers\":[],\"prizes\":[],\"educations\":[],\"careerDetails\":[],\"schools\":[]}"))
                 .andExpect(status().isOk()).andDo(document("pq-engineers-update", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), pathParameters(parameterWithName("engrId").description("Engineer identifier.")), requestFields(profileRequestFields()), profileFields()));
-        saveSection("master", "/pq/engineers/{engrId}/master", "E001", "{\"engrId\":\"E001\"}", "pq-engineers-master-save");
+        saveSection("master", "/pq/engineers/{engrId}/master", "E001", "{\"engrId\":\"E001\",\"employeeNo\":\"00123\"}", "pq-engineers-master-save");
         saveSection("licenses", "/pq/engineers/{engrId}/licenses", "E001", "[]", "pq-engineers-licenses-save");
         saveSection("careers", "/pq/engineers/{engrId}/careers", "E001", "[]", "pq-engineers-careers-save");
         saveSection("prizes", "/pq/engineers/{engrId}/prizes", "E001", "[]", "pq-engineers-prizes-save");
@@ -103,11 +128,12 @@ class EngineerControllerRestDocsTest {
     }
 
     private void saveSection(String section, String path, String engineerId, String body, String id) throws Exception {
-        var requestDescriptor = section.equals("master")
-                ? fieldWithPath("engrId").description("Engineer identifier.")
-                : fieldWithPath("[]").description(section + " section.");
+        var requestDescriptors = section.equals("master")
+                ? List.of(fieldWithPath("engrId").description("Engineer identifier."),
+                        fieldWithPath("employeeNo").description("Employee number. An empty string clears it.").optional())
+                : List.of(fieldWithPath("[]").description(section + " section."));
         mockMvc.perform(put(path, engineerId).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk())
-                .andDo(document(id, preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), pathParameters(parameterWithName("engrId").description("Engineer identifier.")), requestFields(requestDescriptor), profileFields()));
+                .andDo(document(id, preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()), pathParameters(parameterWithName("engrId").description("Engineer identifier.")), requestFields(requestDescriptors), profileFields()));
     }
 
     private void deleteSection(String section, String recordId, String id) throws Exception {

@@ -30,6 +30,7 @@ import {
 import { useCompanyPerformanceDocumentsMutations } from "@/modules/pq/company-performance-docs/application/useCompanyPerformanceDocumentsMutations";
 import { useCompanyPerformanceDocumentsQueries } from "@/modules/pq/company-performance-docs/application/useCompanyPerformanceDocumentsQueries";
 import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import { useRelatedProjectHistoryConditions } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
 import type { CompanyPerformanceCodeOption } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 
 type CompanyPerformanceTargetRow = CompanyPerformanceRecord & { targetId: number; displayOrder: number | null };
@@ -131,7 +132,7 @@ export function CompanyPerformanceDocumentsPage() {
   const [bidNotice, setBidNotice] = useState<BidNoticeApiRecord | null>(null);
   const [bidNoticeDialogOpen, setBidNoticeDialogOpen] = useState(false);
   const [bidNoticeDetailOpen, setBidNoticeDetailOpen] = useState(false);
-  const [conditions, setConditions] = useState<RelatedProjectHistoryCondition[]>([]);
+  const conditionSettings = useRelatedProjectHistoryConditions(bidNotice?.bidSeq, tabQueryEnabled);
   const [keyword, setKeyword] = useState("");
   const [appliedKeyword, setAppliedKeyword] = useState("");
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: COMPANY_PERFORMANCE_PAGE_SIZE });
@@ -198,9 +199,8 @@ export function CompanyPerformanceDocumentsPage() {
       showError(error instanceof Error ? error.message : "회사실적 문서 대상을 추가하지 못했습니다.");
     }
   };
-  const handleConditionsApply = async (nextConditions: RelatedProjectHistoryCondition[]) => {
-    setConditions(nextConditions);
-    if (!bidNotice?.bidSeq || nextConditions.length === 0) return;
+  const handleConditionsSaved = async (nextConditions: RelatedProjectHistoryCondition[]) => {
+    if (!canUpdate || !bidNotice?.bidSeq || nextConditions.length === 0) return;
 
     await addTargetsByConditionsMutation.mutateAsync({ bidSeq: bidNotice.bidSeq, conditions: nextConditions });
   };
@@ -305,7 +305,7 @@ export function CompanyPerformanceDocumentsPage() {
           sx={{ width: "100%" }}
           variant="outlined"
         ><CardContent sx={{ "&:last-child": { pb: 0 } }}>
-          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel bidSeq={bidNotice?.bidSeq} disabled={!bidNotice || addTargetsByConditionsMutation.isPending} onApply={handleConditionsApply} value={conditions} /><Chip color={conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button disabled={!canUpdate || matchedRows.length === 0 || renumberTargetMutation.isPending} onClick={() => setRenumberDialogOpen(true)} size="small" startIcon={<FormatListNumberedOutlinedIcon />} variant="outlined">현재 정렬로 순번 저장</Button><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
+          <Box sx={{ alignItems: "center", display: "flex", justifyContent: "space-between", mb: 1, gap: 1, flexWrap: "wrap" }}><Box><Typography sx={{ fontWeight: 800 }} variant="subtitle1">조건 적용 회사실적</Typography></Box><Box sx={{ alignItems: "center", display: "flex", gap: 1, flexWrap: "wrap" }}><RelatedProjectHistoryConditionsPanel disabled={addTargetsByConditionsMutation.isPending} onSaved={handleConditionsSaved} settings={conditionSettings} /><Chip color={conditionSettings.conditions.length > 0 ? "primary" : "default"} label={`${matchedRows.length}건`} size="small" variant="outlined" /><Button disabled={!canUpdate || matchedRows.length === 0 || renumberTargetMutation.isPending} onClick={() => setRenumberDialogOpen(true)} size="small" startIcon={<FormatListNumberedOutlinedIcon />} variant="outlined">현재 정렬로 순번 저장</Button><Button color="error" disabled={!canDelete || selectedTargetIds.length === 0 || deleteTargetMutation.isPending} onClick={() => setDeleteTargetIds(selectedTargetIds)} size="small" startIcon={<DeleteOutlineOutlinedIcon />} variant="outlined">삭제</Button></Box></Box>
           <EnterpriseDataGrid<CompanyPerformanceTargetRow>
             checkboxSelection
             columns={targetColumns}
@@ -350,7 +350,7 @@ export function CompanyPerformanceDocumentsPage() {
         </CardContent></ResizableCard>
         <CompanyHwpxTemplateGenerationPanel bidNotice={bidNotice} open={Boolean(bidNotice)} targets={documentTargetsQuery.data ?? []} />
       </Stack>
-      {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setConditions([]); setSelectedCompanyPerformanceIds([]); setSelectedTargetIds([]); setDeleteTargetIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}
+      {bidNoticeDialogOpen ? <BidNoticeSelectDialog open onClose={() => setBidNoticeDialogOpen(false)} onSelect={(record) => { setBidNotice(record); setSelectedCompanyPerformanceIds([]); setSelectedTargetIds([]); setDeleteTargetIds([]); setPaginationModel((current) => ({ ...current, page: 0 })); setBidNoticeDialogOpen(false); }} stateCacheKey="company-performance-documents:bid-notice-select" /> : null}
       {bidNoticeDetailOpen ? <BidNoticeDetailPopup bidSeq={bidNotice?.bidSeq ?? null} onClose={() => setBidNoticeDetailOpen(false)} open readOnly /> : null}
       {detailQuery.data ? <CompanyPerformanceDetailDialog
         businessTypeOptions={businessTypeOptions}

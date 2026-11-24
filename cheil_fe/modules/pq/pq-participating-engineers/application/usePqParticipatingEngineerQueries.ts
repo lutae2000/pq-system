@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import {
@@ -20,14 +20,15 @@ type UsePqParticipatingEngineerQueriesParams = {
     designGrade: string;
     jobField: string;
     keyword: string;
-    relatedProjectHistoryConditions: PqParticipatingEngineerProjectHistoryCondition[];
     specialtyField: string;
   };
   bidSeq?: number;
   candidatePage: number;
   candidatePageSize: number;
   candidateSearchRevision: number;
+  conditionsLoaded: boolean;
   enabled: boolean;
+  projectHistoryConditions: PqParticipatingEngineerProjectHistoryCondition[];
   retireYn?: "Y" | "N";
   workDutyId: string;
 };
@@ -38,7 +39,9 @@ export function usePqParticipatingEngineerQueries({
   candidatePage,
   candidatePageSize,
   candidateSearchRevision,
+  conditionsLoaded,
   enabled,
+  projectHistoryConditions,
   retireYn,
   workDutyId,
 }: UsePqParticipatingEngineerQueriesParams) {
@@ -51,20 +54,23 @@ export function usePqParticipatingEngineerQueries({
       jobField: appliedFilters.jobField || undefined,
       keyword: appliedFilters.keyword.trim() || undefined,
       page: candidatePage,
-      projectHistoryConditions: appliedFilters.relatedProjectHistoryConditions,
+      projectHistoryConditions,
       retireYn,
       size: candidatePageSize,
       specialtyField: appliedFilters.specialtyField || undefined,
       workDutyId: workDutyId || undefined,
     }),
-    [appliedFilters, bidSeq, candidatePage, candidatePageSize, retireYn, workDutyId],
+    [appliedFilters, bidSeq, candidatePage, candidatePageSize, projectHistoryConditions, retireYn, workDutyId],
   );
 
   const candidatesQuery = useQuery({
     queryKey: pqParticipatingEngineerQueryKeys.candidates(candidateQueryFilters, candidateSearchRevision),
     queryFn: () => listPqParticipatingEngineerCandidates(candidateQueryFilters),
-    enabled: enabled && Boolean(bidSeq),
-    placeholderData: keepPreviousData,
+    enabled: enabled && Boolean(bidSeq) && conditionsLoaded,
+    placeholderData: (previousData, previousQuery) => {
+      const previousFilters = previousQuery?.queryKey[2] as PqParticipatingEngineerCandidateSearchParams | undefined;
+      return previousFilters?.bidSeq === bidSeq && previousFilters?.workDutyId === workDutyId ? previousData : undefined;
+    },
   });
 
   const selectedEngineersQuery = useQuery({

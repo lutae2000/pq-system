@@ -59,6 +59,27 @@ export const dateTimeText = (value: string | null | undefined) => {
   return normalized.length > 10 ? normalized.slice(0, 16) : normalized;
 };
 
+export type DateInputMode = "date" | "date-time";
+
+export function parseDateInput(value: string, mode: DateInputMode): string | null {
+  const input = value.trim();
+  if (!input) return "";
+
+  const pattern = mode === "date-time"
+    ? /^(\d{8}|\d{4}-\d{2}-\d{2})[ T]?(\d{2}):?(\d{2})$/
+    : /^(\d{8}|\d{4}-\d{2}-\d{2})$/;
+  const parts = pattern.exec(input);
+  if (!parts) return null;
+
+  const date = toDateInputValue(parts[1]);
+  const time = `${parts[2] ?? "00"}:${parts[3] ?? "00"}`;
+  const iso = `${date}T${time}:00.000Z`;
+  const parsed = new Date(iso);
+  if (date.startsWith("0000-") || !Number.isFinite(parsed.getTime()) || parsed.toISOString() !== iso) return null;
+
+  return mode === "date-time" ? `${date} ${time}` : date;
+}
+
 export const apiDate = (value: string) => {
   const normalized = value.trim();
   if (/^\d{8}$/.test(normalized)) {

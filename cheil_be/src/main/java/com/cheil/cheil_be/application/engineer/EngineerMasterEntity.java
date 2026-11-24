@@ -23,6 +23,8 @@ public class EngineerMasterEntity extends AuditEntity {
     String nameKor;
     @Column(name = "birthday")
     String birthday;
+    @Column(name = "employee_no", length = EngineerDtos.EMPLOYEE_NO_MAX_LENGTH)
+    String employeeNo;
     @Column(name = "deptname")
     String deptName;
     @Column(name = "grade")
@@ -41,7 +43,7 @@ public class EngineerMasterEntity extends AuditEntity {
     String proPart;
 
     EngineerDtos.Basic toDto() {
-        return new EngineerDtos.Basic(engrId, nameKor, birthday, deptName, grade, designGrade, constructionManagementGrade, educationException, retireYn, dutyPart, proPart);
+        return new EngineerDtos.Basic(engrId, nameKor, birthday, deptName, grade, designGrade, constructionManagementGrade, educationException, retireYn, dutyPart, proPart, employeeNo);
     }
 
     static EngineerMasterEntity from(EngineerDtos.Basic dto, String engrId) {
@@ -49,6 +51,7 @@ public class EngineerMasterEntity extends AuditEntity {
         entity.engrId = engrId;
         entity.nameKor = EngineerEntityUtils.clean(dto.nameKor());
         entity.birthday = EngineerEntityUtils.date(dto.birthday());
+        entity.employeeNo = EngineerEntityUtils.clean(dto.employeeNo());
         entity.deptName = EngineerEntityUtils.clean(dto.deptName());
         entity.grade = EngineerEntityUtils.clean(dto.grade());
         entity.designGrade = EngineerEntityUtils.clean(dto.designGrade());
@@ -63,6 +66,10 @@ public class EngineerMasterEntity extends AuditEntity {
     void updateFrom(EngineerDtos.Basic dto) {
         nameKor = EngineerEntityUtils.clean(dto.nameKor());
         birthday = EngineerEntityUtils.date(dto.birthday());
+        // Older clients omit this field. An explicit empty string clears it.
+        if (dto.employeeNo() != null) {
+            employeeNo = EngineerEntityUtils.clean(dto.employeeNo());
+        }
         deptName = EngineerEntityUtils.clean(dto.deptName());
         grade = EngineerEntityUtils.clean(dto.grade());
         designGrade = EngineerEntityUtils.clean(dto.designGrade());

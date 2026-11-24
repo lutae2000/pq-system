@@ -34,6 +34,7 @@ import { ConfirmActionDialog } from "@/components/common/ConfirmActionDialog";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { CheckboxSelectInput } from "@/components/common/CheckboxSelectInput";
+import { parseDateInput } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
@@ -167,6 +168,12 @@ export function NotificationManagementPage() {
   const buildNextRecord = (): NoticeRecord | null => {
     if (!draft?.title.trim() || !draft.content.trim() || !draft.publishAt || !draft.exposureStartAt || !draft.exposureEndAt) {
       showSnackbar({ message: "제목, 내용, 게시 시각, 노출 시작/종료 시각을 모두 입력해 주세요.", severity: "error" });
+      return null;
+    }
+
+    if (!parseDateInput(formatDateTime(draft.exposureStartAt), "date-time")
+      || !parseDateInput(formatDateTime(draft.exposureEndAt), "date-time")) {
+      showSnackbar({ message: "노출 시작/종료 시각을 유효한 날짜와 24시간제 시간으로 입력해 주세요.", severity: "error" });
       return null;
     }
 

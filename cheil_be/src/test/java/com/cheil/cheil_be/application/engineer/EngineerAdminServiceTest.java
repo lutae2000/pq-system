@@ -58,7 +58,7 @@ class EngineerAdminServiceTest {
     void createUsesDatabaseAllocatedIdInsteadOfSubmittedId() {
         EngineerDtos.Basic submitted = new EngineerDtos.Basic(
                 "E0000001", "new-name", "19800101", "planning", "manager",
-                "design-grade", "construction-management-grade", false, "N", "design", "construction"
+                "design-grade", "construction-management-grade", false, "N", "design", "construction", " 00123 "
         );
         when(masterRepository.allocateEngineerId()).thenReturn("E0000002");
         when(masterRepository.findById("E0000002"))
@@ -71,6 +71,8 @@ class EngineerAdminServiceTest {
         verify(masterRepository).save(savedCaptor.capture());
         assertThat(savedCaptor.getValue().engrId).isEqualTo("E0000002");
         assertThat(created.basic().engrId()).isEqualTo("E0000002");
+        assertThat(savedCaptor.getValue().employeeNo).isEqualTo("00123");
+        assertThat(created.basic().employeeNo()).isEqualTo("00123");
     }
 
     @Test
@@ -87,7 +89,7 @@ class EngineerAdminServiceTest {
         when(masterRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         stubEmptyRelatedProfiles("ENG-1");
 
-        service.saveBasic(
+        EngineerDtos.Profile saved = service.saveBasic(
                 "ENG-1",
                 new EngineerDtos.Basic(
                         "ENG-1",
@@ -100,14 +102,33 @@ class EngineerAdminServiceTest {
                         false,
                         "N",
                         "design",
-                        "construction"
+                        "construction",
+                        " 00456 "
                 )
         );
 
         assertThat(master.nameKor).isEqualTo("new-name");
+        assertThat(saved.basic().employeeNo()).isEqualTo("00456");
         assertThat(ReflectionTestUtils.getField(master, "createdAt")).isEqualTo(Instant.parse("2026-07-01T00:00:00Z"));
         assertThat(ReflectionTestUtils.getField(master, "createdId")).isEqualTo("creator");
         verify(masterRepository).save(master);
+    }
+
+    @Test
+    void saveBasicPreservesAnOmittedEmployeeNumberAndClearsAnExplicitBlank() {
+        EngineerMasterEntity master = new EngineerMasterEntity();
+        master.engrId = "ENG-1";
+        master.employeeNo = "00123";
+        when(masterRepository.findById("ENG-1")).thenReturn(Optional.of(master));
+        stubEmptyRelatedProfiles("ENG-1");
+
+        var omitted = new EngineerDtos.Basic("ENG-1", "name", null, null, null,
+                null, null, false, "N", null, null, null);
+        var blank = new EngineerDtos.Basic("ENG-1", "name", null, null, null,
+                null, null, false, "N", null, null, "");
+
+        assertThat(service.saveBasic("ENG-1", omitted).basic().employeeNo()).isEqualTo("00123");
+        assertThat(service.saveBasic("ENG-1", blank).basic().employeeNo()).isNull();
     }
 
     @Test

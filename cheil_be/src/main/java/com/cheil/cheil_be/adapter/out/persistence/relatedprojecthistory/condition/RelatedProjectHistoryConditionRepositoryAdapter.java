@@ -20,7 +20,7 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
     private final JdbcClient jdbcClient;
 
     @Override
-    public Optional<RelatedProjectHistoryConditionData> findByBidSeq(Long bidSeq) {
+    public Optional<RelatedProjectHistoryConditionData> findByBidSeqAndEmployeeNo(Long bidSeq, String employeeNo) {
         return jdbcClient.sql("""
                         SELECT bid_seq,
                                conditions_json,
@@ -30,8 +30,10 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
                                last_changed_id
                         FROM pq_related_project_history_conditions
                         WHERE bid_seq = :bidSeq
+                          AND employee_no = :employeeNo
                         """)
                 .param("bidSeq", bidSeq)
+                .param("employeeNo", employeeNo)
                 .query(this::mapData)
                 .optional();
     }
@@ -39,23 +41,25 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
     @Override
     public RelatedProjectHistoryConditionData save(
             Long bidSeq,
-            String conditionsJson,
-            String actor
+            String employeeNo,
+            String conditionsJson
     ) {
         return jdbcClient.sql("""
                         INSERT INTO pq_related_project_history_conditions (
                             bid_seq,
+                            employee_no,
                             conditions_json,
                             created_id,
                             last_changed_id
                         )
                         VALUES (
                             :bidSeq,
+                            :employeeNo,
                             :conditionsJson,
-                            :actor,
-                            :actor
+                            :employeeNo,
+                            :employeeNo
                         )
-                        ON CONFLICT (bid_seq)
+                        ON CONFLICT (bid_seq, employee_no)
                         DO UPDATE SET
                             conditions_json = EXCLUDED.conditions_json,
                             last_changed_at = CURRENT_TIMESTAMP,
@@ -68,8 +72,8 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
                                   last_changed_id
                         """)
                 .param("bidSeq", bidSeq)
+                .param("employeeNo", employeeNo)
                 .param("conditionsJson", conditionsJson)
-                .param("actor", actor)
                 .query(this::mapData)
                 .single();
     }

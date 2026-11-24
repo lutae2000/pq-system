@@ -7,6 +7,7 @@ export type BackendEngineerBasic = {
   educationException: boolean | null;
   deptName: string | null;
   dutyPart: string | null;
+  employeeNo: string | null;
   engrId: string;
   grade: string | null;
   designGrade: string | null;
@@ -236,6 +237,7 @@ function mapSummary(basic: BackendEngineerBasic): EngineerSummary {
     assessmentDate: formatDisplayDate(basic.birthday),
     assessmentMethod: "자체평정",
     department: text(basic.deptName),
+    employeeNo: text(basic.employeeNo),
     id: text(basic.engrId),
     name: text(basic.nameKor),
     position: text(basic.grade),
@@ -402,6 +404,7 @@ function mapProfileToRequest(profile: EngineerProfileView) {
       designGrade: profile.detail?.technicalField || null,
       dutyPart: summary.workField || null,
       educationException: Boolean(profile.detail?.educationException),
+      employeeNo: summary.employeeNo?.trim(),
       engrId: summary.id,
       grade: summary.position || null,
       nameKor: summary.name || "",

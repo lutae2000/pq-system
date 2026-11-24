@@ -7,7 +7,7 @@ import { standardFieldSx } from "@/components/common/FormControls";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import type { SelectOption } from "@/modules/common/reference/referenceFormat";
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import type { RelatedProjectHistoryConditionsSettings } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
 
 export type PqParticipatingEngineerFilterValues = {
   certificationCode: string;
@@ -15,7 +15,6 @@ export type PqParticipatingEngineerFilterValues = {
   designGrade: string;
   jobField: string;
   referenceDate: string;
-  relatedProjectHistoryConditions: RelatedProjectHistoryCondition[];
   specialtyField: string;
   taskPeriodUnit: "일" | "개월";
   taskPeriodValue: string;
@@ -24,7 +23,7 @@ export type PqParticipatingEngineerFilterValues = {
 
 type PqParticipatingEngineerFilterFieldsProps = {
   certificationOptions: SelectOption[];
-  bidSeq: number | null;
+  conditionSettings: RelatedProjectHistoryConditionsSettings;
   companyPerformanceName: string;
   designGradeOptions: SelectOption[];
   disabled: boolean;
@@ -32,7 +31,7 @@ type PqParticipatingEngineerFilterFieldsProps = {
   jobFieldOptions: SelectOption[];
   onChange: (patch: Partial<PqParticipatingEngineerFilterValues>) => void;
   onOpenCompanyPerformance: () => void;
-  onApplyRelatedProjectHistoryConditions: (conditions: RelatedProjectHistoryCondition[]) => void;
+  onSaveRelatedProjectHistoryConditions: () => void;
   specialtyFieldOptions: SelectOption[];
 };
 
@@ -60,7 +59,7 @@ const fullWidthRowSx = {
 
 export function PqParticipatingEngineerFilterFields({
   certificationOptions,
-  bidSeq,
+  conditionSettings,
   companyPerformanceName,
   designGradeOptions,
   disabled,
@@ -68,7 +67,7 @@ export function PqParticipatingEngineerFilterFields({
   jobFieldOptions,
   onChange,
   onOpenCompanyPerformance,
-  onApplyRelatedProjectHistoryConditions,
+  onSaveRelatedProjectHistoryConditions,
   specialtyFieldOptions,
 }: PqParticipatingEngineerFilterFieldsProps) {
   const renderAutocomplete = (
@@ -177,10 +176,9 @@ export function PqParticipatingEngineerFilterFields({
       </Box>
       <Box sx={fullWidthRowSx}>
         <RelatedProjectHistoryConditionsPanel
-          bidSeq={bidSeq}
           disabled={disabled}
-          onApply={onApplyRelatedProjectHistoryConditions}
-          value={filters.relatedProjectHistoryConditions}
+          onSaved={onSaveRelatedProjectHistoryConditions}
+          settings={conditionSettings}
         />
       </Box>
     </>

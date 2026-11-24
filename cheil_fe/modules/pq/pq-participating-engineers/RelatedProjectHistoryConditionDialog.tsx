@@ -22,13 +22,12 @@ import {
   Typography,
 } from "@mui/material";
 import type { GridColDef, GridRowParams, GridRowSelectionModel } from "@mui/x-data-grid";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { standardFieldSx } from "@/components/common/FormControls";
 import type { ConstructionTypeRecord } from "@/modules/code/construction-types/api";
 import type {
-  PqParticipatingEngineerProjectHistoryCondition,
   PqParticipatingEngineerProjectHistoryConditionOperator,
   PqParticipatingEngineerProjectHistoryConditionType,
   PqParticipatingEngineerProjectHistoryConditionValueType,
@@ -36,9 +35,9 @@ import type {
 } from "@/modules/pq/pq-participating-engineers/api";
 import { useRelatedProjectHistoryConditionQueries } from "@/modules/pq/pq-participating-engineers/application/usePqEngineerRelatedQueries";
 
-export type RelatedProjectHistoryCondition = PqParticipatingEngineerProjectHistoryCondition & {
-  id: string;
-};
+import type { RelatedProjectHistoryCondition } from "./domain/projectHistoryCondition";
+
+export type { RelatedProjectHistoryCondition } from "./domain/projectHistoryCondition";
 
 type RelatedProjectHistoryConditionDialogProps = {
   applyLoading?: boolean;
@@ -253,15 +252,6 @@ export function RelatedProjectHistoryConditionDialog({
   const [keyword, setKeyword] = useState("");
   const [draft, setDraft] = useState<RelatedProjectHistoryCondition[]>(value);
   const [selectedOutlineCategoryCode, setSelectedOutlineCategoryCode] = useState("");
-
-  useEffect(() => {
-    if (open) {
-      const timeoutId = window.setTimeout(() => {
-        setDraft(value);
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [open, value]);
 
   const { constructionTypes: constructionTypesQuery, conditionOptions: conditionOptionsQuery, generalConditions: generalConditionsQuery, outlineCodes: outlineCodesQuery } = useRelatedProjectHistoryConditionQueries(open);
 
@@ -738,7 +728,7 @@ export function RelatedProjectHistoryConditionDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 2.5, py: 1.5 }}>
-        <Button color="inherit" onClick={onClose} type="button" variant="outlined">
+        <Button color="inherit" disabled={applyLoading} onClick={onClose} type="button" variant="outlined">
           {"취소"}
         </Button>
         <Button disabled={disabled || applyLoading} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">

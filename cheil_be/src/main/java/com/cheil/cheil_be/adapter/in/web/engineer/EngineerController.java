@@ -1,5 +1,6 @@
 package com.cheil.cheil_be.adapter.in.web.engineer;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -83,7 +84,7 @@ public class EngineerController {
     @PostMapping
     public ResponseEntity<EngineerDtos.Profile> create(
             @RequestParam(required = false, defaultValue = "false") boolean allowDuplicate,
-            @RequestBody EngineerDtos.Profile request
+            @Valid @RequestBody EngineerDtos.Profile request
     ) {
         return ResponseEntity.ok(engineerAdminService.create(request, allowDuplicate));
     }
@@ -92,7 +93,7 @@ public class EngineerController {
      * 기술자 기본정보를 수정한다.
      */
     @PutMapping("/{engrId}")
-    public ResponseEntity<EngineerDtos.Profile> update(@PathVariable String engrId, @RequestBody EngineerDtos.Profile request) {
+    public ResponseEntity<EngineerDtos.Profile> update(@PathVariable String engrId, @Valid @RequestBody EngineerDtos.Profile request) {
         return ResponseEntity.ok(engineerAdminService.update(engrId, request));
     }
 
@@ -109,7 +110,7 @@ public class EngineerController {
      * 기술자 기본정보 섹션을 저장한다.
      */
     @PutMapping("/{engrId}/master")
-    public ResponseEntity<EngineerDtos.Profile> saveMaster(@PathVariable String engrId, @RequestBody EngineerDtos.Basic request) {
+    public ResponseEntity<EngineerDtos.Profile> saveMaster(@PathVariable String engrId, @Valid @RequestBody EngineerDtos.Basic request) {
         return ResponseEntity.ok(engineerAdminService.saveBasic(engrId, request));
     }
 

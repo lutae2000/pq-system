@@ -42,6 +42,9 @@ import com.cheil.cheil_be.adapter.out.persistence.file.AppFileAttachmentJpaRepos
 import com.cheil.cheil_be.application.common.exception.ApplicationErrorType;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.PerformanceCertificateCommand;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateAttachmentRepository;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateAttachmentRepository.Attachment;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateAttachmentRepository.RenderedImage;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository.PerformanceTarget;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.out.PerformanceCertificateQueryRepository.WorkOverlapTarget;
@@ -96,6 +99,42 @@ class PerformanceCertificateGenerationServiceTest {
         assertThat(zipEntry(hwpx, "BinData/image1.jpg")).isEqualTo(jpeg);
         assertThat(new String(zipEntry(hwpx, "Contents/content.hpf"), StandardCharsets.UTF_8))
                 .contains("media-type=\"image/jpeg\"");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void putsCertificatesBeforeParticipantListsForEachPerformance(boolean batch) throws Exception {
+        var attachments = mock(PerformanceCertificateAttachmentRepository.class);
+        var queries = mock(PerformanceCertificateQueryRepository.class);
+        var service = new PerformanceCertificateGenerationService(attachments, () -> "system", queries);
+        var firstCertificate = renderedAttachment("certificate-1", "20", "PERFORMANCE", 4);
+        var firstParticipants = renderedAttachment("participants-1", "20", "PARTICIPANT_LIST", 5);
+        var secondCertificate = renderedAttachment("certificate-2", "10", "PERFORMANCE", 6);
+        var secondParticipants = renderedAttachment("participants-2", "10", "PARTICIPANT_LIST", 7);
+        when(attachments.findByOwners("COMPANY_PERFORMANCE", List.of("20", "10")))
+                .thenReturn(List.of(secondParticipants, firstParticipants, secondCertificate, firstCertificate));
+
+        byte[] hwpx;
+        if (batch) {
+            when(queries.findPerformanceTargets(eq(1L), eq(List.of("E1")), anyString()))
+                    .thenReturn(List.of(
+                            new PerformanceTarget("E1", 10L, 2, 1L),
+                            new PerformanceTarget("E1", 20L, 1, 2L)
+                    ));
+            var result = service.generateBatch(new PerformanceCertificateCommand(
+                    1L, List.of("E1"), Map.of(), null, true));
+            hwpx = zipEntry(result.content(), "E1_실적증명서_참여자명단.hwpx");
+        } else {
+            hwpx = service.generate(new PerformanceCertificateCommand(
+                    1L, List.of(), Map.of(), List.of(20L, 10L), true)).content();
+        }
+
+        Map<String, byte[]> entries = zipEntries(hwpx);
+        assertHwpxPageReferences(entries, "jpg", 4);
+        assertThat(entries.get("BinData/image1.jpg")).isEqualTo(firstCertificate.renderPages().get().getFirst().bytes());
+        assertThat(entries.get("BinData/image2.jpg")).isEqualTo(firstParticipants.renderPages().get().getFirst().bytes());
+        assertThat(entries.get("BinData/image3.jpg")).isEqualTo(secondCertificate.renderPages().get().getFirst().bytes());
+        assertThat(entries.get("BinData/image4.jpg")).isEqualTo(secondParticipants.renderPages().get().getFirst().bytes());
     }
 
     @Test
@@ -380,7 +419,16 @@ class PerformanceCertificateGenerationServiceTest {
     }
 
     private static byte[] jpegImage() throws Exception {
-        BufferedImage image = new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB);
+        return jpegImage(4);
+    }
+
+    private static Attachment renderedAttachment(String id, String ownerId, String type, int width) throws Exception {
+        var image = new RenderedImage(jpegImage(width), width, 3, "jpg", MediaType.IMAGE_JPEG_VALUE);
+        return new Attachment(id, ownerId, type, id + ".jpg", null, null, () -> List.of(image));
+    }
+
+    private static byte[] jpegImage(int width) throws Exception {
+        BufferedImage image = new BufferedImage(width, 3, BufferedImage.TYPE_INT_RGB);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         ImageIO.write(image, "jpg", output);
         return output.toByteArray();

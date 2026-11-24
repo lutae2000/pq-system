@@ -6,11 +6,11 @@ import java.util.Optional;
 
 public interface RelatedProjectHistoryConditionRepository {
 
-    Optional<RelatedProjectHistoryConditionData> findByBidSeq(Long bidSeq);
+    Optional<RelatedProjectHistoryConditionData> findByBidSeqAndEmployeeNo(Long bidSeq, String employeeNo);
 
     RelatedProjectHistoryConditionData save(
             Long bidSeq,
-            String conditionsJson,
-            String actor
+            String employeeNo,
+            String conditionsJson
     );
 }

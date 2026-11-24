@@ -2,7 +2,12 @@ package com.cheil.cheil_be.application.engineer;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
+
 public final class EngineerDtos {
+
+    public static final int EMPLOYEE_NO_MAX_LENGTH = 20;
 
     private EngineerDtos() {
     }
@@ -18,7 +23,8 @@ public final class EngineerDtos {
             Boolean educationException,
             String retireYn,
             String dutyPart,
-            String proPart
+            String proPart,
+            @Size(max = EMPLOYEE_NO_MAX_LENGTH, message = "사번은 20자 이하로 입력해야 합니다.") String employeeNo
     ) {
     }
 
@@ -104,7 +110,7 @@ public final class EngineerDtos {
     }
 
     public record Profile(
-            Basic basic,
+            @Valid Basic basic,
             List<License> licenses,
             List<Career> careers,
             List<Prize> prizes,

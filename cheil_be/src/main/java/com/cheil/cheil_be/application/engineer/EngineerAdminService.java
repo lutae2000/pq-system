@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.engineer;
 
+import static com.cheil.cheil_be.application.common.validation.InputValues.validateMaxLength;
+
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
@@ -86,6 +88,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     @Transactional
     public EngineerDtos.Profile create(EngineerDtos.Profile request, boolean allowDuplicate) {
         EngineerDtos.Basic basic = requireBasic(request);
+        validateMaxLength(EngineerEntityUtils.clean(basic.employeeNo()), EngineerDtos.EMPLOYEE_NO_MAX_LENGTH, "사번");
         String engrId = masterRepository.allocateEngineerId();
         if (masterRepository.existsById(engrId)) {
             throw ApplicationException.conflict("Engineer already exists.");
@@ -114,6 +117,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     @Transactional
     public EngineerDtos.Profile saveBasic(String engrId, EngineerDtos.Basic basic) {
         String id = requireExistingEngrId(engrId);
+        validateMaxLength(EngineerEntityUtils.clean(basic.employeeNo()), EngineerDtos.EMPLOYEE_NO_MAX_LENGTH, "사번");
         validateDuplicate(basic, id);
         EngineerMasterEntity entity = findMaster(id);
         entity.updateFrom(basic);

@@ -30,14 +30,14 @@ public final class AuditActorResolver {
         return ServicePrincipal.currentServiceId();
     }
 
-    private static java.util.Optional<String> currentEmployeeNo() {
+    public static java.util.Optional<String> currentEmployeeNo() {
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         if (!(attributes instanceof ServletRequestAttributes servletRequestAttributes)) {
             return java.util.Optional.empty();
         }
         Object employeeNo = servletRequestAttributes.getRequest().getAttribute("employeeNo");
         return employeeNo instanceof String value && StringUtils.hasText(value)
-                ? java.util.Optional.of(value) : java.util.Optional.empty();
+                ? java.util.Optional.of(value.trim()) : java.util.Optional.empty();
     }
 
 }

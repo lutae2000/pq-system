@@ -1,12 +1,20 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
 
+import type {
+  PqParticipatingEngineerProjectHistoryCondition,
+  PqParticipatingEngineerProjectHistoryConditionValueType,
+} from "./domain/projectHistoryCondition";
+
+export type {
+  PqParticipatingEngineerProjectHistoryCondition,
+  PqParticipatingEngineerProjectHistoryConditionOperator,
+  PqParticipatingEngineerProjectHistoryConditionType,
+  PqParticipatingEngineerProjectHistoryConditionValueType,
+} from "./domain/projectHistoryCondition";
+
 const PQ_PARTICIPATING_ENGINEERS_API = "/pq/participating-engineers";
 export const PQ_PARTICIPATING_ENGINEER_PAGE_SIZE = 50;
-
-export type PqParticipatingEngineerProjectHistoryConditionType = "constructionKind" | "general" | "outline";
-export type PqParticipatingEngineerProjectHistoryConditionOperator = "=" | "!=" | ">=" | "<=" | ">" | "<" | "LIKE" | "BETWEEN";
-export type PqParticipatingEngineerProjectHistoryConditionValueType = "code" | "date" | "number" | "text";
 
 export type RelatedProjectHistoryConditionOption = {
   value: string;
@@ -17,22 +25,6 @@ export type RelatedProjectHistoryConditionOptionGroup = {
   conditionCode: string;
   valueType: PqParticipatingEngineerProjectHistoryConditionValueType;
   options: RelatedProjectHistoryConditionOption[];
-};
-
-export type PqParticipatingEngineerProjectHistoryCondition = {
-  conditionType: PqParticipatingEngineerProjectHistoryConditionType;
-  logicalOperator?: "AND" | "OR";
-  label?: string;
-  level1Code?: string;
-  level2Code?: string;
-  level3Code?: string;
-  generalCode?: string;
-  outlineCategoryCode?: string;
-  outlineSubcategoryCode?: string;
-  operator?: PqParticipatingEngineerProjectHistoryConditionOperator;
-  value?: string;
-  valueTo?: string;
-  valueType?: PqParticipatingEngineerProjectHistoryConditionValueType;
 };
 
 export type PqParticipatingEngineerCandidate = {
@@ -171,15 +163,19 @@ const parseProjectHistoryConditions = (conditionsJson: string | null | undefined
   }
 };
 
-export async function getRelatedProjectHistoryConditions(bidSeq: number): Promise<PqParticipatingEngineerProjectHistoryCondition[]> {
+export async function getRelatedProjectHistoryConditions(bidSeq: number, accessToken: string, signal: AbortSignal): Promise<PqParticipatingEngineerProjectHistoryCondition[]> {
   const response = await apiRequest<RelatedProjectHistoryConditionSetResponse>(
-    apiClient.get(`/pq/related-project-history-conditions/${encodeURIComponent(String(bidSeq))}`),
+    apiClient.get(`/pq/related-project-history-conditions/${encodeURIComponent(String(bidSeq))}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal,
+    }),
     "관련공사 참여이력 조건을 불러오지 못했습니다.",
   );
   return parseProjectHistoryConditions(response.conditionsJson);
 }
 
 export async function saveRelatedProjectHistoryConditions(params: {
+  accessToken: string;
   bidSeq: number;
   conditions: PqParticipatingEngineerProjectHistoryCondition[];
 }): Promise<PqParticipatingEngineerProjectHistoryCondition[]> {
@@ -187,6 +183,8 @@ export async function saveRelatedProjectHistoryConditions(params: {
   const response = await apiRequest<RelatedProjectHistoryConditionSetResponse>(
     apiClient.put(`/pq/related-project-history-conditions/${encodeURIComponent(String(params.bidSeq))}`, {
       conditionsJson: JSON.stringify(conditions),
+    }, {
+      headers: { Authorization: `Bearer ${params.accessToken}` },
     }),
     "관련공사 참여이력 조건을 저장하지 못했습니다.",
   );

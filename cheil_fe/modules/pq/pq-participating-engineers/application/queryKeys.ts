@@ -11,6 +11,7 @@ export const pqParticipatingEngineerQueryKeys = {
   performance: (engineerId: string, conditions?: unknown) => [...root, "performance", engineerId, conditions ?? "all"] as const,
   workOverlap: (engineerId: string, params: { page: number; size: number; referenceDate: string; remainingDays: number }) => [...root, "work-overlap", engineerId, params] as const,
   conditionOptions: () => [...root, "condition-options"] as const,
+  savedConditions: (employeeNo: string, bidSeq: number | null | undefined) => [...root, "saved-conditions", employeeNo, bidSeq ?? null] as const,
   constructionTypes: () => [...root, "condition-construction-types"] as const,
   outlineCodes: () => [...root, "condition-outline-codes"] as const,
   generalConditionCodes: () => [...root, "condition-general-codes"] as const,

@@ -20,7 +20,7 @@ import { attachedVerticalResizeHandleSx } from "@/components/common/ResizeHandle
 import { PageHeader } from "@/components/common/PageHeader";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
-import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useCertificationsQuery } from "@/modules/code/certifications/application/useCertificationManagement";
@@ -35,7 +35,7 @@ import {
 import { usePqParticipatingEngineerMutations } from "@/modules/pq/pq-participating-engineers/application/usePqParticipatingEngineerMutations";
 import { usePqParticipatingEngineerQueries } from "@/modules/pq/pq-participating-engineers/application/usePqParticipatingEngineerQueries";
 import { usePqGridSelection } from "@/modules/pq/pq-participating-engineers/application/usePqGridSelection";
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import { useRelatedProjectHistoryConditions } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
 import { createCandidateEngineerColumns, createSelectedEngineerColumns, type SelectionClickEvent } from "@/modules/pq/pq-participating-engineers/presentation/gridColumns";
 import { CandidateEngineerGrid } from "@/modules/pq/pq-participating-engineers/presentation/CandidateEngineerGrid";
 import { PqParticipatingEngineerFilterFields, type PqParticipatingEngineerFilterValues } from "@/modules/pq/pq-participating-engineers/presentation/PqParticipatingEngineerFilterFields";
@@ -84,7 +84,6 @@ const emptyFilters = (): CandidateFilters => ({
   keyword: "",
   referenceDate: todayInputValue(),
   remainingDays: "90",
-  relatedProjectHistoryConditions: [],
   specialtyField: "",
   taskPeriodUnit: "일",
   taskPeriodValue: "365",
@@ -171,7 +170,7 @@ function serializeSelectedEngineers(items: SelectedPqEngineer[]) {
 export function PqParticipatingEngineersPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
-  const currentSession = useMemo(() => readAuthSessionSnapshot(), []);
+  const currentSession = useAuthSession();
   const workDutyId = currentSession?.employeeNo ?? "";
   const candidateClickTimerRef = useRef<number | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(() => emptyFilters());
@@ -196,6 +195,7 @@ export function PqParticipatingEngineersPage() {
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: tabQueryEnabled });
 
   const certificationsQuery = useCertificationsQuery(tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq));
+  const conditionSettings = useRelatedProjectHistoryConditions(selectedCompanyPerformance?.bidSeq, tabQueryEnabled);
 
   const { candidates, candidatesPage, candidatesQuery, selectedEngineersQuery } = usePqParticipatingEngineerQueries({
     appliedFilters,
@@ -203,7 +203,9 @@ export function PqParticipatingEngineersPage() {
     candidatePage,
     candidatePageSize,
     candidateSearchRevision,
+    conditionsLoaded: conditionSettings.loaded,
     enabled: tabQueryEnabled,
+    projectHistoryConditions: conditionSettings.conditions,
     retireYn: toRetireYn(appliedFilters.status),
     workDutyId,
   });
@@ -459,16 +461,11 @@ export function PqParticipatingEngineersPage() {
   }, []);
 
 
-  const applyRelatedProjectHistoryConditions = (conditions: RelatedProjectHistoryCondition[]) => {
+  const handleConditionsSaved = () => {
     setCandidatePage(0);
     setSelectedCandidateIds([]);
     setCandidateSelectionAnchorId(null);
-    const nextFilters = {
-      ...filters,
-      relatedProjectHistoryConditions: conditions,
-    };
-    setFilters(nextFilters);
-    setAppliedFilters(nextFilters);
+    setAppliedFilters(filters);
   };
 
   const handleSearch = (keyword: string) => {
@@ -588,14 +585,14 @@ export function PqParticipatingEngineersPage() {
         searchDisabled={!canRead}
       >
         <PqParticipatingEngineerFilterFields
-          bidSeq={selectedCompanyPerformance?.bidSeq ?? null}
+          conditionSettings={conditionSettings}
           certificationOptions={certificationOptions}
           companyPerformanceName={selectedCompanyPerformance?.projectName ?? ""}
           designGradeOptions={gradeOptions}
           disabled={!canRead}
           filters={filters}
           jobFieldOptions={jobFieldOptions}
-          onApplyRelatedProjectHistoryConditions={applyRelatedProjectHistoryConditions}
+          onSaveRelatedProjectHistoryConditions={handleConditionsSaved}
           onChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
           onOpenCompanyPerformance={() => setCompanyPerformanceDialogOpen(true)}
           specialtyFieldOptions={specialtyFieldOptions}
@@ -723,7 +720,7 @@ export function PqParticipatingEngineersPage() {
                   {historyEngineerId ? <PqEngineerPerformanceTabs
                     canRead={canRead}
                     engineerId={historyEngineerId}
-                    relatedProjectHistoryConditions={filters.relatedProjectHistoryConditions}
+                    relatedProjectHistoryConditions={conditionSettings.conditions}
                     referenceDate={appliedFilters.referenceDate}
                     remainingDays={appliedFilters.remainingDays}
                     taskPeriodUnit={appliedFilters.taskPeriodUnit}

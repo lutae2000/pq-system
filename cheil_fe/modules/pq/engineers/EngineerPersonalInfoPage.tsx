@@ -493,6 +493,7 @@ function createEmptyEngineerProfile(nextId: string, filters: EngineerFilterState
       id: nextId,
       rrn: "",
       name: matchedLabel,
+      employeeNo: "",
       department: "미지정",
       position: "미지정",
       status: filters.status === "전체" ? "재직" : filters.status,
@@ -2280,6 +2281,18 @@ export function EngineerPersonalInfoPage() {
                       sx={fieldSx}
                       value={selectedEngineerAge}
                       slotProps={{ input: { readOnly: true } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      label="사번"
+                      size="small"
+                      sx={fieldSx}
+                      disabled={!selectedEngineer || (selectedEngineer.summary.isNew ? !canCreate : !canUpdate)}
+                      slotProps={{ htmlInput: { maxLength: 20 } }}
+                      value={selectedEngineer?.summary.employeeNo ?? ""}
+                      onChange={(event) => updateSelectedEngineerSummaryField("employeeNo", event.target.value)}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }}>

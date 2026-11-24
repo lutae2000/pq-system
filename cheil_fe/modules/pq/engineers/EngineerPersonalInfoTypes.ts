@@ -7,6 +7,7 @@ export type EngineerSummary = {
   assessmentDate: string;
   assessmentMethod: AssessmentMethod;
   department: string;
+  employeeNo: string;
   id: string;
   isNew?: boolean;
   name: string;

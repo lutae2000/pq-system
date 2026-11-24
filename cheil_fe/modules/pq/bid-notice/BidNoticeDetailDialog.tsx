@@ -28,7 +28,7 @@ import { FileActionCard, type FileActionCardFileItem } from "@/components/common
 import { standardFieldSx } from "@/components/common/FormControls";
 import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { MoneyInputField } from "@/components/common/MoneyInputField";
-import { formatMoney, toCompactDate, toDateInputValue } from "@/modules/common/formatters";
+import { formatMoney, parseDateInput, toCompactDate } from "@/modules/common/formatters";
 import type { BidNoticeAttachmentState, BidNoticeRecord, AttachmentKey } from "@/modules/pq/bid-notice/bidNotice.types";
 import type { G2bBidNoticeCandidateRow } from "@/modules/pq/g2b-bid-notice-candidates/domain/models";
 import { ScheduleTable as G2bScheduleTable } from "@/modules/pq/g2b-bid-notice-candidates/presentation/G2bBidNoticeCandidateDetailDialog";
@@ -66,6 +66,23 @@ const attachmentLabels: Record<AttachmentKey, string> = {
 };
 
 const attachmentOrder: AttachmentKey[] = ["announcement", "evaluation", "guide", "specification", "submission"];
+
+const scheduleGroups = [
+  { title: "공고일자", withTime: false, fields: [{ name: "noticeDate", label: "공고일자" }] },
+  { title: "PQ / 제안서 일정", withTime: true, fields: [
+    { name: "pqRegistrationDate", label: "PQ 등록일자" },
+    { name: "pqSubmissionDate", label: "PQ 제출일자" },
+    { name: "tpSubmissionDate", label: "제안서 제출일자" },
+  ] },
+  { title: "입찰 일정", withTime: true, fields: [
+    { name: "bidClosingDate", label: "협정서 제출 마감일" },
+    { name: "bidDate", label: "입찰서 제출 마감일" },
+    { name: "bidSubmissionDate", label: "개찰일" },
+  ] },
+  { title: "면접 일정", withTime: false, fields: [{ name: "interviewDate", label: "면접일자" }] },
+] as const;
+
+type ScheduleFieldName = (typeof scheduleGroups)[number]["fields"][number]["name"];
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
@@ -133,48 +150,6 @@ function TextInputField({
       />
     </LabeledField>
   );
-}
-
-function DateTimeField({
-  label,
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  readOnly?: boolean;
-  value: string;
-}) {
-  return <DateTimeInput label={label} onChange={onChange} readOnly={readOnly} value={value} />;
-}
-
-function DateYmdField({
-  label,
-  onChange,
-  readOnly = false,
-  value,
-}: {
-  label?: string;
-  onChange: (value: string) => void;
-  readOnly?: boolean;
-  value: string;
-}) {
-  const inputValue = toDateInputValue(value);
-
-  const field = (
-    <TextField
-      fullWidth
-      onChange={(event) => onChange(toCompactDate(event.target.value))}
-      size="small"
-      slotProps={{ htmlInput: { readOnly } }}
-      sx={standardFieldSx}
-      type="date"
-      value={inputValue}
-    />
-  );
-
-  return label ? <LabeledField label={label}>{field}</LabeledField> : field;
 }
 
 function AttachmentCard({
@@ -307,13 +282,17 @@ export function BidNoticeDetailDialog({
   sourceNotice,
 }: BidNoticeDetailDialogProps) {
   const [localRecord, setLocalRecord] = useState(initialRecord);
+  const [scheduleEdits, setScheduleEdits] = useState<Partial<Record<ScheduleFieldName, string>>>({});
   const finalParticipationOptions = useCommonCodeLevel2Options("YA", { useYn: "Y" }, { enabled: open });
 
   useEffect(() => {
     // 부모 draft는 저장 완료 후 갱신되므로, 저장 결과를 다이얼로그에 반영한다.
     // 입력 중에는 부모가 갱신되지 않아 전체 페이지 재렌더링을 피한다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (deferChanges) setLocalRecord(initialRecord);
+    if (deferChanges) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLocalRecord(initialRecord);
+      setScheduleEdits({});
+    }
   }, [deferChanges, initialRecord]);
 
   const record = deferChanges ? localRecord : initialRecord;
@@ -326,7 +305,20 @@ export function BidNoticeDetailDialog({
     onFieldChangeProp(field, value);
   };
 
-  const handleSave = () => onSave(deferChanges ? localRecord : initialRecord);
+  const parsedSchedule: Partial<Record<ScheduleFieldName, string>> = {};
+  for (const { fields, withTime } of scheduleGroups) {
+    for (const { name } of fields) {
+      const edit = scheduleEdits[name];
+      if (edit === undefined) continue;
+      const parsed = parseDateInput(edit, withTime ? "date-time" : "date");
+      if (parsed !== null) parsedSchedule[name] = withTime ? parsed : toCompactDate(parsed);
+    }
+  }
+  const invalidSchedule = Object.keys(parsedSchedule).length !== Object.keys(scheduleEdits).length;
+
+  const handleSave = () => {
+    if (!invalidSchedule) onSave({ ...record, ...parsedSchedule });
+  };
   const participationOption = finalParticipationOptions.options.find((option) => option.value === record.finalParticipationStatus);
   const isAbsent = record.finalParticipationStatus === "N"
     || participationOption?.label.includes("\uBD88\uCC38") === true
@@ -584,34 +576,21 @@ export function BidNoticeDetailDialog({
 
               <DetailSectionCard title="일정 정보">
                 <Stack spacing={1}>
-                  <CategoryBlock title="공고일자">
-                    <DateYmdField onChange={(value) => onFieldChange("noticeDate", value)} readOnly={readOnly} value={record.noticeDate} />
-                  </CategoryBlock>
-
-                  <CategoryBlock title="PQ / TP 일정">
-                    <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr" }}>
-                      <DateTimeField label="PQ 등록일자" onChange={(value) => onFieldChange("pqRegistrationDate", value)} readOnly={readOnly} value={record.pqRegistrationDate} />
-                      <DateTimeField label="PQ 제출일자" onChange={(value) => onFieldChange("pqSubmissionDate", value)} readOnly={readOnly} value={record.pqSubmissionDate} />
-                      <DateTimeField label="TP 제출일자" onChange={(value) => onFieldChange("tpSubmissionDate", value)} readOnly={readOnly} value={record.tpSubmissionDate} />
-                    </Box>
-                  </CategoryBlock>
-
-                  <CategoryBlock title="입찰 일정">
-                    <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr" }}>
-                      <DateTimeField label="협정서 제출 마감일" onChange={(value) => onFieldChange("bidClosingDate", value)} readOnly={readOnly} value={record.bidClosingDate} />
-                      <DateTimeField label="입찰서 제출 마감일" onChange={(value) => onFieldChange("bidDate", value)} readOnly={readOnly} value={record.bidDate} />
-                      <DateTimeField label="개찰일" onChange={(value) => onFieldChange("bidSubmissionDate", value)} readOnly={readOnly} value={record.bidSubmissionDate} />
-                    </Box>
-                  </CategoryBlock>
-
-                  <CategoryBlock title="면접 일정">
-                    <DateYmdField
-                      onChange={(value) => onFieldChange("interviewDate", value)}
-                      readOnly={readOnly}
-                      value={record.interviewDate}
-                    />
-                  </CategoryBlock>
-
+                  {scheduleGroups.map(({ fields, title, withTime }) => (
+                    <CategoryBlock key={title} title={title}>
+                      {fields.map(({ label, name }) => (
+                        <DateTimeInput
+                          key={name}
+                          label={label}
+                          mode={withTime ? "date-time" : "date"}
+                          onChange={(value) => setScheduleEdits((current) => ({ ...current, [name]: value }))}
+                          readOnly={readOnly}
+                          showLabel={withTime}
+                          value={scheduleEdits[name] ?? record[name]}
+                        />
+                      ))}
+                    </CategoryBlock>
+                  ))}
                 </Stack>
               </DetailSectionCard>
             </Stack>
@@ -695,7 +674,7 @@ export function BidNoticeDetailDialog({
               나라장터 공고 바로가기
             </Button>
           ) : null}
-          <Button disabled={saveDisabled} onClick={handleSave} startIcon={<SaveOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="contained">
+          <Button disabled={saveDisabled || invalidSchedule} onClick={handleSave} startIcon={<SaveOutlinedIcon />} sx={{ display: readOnly ? "none" : undefined }} variant="contained">
             저장
           </Button>
         </Box>

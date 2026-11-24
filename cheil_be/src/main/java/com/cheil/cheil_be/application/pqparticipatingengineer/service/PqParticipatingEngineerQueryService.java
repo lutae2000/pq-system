@@ -243,7 +243,8 @@ public class PqParticipatingEngineerQueryService {
                                 null,
                                 rs.getString("retireyn"),
                                 rs.getString("dutypart"),
-                                rs.getString("propart")
+                                rs.getString("propart"),
+                                null
                         ),
                         List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
                 ))

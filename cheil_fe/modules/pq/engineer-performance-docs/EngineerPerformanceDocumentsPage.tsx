@@ -42,13 +42,13 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
-import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
+import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { formatLocalizedNumber } from "@/modules/common/formatters";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import { useRelatedProjectHistoryConditions } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
 import { useEngineerPerformanceDocuments } from "@/modules/pq/engineer-performance-docs/application/useEngineerPerformanceDocuments";
 import { useEngineerPerformanceDocumentsQueries } from "@/modules/pq/engineer-performance-docs/application/useEngineerPerformanceDocumentsQueries";
 
@@ -159,7 +159,6 @@ export function EngineerPerformanceDocumentsPage() {
   const [submittedKeyword, setSubmittedKeyword] = useState("");
   const [activeEngineerId, setActiveEngineerId] = useState("");
   const [performanceDetailSeq, setPerformanceDetailSeq] = useState<number | null>(null);
-  const [relatedProjectHistoryConditions, setRelatedProjectHistoryConditions] = useState<RelatedProjectHistoryCondition[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
   const [historyPaginationModel, setHistoryPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
@@ -179,6 +178,7 @@ export function EngineerPerformanceDocumentsPage() {
   const historyGridHeight = Math.max(160, historyCardHeight - HISTORY_CARD_RESERVED_HEIGHT);
 
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
+  const jobClassReferences = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" }, { enabled: canRead });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
   const engLevelReferences = useCommonCodeLevel2Options("51", { useYn: "Y" }, { enabled: canRead });
 
@@ -231,6 +231,7 @@ export function EngineerPerformanceDocumentsPage() {
   );
 
   const selectedBidSeq = selectedBidNotice?.bidSeq ?? null;
+  const conditionSettings = useRelatedProjectHistoryConditions(selectedBidSeq, tabQueryEnabled);
 
   const activeEngineerProfile = activeEngineerProfileQuery.data
     ?? profiles.find((profile) => profile.summary.id === activeEngineerId)
@@ -340,6 +341,7 @@ export function EngineerPerformanceDocumentsPage() {
     [reviewRowIds, reviewSelectionAnchorId],
   );
   const labelByJobField = jobFieldReferences.labelByValue;
+  const labelByJobClass = jobClassReferences.labelByValue;
   const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
   const labelByEngLevel = engLevelReferences.labelByValue;
 
@@ -486,16 +488,18 @@ export function EngineerPerformanceDocumentsPage() {
     [canUpdate, certificateLabelByCode, documentValueSettingsByEngineerId, documentValueSettingsQuery.isFetching, labelByJobField, labelBySpecialtyField, profilesByEngineerId, documentActions.saveInlineDocumentValueMutation],
   );
 
+  const participationPositionColumn = useMemo(() => ({
+    field: "jobClass",
+    headerName: "참여분야 직위",
+    width: 130,
+    ...center,
+    valueFormatter: (value: unknown) => formatReferenceLabel(labelByJobClass, value),
+  }), [labelByJobClass]);
+
   const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(() => [
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
       { field: "compName", headerName: "참여당시 회사", width: 150 },
-      {
-        field: "engLevel",
-        headerName: "참여분야 직위",
-        width: 130,
-        ...center,
-        valueFormatter: (value) => formatPaddedLevel2CodeLabel(labelByEngLevel, value),
-      },
+      participationPositionColumn,
       { field: "grade", headerName: "참여당시 직위", width: 120, ...center },
       { field: "orderClient", headerName: "발주처", width: 150 },
       { field: "contractAmt", headerName: "계약금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
@@ -509,7 +513,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [labelByEngLevel],
+    [participationPositionColumn],
   );
 
   const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(() => [
@@ -542,13 +546,7 @@ export function EngineerPerformanceDocumentsPage() {
       },
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
       { field: "compName", headerName: "참여당시 회사", width: 150 },
-      {
-        field: "engLevel",
-        headerName: "참여분야 직위",
-        width: 130,
-        ...center,
-        valueFormatter: (value) => formatPaddedLevel2CodeLabel(labelByEngLevel, value),
-      },
+      participationPositionColumn,
       { field: "grade", headerName: "참여당시 직위", width: 120, ...center },
       { field: "orderClient", headerName: "발주처", width: 150 },
       { field: "contractAmt", headerName: "계약금액", width: 120, align: "right", headerAlign: "center", valueFormatter: (value) => formatMoney(value) },
@@ -562,7 +560,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [canUpdate, labelByEngLevel],
+    [canUpdate, participationPositionColumn],
   );
   const orderedHistoryColumns = useMemo(() => {
     const order = [
@@ -574,6 +572,7 @@ export function EngineerPerformanceDocumentsPage() {
       "contractToDate",
       "startDate",
       "endDate",
+      "jobClass",
       "compName",
       "grade",
       "duty",
@@ -597,6 +596,7 @@ export function EngineerPerformanceDocumentsPage() {
       "contractToDate",
       "startDate",
       "endDate",
+      "jobClass",
       "compName",
       "grade",
       "duty",
@@ -635,7 +635,6 @@ export function EngineerPerformanceDocumentsPage() {
     setSelectedReviewIds([]);
     setReviewSelectionAnchorId(null);
     setPendingBulkDeleteReviewIds(null);
-    setRelatedProjectHistoryConditions([]);
   };
 
   function openBulkDeleteConfirm() {
@@ -1005,11 +1004,9 @@ export function EngineerPerformanceDocumentsPage() {
                       }}
                     >
                       <RelatedProjectHistoryConditionsPanel
-                        bidSeq={selectedBidSeq}
                         disabled={!canCreate && !canUpdate}
-                        onApply={setRelatedProjectHistoryConditions}
                         onSaved={documentActions.syncReviewResults}
-                        value={relatedProjectHistoryConditions}
+                        settings={conditionSettings}
                       />
                       <Chip color="success" label={`검토결과 ${reviewRows.length}건`} size="small" />
                       <Button
@@ -1102,7 +1099,7 @@ export function EngineerPerformanceDocumentsPage() {
               </Card>
             </Box>
           </Box>
-          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={relatedProjectHistoryConditions} showParticipantListButton />
+          <HwpxTemplateGenerationPanel bidNotice={selectedBidNotice} open profiles={profiles} relatedProjectHistoryConditions={conditionSettings.conditions} showParticipantListButton />
         </Stack>
       )}
 
@@ -1124,7 +1121,6 @@ export function EngineerPerformanceDocumentsPage() {
             setReviewSelectionAnchorId(null);
             setAddConfirmOpen(false);
             setPendingBulkDeleteReviewIds(null);
-            setRelatedProjectHistoryConditions([]);
           }}
         />
       ) : null}

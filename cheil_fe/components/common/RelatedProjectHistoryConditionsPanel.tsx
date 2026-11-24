@@ -2,99 +2,77 @@
 
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Chip, Typography } from "@mui/material";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useState } from "react";
 
-import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
+import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
+import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import {
-  RelatedProjectHistoryConditionDialog,
-  type RelatedProjectHistoryCondition,
-} from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
-import {
-  getRelatedProjectHistoryConditions,
-  saveRelatedProjectHistoryConditions,
-  type PqParticipatingEngineerProjectHistoryCondition,
-} from "@/modules/pq/pq-participating-engineers/api";
+  useSaveRelatedProjectHistoryConditions,
+  type RelatedProjectHistoryConditionsSettings,
+} from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
+import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
+
+const RelatedProjectHistoryConditionDialog = dynamic(
+  () => import("@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog").then((module) => module.RelatedProjectHistoryConditionDialog),
+  { ssr: false },
+);
 
 type RelatedProjectHistoryConditionsPanelProps = {
-  bidSeq?: number | null;
   buttonLabel?: string;
   disabled?: boolean;
   label?: string;
-  onApply: (conditions: RelatedProjectHistoryCondition[]) => void;
   onSaved?: (conditions: RelatedProjectHistoryCondition[]) => void | Promise<void>;
-  value: RelatedProjectHistoryCondition[];
+  settings: RelatedProjectHistoryConditionsSettings;
 };
 
-const createConditionId = () => {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
-  }
-  return `condition-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
+export function RelatedProjectHistoryConditionsPanel(props: RelatedProjectHistoryConditionsPanelProps) {
+  return <ConditionSettings key={JSON.stringify([props.settings.employeeNo, props.settings.bidSeq])} {...props} />;
+}
 
-const withConditionIds = (conditions: PqParticipatingEngineerProjectHistoryCondition[]): RelatedProjectHistoryCondition[] =>
-  conditions.map((condition) => {
-    const existingId = (condition as { id?: unknown }).id;
-    return {
-      ...condition,
-      id: typeof existingId === "string" ? existingId : createConditionId(),
-    };
-  });
-
-export function RelatedProjectHistoryConditionsPanel({
-  bidSeq,
+function ConditionSettings({
   buttonLabel = "조건 설정",
   disabled = false,
   label = "",
-  onApply,
   onSaved,
-  value,
+  settings,
 }: RelatedProjectHistoryConditionsPanelProps) {
-  const [open, setOpen] = useState(false);
-  const tabQueryEnabled = useTabQueryEnabled(Boolean(bidSeq));
-  const queryClient = useQueryClient();
-  const lastLoadedSignatureRef = useRef("");
+  const [openedConditions, setOpenedConditions] = useState<RelatedProjectHistoryCondition[] | null>(null);
+  const { showSnackbar } = useAppSnackbar();
+  const { bidSeq, conditions, employeeNo, loaded, loading, loadError, reload } = settings;
+  const saveConditionsMutation = useSaveRelatedProjectHistoryConditions(settings);
+  const conditionDisabled = disabled || !bidSeq || !employeeNo;
 
-  const savedConditionsQuery = useQuery({
-    queryKey: ["related-project-history-conditions", bidSeq ?? "none"],
-    queryFn: () => getRelatedProjectHistoryConditions(bidSeq ?? 0),
-    enabled: tabQueryEnabled,
-  });
+  const showError = (error: unknown, message: string) => {
+    showSnackbar({ message: error instanceof Error ? error.message : message, severity: "error" });
+  };
 
-  useEffect(() => {
-    if (!bidSeq || !savedConditionsQuery.data) {
+  const handleOpen = async () => {
+    if (loaded) {
+      setOpenedConditions(conditions);
       return;
     }
-
-    const signature = `${bidSeq}:${JSON.stringify(savedConditionsQuery.data)}`;
-    if (lastLoadedSignatureRef.current === signature) {
+    const result = await reload();
+    if (result.isError) {
+      showError(result.error, "관련공사 참여이력 조건을 불러오지 못했습니다.");
       return;
     }
+    if (result.data) setOpenedConditions(result.data);
+  };
 
-    lastLoadedSignatureRef.current = signature;
-    onApply(withConditionIds(savedConditionsQuery.data));
-  }, [bidSeq, onApply, savedConditionsQuery.data]);
-
-  const saveConditionsMutation = useMutation({
-    mutationFn: (conditions: RelatedProjectHistoryCondition[]) => {
-      if (!bidSeq) {
-        return Promise.resolve(conditions);
-      }
-      return saveRelatedProjectHistoryConditions({ bidSeq, conditions }).then(withConditionIds);
-    },
-    onSuccess: async (conditions) => {
-      onApply(conditions);
-      await onSaved?.(conditions);
-      setOpen(false);
-      if (bidSeq) {
-        await queryClient.invalidateQueries({ queryKey: ["related-project-history-conditions", bidSeq] });
-      }
-    },
-  });
-
-  const relatedConditionLabels = useMemo(() => value.map((condition) => condition.label || "조건 입력 중"), [value]);
-  const conditionDisabled = disabled || !bidSeq;
+  const handleApply = (nextConditions: RelatedProjectHistoryCondition[]) => {
+    if (conditionDisabled || !loaded || saveConditionsMutation.isPending) return;
+    saveConditionsMutation.mutate(nextConditions, {
+      onSuccess: (saved) => {
+        if (readAuthSessionSnapshot()?.employeeNo !== employeeNo) return;
+        setOpenedConditions(null);
+        void Promise.resolve().then(() => onSaved?.(saved)).catch((error: unknown) => {
+          showError(error, "조건은 저장했지만 결과에 반영하지 못했습니다.");
+        });
+      },
+      onError: (error) => showError(error, "관련공사 참여이력 조건을 저장하지 못했습니다."),
+    });
+  };
 
   return (
     <>
@@ -111,24 +89,24 @@ export function RelatedProjectHistoryConditionsPanel({
           {label}
         </Typography>
         <Chip
-          color={value.length > 0 ? "primary" : "default"}
-          label={`${value.length}개 조건`}
+          color={conditions.length > 0 ? "primary" : "default"}
+          label={!loaded && loadError ? "조건 조회 실패" : `${conditions.length}개 조건`}
           size="small"
-          variant={value.length > 0 ? "filled" : "outlined"}
+          variant={conditions.length > 0 ? "filled" : "outlined"}
         />
-        {relatedConditionLabels.slice(0, 2).map((conditionLabel, index) => (
+        {conditions.slice(0, 2).map((condition) => (
           <Chip
-            key={`${conditionLabel}-${index}`}
-            label={conditionLabel}
+            key={condition.id}
+            label={condition.label || "조건 입력 중"}
             size="small"
             sx={{ maxWidth: 360, "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" } }}
             variant="outlined"
           />
         ))}
-        {relatedConditionLabels.length > 2 ? <Chip label={`외 ${relatedConditionLabels.length - 2}개`} size="small" variant="outlined" /> : null}
+        {conditions.length > 2 ? <Chip label={`외 ${conditions.length - 2}개`} size="small" variant="outlined" /> : null}
         <Button
-          disabled={conditionDisabled}
-          onClick={() => setOpen(true)}
+          disabled={conditionDisabled || (!loaded && loading) || saveConditionsMutation.isPending}
+          onClick={() => void handleOpen()}
           size="small"
           startIcon={<SearchOutlinedIcon />}
           type="button"
@@ -138,16 +116,18 @@ export function RelatedProjectHistoryConditionsPanel({
         </Button>
       </Box>
 
-      <RelatedProjectHistoryConditionDialog
-        applyLoading={saveConditionsMutation.isPending}
-        disabled={conditionDisabled}
-        onApply={(conditions) => {
-          void saveConditionsMutation.mutateAsync(conditions);
-        }}
-        onClose={() => setOpen(false)}
-        open={open}
-        value={value}
-      />
+      {openedConditions && (
+        <RelatedProjectHistoryConditionDialog
+          applyLoading={saveConditionsMutation.isPending}
+          disabled={conditionDisabled || saveConditionsMutation.isPending}
+          onApply={handleApply}
+          onClose={() => {
+            if (!saveConditionsMutation.isPending) setOpenedConditions(null);
+          }}
+          open
+          value={openedConditions}
+        />
+      )}
     </>
   );
 }
