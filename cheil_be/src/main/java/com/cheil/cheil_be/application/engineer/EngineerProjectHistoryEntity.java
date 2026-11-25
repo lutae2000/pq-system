@@ -47,8 +47,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     String jobPart;
     @Column(name = "propart")
     String proPart;
-    @Column(name = "englevel")
-    String engLevel;
     @Column(name = "compname")
     String compName;
     @Column(name = "deptname")
@@ -76,7 +74,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
                 jobTag,
                 jobPart,
                 proPart,
-                engLevel,
                 compName,
                 deptName,
                 grade,
@@ -111,7 +108,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
         jobTag = EngineerEntityUtils.clean(dto.jobTag());
         jobPart = EngineerEntityUtils.clean(dto.jobPart());
         proPart = EngineerEntityUtils.clean(dto.proPart());
-        engLevel = EngineerEntityUtils.clean(dto.engLevel());
         compName = EngineerEntityUtils.clean(dto.compName());
         deptName = EngineerEntityUtils.clean(dto.deptName());
         grade = EngineerEntityUtils.clean(dto.grade());

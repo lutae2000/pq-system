@@ -28,7 +28,6 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
             h.jobtag,
             h.joinyn,
             h.returnyn,
-            h.englevel,
             h.compname,
             h.deptname,
             h.grade,
@@ -74,10 +73,10 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
         return bind(jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history (
                             engr_id, seq, startdt, enddt, contract_period_id, jobclass, jobtag, joinyn, returnyn,
-                            englevel, compname, deptname, grade, duty, jobpart, propart, remark
+                            compname, deptname, grade, duty, jobpart, propart, remark
                         ) VALUES (
                             :engineerId, :seq, :startDt, :endDt, :contractPeriodId, :jobClass, :jobTag, :joinYn, :returnYn,
-                            :engLevel, :compName, :deptName, :grade, :duty, :jobPart, :proPart, :remark
+                            :compName, :deptName, :grade, :duty, :jobPart, :proPart, :remark
                         )
                         RETURNING id
                         """), params(seq, command))
@@ -99,7 +98,6 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
                             jobtag = :jobTag,
                             joinyn = :joinYn,
                             returnyn = :returnYn,
-                            englevel = :engLevel,
                             compname = :compName,
                             deptname = :deptName,
                             grade = :grade,
@@ -147,7 +145,6 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
         params.put("jobTag", request.jobTag());
         params.put("joinYn", request.actualParticipationYn());
         params.put("returnYn", request.reportYn());
-        params.put("engLevel", request.participationGrade());
         params.put("compName", request.companyAtParticipation());
         params.put("deptName", request.departmentAtParticipation());
         params.put("grade", request.positionAtParticipation());
@@ -171,7 +168,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
                 rs.getLong("id"), rs.getString("engr_id"), rs.getString("namekor"),
                 rs.getString("startdt"), rs.getString("enddt"), rs.getObject("contract_period_id", Long.class), rs.getString("jobtag"),
                 rs.getString("jobclass"), rs.getString("joinyn"), rs.getString("returnyn"),
-                rs.getObject("englevel", String.class), rs.getString("compname"),
+                rs.getString("compname"),
                 rs.getString("deptname"), rs.getString("grade"), rs.getString("duty"),
                 rs.getString("jobpart"), rs.getString("propart"), rs.getString("remark")
         );

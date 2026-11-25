@@ -9,7 +9,6 @@ public record CompanyPerformanceEngineerCommand(
         String participationFieldPosition,
         String actualParticipationYn,
         String reportYn,
-        Integer participationGrade,
         String companyAtParticipation,
         String departmentAtParticipation,
         String positionAtParticipation,

@@ -661,7 +661,7 @@ function EducationReminderCompletionManagementContent() {
             }))
           }
           size="small"
-          sx={{ flex: "0 0 100px !important", maxWidth: "100px !important", minWidth: "100px !important", width: "100px !important" }}
+          sx={{ flex: "0 0 100px !important", maxWidth: "120px !important", minWidth: "120px !important", width: "100px !important" }}
           value={filters.scheduledEducationYear}
         />
 

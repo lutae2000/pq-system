@@ -27,9 +27,7 @@ import { EnterpriseDataGrid, type EnterpriseRowActionConfirm } from "@/component
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import {
-  formatPaddedLevel2CodeLabel,
   formatReferenceLabel,
-  toNumericLevel2SelectOptions,
   toSelectOptions,
 } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
@@ -89,7 +87,6 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
   jobField: text(row.jobField) || null,
   participationEndDate: toDateValue(row.participationEndDate),
   participationFieldPosition: text(row.participationFieldPosition) || null,
-  participationGrade: toNullableNumber(row.participationGrade),
   participationStartDate: toDateValue(row.participationStartDate),
   positionAtParticipation: text(row.positionAtParticipation) || null,
   remark: text(row.remark) || null,
@@ -214,17 +211,6 @@ function ParticipationRatioCell({ id, row, getRatio }: {
   return ratio?.toFixed(2) ?? "";
 }
 
-const resolveParticipationGradeValue = (value: string | null, options: CodeOption[]) => {
-  const numericValue = Number(text(value));
-  if (!Number.isFinite(numericValue)) {
-    return null;
-  }
-
-  const matchedOption = options.find((option) => option.value === Math.trunc(numericValue)) ??
-    options.find((option) => option.value === Math.trunc(numericValue / 10));
-  return matchedOption ? Number(matchedOption.value) : null;
-};
-
 export function EngineersTab({ readOnly = false, record, requestConfirmation }: EngineersTabProps) {
   const queryClient = useQueryClient();
   const { canCreate, canDelete, canUpdate } = useCurrentMenuPermission();
@@ -280,7 +266,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" });
   const jobTagReferences = useCommonCodeLevel2Options("CA", { useYn: "Y" });
-  const participationGradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" });
 
   const engineerOptions = useMemo<EngineerAutocompleteOption[]>(
     () =>
@@ -313,11 +298,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   const participationFieldPositionLabelByCode = participationFieldPositionReferences.labelByValue;
   const jobFieldLabelByCode = jobFieldReferences.labelByValue;
   const specialtyFieldLabelByCode = specialtyFieldReferences.labelByValue;
-  const participationGradeOptions = useMemo<CodeOption[]>(
-    () => toNumericLevel2SelectOptions(participationGradeReferences.options),
-    [participationGradeReferences.options],
-  );
-  const participationGradeLabelByCode = participationGradeReferences.labelByValue;
 
   const engineerCandidateById = useMemo(
     () => new Map((engineerProfilesQuery.data ?? []).map((engineer) => [engineer.engineerId, engineer])),
@@ -444,7 +424,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       name: "",
       participationEndDate: toDateValue(record.contractToDate),
       participationFieldPosition: "",
-      participationGrade: null,
       participationStartDate: toDateValue(record.contractFromDate),
       positionAtParticipation: "",
       remark: "",
@@ -466,7 +445,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         departmentAtParticipation: engineer.department,
         jobField: formatReferenceLabel(jobFieldLabelByCode, engineer.dutyPart) || engineer.dutyPart,
         name: engineer.name,
-        participationGrade: resolveParticipationGradeValue(engineer.designGrade, participationGradeOptions),
         positionAtParticipation: engineer.position,
         specialtyField: formatReferenceLabel(specialtyFieldLabelByCode, engineer.proPart) || engineer.proPart,
       };
@@ -477,7 +455,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         ),
       );
     },
-    [engineerCandidateById, jobFieldLabelByCode, participationGradeOptions, specialtyFieldLabelByCode],
+    [engineerCandidateById, jobFieldLabelByCode, specialtyFieldLabelByCode],
   );
 
   const handleRowEditStop: NonNullable<DataGridProps<CompanyPerformanceEngineerRecord>["onRowEditStop"]> = (params, event) => {
@@ -643,20 +621,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         type: "singleSelect",
         valueOptions: yesNoOptions,
       },
-      {
-        field: "participationGrade",
-        headerName: "참여등급",
-        width: 80,
-        align: "center",
-        editable: true,
-        getOptionLabel: (option) => String((option as CodeOption).label ?? option),
-        getOptionValue: (option) => (option as CodeOption).value ?? option,
-        headerAlign: "center",
-        renderCell: (params) => formatPaddedLevel2CodeLabel(participationGradeLabelByCode, params.row.participationGrade) || displayBlank(params.row.participationGrade),
-        type: "singleSelect",
-        valueGetter: (_value, row) => row.participationGrade ?? "",
-        valueOptions: participationGradeOptions,
-      },
       { field: "companyAtParticipation", headerName: "참여당시 회사", width: 150, editable: true, valueGetter: (_value, row) => displayBlank(row.companyAtParticipation) },
       { field: "departmentAtParticipation", headerName: "참여당시 부서", width: 130, editable: true, valueGetter: (_value, row) => displayBlank(row.departmentAtParticipation) },
       { field: "positionAtParticipation", headerName: "참여당시 직위", width: 120, editable: true, valueGetter: (_value, row) => displayBlank(row.positionAtParticipation) },
@@ -751,8 +715,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       jobTagLabelByCode,
       participationFieldPositionLabelByCode,
       participationFieldPositionOptions,
-      participationGradeLabelByCode,
-      participationGradeOptions,
       jobFieldLabelByCode,
       specialtyFieldLabelByCode,
       rowModesModel,

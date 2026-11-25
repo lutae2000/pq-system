@@ -6,13 +6,12 @@ import { useState } from "react";
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
-import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
+import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 
 type Props = { columns: GridColDef<EngineerProjectHistoryReviewRecord>[]; loading: boolean; rows: EngineerProjectHistoryReviewRecord[]; gridHeight: number };
 
 export function createEngineerHistoryPerformanceColumns(
   jobClassLabelByCode: Record<string, string>,
-  technicalGradeLabelByCode: Record<string, string>,
 ): GridColDef<EngineerProjectHistoryReviewRecord>[] {
   const formatDate = (value: unknown) => {
     const normalized = String(value ?? "").replace(/\D/g, "").slice(0, 8);
@@ -26,7 +25,6 @@ export function createEngineerHistoryPerformanceColumns(
     { field: "startDate", headerName: "참여시작", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "endDate", headerName: "참여종료", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "jobClass", headerName: "참여분야직무", width: 120, valueFormatter: (value) => formatReferenceLabel(jobClassLabelByCode, value), align: "center", headerAlign: "center" },
-    { field: "engLevel", headerName: "등급", width: 80, align: "center", headerAlign: "center", valueFormatter: (value) => formatPaddedLevel2CodeLabel(technicalGradeLabelByCode, value) },
     { field: "compName", headerName: "참여회사", width: 150, align: "center", headerAlign: "center" },
     { field: "deptName", headerName: "참여부서", width: 130, align: "center", headerAlign: "center" },
     { field: "grade", headerName: "참여직급", width: 100, align: "center", headerAlign: "center" },

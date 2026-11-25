@@ -57,6 +57,6 @@ class CompanyPerformanceEngineerQueryServiceTest {
     private CompanyPerformanceEngineerCommand command(Long contractPeriodId) {
         return new CompanyPerformanceEngineerCommand(
                 "ENG-1", "20260101", "20260401", contractPeriodId,
-                null, null, "Y", "Y", null, null, null, null, null, null, null, null);
+                null, null, "Y", "Y", null, null, null, null, null, null, null);
     }
 }

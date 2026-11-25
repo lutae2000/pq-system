@@ -82,7 +82,6 @@ public class CompanyPerformanceEngineerQueryService implements CompanyPerformanc
         trimToNull(r.participationFieldPosition()),
         yn(r.actualParticipationYn()),
         yn(r.reportYn()),
-        r.participationGrade(),
         trimToNull(r.companyAtParticipation()),
         trimToNull(r.departmentAtParticipation()),
         trimToNull(r.positionAtParticipation()),

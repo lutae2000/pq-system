@@ -64,7 +64,6 @@ export type BackendEngineerCareerDetail = {
   participationContractPeriod?: CareerDetailRecord["participationContractPeriod"];
   deptName: string | null;
   duty: string | null;
-  engLevel: number | null;
   engrId: string;
   endDt: string | null;
   grade: string | null;
@@ -352,7 +351,6 @@ function mapProfile(profile: BackendEngineerProfile): EngineerProfileView {
       participationContractPeriod: item.participationContractPeriod ?? null,
       deptName: text(item.deptName),
       duty: text(item.duty),
-      engLevel: item.engLevel,
       endDate: text(item.endDt),
       grade: text(item.grade),
       id: item.recordId != null ? String(item.recordId) : `PC-${String(item.seq ?? 0).padStart(3, "0")}`,
@@ -502,7 +500,6 @@ function mapCareerDetailRowsToRequest(engrId: string, rows: EngineerProfileView[
     compName: row.compName || null,
     deptName: row.deptName || null,
     duty: row.duty || null,
-    engLevel: row.engLevel,
     engrId,
     endDt: normalizeRequestDate(row.endDate),
     grade: row.grade || null,

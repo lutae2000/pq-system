@@ -5,8 +5,8 @@ import type { GridColDef, GridRowParams } from "@mui/x-data-grid";
 import { useMemo, useState } from "react";
 
 import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
-import { formatPaddedLevel2CodeLabel, formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
-import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
+import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
 import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { CareerDetailRecord } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
@@ -31,10 +31,8 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
   const rows = useMemo(() => performanceRefs, [performanceRefs]);
 
   const jobClassOptionsQuery = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" }, { enabled: canRead });
-  const technicalGradeOptionsQuery = useCommonCodeLevel2Options("52", { useYn: "Y" }, { enabled: canRead });
 
   const jobClassLabelByCode = jobClassOptionsQuery.labelByValue;
-  const technicalGradeLabelByCode = technicalGradeOptionsQuery.labelByValue;
 
   const columns = useMemo<GridColDef<CareerDetailRecord>[]>(
     () => {
@@ -68,14 +66,6 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         width: 120,
         valueFormatter: (value) => formatReferenceLabel(jobClassLabelByCode, value),
       },
-      {
-        field: "engLevel",
-        headerName: "등급",
-        width: 80,
-        align: "right",
-        headerAlign: "right",
-        valueFormatter: (value) => value == null ? "" : formatPaddedLevel2CodeLabel(technicalGradeLabelByCode, value),
-      },
       { field: "compName", headerName: "참여회사", width: 150, align: "center", headerAlign: "center"},
       { field: "deptName", headerName: "참여부서", width: 130, align: "center", headerAlign: "center" },
       { field: "grade", headerName: "참여직급", width: 100, headerAlign: "center" },
@@ -94,7 +84,7 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
           : { ...column, align: "center", headerAlign: "center" },
       );
     },
-    [jobClassLabelByCode, technicalGradeLabelByCode],
+    [jobClassLabelByCode],
   );
 
   if (!canRead) {

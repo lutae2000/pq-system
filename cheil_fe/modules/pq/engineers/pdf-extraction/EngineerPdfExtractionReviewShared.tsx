@@ -118,7 +118,6 @@ const sectionColumns: Record<
     { field: "jobclass", headerName: "책임정도", minWidth: 160 },
     { field: "jobpart", headerName: "직무분야", minWidth: 70 },
     { field: "propart", headerName: "전문분야", minWidth: 130 },
-    { field: "englevel", headerName: "등급", minWidth: 70 },
     { field: "compname", headerName: "참여회사", minWidth: 170 },
     { field: "deptname", headerName: "참여부서", minWidth: 140 },
     { field: "grade", headerName: "참여직급", minWidth: 110 },

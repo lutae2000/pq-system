@@ -1,6 +1,6 @@
 import type { EngineerProfile } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
-import { formatPaddedLevel2CodeLabel } from "@/modules/common/reference/referenceFormat";
+import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { formatLocalizedNumber } from "@/modules/common/formatters";
 
 type ReviewResultsByEngineer = {
@@ -54,11 +54,11 @@ const createUniqueSheetName = (name: string, usedNames: Set<string>) => {
   return sheetName;
 };
 
-const toReviewExportRow = (row: EngineerProjectHistoryReviewRecord, engLevelLabelByCode: Record<string, string>) => [
+const toReviewExportRow = (row: EngineerProjectHistoryReviewRecord, jobClassLabelByCode: Record<string, string>) => [
   row.displayOrder ?? "",
   text(row.jobName),
   text(row.compName),
-  formatPaddedLevel2CodeLabel(engLevelLabelByCode, row.engLevel),
+  formatReferenceLabel(jobClassLabelByCode, row.jobClass),
   text(row.grade),
   text(row.orderClient),
   formatLocalizedNumber(row.contractAmt, { emptyValue: "-" }),
@@ -77,12 +77,12 @@ export async function downloadEngineerPerformanceReviewWorkbook({
   profiles,
   projectName,
   reviewResultsByEngineer,
-  engLevelLabelByCode,
+  jobClassLabelByCode,
 }: {
   profiles: EngineerProfile[];
   projectName: string;
   reviewResultsByEngineer: ReviewResultsByEngineer[];
-  engLevelLabelByCode: Record<string, string>;
+  jobClassLabelByCode: Record<string, string>;
 }) {
   const { Workbook } = await import("exceljs-community/dist/exceljs.min.js");
   const workbook = new Workbook();
@@ -92,7 +92,7 @@ export async function downloadEngineerPerformanceReviewWorkbook({
     const results = reviewResultsByEngineer.find((item) => item.engineerId === profile.summary.id)?.results ?? [];
     const sheetName = createUniqueSheetName(profile.summary.name, usedSheetNames);
     const worksheet = workbook.addWorksheet(sheetName);
-    worksheet.addRows([reviewHeaders, ...results.map((row) => toReviewExportRow(row, engLevelLabelByCode))]);
+    worksheet.addRows([reviewHeaders, ...results.map((row) => toReviewExportRow(row, jobClassLabelByCode))]);
   }
 
   const fileData = await workbook.xlsx.writeBuffer();

@@ -31,7 +31,6 @@ public record EngineerProjectHistoryReviewResponse(
         String jobTag,
         String jobPart,
         String proPart,
-        String engLevel,
         String compName,
         String deptName,
         String grade,

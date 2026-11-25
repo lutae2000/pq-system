@@ -89,7 +89,6 @@ export type CompanyPerformanceEngineerRecord = {
   participationFieldPosition: string | null;
   actualParticipationYn: string | null;
   reportYn: string | null;
-  participationGrade: number | null;
   companyAtParticipation: string | null;
   departmentAtParticipation: string | null;
   positionAtParticipation: string | null;

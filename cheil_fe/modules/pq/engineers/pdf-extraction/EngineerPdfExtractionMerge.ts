@@ -21,7 +21,7 @@ const sectionFields: Record<string, string[]> = {
   career: ["entrydt", "retiredt", "compname"],
   education: ["graduation_date", "schname", "major", "career", "valid_major_yn"],
   licenses: ["date_of_issue", "license_code", "license_no"],
-  projectHistories: ["seq", "jobname", "startdt", "enddt", "jobclass", "jobpart", "propart", "englevel", "compname", "deptname", "grade", "duty", "returnyn", "joinyn", "remark"],
+  projectHistories: ["seq", "jobname", "startdt", "enddt", "jobclass", "jobpart", "propart", "compname", "deptname", "grade", "duty", "returnyn", "joinyn", "remark"],
   training: ["startdt", "enddt", "eduname", "organname"],
 };
 
@@ -136,7 +136,6 @@ function existingRows(
       jobclass: item.jobClass,
       jobpart: item.jobPart,
       propart: item.proPart,
-      englevel: item.engLevel == null ? "" : String(item.engLevel),
       compname: item.compName,
       deptname: item.deptName,
       grade: item.grade,

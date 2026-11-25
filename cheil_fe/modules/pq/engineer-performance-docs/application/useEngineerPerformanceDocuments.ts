@@ -29,7 +29,7 @@ type UseEngineerPerformanceDocumentsParams = {
   canCreate: boolean;
   canDelete: boolean;
   canUpdate: boolean;
-  engLevelLabelByCode: Record<string, string>;
+  jobClassLabelByCode: Record<string, string>;
   getSortedReviewRows: () => EngineerProjectHistoryReviewRecord[];
   onActiveEngineerDeleted: () => void;
   onReviewSelectionCleared: () => void;
@@ -67,7 +67,7 @@ export function useEngineerPerformanceDocuments({
   canCreate,
   canDelete,
   canUpdate,
-  engLevelLabelByCode,
+  jobClassLabelByCode,
   getSortedReviewRows,
   onActiveEngineerDeleted,
   onReviewSelectionCleared,
@@ -117,7 +117,7 @@ export function useEngineerPerformanceDocuments({
         profiles: detailedProfiles,
         projectName,
         reviewResultsByEngineer,
-        engLevelLabelByCode,
+        jobClassLabelByCode,
       });
     },
     onError: (error) => showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀 다운로드에 실패했습니다."),

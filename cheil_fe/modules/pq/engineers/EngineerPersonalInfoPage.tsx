@@ -377,13 +377,6 @@ function isTemporaryRecordId(id: unknown) {
   return String(id ?? "").startsWith("tmp-");
 }
 
-function parseNullableEngLevel(value: string | undefined): number | null {
-  const normalized = value?.trim();
-  if (!normalized) return null;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function createAttachmentItems(files: File[]): AttachmentItem[] {
   return files.map((file, index) => ({
     id: `${file.name}-${file.lastModified}-${index}`,
@@ -983,7 +976,6 @@ export function EngineerPersonalInfoPage() {
         compName: values.compname ?? "",
         deptName: values.deptname ?? "",
         duty: values.duty ?? "",
-        engLevel: parseNullableEngLevel(values.englevel),
         endDate: formatDate8(values.enddt),
         grade: values.grade ?? "",
         id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,
@@ -1081,7 +1073,6 @@ export function EngineerPersonalInfoPage() {
         compName: values.compname ?? "",
         deptName: values.deptname ?? "",
         duty: values.duty ?? "",
-        engLevel: parseNullableEngLevel(values.englevel),
         endDate: formatDate8(values.enddt),
         grade: values.grade ?? "",
         id: values[PDF_RECORD_ID_FIELD] || `tmp-pdf-project-history-${index + 1}`,

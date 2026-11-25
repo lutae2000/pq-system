@@ -44,7 +44,7 @@ import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermis
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { formatLocalizedNumber } from "@/modules/common/formatters";
-import { useCommonCodeLevel2Options, useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
+import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
@@ -191,7 +191,6 @@ export function EngineerPerformanceDocumentsPage() {
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" }, { enabled: canRead });
   const jobClassReferences = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" }, { enabled: canRead });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" }, { enabled: canRead });
-  const engLevelReferences = useCommonCodeLevel2Options("51", { useYn: "Y" }, { enabled: canRead });
 
   const {
     activeEngineerProfileQuery,
@@ -354,7 +353,6 @@ export function EngineerPerformanceDocumentsPage() {
   const labelByJobField = jobFieldReferences.labelByValue;
   const labelByJobClass = jobClassReferences.labelByValue;
   const labelBySpecialtyField = specialtyFieldReferences.labelByValue;
-  const labelByEngLevel = engLevelReferences.labelByValue;
 
   const documentActions = useEngineerPerformanceDocuments({
     activeEngineerId,
@@ -362,7 +360,7 @@ export function EngineerPerformanceDocumentsPage() {
     canCreate,
     canDelete,
     canUpdate,
-    engLevelLabelByCode: labelByEngLevel,
+    jobClassLabelByCode: labelByJobClass,
     getSortedReviewRows: () => (reviewGridApiRef.current?.getSortedRows() ?? []) as EngineerProjectHistoryReviewRecord[],
     onActiveEngineerDeleted: () => setActiveEngineerId(""),
     onReviewSelectionCleared: () => setSelectedHistoryIds([]),

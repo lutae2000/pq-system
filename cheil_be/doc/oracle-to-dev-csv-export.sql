@@ -64,7 +64,7 @@ ORDER BY ids.engr_id, c.STARTDT, c.EDUNAME;
 WITH ids AS (SELECT RESIDENTNO, TO_CHAR(ROW_NUMBER() OVER (ORDER BY RESIDENTNO)) engr_id FROM PQ_ENGR_BASIC)
 SELECT ids.engr_id, c.SEQ seq, c.STARTDT startdt, c.ENDDT enddt,
        c.JOBCLASS jobclass, c.JOBTAG jobtag, c.JOBPART jobpart,
-       c.PROPART propart, c.ENGLEVEL englevel, c.COMPNAME compname,
+       c.PROPART propart, c.COMPNAME compname,
        c.DEPTNAME deptname, c.GRADE grade, c.DUTY duty, c.RETURNYN returnyn,
        c.JOINYN joinyn, c.REMARK remark
 FROM PQ_ENGR_CAREERDETAIL c JOIN ids ON ids.RESIDENTNO=c.RESIDENTNO

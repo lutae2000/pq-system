@@ -119,7 +119,6 @@ export type CareerDetailRecord = {
   participationContractPeriod?: ParticipationContractPeriod | null;
   deptName: string;
   duty: string;
-  engLevel: number | null;
   endDate: string;
   grade: string;
   id: string;

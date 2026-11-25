@@ -599,7 +599,7 @@ export function RelatedProjectHistoryConditionDialog({
                     </Typography>
                   </Box>
                 ) : (
-                  normalizedDraft.map((condition, index) => {
+                  normalizedDraft.map((condition) => {
                     const valueType = conditionValueType(condition);
                     const availableOperators = operatorsByValueType[valueType];
                     const operator = condition.operator ?? defaultOperator(valueType);
@@ -642,26 +642,14 @@ export function RelatedProjectHistoryConditionDialog({
                           sx={{
                             display: "grid",
                             gap: 0.75,
-                            gridTemplateColumns: needsValueInput(condition) ? { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } : { xs: "1fr", sm: "150px 1fr" },
+                            gridTemplateColumns: needsValueInput(condition)
+                              ? operator === "BETWEEN"
+                                ? { xs: "1fr", sm: "repeat(4, minmax(0, 1fr))" }
+                                : { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }
+                              : "1fr",
                             mt: 1,
                           }}
                         >
-                          <TextField
-                            disabled={disabled || index === 0}
-                            label="논리연산자"
-                            onChange={(event) =>
-                              updateCondition(condition.id, {
-                                logicalOperator: event.target.value as "AND" | "OR",
-                              })
-                            }
-                            select
-                            size="small"
-                            sx={standardFieldSx}
-                            value={index === 0 ? "AND" : condition.logicalOperator ?? "AND"}
-                          >
-                            <MenuItem value="AND">AND</MenuItem>
-                            <MenuItem value="OR">OR</MenuItem>
-                          </TextField>
                           {needsValueInput(condition) ? (
                             <TextField
                               disabled={disabled}

@@ -28,7 +28,7 @@ class CompanyPerformanceEngineerRepositoryAdapterTest {
         when(statement.query(Long.class)).thenReturn(inserted);
         when(inserted.single()).thenReturn(41L);
         var command = new CompanyPerformanceEngineerCommand(
-                "ENG-1", null, null, 12L, "CAA", null, null, null, null, null, null, null, null, null, null, null);
+                "ENG-1", null, null, 12L, "CAA", null, null, null, null, null, null, null, null, null, null);
 
         assertThat(repository.create(3L, command)).isEqualTo(41L);
         verify(statement).param("contractPeriodId", 12L);
