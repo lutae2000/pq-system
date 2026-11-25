@@ -599,7 +599,7 @@ export function RelatedProjectHistoryConditionDialog({
                     </Typography>
                   </Box>
                 ) : (
-                  normalizedDraft.map((condition) => {
+                  normalizedDraft.map((condition, index) => {
                     const valueType = conditionValueType(condition);
                     const availableOperators = operatorsByValueType[valueType];
                     const operator = condition.operator ?? defaultOperator(valueType);
@@ -644,33 +644,28 @@ export function RelatedProjectHistoryConditionDialog({
                             gap: 0.75,
                             gridTemplateColumns: needsValueInput(condition)
                               ? operator === "BETWEEN"
-                                ? { xs: "1fr", sm: "repeat(4, minmax(0, 1fr))" }
-                                : { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" }
-                              : "1fr",
+                                ? { xs: "1fr", sm: "minmax(90px, 0.65fr) repeat(2, minmax(0, 1.35fr)) minmax(90px, 0.65fr)" }
+                                : { xs: "1fr", sm: "minmax(90px, 0.65fr) minmax(0, 1.7fr) minmax(90px, 0.65fr)" }
+                              : { xs: "1fr", sm: "150px" },
                             mt: 1,
                           }}
                         >
-                          {needsValueInput(condition) ? (
-                            <TextField
-                              disabled={disabled}
-                              label="연산자"
-                              onChange={(event) =>
-                                updateCondition(condition.id, {
-                                  operator: event.target.value as PqParticipatingEngineerProjectHistoryConditionOperator,
-                                })
-                              }
-                              select
-                              size="small"
-                              sx={standardFieldSx}
-                              value={operator}
-                            >
-                              {availableOperators.map((item) => (
-                                <MenuItem key={item} value={item}>
-                                  {operatorLabels[item]}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          ) : null}
+                          <TextField
+                            disabled={disabled || index === 0}
+                            label="논리연산자"
+                            onChange={(event) =>
+                              updateCondition(condition.id, {
+                                logicalOperator: event.target.value as "AND" | "OR",
+                              })
+                            }
+                            select
+                            size="small"
+                            sx={standardFieldSx}
+                            value={index === 0 ? "AND" : condition.logicalOperator ?? "AND"}
+                          >
+                            <MenuItem value="AND">AND</MenuItem>
+                            <MenuItem value="OR">OR</MenuItem>
+                          </TextField>
                           {needsValueInput(condition) && hasValueOptions ? (
                             <Autocomplete<ConditionValueOption, false, false, false>
                               disabled={disabled}
@@ -728,6 +723,27 @@ export function RelatedProjectHistoryConditionDialog({
                               type={valueType === "number" ? "number" : "text"}
                               value={condition.valueTo ?? ""}
                             />
+                          ) : null}
+                          {needsValueInput(condition) ? (
+                            <TextField
+                              disabled={disabled}
+                              label="연산자"
+                              onChange={(event) =>
+                                updateCondition(condition.id, {
+                                  operator: event.target.value as PqParticipatingEngineerProjectHistoryConditionOperator,
+                                })
+                              }
+                              select
+                              size="small"
+                              sx={standardFieldSx}
+                              value={operator}
+                            >
+                              {availableOperators.map((item) => (
+                                <MenuItem key={item} value={item}>
+                                  {operatorLabels[item]}
+                                </MenuItem>
+                              ))}
+                            </TextField>
                           ) : null}
                         </Box>
                       </Box>
