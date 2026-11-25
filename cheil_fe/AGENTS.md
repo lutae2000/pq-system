@@ -178,6 +178,9 @@ modules/<area>/<feature>/
 ## 화면 공통 요소 선택 기준
 
 - 날짜 입력의 내부 값이 `YYYYMMDD`인 화면은 `modules/common/formatters.ts`의 `toCompactDate`와 `toDateInputValue`를 사용한다. 숫자 이외의 문자가 섞인 기존 날짜·일시 문자열은 `toDateInputValueFromDigits`로 표시한다. 업무별 날짜 유효성 검사와 기간 계산은 해당 모듈에 둔다.
+- 신규 날짜·월·연도 입력에는 `components/common/DateTimeInput.tsx`의 `DateInput`을 우선 사용한다. `mode="date"`, `mode="month"`, `mode="year"`로 형식을 지정하고, `value`는 제어된 상태로 전달한다. 값은 유효해지면 `YYYY-MM-DD`, `YYYY-MM`, `YYYY` 형식으로 `onChange`에 전달된다. 불완전하거나 잘못된 입력은 컴포넌트 내부 초안으로 유지하고 기존 확정값을 보존한다. 저장 전에 화면 상태에 남아 있는 입력을 검증한다.
+- 날짜와 시각 입력에는 같은 파일의 `DateTimeInput`을 사용하고 `mode="date-time"`으로 지정한다. `YYYY-MM-DD HH:mm` 표시를 제공하며, `min`과 `max`로 허용 범위를 지정할 수 있다. 날짜만 받는 API 값은 `toCompactDate`, 날짜와 시각은 유스케이스에 맞는 포매터로 명시적으로 변환한다.
+- 시작일과 종료일을 함께 입력할 때는 `DateRangeField`, 기간 종류와 시작·종료일을 함께 입력할 때는 `PeriodRangeField`를 우선 검토한다. DataGrid 편집 셀에서는 `GridDateEditInput`을 사용해 달력 입력과 행 편집 동작을 일관되게 유지한다. 기존 `DateTimeInput`은 날짜와 시각 입력이 함께 필요한 화면에 사용한다.
 - 사용자에게 보이는 오늘 날짜와 로컬 일시는 `todayLocalDate`와 `localDateTimeText`를 사용한다. `toISOString().slice(...)`는 UTC 날짜를 만들므로 한국 시간의 오늘·게시 시각·기본 조회기간에 사용하지 않는다.
 - 금액 입력은 `components/common/MoneyInputField.tsx`를 우선 사용한다. DB/API의 미입력 값이 `null`인지 `0`인지 확인하고 `onChange`에서 명시적으로 변환한다. 읽기 전용 상태를 포커스 가능하게 유지할지, `disabled`로 처리할지도 화면별로 지정한다.
 - 테두리와 제목 헤더가 있는 상세 카드에는 `DetailSectionCard`를, 제목·설명·필드 그리드가 필요한 섹션에는 `DetailFormSection`을 사용한다. 기존 화면을 전환할 때 제목 우측 액션, 본문 여백, 높이 계산을 함께 확인한다.

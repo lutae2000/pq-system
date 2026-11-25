@@ -78,7 +78,7 @@ public class CompanyPerformanceEngineerQueryService implements CompanyPerformanc
         date(r.participationStartDate()),
         date(r.participationEndDate()),
         contractPeriodId,
-        trimToNull(r.category()),
+        trimToNull(r.jobTag()),
         trimToNull(r.participationFieldPosition()),
         yn(r.actualParticipationYn()),
         yn(r.reportYn()),

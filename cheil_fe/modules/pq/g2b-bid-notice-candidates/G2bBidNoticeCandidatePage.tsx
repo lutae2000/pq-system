@@ -13,7 +13,6 @@ import { DEFAULT_GRID_PAGE_SIZE } from "@/components/common/EnterpriseDataGrid";
 import { NotificationPreferenceButton } from "@/components/common/NotificationPreferenceButton";
 import { SearchPanel } from "@/components/common/SearchPanel";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
-import { readAuthSession } from "@/lib/auth/authSession";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
@@ -434,7 +433,6 @@ export function G2bBidNoticeCandidatePage() {
       businessField: detailRecord.pubPrcrmntClsfcNm,
       orderMethod: detailRecord.cntrctCnclsMthdNm,
     });
-    const session = readAuthSession();
     const candidateDraft = toCandidateBidNoticeDraft(detailRecord);
     const [existingRecord, existingAttachments] = await Promise.all([
       detailRecord.importedBidSeq ? getBidNotice(detailRecord.importedBidSeq) : Promise.resolve(null),
@@ -477,8 +475,6 @@ export function G2bBidNoticeCandidatePage() {
     setInputDraft({
       ...mergedDraft,
       seqNo: existingRecord?.bidSeq ?? 0,
-      department: baseDraft.department || session?.deptCode || "",
-      writerName: baseDraft.writerName || session?.employeeNo || "",
     });
     setDetailRecord(null);
   };
@@ -506,7 +502,7 @@ export function G2bBidNoticeCandidatePage() {
       <SearchPanel
         keyword={draftFilters.bidNtceNo}
         keywordLabel="입찰공고번호"
-        keywordPlaceholder="입찰공고번호를 입력하세요"
+        keywordPlaceholder="입찰공고번호를 입력"
         localKeyword={false}
         onKeywordChange={(value) => updateFilter("bidNtceNo", value)}
         onReset={handleReset}

@@ -130,7 +130,7 @@ const selectedRowModel = (codeId: number | null) => ({
 export function CommonCodeManagementPage() {
   const { canCreate, canDelete, canRead, canUpdate } = useCurrentMenuPermission();
   const tabQueryEnabled = useTabQueryEnabled(canRead);
- const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
+  const [filters, setFilters] = useState<FilterState>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(() => emptyFilters());
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedCodeId, setSelectedCodeId] = useState<number | null>(null);
@@ -154,19 +154,22 @@ export function CommonCodeManagementPage() {
     onSaved: (saved) => { setSelectedCodeId(saved.codeId); setSelectedLevel1Code(displayLevel1Code(saved)); setSelectedLevel2Code(saved.codeLevel >= 2 ? saved.level2Code : ""); setIsCreating(false); setDraft(toDraft(saved)); showSuccess("공통코드를 저장했습니다."); },
   });
   const records = useMemo(() => sortCommonCodes(commonCodesQuery.data ?? []), [commonCodesQuery.data]);
+  const hasSearchFilters = Boolean(appliedFilters.keyword) || appliedFilters.codeLevel !== "All" || appliedFilters.useYn !== "All";
   const level1Rows = useMemo(() => records.filter((item) => item.codeLevel === 1), [records]);
   const activeLevel1Code = selectedLevel1Code || (level1Rows[0] ? displayLevel1Code(level1Rows[0]) : "");
   const level2Rows = useMemo(
-    () => records.filter((item) => item.codeLevel === 2 && item.level1Code === activeLevel1Code),
-    [activeLevel1Code, records],
+    () => records.filter((item) => item.codeLevel === 2 && (hasSearchFilters || item.level1Code === activeLevel1Code)),
+    [activeLevel1Code, hasSearchFilters, records],
   );
-  const activeLevel2Code = selectedLevel2Code || level2Rows[0]?.level2Code || "";
+  const activeLevel2Code = selectedLevel2Code || level2Rows.find((item) => item.level1Code === activeLevel1Code)?.level2Code || "";
   const level3Rows = useMemo(
     () =>
       records.filter(
-        (item) => item.codeLevel === 3 && item.level1Code === activeLevel1Code && item.level2Code === activeLevel2Code,
+        (item) =>
+          item.codeLevel === 3 &&
+          (hasSearchFilters || (item.level1Code === activeLevel1Code && item.level2Code === activeLevel2Code)),
       ),
-    [activeLevel1Code, activeLevel2Code, records],
+    [activeLevel1Code, activeLevel2Code, hasSearchFilters, records],
   );
 
   const selectedRecord = useMemo(
@@ -186,7 +189,8 @@ export function CommonCodeManagementPage() {
   }, [displayRecord, draft, isCreating, selectedRecord]);
 
   const selectedLevel1Record = level1Rows.find((item) => displayLevel1Code(item) === activeLevel1Code) ?? null;
-  const selectedLevel2Record = level2Rows.find((item) => item.level2Code === activeLevel2Code) ?? null;
+  const selectedLevel2Record =
+    level2Rows.find((item) => item.level1Code === activeLevel1Code && item.level2Code === activeLevel2Code) ?? null;
   const selectedLevel3Record = selectedRecord?.codeLevel === 3 ? selectedRecord : null;
   const canSaveCurrent = isCreating ? canCreate : canUpdate;
 
@@ -353,7 +357,7 @@ export function CommonCodeManagementPage() {
 
       <SearchPanel
         keyword={searchKeyword}
-        keywordPlaceholder="코드, 코드명, 참조값, 비고 검색"
+        keywordPlaceholder="코드, 코드명, 상세 코드명, 참조값, 비고 검색"
         onKeywordChange={setSearchKeyword}
         onReset={handleResetSearch}
         onSearch={handleSearch}
@@ -408,7 +412,7 @@ export function CommonCodeManagementPage() {
                 },
                 {
                   title: "2레벨",
-                  subtitle: selectedLevel1Record ? selectedLevel1Record.codeName : "1레벨을 선택하세요",
+                  subtitle: hasSearchFilters ? "검색 결과" : (selectedLevel1Record?.codeName ?? "1레벨을 선택하세요"),
                   rows: level2Rows,
                   columns: level2Columns,
                   selectedId: selectedLevel2Record?.codeId ?? null,
@@ -416,7 +420,7 @@ export function CommonCodeManagementPage() {
                 },
                 {
                   title: "3레벨",
-                  subtitle: selectedLevel2Record ? selectedLevel2Record.codeName : "2레벨을 선택하세요",
+                  subtitle: hasSearchFilters ? "검색 결과" : (selectedLevel2Record?.codeName ?? "2레벨을 선택하세요"),
                   rows: level3Rows,
                   columns: level3Columns,
                   selectedId: selectedLevel3Record?.codeId ?? null,

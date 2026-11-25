@@ -70,10 +70,17 @@ const formatEngineerDate = (value: string | null | undefined) => {
 
 const toDateValue = (value: string | null | undefined) => text(value).replaceAll("-", "").slice(0, 8) || null;
 
+// 기존 이력의 jobtag 숫자값은 이관 SQL의 CA 코드에 대응한다.
+const legacyJobTagCodes = new Map([["1", "CAA"], ["2", "CAH"], ["3", "CAI"]]);
+
+const toJobTagCode = (value: string | null | undefined) => {
+  const jobTag = text(value);
+  return legacyJobTagCodes.get(jobTag) ?? jobTag;
+};
 
 const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerformanceEngineerRequest => ({
   actualParticipationYn: text(row.actualParticipationYn).toUpperCase() === "Y" ? "Y" : "N",
-  category: text(row.category) || null,
+  jobTag: text(row.jobTag) || null,
   companyAtParticipation: text(row.companyAtParticipation) || null,
   contractPeriodId: row.contractPeriodId ?? null,
   departmentAtParticipation: text(row.departmentAtParticipation) || null,
@@ -272,7 +279,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
   const participationFieldPositionReferences = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" });
   const jobFieldReferences = useCommonCodeLevel3Options("PQ", "QA", { useYn: "Y" });
   const specialtyFieldReferences = useCommonCodeLevel3Options("PQ", "PA", { useYn: "Y" });
-  const categoryReferences = useCommonCodeLevel2Options("CA", { useYn: "Y" });
+  const jobTagReferences = useCommonCodeLevel2Options("CA", { useYn: "Y" });
   const participationGradeReferences = useCommonCodeLevel2Options("52", { useYn: "Y" });
 
   const engineerOptions = useMemo<EngineerAutocompleteOption[]>(
@@ -297,8 +304,8 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     [engineerProfilesQuery.data],
   );
 
-  const categoryOptions = useMemo<CodeOption[]>(() => toSelectOptions(categoryReferences.options), [categoryReferences.options]);
-  const categoryLabelByCode = categoryReferences.labelByValue;
+  const jobTagOptions = useMemo<CodeOption[]>(() => toSelectOptions(jobTagReferences.options), [jobTagReferences.options]);
+  const jobTagLabelByCode = jobTagReferences.labelByValue;
   const participationFieldPositionOptions = useMemo<CodeOption[]>(
     () => toSelectOptions(participationFieldPositionReferences.options),
     [participationFieldPositionReferences.options],
@@ -425,7 +432,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     const id = tempId();
     const newRow: CompanyPerformanceEngineerRecord = {
       actualParticipationYn: "Y",
-      category: "",
+      jobTag: "",
       companyAtParticipation: "(주)제일엔지니어링종합건축사사무소",
       contractPeriodId: null,
       departmentAtParticipation: "",
@@ -586,16 +593,18 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         renderCell: ({ formattedValue, value }) => value ? formattedValue : "",
       },
       {
-        field: "category",
-        headerName: "구분",
+        field: "jobTag",
+        headerName: "역할",
         width: 90,
         editable: true,
         type: "singleSelect",
         getOptionLabel: (option) => String((option as CodeOption).label ?? option),
         getOptionValue: (option) => (option as CodeOption).value ?? option,
-        renderCell: (params) => formatReferenceLabel(categoryLabelByCode, params.row.category) || displayBlank(params.row.category),
-        valueGetter: (_value, row) => displayBlank(row.category),
-        valueOptions: categoryOptions,
+        renderCell: ({ row }) => jobTagLabelByCode[toJobTagCode(row.jobTag)] ?? displayBlank(row.jobTag),
+        valueGetter: (_value, row) => toJobTagCode(row.jobTag),
+        valueSetter: (value: string, row) =>
+          value === toJobTagCode(row.jobTag) ? row : { ...row, jobTag: value },
+        valueOptions: jobTagOptions,
       },
       {
         field: "participationFieldPosition",
@@ -738,8 +747,8 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       engineerOptions,
       engineerProfilesQuery.isFetching,
       getParticipationRatio,
-      categoryOptions,
-      categoryLabelByCode,
+      jobTagOptions,
+      jobTagLabelByCode,
       participationFieldPositionLabelByCode,
       participationFieldPositionOptions,
       participationGradeLabelByCode,

@@ -144,7 +144,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
         params.put("endDt", digits(request.participationEndDate()));
         params.put("contractPeriodId", request.contractPeriodId());
         params.put("jobClass", request.participationFieldPosition());
-        params.put("jobTag", request.category());
+        params.put("jobTag", request.jobTag());
         params.put("joinYn", request.actualParticipationYn());
         params.put("returnYn", request.reportYn());
         params.put("engLevel", request.participationGrade());
