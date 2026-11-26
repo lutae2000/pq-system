@@ -83,7 +83,6 @@ export type CompanyPerformanceEngineerRecord = {
   name: string | null;
   participationStartDate: string | null;
   participationEndDate: string | null;
-  contractPeriodId: number | null;
   /** pq_engineer_project_history.jobtag */
   jobTag: string | null;
   participationFieldPosition: string | null;
@@ -225,13 +224,13 @@ export async function addCompanyPerformanceDocumentTargets(request: { bidSeq: nu
   );
 }
 
-export async function addCompanyPerformanceDocumentTargetsByConditions(request: {
+export async function replaceCompanyPerformanceDocumentTargetsByConditions(request: {
   bidSeq: number;
   conditions: unknown[];
 }) {
   return apiRequest(
-    apiClient.post<CompanyPerformanceDocumentTarget[]>("/pq/company-performance-document-targets/conditions", request),
-    "조건에 맞는 회사실적을 추가하지 못했습니다.",
+    apiClient.put<void>("/pq/company-performance-document-targets/conditions", request),
+    "조건에 맞는 회사실적으로 교체하지 못했습니다.",
   );
 }
 

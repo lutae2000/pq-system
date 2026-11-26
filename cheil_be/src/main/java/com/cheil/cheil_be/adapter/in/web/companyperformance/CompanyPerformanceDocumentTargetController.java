@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceDocumentTargetService;
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceDocumentTargetsUseCase;
 import com.cheil.cheil_be.application.companyperformance.service.CompanyPerformanceHwpxGenerationService;
 
 /** 회사 실적 문서의 출력 대상과 순서, HWPX 생성을 관리하는 API다. */
@@ -26,24 +26,32 @@ import com.cheil.cheil_be.application.companyperformance.service.CompanyPerforma
 @RequiredArgsConstructor
 public class CompanyPerformanceDocumentTargetController {
 
-    private final CompanyPerformanceDocumentTargetService targetService;
+    private final CompanyPerformanceDocumentTargetsUseCase targetService;
     private final CompanyPerformanceHwpxGenerationService companyPerformanceHwpxGenerationService;
 
     @GetMapping
     public ResponseEntity<List<CompanyPerformanceDocumentTargetResponse>> list(@RequestParam Long bidSeq) {
-        return ResponseEntity.ok(targetService.findByBidSeq(bidSeq));
+        return ResponseEntity.ok(targetService.findByBidSeq(bidSeq).stream().map(CompanyPerformanceDocumentTargetResponse::from).toList());
     }
 
     @PostMapping
     public ResponseEntity<List<CompanyPerformanceDocumentTargetResponse>> add(@RequestBody CompanyPerformanceDocumentTargetRequest request) {
-        return ResponseEntity.ok(targetService.add(request.bidSeq(), request.companyPerformanceSeqs()));
+        return ResponseEntity.ok(targetService.add(request.bidSeq(), request.companyPerformanceSeqs()).stream()
+                .map(CompanyPerformanceDocumentTargetResponse::from).toList());
     }
 
     @PostMapping("/conditions")
     public ResponseEntity<List<CompanyPerformanceDocumentTargetResponse>> addByConditions(
             @RequestBody CompanyPerformanceDocumentTargetConditionRequest request
     ) {
-        return ResponseEntity.ok(targetService.addByConditions(request.bidSeq(), request.conditions()));
+        return ResponseEntity.ok(targetService.addByConditions(request.bidSeq(), request.toQueryConditions()).stream()
+                .map(CompanyPerformanceDocumentTargetResponse::from).toList());
+    }
+
+    @PutMapping("/conditions")
+    public ResponseEntity<Void> replaceByConditions(@RequestBody CompanyPerformanceDocumentTargetConditionRequest request) {
+        targetService.replaceByConditions(request.bidSeq(), request.toQueryConditions());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(value = "/hwpx/generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -67,7 +75,7 @@ public class CompanyPerformanceDocumentTargetController {
             @PathVariable Long targetId,
             @RequestBody CompanyPerformanceDocumentTargetDisplayOrderRequest request
     ) {
-        targetService.updateDisplayOrder(bidSeq, targetId, request);
+        targetService.updateDisplayOrder(bidSeq, targetId, request.displayOrder());
         return ResponseEntity.noContent().build();
     }
 }

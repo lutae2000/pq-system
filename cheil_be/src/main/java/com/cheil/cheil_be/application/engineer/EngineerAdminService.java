@@ -3,12 +3,12 @@ package com.cheil.cheil_be.application.engineer;
 import static com.cheil.cheil_be.application.common.validation.InputValues.validateMaxLength;
 
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
-import com.cheil.cheil_be.application.companyperformance.port.out.ParticipationContractPeriodRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceContractDatesRepository;
 import com.cheil.cheil_be.application.engineer.port.out.EngineerMasterRepository;
 import com.cheil.cheil_be.application.engineer.port.in.EngineerAdminUseCase;
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
-import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +35,7 @@ public class EngineerAdminService implements EngineerAdminUseCase {
     private final EngineerEducationRepository educationRepository;
     private final EngineerProjectHistoryRepository projectHistoryRepository;
     private final CompanyPerformanceRepository companyPerformanceRepository;
-    private final ParticipationContractPeriodRepository participationContractPeriodRepository;
+    private final CompanyPerformanceContractDatesRepository companyPerformanceContractDatesRepository;
     private final EngineerSchoolRepository schoolRepository;
 
     @Transactional(readOnly = true)
@@ -300,13 +300,13 @@ public class EngineerAdminService implements EngineerAdminUseCase {
         Map<Long, CompanyPerformance> projectsById = projectIds.isEmpty() ? Map.of()
                 : companyPerformanceRepository.findByIds(projectIds).stream()
                         .collect(Collectors.toMap(CompanyPerformance::seq, Function.identity()));
-        Map<Long, ParticipationContractPeriod> participationPeriods = participationContractPeriodRepository.findByProjectHistoryIds(
-                histories.stream().map(history -> history.id).toList());
-        return histories.stream()
-                .map(history -> history.toDto(
-                        history.seq == null ? null : projectsById.get(history.seq.longValue()),
-                        participationPeriods.get(history.id)))
-                .toList();
+        Map<Long, List<ContractPeriodDates>> contractDates = projectIds.isEmpty() ? Map.of()
+                : companyPerformanceContractDatesRepository.findContractDatesByPerformanceSeqs(projectIds);
+        return histories.stream().map(history -> {
+            if (history.seq == null) return history.toDto(null, List.of());
+            long seq = history.seq.longValue();
+            return history.toDto(projectsById.get(seq), contractDates.getOrDefault(seq, List.of()));
+        }).toList();
     }
 
     private EngineerDtos.Profile toListProfile(EngineerMasterEntity master) {

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   addCompanyPerformanceDocumentTargets,
-  addCompanyPerformanceDocumentTargetsByConditions,
+  replaceCompanyPerformanceDocumentTargetsByConditions,
   deleteCompanyPerformanceDocumentTarget,
   updateCompanyPerformanceDocumentTargetDisplayOrder,
 } from "@/modules/pq/company-performance/api";
@@ -24,10 +24,10 @@ export function useCompanyPerformanceDocumentsMutations({
     },
     onSuccess: invalidate,
   });
-  const addTargetsByConditionsMutation = useMutation({
-    mutationFn: (request: Parameters<typeof addCompanyPerformanceDocumentTargetsByConditions>[0]) => {
+  const replaceTargetsByConditionsMutation = useMutation({
+    mutationFn: (request: Parameters<typeof replaceCompanyPerformanceDocumentTargetsByConditions>[0]) => {
       if (!canUpdate) throw new Error("조건 적용 회사실적 저장 권한이 없습니다.");
-      return addCompanyPerformanceDocumentTargetsByConditions(request);
+      return replaceCompanyPerformanceDocumentTargetsByConditions(request);
     },
     onSuccess: invalidate,
   });
@@ -46,5 +46,5 @@ export function useCompanyPerformanceDocumentsMutations({
     onSuccess: invalidate,
   });
 
-  return { addTargetsByConditionsMutation, addTargetsMutation, deleteTargetMutation, updateDisplayOrderMutation };
+  return { replaceTargetsByConditionsMutation, addTargetsMutation, deleteTargetMutation, updateDisplayOrderMutation };
 }

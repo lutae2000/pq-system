@@ -54,7 +54,7 @@ export function useSaveRelatedProjectHistoryConditions({ bidSeq, employeeNo }: R
     mutationFn: (conditions: RelatedProjectHistoryCondition[]) => {
       if (!bidSeq) throw new Error("공고문을 먼저 선택해 주세요.");
       const accessToken = requireAccessToken(employeeNo);
-      return saveRelatedProjectHistoryConditions({ accessToken, bidSeq, conditions }).then(withConditionIds);
+      return saveRelatedProjectHistoryConditions({ accessToken, bidSeq, conditions });
     },
     onSuccess: async (conditions) => {
       await queryClient.cancelQueries({ queryKey, exact: true });

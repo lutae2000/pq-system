@@ -4,6 +4,7 @@ package com.cheil.cheil_be.application.relatedprojecthistory.condition;
 public record ProjectHistoryCondition(
         String conditionType,
         String logicalOperator,
+        Integer orGroupStart,
         String label,
         String level1Code,
         String level2Code,

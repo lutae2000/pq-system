@@ -1,0 +1,12 @@
+ALTER TABLE pq_history_settings RENAME TO pq_project_history_search_conditions;
+
+ALTER TABLE pq_project_history_search_conditions
+    RENAME CONSTRAINT uq_pq_history_settings_bid_employee TO uq_pq_project_history_search_conditions_bid_employee;
+ALTER TABLE pq_project_history_search_conditions
+    RENAME CONSTRAINT fk_pq_history_settings_employee TO fk_pq_project_history_search_conditions_employee;
+ALTER TABLE pq_project_history_search_conditions
+    RENAME CONSTRAINT ck_pq_history_settings_employee_required TO ck_pq_project_history_search_conditions_employee_required;
+ALTER TABLE pq_project_history_search_conditions
+    RENAME CONSTRAINT ck_pq_history_settings_company_targets_array TO ck_pq_project_history_search_conditions_company_targets_array;
+
+ALTER INDEX ix_pq_history_settings_employee RENAME TO ix_pq_project_history_search_conditions_employee;

@@ -1,5 +1,9 @@
 package com.cheil.cheil_be.application.pqparticipatingengineer.service;
 
+import com.cheil.cheil_be.application.common.port.out.AuthenticatedAccountPort;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.port.out.BidSelectionLock;
+import com.cheil.cheil_be.application.workoverlap.docs.model.WorkOverlapEngineerSelection;
+import com.cheil.cheil_be.application.workoverlap.docs.port.in.ReplaceWorkOverlapEngineersUseCase;
 import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
 import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
@@ -33,6 +37,9 @@ public class PqParticipatingEngineerQueryService {
 
     private final JdbcClient jdbcClient;
     private final EngineerAdminUseCase engineerAdminService;
+    private final AuthenticatedAccountPort authenticatedAccount;
+    private final ReplaceWorkOverlapEngineersUseCase replaceWorkOverlapEngineers;
+    private final BidSelectionLock selectionLock;
 
     @Transactional(readOnly = true)
     public List<PqParticipatingEngineerResponse> findSelected(Long bidSeq, String workDutyId) {
@@ -267,6 +274,11 @@ public class PqParticipatingEngineerQueryService {
         }
         Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
         String workDutyId = requiredText(request.workDutyId(), "workDutyId");
+        boolean syncWorkOverlap = Boolean.TRUE.equals(request.syncWorkOverlap());
+        if (syncWorkOverlap && authenticatedAccount.authenticatedEmployeeNo().filter(workDutyId::equals).isEmpty()) {
+            throw badRequest("로그인 작업자 정보를 확인할 수 없습니다.");
+        }
+        if (syncWorkOverlap) selectionLock.lock(bidSeq);
 
         jdbcClient.sql("DELETE FROM pq_find_engr_info WHERE bid_seq = :bidSeq AND work_duty_id = :workDutyId")
                 .param("bidSeq", bidSeq)
@@ -284,7 +296,13 @@ public class PqParticipatingEngineerQueryService {
                         }
                     });
         }
-        return findSelected(bidSeq, workDutyId);
+        var selected = findSelected(bidSeq, workDutyId);
+        if (syncWorkOverlap) {
+            replaceWorkOverlapEngineers.replace(bidSeq, workDutyId, selected.stream()
+                    .map(engineer -> new WorkOverlapEngineerSelection(engineer.engrId(), engineer.priority(), null))
+                    .toList());
+        }
+        return selected;
     }
 
     private PqParticipatingEngineerResponse findSelectedOne(Long bidSeq, String workDutyId, String engrId) {

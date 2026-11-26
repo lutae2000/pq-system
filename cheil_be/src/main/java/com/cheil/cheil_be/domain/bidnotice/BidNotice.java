@@ -32,7 +32,6 @@ public record BidNotice(
         String participateYn,
         String businessType,
         LocalDateTime bidSubmissionDate,
-        String processTag,
         LocalDateTime bidClosingDate,
         String fieldOfWorkCode,
         String scopeOfWorkCode,

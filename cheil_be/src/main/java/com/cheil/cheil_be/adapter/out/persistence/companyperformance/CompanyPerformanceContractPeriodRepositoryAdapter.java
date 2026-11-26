@@ -1,8 +1,13 @@
 package com.cheil.cheil_be.adapter.out.persistence.companyperformance;
 
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceContractPeriodRequest;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceContractDatesRepository;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceContractPeriodRepository;
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -10,8 +15,26 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class CompanyPerformanceContractPeriodRepositoryAdapter
-    implements CompanyPerformanceContractPeriodRepository {
+    implements CompanyPerformanceContractPeriodRepository, CompanyPerformanceContractDatesRepository {
   private final JdbcClient jdbcClient;
+
+  @Override
+  public Map<Long, List<ContractPeriodDates>> findContractDatesByPerformanceSeqs(Collection<Long> seqs) {
+    if (seqs.isEmpty()) {
+      return Map.of();
+    }
+
+    return jdbcClient.sql("""
+            SELECT seq, contract_from_date, contract_to_date
+            FROM company_performance_contract_periods
+            WHERE seq IN (:seqs)
+            """)
+        .param("seqs", seqs)
+        .query((rs, rowNum) -> Map.entry(rs.getLong("seq"),
+            new ContractPeriodDates(rs.getString("contract_from_date"), rs.getString("contract_to_date"))))
+        .list().stream()
+        .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+  }
 
   @Override
   public List<Record> findByPerformanceSeq(Long seq) {

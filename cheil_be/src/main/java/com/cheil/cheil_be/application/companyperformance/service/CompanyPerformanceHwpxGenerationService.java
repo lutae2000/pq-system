@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.unauthorized;
+
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceHwpxGenerateRequest;
+import com.cheil.cheil_be.application.common.port.out.AuthenticatedAccountPort;
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
@@ -26,10 +29,13 @@ public class CompanyPerformanceHwpxGenerationService {
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
     private final CompanyPerformanceDocumentTargetRepository targetRepository;
     private final CompanyPerformanceHwpxDataRepository hwpxDataRepository;
+    private final AuthenticatedAccountPort authenticatedAccount;
 
     public byte[] generate(MultipartFile template, CompanyPerformanceHwpxGenerateRequest request) {
         validate(template, request);
-        Map<Long, Integer> displayOrders = targetRepository.findByBidSeq(request.bidSeq()).stream()
+        String employeeNo = authenticatedAccount.authenticatedEmployeeNo()
+                .orElseThrow(() -> unauthorized("로그인한 계정으로 회사실적 문서를 생성할 수 있습니다."));
+        Map<Long, Integer> displayOrders = targetRepository.findByBidSeqAndEmployeeNo(request.bidSeq(), employeeNo).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         CompanyPerformanceDocumentTarget::companyPerformanceSeq,
                         target -> target.displayOrder() == null ? Integer.MAX_VALUE : target.displayOrder(),

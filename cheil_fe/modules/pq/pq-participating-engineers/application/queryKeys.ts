@@ -1,6 +1,7 @@
 import type { PqParticipatingEngineerCandidateSearchParams } from "@/modules/pq/pq-participating-engineers/api";
 
 const root = ["pq-participating-engineers"] as const;
+const performanceRoot = [...root, "performance"] as const;
 
 export const pqParticipatingEngineerQueryKeys = {
   all: root,
@@ -8,7 +9,8 @@ export const pqParticipatingEngineerQueryKeys = {
   candidatesRoot: () => [...root, "candidates"] as const,
   selected: (bidSeq: number | null | undefined, workDutyId: string) => [...root, "selected", bidSeq ?? "none", workDutyId] as const,
   workOverlapDocuments: (bidSeq: number | null | undefined, employeeNo: string) => ["work-overlap-docs", "document-engineers", bidSeq ?? "none", employeeNo] as const,
-  performance: (engineerId: string, conditions?: unknown) => [...root, "performance", engineerId, conditions ?? "all"] as const,
+  performanceRoot,
+  performance: (engineerId: string, conditions?: unknown) => [...performanceRoot, engineerId, conditions ?? "all"] as const,
   workOverlap: (engineerId: string, params: { page: number; size: number; referenceDate: string; remainingDays: number }) => [...root, "work-overlap", engineerId, params] as const,
   conditionOptions: () => [...root, "condition-options"] as const,
   savedConditions: (employeeNo: string, bidSeq: number | null | undefined) => [...root, "saved-conditions", employeeNo, bidSeq ?? null] as const,

@@ -1,0 +1,49 @@
+package com.cheil.cheil_be.application.engineerperformancedoc.model;
+
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
+import java.time.Instant;
+import java.math.BigDecimal;
+import java.util.List;
+
+public record EngineerProjectHistoryReview(
+        Long reviewId,
+        Long bidSeq,
+        String engineerId,
+        Integer sourceSeq,
+        Integer displayOrder,
+        String id,
+        String jobName,
+        String summary,
+        String contractTerm,
+        String workTerm,
+        String workDays,
+        Integer seq,
+        String orderClient,
+        BigDecimal contractAmt,
+        BigDecimal ownAmt,
+        BigDecimal divisionRate,
+        String contractFromDate,
+        String contractToDate,
+        String startDate,
+        String endDate,
+        String jobClass,
+        String jobTag,
+        String jobPart,
+        String proPart,
+        String compName,
+        String deptName,
+        String grade,
+        String duty,
+        String returnYn,
+        String joinYn,
+        Integer joinDay,
+        Integer partDay,
+        Integer selectDay,
+        String remark,
+        Instant createdAt,
+        String createdId,
+        Instant lastChangedAt,
+        String lastChangedId,
+        List<ContractPeriodDates> contractPeriods
+) {
+}

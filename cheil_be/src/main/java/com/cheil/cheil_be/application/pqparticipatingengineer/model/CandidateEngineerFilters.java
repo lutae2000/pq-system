@@ -1,5 +1,7 @@
 package com.cheil.cheil_be.application.pqparticipatingengineer.model;
 
+import java.util.List;
+
 public record CandidateEngineerFilters(
         Long bidSeq,
         String workDutyId,
@@ -9,6 +11,10 @@ public record CandidateEngineerFilters(
         String designGrade,
         String jobField,
         String specialtyField,
-        String retireYn
+        String retireYn,
+        List<String> draftEngineerIds
 ) {
+    public CandidateEngineerFilters {
+        draftEngineerIds = draftEngineerIds == null ? List.of() : List.copyOf(draftEngineerIds);
+    }
 }

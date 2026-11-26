@@ -1,7 +1,10 @@
 package com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
@@ -27,6 +30,7 @@ import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDoc
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -55,6 +59,22 @@ class PqParticipatingEngineerControllerRestDocsTest {
                 .andExpect(status().isOk()).andDo(document("pq-participating-engineers-candidates", preprocessRequest(prettyPrint()), preprocessResponse(prettyPrint()),
                         queryParameters(parameterWithName("bidSeq").description("Bid notice sequence.").optional(), parameterWithName("workDutyId").description("Work duty identifier.").optional(), parameterWithName("keyword").description("Name or ID search.").optional(), parameterWithName("certificationName").description("Certification filter.").optional(), parameterWithName("constructionManagementGrade").description("Construction management grade filter.").optional(), parameterWithName("designGrade").description("Design grade filter.").optional(), parameterWithName("jobField").description("Job field filter.").optional(), parameterWithName("specialtyField").description("Specialty field filter.").optional(), parameterWithName("retireYn").description("Retirement filter.").optional(), parameterWithName("projectHistoryConditions").description("Project history conditions JSON.").optional(), parameterWithName("page").description("Zero-based page number.").optional(), parameterWithName("size").description("Page size.").optional()),
                         responseFields(fieldWithPath("content").description("Candidate engineers."), fieldWithPath("page").description("Page number."), fieldWithPath("size").description("Page size."), fieldWithPath("totalElements").description("Total candidates."), fieldWithPath("totalPages").description("Total pages."), fieldWithPath("first").description("Whether this is the first page."), fieldWithPath("last").description("Whether this is the last page."))));
+    }
+
+    @Test
+    void searchesCandidatesWithDraftSelectionsAndPagination() throws Exception {
+        when(findCandidateEngineersUseCase.findCandidates(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        mockMvc.perform(post("/pq/participating-engineers/candidates/search")
+                        .param("page", "1").param("size", "25")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"bidSeq":20261072,"workDutyId":"01","projectHistoryConditions":"[]","draftEngineerIds":["E001"]}
+                                """))
+                .andExpect(status().isOk());
+        verify(findCandidateEngineersUseCase).findCandidates(
+                argThat(filters -> filters.bidSeq() == 20261072L && "01".equals(filters.workDutyId())
+                        && filters.draftEngineerIds().equals(List.of("E001"))),
+                eq("[]"), eq(PageRequest.of(1, 25)));
     }
 
     @Test

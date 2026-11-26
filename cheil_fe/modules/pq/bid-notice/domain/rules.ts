@@ -6,7 +6,6 @@ export const emptyDraft = (): BidNoticeRecord => ({
   baseAmount: 0,
   bidDate: "",
   interviewDate: "",
-  bidStyle: "",
   bidMethod: "",
   bidNo: "",
   bidClosingDate: "",

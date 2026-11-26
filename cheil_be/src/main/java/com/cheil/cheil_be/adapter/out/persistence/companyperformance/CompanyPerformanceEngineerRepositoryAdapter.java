@@ -23,7 +23,6 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
             m.namekor,
             h.startdt,
             h.enddt,
-            h.contract_period_id,
             h.jobclass,
             h.jobtag,
             h.joinyn,
@@ -72,10 +71,10 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     public Long create(Long seq, CompanyPerformanceEngineerCommand command) {
         return bind(jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history (
-                            engr_id, seq, startdt, enddt, contract_period_id, jobclass, jobtag, joinyn, returnyn,
+                            engr_id, seq, startdt, enddt, jobclass, jobtag, joinyn, returnyn,
                             compname, deptname, grade, duty, jobpart, propart, remark
                         ) VALUES (
-                            :engineerId, :seq, :startDt, :endDt, :contractPeriodId, :jobClass, :jobTag, :joinYn, :returnYn,
+                            :engineerId, :seq, :startDt, :endDt, :jobClass, :jobTag, :joinYn, :returnYn,
                             :compName, :deptName, :grade, :duty, :jobPart, :proPart, :remark
                         )
                         RETURNING id
@@ -93,7 +92,6 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
                         SET engr_id = :engineerId,
                             startdt = :startDt,
                             enddt = :endDt,
-                            contract_period_id = :contractPeriodId,
                             jobclass = :jobClass,
                             jobtag = :jobTag,
                             joinyn = :joinYn,
@@ -119,28 +117,12 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
                 .update();
     }
 
-    @Override
-    public boolean contractPeriodBelongsToPerformance(Long seq, Long contractPeriodId) {
-        return jdbcClient.sql("""
-                        SELECT id
-                        FROM company_performance_contract_periods
-                        WHERE id = :contractPeriodId AND seq = :seq
-                        FOR KEY SHARE
-                        """)
-                .param("seq", seq)
-                .param("contractPeriodId", contractPeriodId)
-                .query(Long.class)
-                .optional()
-                .isPresent();
-    }
-
     private Map<String, Object> params(Long seq, CompanyPerformanceEngineerCommand request) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("seq", seq.intValue());
         params.put("engineerId", request.engineerId());
         params.put("startDt", digits(request.participationStartDate()));
         params.put("endDt", digits(request.participationEndDate()));
-        params.put("contractPeriodId", request.contractPeriodId());
         params.put("jobClass", request.participationFieldPosition());
         params.put("jobTag", request.jobTag());
         params.put("joinYn", request.actualParticipationYn());
@@ -166,7 +148,7 @@ public class CompanyPerformanceEngineerRepositoryAdapter implements CompanyPerfo
     private CompanyPerformanceEngineerResult map(ResultSet rs) throws SQLException {
         return new CompanyPerformanceEngineerResult(
                 rs.getLong("id"), rs.getString("engr_id"), rs.getString("namekor"),
-                rs.getString("startdt"), rs.getString("enddt"), rs.getObject("contract_period_id", Long.class), rs.getString("jobtag"),
+                rs.getString("startdt"), rs.getString("enddt"), rs.getString("jobtag"),
                 rs.getString("jobclass"), rs.getString("joinyn"), rs.getString("returnyn"),
                 rs.getString("compname"),
                 rs.getString("deptname"), rs.getString("grade"), rs.getString("duty"),

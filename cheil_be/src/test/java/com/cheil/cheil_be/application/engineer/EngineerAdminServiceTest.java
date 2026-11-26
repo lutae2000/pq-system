@@ -26,9 +26,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.cheil.cheil_be.application.common.exception.ApplicationException;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
-import com.cheil.cheil_be.application.companyperformance.port.out.ParticipationContractPeriodRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceContractDatesRepository;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
-import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
 
 @ExtendWith(MockitoExtension.class)
 class EngineerAdminServiceTest {
@@ -55,7 +55,7 @@ class EngineerAdminServiceTest {
     private CompanyPerformanceRepository companyPerformanceRepository;
 
     @Mock
-    private ParticipationContractPeriodRepository participationContractPeriodRepository;
+    private CompanyPerformanceContractDatesRepository companyPerformanceContractDatesRepository;
 
     @Mock
     private EngineerSchoolRepository schoolRepository;
@@ -91,9 +91,11 @@ class EngineerAdminServiceTest {
         when(project.contractFromDate()).thenReturn("20240201");
         when(project.contractToDate()).thenReturn("20240501");
         when(companyPerformanceRepository.findByIds(List.of(10L, 20L))).thenReturn(List.of(project));
-        var participationPeriod = new ParticipationContractPeriod("20240215", "20240415");
-        when(participationContractPeriodRepository.findByProjectHistoryIds(List.of(1L, 2L, 3L)))
-                .thenReturn(Map.of(1L, participationPeriod));
+        var contractPeriods = List.of(
+                new ContractPeriodDates("20240201", "20240301"),
+                new ContractPeriodDates("20240401", "20240501"));
+        when(companyPerformanceContractDatesRepository.findContractDatesByPerformanceSeqs(List.of(10L, 20L)))
+                .thenReturn(Map.of(10L, contractPeriods));
 
         var histories = service.findByEngrId("ENG-1").careerDetails();
         assertThat(histories).extracting(EngineerDtos.CareerDetail::recordId).containsExactly(1L, 2L, 3L);
@@ -103,12 +105,12 @@ class EngineerAdminServiceTest {
             assertThat(history.endDt()).isEqualTo("20240401");
             assertThat(history.contractFromDate()).isEqualTo("20240201");
             assertThat(history.contractToDate()).isEqualTo("20240501");
-            assertThat(history.participationContractPeriod()).isEqualTo(participationPeriod);
+            assertThat(history.contractPeriods()).isEqualTo(contractPeriods);
         });
         assertThat(histories.subList(1, histories.size())).allSatisfy(history -> {
             assertThat(history.contractFromDate()).isNull();
             assertThat(history.contractToDate()).isNull();
-            assertThat(history.participationContractPeriod()).isNull();
+            assertThat(history.contractPeriods()).isEmpty();
         });
     }
 

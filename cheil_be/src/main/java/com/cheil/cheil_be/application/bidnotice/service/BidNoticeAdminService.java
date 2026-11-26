@@ -132,7 +132,6 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
                 participateYn,
                 StringValues.normalize(command.businessType()),
                 command.bidSubmissionDate(),
-                StringValues.normalize(command.processTag()),
                 command.bidClosingDate(),
                 StringValues.normalize(command.fieldOfWorkCode()),
                 StringValues.normalize(command.scopeOfWorkCode()),
@@ -172,7 +171,6 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
         validateMaxLength(value.superDecideEmpno(), CODE_MAX_LENGTH, "superDecideEmpno");
         validateMaxLength(value.participateYn(), 1, "participateYn");
         validateMaxLength(value.businessType(), CODE_MAX_LENGTH, "businessType");
-        validateMaxLength(value.processTag(), CODE_MAX_LENGTH, "processTag");
         validateMaxLength(value.fieldOfWorkCode(), CODE_MAX_LENGTH, "fieldOfWorkCode");
         validateMaxLength(value.scopeOfWorkCode(), CODE_MAX_LENGTH, "scopeOfWorkCode");
         validateMaxLength(value.reasonOfAbsenceCode(), CODE_MAX_LENGTH, "reasonOfAbsenceCode");
@@ -208,7 +206,6 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
                 normalized.participateYn(),
                 normalized.businessType(),
                 normalized.bidSubmissionDate(),
-                normalized.processTag(),
                 normalized.bidClosingDate(),
                 normalized.fieldOfWorkCode(),
                 normalized.scopeOfWorkCode(),
@@ -250,7 +247,6 @@ public class BidNoticeAdminService implements BidNoticeAdminUseCase {
             String participateYn,
             String businessType,
             LocalDateTime bidSubmissionDate,
-            String processTag,
             LocalDateTime bidClosingDate,
             String fieldOfWorkCode,
             String scopeOfWorkCode,

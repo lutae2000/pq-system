@@ -1,146 +1,139 @@
 package com.cheil.cheil_be.application.companyperformance.service;
 
-import com.cheil.cheil_be.application.common.validation.InputValues;
-
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.notFound;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.unauthorized;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
 
+import com.cheil.cheil_be.application.common.port.out.AuthenticatedAccountPort;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTargetDetails;
+import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceDocumentTargetsUseCase;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.port.out.BidSelectionLock;
+import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
-import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetRepository;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetResponse;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetDisplayOrderRequest;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceResponse;
-import com.cheil.cheil_be.adapter.in.web.companyperformance.CompanyPerformanceDocumentTargetCondition;
-import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository;
-import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository.Condition;
-import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
 
 @Service
 @RequiredArgsConstructor
-public class CompanyPerformanceDocumentTargetService {
-
+public class CompanyPerformanceDocumentTargetService implements CompanyPerformanceDocumentTargetsUseCase {
     private final CompanyPerformanceDocumentTargetRepository targetRepository;
     private final CompanyPerformanceRepository companyPerformanceRepository;
     private final CompanyPerformanceDocumentTargetQueryRepository targetQueryRepository;
+    private final BidSelectionLock selectionLock;
+    private final AuthenticatedAccountPort authenticatedAccount;
 
+    @Override
     @Transactional(readOnly = true)
-    public List<CompanyPerformanceDocumentTargetResponse> findByBidSeq(Long bidSeq) {
-        var targets = targetRepository.findByBidSeq(requiredPositive(bidSeq, "bidSeq"));
-        Map<Long, CompanyPerformanceResponse> performances = companyPerformanceRepository.findByIds(
-                        targets.stream().map(CompanyPerformanceDocumentTarget::companyPerformanceSeq).toList())
-                .stream()
-                .map(CompanyPerformanceResponse::from)
-                .collect(Collectors.toMap(CompanyPerformanceResponse::seq, Function.identity()));
-        return targets.stream()
-                .sorted(java.util.Comparator.comparing(CompanyPerformanceDocumentTarget::displayOrder,
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
-                        .thenComparing(CompanyPerformanceDocumentTarget::targetId))
-                .map(target -> new CompanyPerformanceDocumentTargetResponse(
-                        target.targetId(), target.bidSeq(), target.companyPerformanceSeq(),
-                        target.displayOrder(), performances.get(target.companyPerformanceSeq())))
-                .toList()
-                .stream()
-                .sorted(java.util.Comparator.comparing(
-                        response -> response.companyPerformance() == null ? null : response.companyPerformance().contractToDate(),
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
-                .toList();
+    public List<CompanyPerformanceDocumentTargetDetails> findByBidSeq(Long bidSeq) {
+        return findDetails(requiredPositive(bidSeq, "bidSeq"), requireEmployeeNo());
     }
 
+    @Override
     @Transactional
-    public List<CompanyPerformanceDocumentTargetResponse> add(Long bidSeq, List<Long> companyPerformanceSeqs) {
+    public List<CompanyPerformanceDocumentTargetDetails> add(Long bidSeq, List<Long> companyPerformanceSeqs) {
         Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
-        if (companyPerformanceSeqs == null || companyPerformanceSeqs.isEmpty()) return findByBidSeq(requiredBidSeq);
+        String employeeNo = requireEmployeeNo();
+        if (companyPerformanceSeqs == null || companyPerformanceSeqs.isEmpty()) return findDetails(requiredBidSeq, employeeNo);
         List<Long> distinctSeqs = companyPerformanceSeqs.stream().distinct().toList();
-        if (distinctSeqs.stream().anyMatch(seq -> seq == null)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회사실적 seq는 필수입니다.");
+        if (distinctSeqs.stream().anyMatch(Objects::isNull)) throw badRequest("회사실적 seq는 필수입니다.");
+        if (companyPerformanceRepository.findByIds(distinctSeqs).size() != distinctSeqs.size()) {
+            throw badRequest("선택한 회사실적을 찾을 수 없습니다.");
         }
-
-        // 기존에는 입력된 실적마다 대상 목록을 다시 조회하고 저장했다. 대상 목록은 공고당
-        // 한 번만 읽고, 중복이 아닌 항목만 일괄 저장해 조건 적용 시 반복 쿼리를 제거한다.
-        var existingTargets = targetRepository.findByBidSeq(requiredBidSeq);
-        var existingSeqs = existingTargets.stream()
-                .map(CompanyPerformanceDocumentTarget::companyPerformanceSeq)
-                .collect(java.util.stream.Collectors.toSet());
-        int nextDisplayOrder = existingTargets.stream()
-                .map(CompanyPerformanceDocumentTarget::displayOrder)
-                .filter(java.util.Objects::nonNull)
-                .max(Integer::compareTo)
-                .orElse(existingTargets.size()) + 1;
-        java.util.concurrent.atomic.AtomicInteger displayOrder = new java.util.concurrent.atomic.AtomicInteger(nextDisplayOrder);
-        var newTargets = distinctSeqs.stream()
-                .filter(seq -> !existingSeqs.contains(seq))
-                .map(seq -> new CompanyPerformanceDocumentTarget(null, requiredBidSeq, seq, displayOrder.getAndIncrement()))
-                .toList();
-        targetRepository.add(requiredBidSeq, newTargets);
-
-        return findByBidSeq(requiredBidSeq);
+        selectionLock.lock(requiredBidSeq);
+        var existing = targetRepository.findByBidSeqAndEmployeeNo(requiredBidSeq, employeeNo);
+        var existingSeqs = existing.stream().map(CompanyPerformanceDocumentTarget::companyPerformanceSeq).collect(Collectors.toSet());
+        int order = existing.stream().map(CompanyPerformanceDocumentTarget::displayOrder).filter(Objects::nonNull)
+                .max(Integer::compareTo).orElse(existing.size()) + 1;
+        var next = new ArrayList<>(existing);
+        for (Long seq : distinctSeqs) {
+            if (!existingSeqs.contains(seq)) next.add(new CompanyPerformanceDocumentTarget(null, requiredBidSeq, seq, order++));
+        }
+        targetRepository.save(requiredBidSeq, employeeNo, next);
+        return findDetails(requiredBidSeq, employeeNo);
     }
 
+    @Override
     @Transactional
-    public List<CompanyPerformanceDocumentTargetResponse> addByConditions(Long bidSeq, List<CompanyPerformanceDocumentTargetCondition> conditions) {
+    public List<CompanyPerformanceDocumentTargetDetails> addByConditions(Long bidSeq, List<ProjectHistoryCondition> conditions) {
         Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
-        if (conditions == null || conditions.isEmpty()) {
-            return findByBidSeq(requiredBidSeq);
+        if (conditions == null || conditions.isEmpty()) return findDetails(requiredBidSeq, requireEmployeeNo());
+        return add(requiredBidSeq, targetQueryRepository.findMatchingPerformanceSeqs(conditions));
+    }
+
+    @Override
+    @Transactional
+    public void replaceByConditions(Long bidSeq, List<ProjectHistoryCondition> conditions) {
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
+        String employeeNo = requireEmployeeNo();
+        if (conditions == null) throw badRequest("적용할 조건 목록이 필요합니다.");
+        List<Long> seqs = targetQueryRepository.findMatchingPerformanceSeqs(conditions);
+        var targets = new ArrayList<CompanyPerformanceDocumentTarget>(seqs.size());
+        for (Long seq : seqs) {
+            targets.add(new CompanyPerformanceDocumentTarget(null, requiredBidSeq, seq, targets.size() + 1));
         }
-
-        List<Condition> queryConditions = conditions.stream()
-                .map(this::toQueryCondition)
-                .toList();
-        List<Long> seqs = targetQueryRepository.findUnselectedPerformanceSeqs(
-                requiredBidSeq,
-                queryConditions
-        );
-        return add(requiredBidSeq, seqs);
+        selectionLock.lock(requiredBidSeq);
+        targetRepository.save(requiredBidSeq, employeeNo, targets);
     }
 
-    private Condition toQueryCondition(CompanyPerformanceDocumentTargetCondition condition) {
-        return new Condition(
-                condition.conditionType(),
-                condition.logicalOperator(),
-                condition.level1Code(),
-                condition.level2Code(),
-                condition.level3Code(),
-                condition.generalCode(),
-                condition.outlineCategoryCode(),
-                condition.outlineSubcategoryCode(),
-                condition.operator(),
-                condition.value(),
-                condition.valueTo(),
-                condition.valueType()
-        );
-    }
-
+    @Override
     @Transactional
     public void delete(Long bidSeq, Long targetId) {
-        CompanyPerformanceDocumentTarget target = targetRepository.findById(targetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.bidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사 실적 문서 대상을 찾을 수 없습니다.");
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
+        String employeeNo = requireEmployeeNo();
+        selectionLock.lock(requiredBidSeq);
+        var targets = new ArrayList<>(targetRepository.findByBidSeqAndEmployeeNo(requiredBidSeq, employeeNo));
+        if (!targets.removeIf(target -> targetId.equals(target.targetId()))) {
+            throw notFound("회사실적 문서 대상을 찾을 수 없습니다.");
         }
-        targetRepository.delete(targetId);
+        targetRepository.save(requiredBidSeq, employeeNo, targets);
     }
 
+    @Override
     @Transactional
-    public void updateDisplayOrder(Long bidSeq, Long targetId, CompanyPerformanceDocumentTargetDisplayOrderRequest request) {
-        if (request == null || request.displayOrder() == null || request.displayOrder() < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "순번은 1 이상의 정수로 입력해 주세요.");
+    public void updateDisplayOrder(Long bidSeq, Long targetId, Integer displayOrder) {
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
+        String employeeNo = requireEmployeeNo();
+        if (displayOrder == null || displayOrder < 1) throw badRequest("순번은 1 이상의 정수로 입력해 주세요.");
+        selectionLock.lock(requiredBidSeq);
+        var targets = new ArrayList<>(targetRepository.findByBidSeqAndEmployeeNo(requiredBidSeq, employeeNo));
+        for (int index = 0; index < targets.size(); index++) {
+            var target = targets.get(index);
+            if (targetId.equals(target.targetId())) {
+                targets.set(index, new CompanyPerformanceDocumentTarget(targetId, requiredBidSeq, target.companyPerformanceSeq(), displayOrder));
+                targetRepository.save(requiredBidSeq, employeeNo, targets);
+                return;
+            }
         }
-        CompanyPerformanceDocumentTarget target = targetRepository.findById(targetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다."));
-        if (!target.bidSeq().equals(requiredPositive(bidSeq, "bidSeq"))) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "회사실적 문서 대상을 찾을 수 없습니다.");
-        }
-        targetRepository.updateDisplayOrder(targetId, request.displayOrder());
+        throw notFound("회사실적 문서 대상을 찾을 수 없습니다.");
     }
 
+    private List<CompanyPerformanceDocumentTargetDetails> findDetails(Long bidSeq, String employeeNo) {
+        var targets = targetRepository.findByBidSeqAndEmployeeNo(bidSeq, employeeNo);
+        if (targets.isEmpty()) return List.of();
+        var performances = companyPerformanceRepository.findByIds(
+                        targets.stream().map(CompanyPerformanceDocumentTarget::companyPerformanceSeq).toList())
+                .stream().collect(Collectors.toMap(CompanyPerformance::seq, Function.identity()));
+        return targets.stream()
+                .map(target -> new CompanyPerformanceDocumentTargetDetails(target, performances.get(target.companyPerformanceSeq())))
+                .sorted(Comparator.comparing(row -> row.companyPerformance() == null ? null : row.companyPerformance().contractToDate(),
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    private String requireEmployeeNo() {
+        return authenticatedAccount.authenticatedEmployeeNo()
+                .orElseThrow(() -> unauthorized("로그인한 계정으로 회사실적 문서 대상을 관리할 수 있습니다."));
+    }
 }

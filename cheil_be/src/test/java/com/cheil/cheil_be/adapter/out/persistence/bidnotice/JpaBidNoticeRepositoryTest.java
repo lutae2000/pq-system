@@ -46,6 +46,25 @@ class JpaBidNoticeRepositoryTest {
     }
 
     @Test
+    void defaultsToAscendingPqSubmissionDateBeforePaging() {
+        EntityManager entityManager = mock(EntityManager.class);
+        var query = mock(org.hibernate.query.Query.class);
+        when(entityManager.createQuery(anyString())).thenReturn(query);
+        when(query.unwrap(org.hibernate.query.Query.class)).thenReturn(query);
+        when(query.getResultList()).thenReturn(List.of());
+        var repository = new JpaBidNoticeRepository(mock(BidNoticeJpaRepository.class), entityManager,
+                new JPAQueryFactory(HQLTemplates.DEFAULT, entityManager));
+
+        repository.findAll(null, PageRequest.of(0, 5));
+
+        ArgumentCaptor<String> queryText = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createQuery(queryText.capture());
+        assertThat(queryText.getValue())
+                .contains("order by bidNoticeEntity.pqSubmitDate asc nulls last, bidNoticeEntity.bidSeq desc");
+        verify(query).setMaxResults(5);
+    }
+
+    @Test
     void listAndCountUseTheSameFiltersAndListSortsBeforePaging() {
         EntityManager entityManager = mock(EntityManager.class);
         var listQuery = mock(org.hibernate.query.Query.class);

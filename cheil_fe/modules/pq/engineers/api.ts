@@ -61,7 +61,7 @@ export type BackendEngineerCareerDetail = {
   compName: string | null;
   contractFromDate?: string | null;
   contractToDate?: string | null;
-  participationContractPeriod?: CareerDetailRecord["participationContractPeriod"];
+  contractPeriods?: CareerDetailRecord["contractPeriods"];
   deptName: string | null;
   duty: string | null;
   engrId: string;
@@ -348,7 +348,7 @@ function mapProfile(profile: BackendEngineerProfile): EngineerProfileView {
       compName: text(item.compName),
       contractFromDate: item.contractFromDate ?? null,
       contractToDate: item.contractToDate ?? null,
-      participationContractPeriod: item.participationContractPeriod ?? null,
+      contractPeriods: item.contractPeriods ?? [],
       deptName: text(item.deptName),
       duty: text(item.duty),
       endDate: text(item.endDt),

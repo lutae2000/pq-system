@@ -38,7 +38,7 @@ import type {
 } from "@/modules/pq/pq-participating-engineers/api";
 import { useRelatedProjectHistoryConditionQueries } from "@/modules/pq/pq-participating-engineers/application/usePqEngineerRelatedQueries";
 
-import type { RelatedProjectHistoryCondition } from "./domain/projectHistoryCondition";
+import { describeProjectHistoryConditionGroups, type RelatedProjectHistoryCondition } from "./domain/projectHistoryCondition";
 
 export type { RelatedProjectHistoryCondition } from "./domain/projectHistoryCondition";
 
@@ -256,7 +256,11 @@ export function RelatedProjectHistoryConditionDialog({
 }: RelatedProjectHistoryConditionDialogProps) {
   const [conditionType, setConditionType] = useState<PqParticipatingEngineerProjectHistoryConditionType>("constructionKind");
   const [keyword, setKeyword] = useState("");
-  const [draft, setDraft] = useState<RelatedProjectHistoryCondition[]>(value);
+  const [draft, setDraft] = useState<RelatedProjectHistoryCondition[]>(() =>
+    value.map((condition) => condition.logicalOperator === "OR"
+      ? { ...condition, orGroupStart: condition.orGroupStart ?? 0 }
+      : condition),
+  );
   const [selectedOutlineCategoryCode, setSelectedOutlineCategoryCode] = useState("");
 
   const { constructionTypes: constructionTypesQuery, conditionOptions: conditionOptionsQuery, generalConditions: generalConditionsQuery, outlineCodes: outlineCodesQuery } = useRelatedProjectHistoryConditionQueries(open);
@@ -334,7 +338,12 @@ export function RelatedProjectHistoryConditionDialog({
   );
 
   const commitDraft = (updater: (current: RelatedProjectHistoryCondition[]) => RelatedProjectHistoryCondition[]) => {
-    setDraft((current) => updater(current));
+    setDraft((current) => describeProjectHistoryConditionGroups(
+      updater(current).map((condition, index) => ({
+        ...condition,
+        logicalOperator: normalizeLogicalOperator(condition.logicalOperator, index),
+      })),
+    ).rows.map(({ condition }) => condition));
   };
 
   const addCondition = (condition: RelatedProjectHistoryCondition) => {
@@ -344,17 +353,22 @@ export function RelatedProjectHistoryConditionDialog({
         if (condition.conditionType === "constructionKind") {
           return item.level1Code === condition.level1Code && item.level2Code === condition.level2Code && item.level3Code === condition.level3Code;
         }
-        if (condition.conditionType === "general") {
-          return item.generalCode === condition.generalCode;
-        }
-        return item.outlineCategoryCode === condition.outlineCategoryCode && item.outlineSubcategoryCode === condition.outlineSubcategoryCode;
+        return false;
       });
       return duplicated ? current : [...current, condition];
     });
   };
 
   const removeCondition = (id: string) => {
-    commitDraft((current) => current.filter((condition) => condition.id !== id));
+    commitDraft((current) => {
+      const removedIndex = current.findIndex((condition) => condition.id === id);
+      if (removedIndex < 0) return current;
+      return current.filter((condition) => condition.id !== id).map((condition) => {
+        const start = condition.orGroupStart;
+        if (start === undefined || start < removedIndex) return condition;
+        return { ...condition, orGroupStart: start === removedIndex ? undefined : start - 1 };
+      });
+    });
   };
 
   const updateCondition = (id: string, patch: Partial<RelatedProjectHistoryCondition>) => {
@@ -376,10 +390,17 @@ export function RelatedProjectHistoryConditionDialog({
     );
   };
 
-  const normalizedDraft = draft.map((condition, index) => {
+  const { rows: groupedRows, expression } = describeProjectHistoryConditionGroups(draft.map((condition, index) => {
     const configuredType = condition.conditionType === "general" ? valueTypeByGeneralCode.get(condition.generalCode ?? "") : undefined;
-    return normalizeCondition(condition, index, configuredType ?? conditionValueType(condition));
-  });
+    const valueType = configuredType ?? conditionValueType(condition);
+    const hasOptions = condition.conditionType === "general" && Boolean(conditionOptionsByCode.get(condition.generalCode ?? "")?.length);
+    const usesTextInput = needsValueInput(condition) && valueType === "code" && !hasOptions;
+    return normalizeCondition(condition, index, usesTextInput ? "text" : valueType);
+  }));
+  const normalizedDraft = groupedRows.map(({ condition }) => condition);
+  const hasUnselectedOrGroup = normalizedDraft.some(
+    (condition) => condition.logicalOperator === "OR" && condition.orGroupStart === undefined,
+  );
   const hasIncompleteConditions = normalizedDraft.some((condition) => {
     if (!needsValueInput(condition)) return false;
     const valid = (value?: string) => condition.valueType === "date" ? Boolean(parseDateInput(value ?? "", "date")) : Boolean(value?.trim());
@@ -387,7 +408,7 @@ export function RelatedProjectHistoryConditionDialog({
   });
 
   const handleApply = () => {
-    if (!hasIncompleteConditions) onApply(normalizedDraft);
+    if (!hasIncompleteConditions && !hasUnselectedOrGroup) onApply(normalizedDraft);
   };
 
   const constructionColumns = useMemo<GridColDef<ConstructionKindRow>[]>(
@@ -581,6 +602,11 @@ export function RelatedProjectHistoryConditionDialog({
                   {"전체 삭제"}
                 </Button>
               </Stack>
+              {normalizedDraft.length > 1 && !hasUnselectedOrGroup && (
+                <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: "anywhere" }}>
+                  조회 순서 <Box component="strong">{expression}</Box>
+                </Typography>
+              )}
               <Stack spacing={0.75} sx={{ maxHeight: 430, overflow: "auto", pr: 0.5 }}>
                 {draft.length === 0 ? (
                   <Box
@@ -599,7 +625,7 @@ export function RelatedProjectHistoryConditionDialog({
                     </Typography>
                   </Box>
                 ) : (
-                  normalizedDraft.map((condition, index) => {
+                  groupedRows.map(({ condition, options }, index) => {
                     const valueType = conditionValueType(condition);
                     const availableOperators = operatorsByValueType[valueType];
                     const operator = condition.operator ?? defaultOperator(valueType);
@@ -624,6 +650,7 @@ export function RelatedProjectHistoryConditionDialog({
                         }}
                       >
                         <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+                          <Chip label={`#${index + 1}`} size="small" />
                           <Chip label={conditionTypeLabels[condition.conditionType]} size="small" />
                           <Typography sx={{ flex: 1, minWidth: 0 }} variant="body2">
                             {condition.label}
@@ -655,7 +682,8 @@ export function RelatedProjectHistoryConditionDialog({
                             label="논리연산자"
                             onChange={(event) =>
                               updateCondition(condition.id, {
-                                logicalOperator: event.target.value as "AND" | "OR",
+                                logicalOperator: event.target.value === "OR" ? "OR" : "AND",
+                                orGroupStart: undefined,
                               })
                             }
                             select
@@ -746,6 +774,26 @@ export function RelatedProjectHistoryConditionDialog({
                             </TextField>
                           ) : null}
                         </Box>
+                        {condition.logicalOperator === "OR" && (
+                          <TextField
+                            disabled={disabled}
+                            error={condition.orGroupStart === undefined}
+                            fullWidth
+                            label="OR로 묶을 앞 조건"
+                            onChange={(event) => updateCondition(condition.id, { orGroupStart: Number(event.target.value) })}
+                            required
+                            select
+                            size="small"
+                            sx={{ ...standardFieldSx, mt: 0.75 }}
+                            value={condition.orGroupStart ?? ""}
+                          >
+                            {options.map(({ start, expression: previousExpression }) => (
+                              <MenuItem key={start} value={start}>
+                                {previousExpression}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
                       </Box>
                     );
                   })
@@ -756,13 +804,15 @@ export function RelatedProjectHistoryConditionDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 2.5, py: 1.5 }}>
-        {hasIncompleteConditions ? (
+        {hasUnselectedOrGroup ? (
+          <Typography color="error" sx={{ mr: "auto" }} variant="body2">OR로 묶을 앞 조건을 선택해 주세요.</Typography>
+        ) : hasIncompleteConditions ? (
           <Typography color="error" sx={{ mr: "auto" }} variant="body2">비어 있는 조건값이나 범위의 끝값을 입력해 주세요.</Typography>
         ) : null}
         <Button color="inherit" disabled={applyLoading} onClick={onClose} type="button" variant="outlined">
           {"취소"}
         </Button>
-        <Button disabled={disabled || applyLoading || hasIncompleteConditions} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">
+        <Button disabled={disabled || applyLoading || hasIncompleteConditions || hasUnselectedOrGroup} onClick={handleApply} startIcon={<CheckOutlinedIcon />} type="button" variant="contained">
           {"적용"}
         </Button>
       </DialogActions>

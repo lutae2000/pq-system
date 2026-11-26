@@ -6,6 +6,7 @@ import {
   deletePqParticipatingEngineer,
   replacePqParticipatingEngineers,
   type PqParticipatingEngineerRecord,
+  type ReplacePqParticipatingEngineersRequest,
 } from "@/modules/pq/pq-participating-engineers/api";
 import type { SelectedPqEngineer } from "@/modules/pq/pq-participating-engineers/domain/models";
 import { pqParticipatingEngineerQueryKeys } from "@/modules/pq/pq-participating-engineers/application/queryKeys";
@@ -32,31 +33,39 @@ export function usePqParticipatingEngineerMutations({
 }: UsePqParticipatingEngineerMutationsParams) {
   const queryClient = useQueryClient();
 
+  const replaceSelection = async (engineers: ReplacePqParticipatingEngineersRequest["engineers"]) => {
+    if (!bidSeq) throw new Error("PQ참여할 공고문을 먼저 선택하세요.");
+    if (!workDutyId) throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
+    const [records] = await Promise.all([
+      replacePqParticipatingEngineers({ bidSeq, workDutyId, engineers }),
+      replaceWorkOverlapDocumentEngineers({
+        bidSeq,
+        workDutyId: currentEmployeeNo,
+        engineers: engineers.map((engineer) => ({ engrId: engineer.engrId, displayOrder: engineer.priority ?? null, responsibility: null })),
+      }),
+    ]);
+    return records;
+  };
+
+  const refreshSelection = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.candidatesRoot() }),
+      queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId) }),
+      queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentEmployeeNo) }),
+    ]);
+  };
+
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!bidSeq) throw new Error("PQ참여할 공고문을 먼저 선택하세요.");
-      if (!workDutyId) throw new Error("로그인 작업자 정보를 확인할 수 없습니다.");
-      const engineers = selectedEngineers.map((engineer, index) => ({
+    mutationFn: () =>
+      replaceSelection(selectedEngineers.map((engineer, index) => ({
         engrId: engineer.engineerId,
         memo: engineer.memo || null,
         priority: index + 1,
         role: engineer.role || null,
-      }));
-      const [records] = await Promise.all([
-        replacePqParticipatingEngineers({ bidSeq, workDutyId, engineers }),
-        replaceWorkOverlapDocumentEngineers({
-          bidSeq,
-          workDutyId: currentEmployeeNo,
-          engineers: engineers.map((engineer) => ({ engrId: engineer.engrId, displayOrder: engineer.priority, responsibility: null })),
-        }),
-      ]);
-      return records;
-    },
+      }))),
     onSuccess: async (records) => {
       onSaved(records);
-      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.candidatesRoot() });
-      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId) });
-      await queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.workOverlapDocuments(bidSeq, currentEmployeeNo) });
+      await refreshSelection();
     },
     onError,
   });

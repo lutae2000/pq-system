@@ -1,7 +1,7 @@
 package com.cheil.cheil_be.adapter.out.persistence.companyperformance;
 
 import static com.cheil.cheil_be.adapter.out.persistence.companyperformance.QCompanyPerformanceEntity.companyPerformanceEntity;
-import static com.cheil.cheil_be.adapter.out.persistence.companyperformance.QCompanyPerformanceDocumentTargetEntity.companyPerformanceDocumentTargetEntity;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.unauthorized;
 
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +19,9 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import com.cheil.cheil_be.application.companyperformance.port.in.CompanyPerformanceSearchCondition;
+import com.cheil.cheil_be.application.common.port.out.AuthenticatedAccountPort;
+import com.cheil.cheil_be.application.companyperformance.model.CompanyPerformanceDocumentTarget;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetRepository;
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceRepository;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
 
@@ -28,6 +31,8 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
 
     private final CompanyPerformanceJpaRepository companyPerformanceJpaRepository;
     private final JPAQueryFactory queryFactory;
+    private final CompanyPerformanceDocumentTargetRepository targetRepository;
+    private final AuthenticatedAccountPort authenticatedAccount;
 
     @Override
     public Page<CompanyPerformance> findAll(CompanyPerformanceSearchCondition condition, Pageable pageable) {
@@ -64,11 +69,11 @@ public class JpaCompanyPerformanceRepository implements CompanyPerformanceReposi
             }
             if (condition.excludeDocumentTargetBidSeq() != null) {
                 where.and(companyPerformanceEntity.jobOwnYn.eq("Y"));
-                where.and(companyPerformanceEntity.seq.notIn(
-                        com.querydsl.jpa.JPAExpressions.select(companyPerformanceDocumentTargetEntity.companyPerformanceSeq)
-                                .from(companyPerformanceDocumentTargetEntity)
-                                .where(companyPerformanceDocumentTargetEntity.bidSeq.eq(condition.excludeDocumentTargetBidSeq()))
-                ));
+                String employeeNo = authenticatedAccount.authenticatedEmployeeNo()
+                        .orElseThrow(() -> unauthorized("로그인한 계정의 회사실적 문서 대상을 조회할 수 있습니다."));
+                var targetSeqs = targetRepository.findByBidSeqAndEmployeeNo(condition.excludeDocumentTargetBidSeq(), employeeNo)
+                        .stream().map(CompanyPerformanceDocumentTarget::companyPerformanceSeq).toList();
+                if (!targetSeqs.isEmpty()) where.and(companyPerformanceEntity.seq.notIn(targetSeqs));
             }
         }
 

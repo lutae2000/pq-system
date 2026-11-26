@@ -4,7 +4,6 @@ public record CompanyPerformanceEngineerCommand(
         String engineerId,
         String participationStartDate,
         String participationEndDate,
-        Long contractPeriodId,
         String jobTag,
         String participationFieldPosition,
         String actualParticipationYn,

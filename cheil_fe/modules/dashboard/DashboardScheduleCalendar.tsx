@@ -76,9 +76,13 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
         .filter((item) => activeStatuses.includes(item.eventType))
         .map((item) => {
           const event = toDashboardScheduleEvent(item);
+          const institutionName = item.orderClientName?.trim();
+          const title = showInstitutionOnly
+            ? institutionName || "수요기관 미등록"
+            : [institutionName, event.title].filter(Boolean).join(" · ");
           return {
             ...event,
-            title: showInstitutionOnly ? item.orderClientName?.trim() || "수요기관 미등록" : event.title,
+            title,
             projectName: event.title,
             allDay: event.eventType === "INTERVIEW_DATE" || !event.start.includes("T"),
           };
@@ -227,6 +231,7 @@ export function DashboardScheduleCalendar({ onScheduleClick, scheduleLabels = de
           eventContrastColor="#111827"
           eventOrder="categoryOrder,start,projectName"
           eventOrderStrict
+          eventTimeFormat={{ hour: "2-digit", minute: "2-digit", hour12: false }}
           eventDidMount={(info) => {
             info.el.title = info.event.extendedProps.projectName ?? info.event.title;
 

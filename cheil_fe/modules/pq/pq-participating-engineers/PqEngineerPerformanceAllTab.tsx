@@ -1,14 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { usePqEngineerPerformanceQuery } from "@/modules/pq/pq-participating-engineers/application/usePqEngineerRelatedQueries";
-import { createEngineerHistoryPerformanceColumns, PqEngineerPerformanceGrid } from "./PqEngineerPerformanceGrid";
+import { PqEngineerPerformanceGrid } from "./PqEngineerPerformanceGrid";
 
 export function PqEngineerPerformanceAllTab({ canRead, engineerId, gridHeight }: { canRead: boolean; engineerId: string; gridHeight: number }) {
   const jobClass = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" }, { enabled: canRead });
   const query = usePqEngineerPerformanceQuery({ canRead, engineerId });
-  const columns = useMemo(() => createEngineerHistoryPerformanceColumns(jobClass.labelByValue), [jobClass.labelByValue]);
-  return <PqEngineerPerformanceGrid key={`${engineerId}`} columns={columns} gridHeight={gridHeight} loading={query.isFetching} rows={query.data ?? []} />;
+  return <PqEngineerPerformanceGrid key={engineerId} jobClassLabelByCode={jobClass.labelByValue} gridHeight={gridHeight} loading={query.isFetching} rows={query.data ?? []} />;
 }

@@ -1,6 +1,8 @@
 export const engineerPerformanceDocumentsQueryKeys = {
   all: ["engineer-performance-docs"] as const,
   reviewResultsRoot: ["engineer-performance-docs", "review-results"] as const,
+  projectHistoriesRoot: ["engineer-performance-docs", "project-histories"] as const,
+  activeEngineerProfileRoot: ["engineer-performance-docs", "active-engineer-profile"] as const,
   selectedEngineersRoot: ["engineer-performance-docs", "selected-engineers"] as const,
   selectedEngineers: (bidSeq: number | null, workDutyId: string) =>
     ["engineer-performance-docs", "selected-engineers", bidSeq ?? "none", workDutyId] as const,

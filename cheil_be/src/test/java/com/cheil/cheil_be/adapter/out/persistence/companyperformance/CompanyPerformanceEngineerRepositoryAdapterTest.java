@@ -22,25 +22,23 @@ class CompanyPerformanceEngineerRepositoryAdapterTest {
     private final CompanyPerformanceEngineerRepositoryAdapter repository = new CompanyPerformanceEngineerRepositoryAdapter(jdbc);
 
     @Test
-    void bindsSelectedContractPeriodAndJobTagAndUsesTheReturnedId() {
+    void bindsJobTagAndUsesTheReturnedId() {
         JdbcClient.MappedQuerySpec<Long> inserted = mock();
         when(jdbc.sql(anyString())).thenReturn(statement);
         when(statement.query(Long.class)).thenReturn(inserted);
         when(inserted.single()).thenReturn(41L);
         var command = new CompanyPerformanceEngineerCommand(
-                "ENG-1", null, null, 12L, "CAA", null, null, null, null, null, null, null, null, null, null);
+                "ENG-1", null, null, "CAA", null, null, null, null, null, null, null, null, null, null);
 
         assertThat(repository.create(3L, command)).isEqualTo(41L);
-        verify(statement).param("contractPeriodId", 12L);
         verify(statement).param("jobTag", "CAA");
     }
 
     @Test
-    void readsSelectedContractPeriodAndJobTagFromHistory() throws Exception {
+    void readsJobTagFromHistory() throws Exception {
         JdbcClient.MappedQuerySpec<CompanyPerformanceEngineerResult> selected = mock();
         var resultSet = mock(ResultSet.class);
         when(jdbc.sql(anyString())).thenReturn(statement);
-        when(resultSet.getObject("contract_period_id", Long.class)).thenReturn(12L);
         when(resultSet.getString("jobtag")).thenReturn("CAH");
         when(statement.query(ArgumentMatchers.<RowMapper<CompanyPerformanceEngineerResult>>any())).thenAnswer(invocation -> {
             RowMapper<CompanyPerformanceEngineerResult> mapper = invocation.getArgument(0);
@@ -50,7 +48,6 @@ class CompanyPerformanceEngineerRepositoryAdapterTest {
         });
 
         var engineer = repository.findById(3L, 41L);
-        assertThat(engineer.contractPeriodId()).isEqualTo(12L);
         assertThat(engineer.jobTag()).isEqualTo("CAH");
     }
 }

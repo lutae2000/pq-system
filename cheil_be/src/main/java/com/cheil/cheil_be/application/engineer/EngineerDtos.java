@@ -1,6 +1,6 @@
 package com.cheil.cheil_be.application.engineer;
 
-import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
 
 import java.util.List;
 
@@ -97,7 +97,7 @@ public final class EngineerDtos {
             String remark,
             String contractFromDate,
             String contractToDate,
-            ParticipationContractPeriod participationContractPeriod
+            List<ContractPeriodDates> contractPeriods
     ) {
     }
 

@@ -1,21 +1,17 @@
 package com.cheil.cheil_be.application.engineerperformancedoc.service;
 
-import com.cheil.cheil_be.application.common.validation.InputValues;
-
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredPositive;
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
-import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,98 +24,37 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewSyncRequest;
 import com.cheil.cheil_be.adapter.in.web.engineerperformancedoc.EngineerProjectHistoryReviewResponse;
-import com.cheil.cheil_be.application.companyperformance.port.out.ParticipationContractPeriodRepository;
+import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceContractDatesRepository;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.ReplaceEngineerReviewResultsUseCase;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.out.EngineerProjectHistoryRepository;
+import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.common.security.AuditActorResolver;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadata;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadataService;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionValidation;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.port.out.BidSelectionLock;
 
 /** 기술인 실적 문서에 필요한 프로젝트 이력, 검토 결과, 문서 값 설정을 조회·관리하는 서비스. */
 @Service
 @RequiredArgsConstructor
-public class EngineerPerformanceDocumentService {
+public class EngineerPerformanceDocumentService implements ReplaceEngineerReviewResultsUseCase {
 
-    private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
     private final JdbcClient jdbcClient;
+    private final EngineerProjectHistoryRepository projectHistoryRepository;
+    private final CurrentActorPort currentActor;
+    private final BidSelectionLock selectionLock;
     private final ProjectHistoryConditionMetadataService conditionMetadataService;
     private final ProjectHistoryConditionJsonCodec conditionJsonCodec;
-    private final ParticipationContractPeriodRepository participationContractPeriodRepository;
+    private final CompanyPerformanceContractDatesRepository companyPerformanceContractDatesRepository;
 
     @Transactional(readOnly = true)
-    public List<EngineerProjectHistoryReviewResponse> findProjectHistories(
-            String engineerId,
-            String relatedProjectHistoryConditions
-    ) {
-        if (!StringUtils.hasText(engineerId)) {
-            return List.of();
-        }
-
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("engineerId", engineerId.trim());
+    public List<EngineerProjectHistoryReviewResponse> findProjectHistories(String engineerId, String relatedProjectHistoryConditions) {
+        if (!StringUtils.hasText(engineerId)) return List.of();
         List<ProjectHistoryCondition> conditions = conditionJsonCodec.parse(relatedProjectHistoryConditions);
-        String conditionSql = buildProjectHistoryConditionSql(
-                conditions,
-                params,
-                conditions.isEmpty() ? Map.of() : conditionMetadataService.findAll()
-        );
-
-        var rows = jdbcClient.sql("""
-                        SELECT
-                            NULL::BIGINT AS review_id,
-                            NULL::BIGINT AS bid_seq,
-                            h.engr_id AS engr_id,
-                            h.id AS source_seq,
-                            NULL::INTEGER AS display_order,
-                            CAST(h.id AS TEXT) AS id,
-                            cp.job_name AS jobname,
-                            cp.summary,
-                            to_char(to_date(cp.contract_from_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
-                                to_char(to_date(cp.contract_to_date, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
-                                '(' || to_char(to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD') + 1, 'FM999,999,999,999') || '일)' AS contract_term,
-                            to_date(cp.contract_to_date, 'YYYYMMDD') - to_date(cp.contract_from_date, 'YYYYMMDD') + 1 AS contract_days,
-                            to_char(to_date(h.startdt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) || '~' || chr(10) ||
-                                to_char(to_date(h.enddt, 'YYYYMMDD'), 'YY.MM.DD') || chr(10) ||
-                                '(' || to_char(to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD') + 1, 'FM999,999,999,999') || '일)' AS work_term,
-                            to_date(h.enddt, 'YYYYMMDD') - to_date(h.startdt, 'YYYYMMDD') + 1 AS work_days,
-                            cp.seq,
-                            cp.order_client,
-                            cp.contract_amt,
-                            cp.own_amt,
-                            cp.division_rate,
-                            cp.contract_from_date,
-                            cp.contract_to_date,
-                            h.startdt AS work_from_date,
-                            h.enddt AS work_to_date,
-                            h.jobclass,
-                            h.jobtag,
-                            h.jobpart,
-                            h.propart,
-                            h.compname,
-                            h.deptname,
-                            h.grade,
-                            h.duty,
-                            h.returnyn,
-                            h.joinyn,
-                            NULL::INTEGER AS join_day,
-                            NULL::INTEGER AS part_day,
-                            NULL::INTEGER AS select_day,
-                            h.remark,
-                            NULL::TIMESTAMP AS created_at,
-                            NULL::VARCHAR AS created_id,
-                            NULL::TIMESTAMP AS last_changed_at,
-                            NULL::VARCHAR AS last_changed_id
-                        FROM pq_engineer_project_history h
-                        JOIN company_performances cp
-                          ON cp.seq = h.seq
-                        WHERE h.engr_id = :engineerId
-                        """ + conditionSql + """
-                        ORDER BY cp.contract_to_date DESC NULLS LAST, h.enddt DESC NULLS LAST, h.seq DESC
-                        """)
-                .params(params)
-                .query(this::mapResponse)
-                .list();
-        return withParticipationContractPeriods(rows);
+        var rows = projectHistoryRepository.findHistories(engineerId.trim(), conditions, conditionMetadata(conditions));
+        return withContractPeriods(rows.stream().map(EngineerProjectHistoryReviewResponse::from).toList());
     }
 
     @Transactional(readOnly = true)
@@ -197,7 +132,7 @@ public class EngineerPerformanceDocumentService {
                 .params(params)
                 .query(this::mapResponse)
                 .list();
-        return withParticipationContractPeriods(rows);
+        return withContractPeriods(rows);
     }
 
     @Transactional
@@ -206,9 +141,8 @@ public class EngineerPerformanceDocumentService {
         String engineerId = requiredText(request.engineerId(), "engineerId");
         Integer sourceSeq = requiredPositive(request.sourceSeq(), "sourceSeq");
         ensureSourceHistoryExists(engineerId, sourceSeq);
-        Integer displayOrder = request.displayOrder() == null ? nextDisplayOrder(bidSeq, engineerId) : request.displayOrder();
-
         String actor = AuditActorResolver.resolve();
+        Integer displayOrder = request.displayOrder() == null ? nextDisplayOrder(bidSeq, engineerId, actor) : request.displayOrder();
         Long reviewId = jdbcClient.sql("""
                         INSERT INTO pq_engineer_project_history_review_results (
                             bid_seq, engr_id, source_seq, display_order, created_id, last_changed_id
@@ -216,7 +150,7 @@ public class EngineerPerformanceDocumentService {
                         VALUES (
                             :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
                         )
-                        ON CONFLICT (bid_seq, engr_id, source_seq)
+                        ON CONFLICT (bid_seq, engr_id, source_seq, created_id)
                         DO UPDATE SET
                             display_order = EXCLUDED.display_order,
                             last_changed_at = CURRENT_TIMESTAMP,
@@ -238,74 +172,34 @@ public class EngineerPerformanceDocumentService {
     public List<EngineerProjectHistoryReviewResponse> syncReviewResults(EngineerProjectHistoryReviewSyncRequest request) {
         Long bidSeq = requiredPositive(request.bidSeq(), "bidSeq");
         String engineerId = requiredText(request.engineerId(), "engineerId");
-        String actor = AuditActorResolver.resolve();
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("bidSeq", bidSeq);
-        params.put("engineerId", engineerId);
-
-        jdbcClient.sql("""
-                        DELETE FROM pq_engineer_project_history_review_results
-                        WHERE bid_seq = :bidSeq
-                          AND engr_id = :engineerId
-                          AND created_id = :actor
-                        """)
-                .param("bidSeq", bidSeq)
-                .param("engineerId", engineerId)
-                .param("actor", actor)
-                .update();
-
         List<ProjectHistoryCondition> conditions = conditionJsonCodec.parse(request.relatedProjectHistoryConditions());
-        String conditionSql = buildProjectHistoryConditionSql(
-                conditions,
-                params,
-                conditions.isEmpty() ? Map.of() : conditionMetadataService.findAll()
-        );
-        String selectSql = """
-                SELECT DISTINCT h.id
-                FROM pq_engineer_project_history h
-                JOIN company_performances cp
-                  ON cp.seq = h.seq
-                WHERE h.engr_id = :engineerId
-                  AND h.id NOT IN (
-                      SELECT existing.source_seq
-                      FROM pq_engineer_project_history_review_results existing
-                      WHERE existing.bid_seq = :bidSeq
-                        AND existing.engr_id = :engineerId
-                  )
-                """ + conditionSql + """
-                ORDER BY h.id
-                """;
-
-        List<Integer> matchingSourceSeqs = jdbcClient.sql(selectSql)
-                .params(params)
-                .query(Integer.class)
-                .list();
-
-        if (matchingSourceSeqs.isEmpty()) {
-            return findReviewResults(bidSeq, engineerId, request.relatedProjectHistoryConditions());
-        }
-
-        int displayOrder = nextDisplayOrder(bidSeq, engineerId);
-        for (Integer sourceSeq : matchingSourceSeqs) {
-            jdbcClient.sql("""
-                            INSERT INTO pq_engineer_project_history_review_results (
-                                bid_seq, engr_id, source_seq, display_order, created_id, last_changed_id
-                            )
-                            VALUES (
-                                :bidSeq, :engineerId, :sourceSeq, :displayOrder, :actor, :actor
-                            )
-                            ON CONFLICT (bid_seq, engr_id, source_seq)
-                            DO NOTHING
-                            """)
-                    .param("bidSeq", bidSeq)
-                    .param("engineerId", engineerId)
-                    .param("sourceSeq", sourceSeq)
-                    .param("displayOrder", displayOrder++)
-                    .param("actor", actor)
-                    .update();
-        }
-
+        replaceEngineerReviewResults(bidSeq, List.of(engineerId), conditions, true);
         return findReviewResults(bidSeq, engineerId, request.relatedProjectHistoryConditions());
+    }
+
+    @Override
+    @Transactional
+    public void replaceReviewResults(Long bidSeq, List<String> engineerIds, List<ProjectHistoryCondition> conditions) {
+        Long requiredBidSeq = requiredPositive(bidSeq, "bidSeq");
+        if (engineerIds == null || conditions == null) {
+            throw badRequest("적용할 기술인과 조건 목록이 필요합니다.");
+        }
+        List<String> ids = engineerIds.stream().map(id -> requiredText(id, "engineerId")).distinct().toList();
+        replaceEngineerReviewResults(requiredBidSeq, ids, conditions, false);
+    }
+
+    private void replaceEngineerReviewResults(Long bidSeq, List<String> engineerIds,
+            List<ProjectHistoryCondition> conditions, boolean selectAllWhenEmpty) {
+        if (engineerIds.isEmpty()) return;
+        selectionLock.lock(bidSeq);
+        projectHistoryRepository.replaceReviewResults(bidSeq, engineerIds, currentActor.currentActor(),
+                conditions, conditionMetadata(conditions), selectAllWhenEmpty);
+    }
+
+    private Map<String, ProjectHistoryConditionMetadata> conditionMetadata(List<ProjectHistoryCondition> conditions) {
+        var metadata = conditions.isEmpty() ? Map.<String, ProjectHistoryConditionMetadata>of() : conditionMetadataService.findAll();
+        conditions.forEach(condition -> ProjectHistoryConditionValidation.validate(condition, metadata));
+        return metadata;
     }
 
     @Transactional
@@ -328,6 +222,7 @@ public class EngineerPerformanceDocumentService {
                             last_changed_at = CURRENT_TIMESTAMP,
                             last_changed_id = :actor
                         WHERE review_id = :reviewId
+                          AND created_id = :actor
                         """)
                 .param("reviewId", reviewId)
                 .param("bidSeq", bidSeq)
@@ -347,10 +242,12 @@ public class EngineerPerformanceDocumentService {
                         WHERE bid_seq = :bidSeq
                           AND engr_id = :engineerId
                           AND review_id = :reviewId
+                          AND created_id = :actor
                         """)
                 .param("bidSeq", requiredPositive(bidSeq, "bidSeq"))
                 .param("engineerId", requiredText(engineerId, "engineerId"))
                 .param("reviewId", reviewId)
+                .param("actor", currentActor.currentActor())
                 .update();
         if (deleted != 1) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Review result was not found.");
@@ -410,24 +307,24 @@ public class EngineerPerformanceDocumentService {
                         JOIN company_performances cp
                           ON cp.seq = h.seq
                         WHERE r.review_id = :reviewId
+                          AND r.created_id = :actor
                         """)
                 .param("reviewId", reviewId)
+                .param("actor", currentActor.currentActor())
                 .query(this::mapResponse)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review result was not found."));
-        return withParticipationContractPeriods(List.of(row)).getFirst();
+        return withContractPeriods(List.of(row)).getFirst();
     }
 
-    private List<EngineerProjectHistoryReviewResponse> withParticipationContractPeriods(
-            List<EngineerProjectHistoryReviewResponse> rows
-    ) {
-        if (rows.isEmpty()) {
-            return rows;
-        }
-        var periods = participationContractPeriodRepository.findByProjectHistoryIds(
-                rows.stream().map(row -> row.sourceSeq().longValue()).distinct().toList());
+    private List<EngineerProjectHistoryReviewResponse> withContractPeriods(List<EngineerProjectHistoryReviewResponse> rows) {
+        var projectSeqs = rows.stream().map(EngineerProjectHistoryReviewResponse::seq)
+                .filter(java.util.Objects::nonNull).map(Integer::longValue).distinct().toList();
+        if (projectSeqs.isEmpty()) return rows;
+
+        var periods = companyPerformanceContractDatesRepository.findContractDatesByPerformanceSeqs(projectSeqs);
         return rows.stream()
-                .map(row -> row.withParticipationContractPeriod(periods.get(row.sourceSeq().longValue())))
+                .map(row -> row.seq() == null ? row : row.withContractPeriods(periods.getOrDefault(row.seq().longValue(), List.of())))
                 .toList();
     }
 
@@ -447,15 +344,17 @@ public class EngineerPerformanceDocumentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Source project history was not found."));
     }
 
-    private int nextDisplayOrder(Long bidSeq, String engineerId) {
+    private int nextDisplayOrder(Long bidSeq, String engineerId, String actor) {
         return jdbcClient.sql("""
                         SELECT COALESCE(MAX(display_order), 0) + 1
                         FROM pq_engineer_project_history_review_results
                         WHERE bid_seq = :bidSeq
                           AND engr_id = :engineerId
+                          AND created_id = :actor
                         """)
                 .param("bidSeq", bidSeq)
                 .param("engineerId", engineerId)
+                .param("actor", actor)
                 .query(Integer.class)
                 .single();
     }
@@ -500,172 +399,8 @@ public class EngineerPerformanceDocumentService {
                 rs.getString("created_id"),
                 getInstant(rs, "last_changed_at"),
                 rs.getString("last_changed_id"),
-                null
+                List.of()
         );
-    }
-
-    private String buildProjectHistoryConditionSql(List<ProjectHistoryCondition> projectHistoryConditions, Map<String, Object> params,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        List<String> fragments = new ArrayList<>();
-        for (int i = 0; i < projectHistoryConditions.size(); i++) {
-            ProjectHistoryCondition condition = projectHistoryConditions.get(i);
-        String conditionType = trimToNull(condition.conditionType());
-            String fragment = switch (conditionType == null ? "" : conditionType) {
-                case "constructionKind" -> constructionKindCondition(condition, params, i);
-                case "general" -> generalCondition(condition, params, i, conditionMetadata);
-                case "outline" -> outlineCondition(condition, params, i, conditionMetadata);
-                default -> "";
-            };
-            if (!StringUtils.hasText(fragment)) {
-                continue;
-            }
-            String logicalOperator = fragments.isEmpty() ? "" : " " + logicalOperator(condition.logicalOperator()) + " ";
-            fragments.add(logicalOperator + fragment);
-        }
-
-        if (fragments.isEmpty()) {
-            return "";
-        }
-        return """
-                AND (%s)
-                """.formatted(String.join("", fragments));
-    }
-
-    private String constructionKindCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        String level1Code = trimToNull(condition.level1Code());
-        if (!StringUtils.hasText(level1Code)) {
-            return "";
-        }
-        String level1Param = "historyLevel1Code" + index;
-        String level2Param = "historyLevel2Code" + index;
-        String level3Param = "historyLevel3Code" + index;
-        params.put(level1Param, level1Code);
-            params.put(level2Param, trimToNull(condition.level2Code()));
-            params.put(level3Param, trimToNull(condition.level3Code()));
-        String kindAlias = "k" + index;
-        return """
-                h.seq IN (
-                    SELECT %s.seq
-                    FROM company_performance_construction_kinds %s
-                    WHERE %s.level1_code = :%s
-                      AND (:%s IS NULL OR %s.level2_code = :%s)
-                      AND (:%s IS NULL OR %s.level3_code = :%s)
-                )
-                """.formatted(kindAlias, kindAlias, kindAlias, level1Param, level2Param, kindAlias, level2Param,
-                level3Param, kindAlias, level3Param);
-    }
-
-    private String generalCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(condition.generalCode()));
-        String historyAlias = "h" + index;
-        String targetAlias = "target" + index;
-        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index, metadata.valueType());
-        if (!StringUtils.hasText(predicate)) return "";
-        return """
-                h.seq IN (
-                    SELECT %s.seq
-                    FROM %s %s
-                    WHERE %s
-                )
-                """.formatted(targetAlias, metadata.table(), targetAlias, predicate);
-    }
-
-    private String outlineCondition(ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            Map<String, ProjectHistoryConditionMetadata> conditionMetadata) {
-        String categoryCode = trimToNull(condition.outlineCategoryCode());
-        String subcategoryCode = trimToNull(condition.outlineSubcategoryCode());
-        if (!StringUtils.hasText(categoryCode) && !StringUtils.hasText(subcategoryCode)) {
-            return "";
-        }
-
-        String targetAlias = "target" + index;
-        List<String> outlineConditions = new ArrayList<>();
-        if (StringUtils.hasText(categoryCode)) {
-            String paramName = "outlineCategoryCode" + index;
-            outlineConditions.add(targetAlias + ".cate_code = :" + paramName);
-            params.put(paramName, categoryCode);
-        }
-        if (StringUtils.hasText(subcategoryCode)) {
-            String paramName = "outlineSubcategoryCode" + index;
-            outlineConditions.add(targetAlias + ".subcate_code = :" + paramName);
-            params.put(paramName, subcategoryCode);
-        }
-        ProjectHistoryConditionMetadata metadata = conditionMetadata.get(trimToNull(categoryCode) + trimToNull(subcategoryCode));
-        if (metadata == null) return "";
-        String predicate = comparisonPredicate(targetAlias + "." + metadata.column(), condition, params, index,
-                metadata.valueType());
-        if (StringUtils.hasText(predicate)) {
-            outlineConditions.add(predicate);
-        }
-
-        return """
-                h.seq IN (
-                    SELECT %s.seq
-                    FROM %s %s
-                    WHERE %s
-                )
-                """.formatted(targetAlias, metadata.table(), targetAlias, String.join("\nAND ", outlineConditions));
-    }
-
-    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index) {
-        return comparisonPredicate(column, condition, params, index, null);
-    }
-
-    private String comparisonPredicate(String column, ProjectHistoryCondition condition, Map<String, Object> params, int index,
-            String metadataValueType) {
-        String value = trimToNull(condition.value());
-        String operator = operator(condition.operator());
-        if (!StringUtils.hasText(value) && !"LIKE".equals(operator)) {
-            return "";
-        }
-
-        String valueType = StringUtils.hasText(metadataValueType) ? metadataValueType : trimToNull(condition.valueType());
-        boolean numberType = "number".equals(valueType);
-        boolean dateType = "date".equals(valueType);
-        String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
-        String expression = numberType
-                ? "CASE WHEN " + numericText + " ~ '^-?[0-9]+([.][0-9]+)?$' THEN CAST(" + numericText + " AS NUMERIC) END"
-                : column;
-        String paramName = "historyValue" + index;
-        String valueToParamName = "historyValueTo" + index;
-
-        if ("LIKE".equals(operator)) {
-            if (numberType) {
-                params.put(paramName, typedValue(value, paramName, true, false));
-                return expression + " = :" + paramName;
-            }
-            params.put(paramName, "%" + (value == null ? "" : value.toLowerCase(Locale.ROOT)) + "%");
-            return "LOWER(CAST(" + column + " AS TEXT)) LIKE :" + paramName;
-        }
-        if ("BETWEEN".equals(operator)) {
-        String valueTo = trimToNull(condition.valueTo());
-            if (!StringUtils.hasText(valueTo)) {
-                return "";
-            }
-            params.put(paramName, typedValue(value, paramName, numberType, dateType));
-            params.put(valueToParamName, typedValue(valueTo, valueToParamName, numberType, dateType));
-            return expression + " BETWEEN :" + paramName + " AND :" + valueToParamName;
-        }
-
-        params.put(paramName, typedValue(value, paramName, numberType, dateType));
-        return expression + " " + operator + " :" + paramName;
-    }
-
-    private String operator(String value) {
-        String normalized = trimToNull(value);
-        if (!StringUtils.hasText(normalized)) {
-            return "=";
-        }
-        String operator = normalized.toUpperCase(Locale.ROOT);
-        if (!COMPARISON_OPERATORS.contains(operator)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported comparison operator.");
-        }
-        return operator;
-    }
-
-    private String logicalOperator(String value) {
-        return "OR".equalsIgnoreCase(trimToNull(value)) ? "OR" : "AND";
     }
 
     private String formatDays(Object value) {
@@ -678,24 +413,6 @@ public class EngineerPerformanceDocumentService {
         } catch (NumberFormatException exception) {
             return String.valueOf(value);
         }
-    }
-
-    private BigDecimal number(String value, String fieldName) {
-        try {
-            return new BigDecimal(value.replace(",", ""));
-        } catch (NumberFormatException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be numeric.", exception);
-        }
-    }
-
-    private Object typedValue(String value, String fieldName, boolean numberType, boolean dateType) {
-        if (numberType) {
-            return number(value, fieldName);
-        }
-        if (dateType) {
-            return value.replaceAll("\\D", "");
-        }
-        return value;
     }
 
     private Integer getNullableInteger(ResultSet rs, String column) throws SQLException {

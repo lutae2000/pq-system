@@ -3,7 +3,7 @@
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { Alert, Box, Button, Card, CardContent, Stack, Typography } from "@mui/material";
 import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
@@ -16,9 +16,11 @@ import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
-import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, formatMoney, text } from "@/modules/common/formatters";
-import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord, type BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
+import { dateOnly, dateTimeText, formatMoney } from "@/modules/common/formatters";
+import { toBidNoticeRecord, toBidNoticeRequest } from "@/modules/pq/bid-notice/application/mapper";
+import { createBidNotice, getBidNotice, updateBidNotice, type BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
+import { emptyDraft } from "@/modules/pq/bid-notice/domain/rules";
 import {
   getImportedG2bBidNoticeCandidate,
   getImportedG2bBidNoticeCandidateByNoticeNumber,
@@ -68,150 +70,16 @@ const attachmentNames = (attachments: ReadonlyArray<{ fileName?: string | null; 
     .sort()
     .join("\n");
 
-const emptyBidNoticeDraft = (): BidNoticeRecord => ({
-  active: true,
-  baseAmount: 0,
-  bidDate: "",
-  interviewDate: "",
-  bidStyle: "",
-  bidMethod: "",
-  bidNo: "",
-  bidClosingDate: "",
-  bidType: "",
-  bidTypeLabel: "",
-  bidMethodLabel: "",
-  businessField: "",
-  fieldOfWorkLabel: "",
-  businessScope: "",
-  scopeOfWorkLabel: "",
-  businessType: "",
-  businessTypeLabel: "",
-  category: "怨듦퀬" as BidNoticeRecord["category"],
-  client: "",
-  orderClientName: "",
-  content: "",
-  department: "",
-  departmentName: "",
-  draftNote: "",
-  electronicVendor: "",
-  endDate: "",
-  estimateAmount: 0,
-  designAmt: 0,
-  id: "",
-  managerConfirmed: false,
-  noticeDate: "",
-  onSiteMeetingDate: "",
-  participationStatus: "",
-  finalParticipationStatus: "",
-  g2bBidNtceNo: "",
-  g2bBidNtceOrd: "",
-  pqRegistrationDate: "",
-  pqSubmissionDate: "",
-  pqDecideEmpno: "",
-  projectName: "",
-  procurementMethod: "",
-  reasonOfAbsenceCode: "",
-  orderMethodLabel: "",
-  representativeVendor: "",
-  bidSubmissionDate: "",
-  writerName: "",
-  seqNo: 0,
-  sortOrder: 0,
-  startDate: "",
-  tpSubmissionDate: "",
-  bidSuccessYn: "",
-  bidSuccessYnLabel: "",
-  visible: true,
-});
-
-const toEditableBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
-  ...emptyBidNoticeDraft(),
-  bidDate: dateTimeText(item.bidDate),
-  bidClosingDate: dateTimeText(item.bidClosingDate),
-  bidMethod: text(item.bidMethod),
-  bidMethodLabel: text(item.bidMethodLabel),
-  bidNo: item.bidSeq ? String(item.bidSeq) : "",
-  bidSubmissionDate: dateTimeText(item.bidSubmissionDate),
-  bidStyle: text(item.processTag),
-  bidSuccessYn: text(item.bidSuccessYn),
-  bidSuccessYnLabel: text(item.bidSuccessYnLabel),
-  bidType: text(item.bidType),
-  bidTypeLabel: text(item.bidTypeLabel),
-  businessField: text(item.fieldOfWorkCode) as BidNoticeRecord["businessField"],
-  businessType: text(item.businessType),
-  client: text(item.orderClient),
-  department: text(item.departmentCode),
-  departmentName: text(item.departmentName),
-  draftNote: text(item.remark),
-  estimateAmount: Number(item.designAmt ?? 0),
-  finalParticipationStatus: text(item.participateYn),
-  g2bBidNtceNo: text(item.g2bBidNtceNo),
-  g2bBidNtceOrd: text(item.g2bBidNtceOrd),
-  id: item.bidSeq ? String(item.bidSeq) : "",
-  managerConfirmed: item.bidSuccessYn === "Y",
-  noticeDate: dateOnly(item.announceDate),
-  onSiteMeetingDate: dateTimeText(item.siteBriefingDate),
-  pqRegistrationDate: dateTimeText(item.pqRegistDate),
-  pqSubmissionDate: dateTimeText(item.pqSubmitDate),
-  projectName: item.projectName,
-  procurementMethod: text(item.orderMethod),
-  reasonOfAbsenceCode: text(item.reasonOfAbsenceCode),
-  representativeVendor: text(item.primeContractor),
-  seqNo: item.bidSeq ?? 0,
-  startDate: dateOnly(item.announceDate),
-  tpSubmissionDate: dateTimeText(item.tpSubmitDate),
-  writerName: text(item.superDecideEmpno),
-});
-
-const toBidNoticeRequest = (draft: BidNoticeRecord): BidNoticeUpsertRequest => ({
-  bidSeq: draft.seqNo || null,
-  departmentCode: draft.department.trim(),
-  projectName: draft.projectName.trim(),
-  orderClient: draft.client.trim(),
-  designAmt: draft.estimateAmount || null,
-  bidType: draft.bidType.trim(),
-  bidMethod: draft.bidMethod.trim(),
-  announceDate: apiDate(draft.noticeDate) || null,
-  pqRegistDate: apiDateTime(draft.pqRegistrationDate),
-  pqSubmitDate: apiDateTime(draft.pqSubmissionDate),
-  orderMethod: draft.procurementMethod.trim() || draft.bidMethod.trim(),
-  bidDate: apiDateTime(draft.bidDate),
-  interviewDate: apiDate(draft.interviewDate) || null,
-  bidSuccessYn: draft.bidSuccessYn.trim() || boolToYn(draft.managerConfirmed),
-  participateYn: draft.finalParticipationStatus.trim(),
-  g2bBidNtceNo: draft.g2bBidNtceNo.trim() || null,
-  g2bBidNtceOrd: draft.g2bBidNtceOrd.trim() || null,
-  pqDecideEmpno: "",
-  pqDecideDate: null,
-  superDecideEmpno: draft.writerName.trim(),
-  businessType: draft.businessType.trim(),
-  bidSubmissionDate: apiDateTime(draft.bidSubmissionDate),
-  processTag: draft.bidStyle.trim(),
-  bidClosingDate: apiDateTime(draft.bidClosingDate),
-  fieldOfWorkCode: draft.businessField.trim(),
-  scopeOfWorkCode: draft.businessScope.trim(),
-  reasonOfAbsenceCode: draft.reasonOfAbsenceCode.trim(),
-  siteBriefingDate: apiDateTime(draft.onSiteMeetingDate),
-  tpSubmitDate: apiDateTime(draft.tpSubmissionDate),
-  tpPassYn: "",
-  primeContractor: draft.representativeVendor.trim(),
-  remark: draft.draftNote.trim(),
-  refmatYn: "",
-  createdId: null,
-  lastChangedId: null,
-});
-
 const toCandidateBidNoticeDraft = (record: ReturnType<typeof toG2bBidNoticeCandidateRow>): BidNoticeRecord => {
   const amount = Number(record.asignBdgtAmt.replaceAll(",", "")) || 0;
 
   return {
-    ...emptyBidNoticeDraft(),
+    ...emptyDraft(),
     g2bBidNtceNo: record.bidNtceNo,
     g2bBidNtceOrd: record.bidNtceOrd,
     bidDate: record.bidDate,
     bidClosingDate: record.agreementSubmissionDeadline,
     bidSubmissionDate: record.opengDt,
-    bidStyle: record.sucsfbidMthdNm,
     estimateAmount: amount,
     designAmt: amount,
     noticeDate: dateOnly(record.bidNtceDate),
@@ -265,6 +133,7 @@ export function G2bBidNoticeCandidatePage() {
   const [detailRecord, setDetailRecord] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ ids: number[]; detail: boolean } | null>(null);
   const [inputDraft, setInputDraft] = useState<BidNoticeRecord | null>(null);
+  const manuallyEditedInputFields = useRef(new Set<keyof BidNoticeRecord>());
   const [inputCandidateId, setInputCandidateId] = useState<number | null>(null);
   const [inputAttachmentOwnerId, setInputAttachmentOwnerId] = useState<number | null>(null);
   const [inputSourceNotice, setInputSourceNotice] = useState<ReturnType<typeof toG2bBidNoticeCandidateRow> | null>(null);
@@ -290,7 +159,7 @@ export function G2bBidNoticeCandidatePage() {
 
   const autoMappedInputFields = useMemo(() => ({
     bidMethod: findAutoMappedOptionValue(bidMethodOptions.options, inputMappingSource.bidMethod, true),
-    businessScope: findAutoMappedOptionValue(businessScopeOptions.options, inputMappingSource.businessType),
+    businessScope: findAutoMappedOptionValue(businessScopeOptions.options, inputMappingSource.businessScope),
     businessType: findAutoMappedOptionValue(businessTypeOptions.options, inputMappingSource.businessType),
     businessField: findAutoMappedOptionValue(businessFieldOptions.options, inputMappingSource.businessField),
     procurementMethod: findAutoMappedOptionValue(orderMethodOptions.options, inputMappingSource.orderMethod),
@@ -300,6 +169,7 @@ export function G2bBidNoticeCandidatePage() {
     businessScopeOptions.options,
     businessTypeOptions.options,
     inputMappingSource.businessField,
+    inputMappingSource.businessScope,
     inputMappingSource.businessType,
     inputMappingSource.bidMethod,
     inputMappingSource.orderMethod,
@@ -316,28 +186,27 @@ export function G2bBidNoticeCandidatePage() {
 
   useEffect(() => {
     if (!inputDraft || Object.values(autoMappedInputFields).every((value) => !value)) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInputDraft((current) => {
       if (!current) return current;
       const next = { ...current };
       let changed = false;
-      if (!next.bidMethod && autoMappedInputFields.bidMethod) {
+      if (!next.bidMethod && autoMappedInputFields.bidMethod && !manuallyEditedInputFields.current.has("bidMethod")) {
         next.bidMethod = autoMappedInputFields.bidMethod;
         changed = true;
       }
-      if (!next.businessType && autoMappedInputFields.businessType) {
+      if (!next.businessType && autoMappedInputFields.businessType && !manuallyEditedInputFields.current.has("businessType")) {
         next.businessType = autoMappedInputFields.businessType;
         changed = true;
       }
-      if (!next.businessScope && autoMappedInputFields.businessScope) {
+      if (!next.businessScope && autoMappedInputFields.businessScope && !manuallyEditedInputFields.current.has("businessScope")) {
         next.businessScope = autoMappedInputFields.businessScope;
         changed = true;
       }
-      if (!next.businessField && autoMappedInputFields.businessField) {
+      if (!next.businessField && autoMappedInputFields.businessField && !manuallyEditedInputFields.current.has("businessField")) {
         next.businessField = autoMappedInputFields.businessField;
         changed = true;
       }
-      if (!next.procurementMethod && autoMappedInputFields.procurementMethod) {
+      if (!next.procurementMethod && autoMappedInputFields.procurementMethod && !manuallyEditedInputFields.current.has("procurementMethod")) {
         next.procurementMethod = autoMappedInputFields.procurementMethod;
         changed = true;
       }
@@ -349,8 +218,7 @@ export function G2bBidNoticeCandidatePage() {
     const participationOption = finalParticipationOptions.options.find((option) => option.value === draft.finalParticipationStatus);
     const isAbsent = draft.finalParticipationStatus === "N" || participationOption?.label.includes("\uBD88\uCC38") === true;
     if (isAbsent && !draft.reasonOfAbsenceCode.trim()) throw new Error("불참 사유를 선택해주세요.");
-    const draftWithMappedBidMethod = draft.bidMethod.trim() || autoMappedInputFields.bidMethod ? { ...draft, bidMethod: draft.bidMethod.trim() || autoMappedInputFields.bidMethod } : draft;
-    const request = toBidNoticeRequest(draftWithMappedBidMethod);
+    const request = toBidNoticeRequest(draft);
     const saved = draft.seqNo ? await updateBidNotice(draft.seqNo, request) : await createBidNotice(request);
     if (!saved.bidSeq) throw new Error("저장된 공고 식별자를 확인할 수 없습니다.");
     await markG2bBidNoticeCandidateImported(candidateId, saved.bidSeq);
@@ -358,7 +226,7 @@ export function G2bBidNoticeCandidatePage() {
   };
   const { deleteMutation, inputSaveMutation, syncMutation } = useG2bBidNoticeCandidateMutations({
     saveInput,
-    onInputSaved: (saved) => { setInputDraft(toEditableBidNoticeRecord(saved)); setInputAttachmentOwnerId(saved.bidSeq ?? null); showSuccess("공고문이 저장되었습니다. 첨부파일을 추가할 수 있습니다."); },
+    onInputSaved: (saved) => { setInputDraft(toBidNoticeRecord(saved)); setInputAttachmentOwnerId(saved.bidSeq ?? null); showSuccess("공고문이 저장되었습니다. 첨부파일을 추가할 수 있습니다."); },
     onDeleted: () => { setRowSelectionModel({ ids: new Set(), type: "include" }); showSuccess("선택한 나라장터 공고를 삭제했습니다."); },
     onSyncCompleted: (result) => showSuccess(result.message || "나라장터 입찰공고 조회가 완료되었습니다."),
     onError: (error) => showError(error instanceof Error ? error.message : "나라장터 공고 요청에 실패했습니다."),
@@ -421,6 +289,7 @@ export function G2bBidNoticeCandidatePage() {
       showError("공고문 등록 권한이 없습니다.");
       return;
     }
+    manuallyEditedInputFields.current.clear();
     setInputSourceAttachments(detailRecord.attachments);
     setInputSourceNotice(detailRecord);
     setInputCandidateId(detailRecord.id);
@@ -440,7 +309,7 @@ export function G2bBidNoticeCandidatePage() {
         ? getImportedG2bBidNoticeCandidate(detailRecord.importedBidSeq).catch(() => null)
         : Promise.resolve(null),
     ]);
-    const baseDraft = existingRecord ? toEditableBidNoticeRecord(existingRecord) : emptyBidNoticeDraft();
+    const baseDraft = existingRecord ? toBidNoticeRecord(existingRecord) : emptyDraft();
     const mergedDraft = existingRecord ? {
       ...baseDraft,
       g2bBidNtceNo: candidateDraft.g2bBidNtceNo,
@@ -448,7 +317,6 @@ export function G2bBidNoticeCandidatePage() {
       bidClosingDate: candidateDraft.bidClosingDate || baseDraft.bidClosingDate,
       bidDate: candidateDraft.bidDate || baseDraft.bidDate,
       bidSubmissionDate: candidateDraft.bidSubmissionDate || baseDraft.bidSubmissionDate,
-      bidStyle: candidateDraft.bidStyle || baseDraft.bidStyle,
       designAmt: candidateDraft.designAmt || baseDraft.designAmt,
       estimateAmount: candidateDraft.estimateAmount || baseDraft.estimateAmount,
       noticeDate: candidateDraft.noticeDate || baseDraft.noticeDate,
@@ -480,6 +348,7 @@ export function G2bBidNoticeCandidatePage() {
   };
 
   const updateInputDraft = <K extends keyof BidNoticeRecord>(field: K, value: BidNoticeRecord[K]) => {
+    manuallyEditedInputFields.current.add(field);
     setInputDraft((current) => (current ? { ...current, [field]: value } : current));
   };
 

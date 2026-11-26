@@ -46,7 +46,7 @@ import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat
 import { formatLocalizedNumber } from "@/modules/common/formatters";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import type { BidNoticeApiRecord } from "@/modules/pq/bid-notice/bidNoticeApi";
-import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
+import { calculateHistoryParticipationRatios, groupParticipationRows } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { EngineerProjectHistoryReviewRecord } from "@/modules/pq/engineer-performance-docs/api";
 
 import { useRelatedProjectHistoryConditions } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
@@ -104,15 +104,8 @@ const center = {
   headerAlign: "center",
 } as const;
 
-const participationRatioColumn = {
-  field: "participationRatio",
-  headerName: "참여도",
-  type: "number",
-  width: 90,
-  ...center,
-  valueGetter: (_value, row) => calculateHistoryParticipationRatio(row),
-  valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
-} satisfies GridColDef<EngineerProjectHistoryReviewRecord>;
+const participationGroupKey = (row: EngineerProjectHistoryReviewRecord) =>
+  JSON.stringify([row.engineerId, row.seq ? ["project", row.seq] : ["row", row.id]]);
 
 const selectorGridHeight = { xs: 520, md: 580 } as const;
 const DEFAULT_SELECTOR_PANEL_WIDTH = 440;
@@ -256,12 +249,24 @@ export function EngineerPerformanceDocumentsPage() {
     [activeEngineerProfile?.summary, projectHistoryRowsQuery.data],
   );
 
-  const reviewRows = useMemo(() => reviewRowsQuery.data ?? [], [reviewRowsQuery.data]);
+  const reviewRows = useMemo(() =>
+    Array.from(groupParticipationRows(reviewRowsQuery.data ?? [], participationGroupKey).values()).flat(),
+    [reviewRowsQuery.data],
+  );
+  const participationRatios = useMemo(() => calculateHistoryParticipationRatios(
+    groupParticipationRows(
+      projectHistoryRowsQuery.data ?? reviewRows,
+      participationGroupKey,
+    ),
+  ), [projectHistoryRowsQuery.data, reviewRows]);
   const reviewRowById = useMemo(() => new Map(reviewRows.filter((row) => row.reviewId != null).map((row) => [String(row.reviewId), row])), [reviewRows]);
   const reviewRowIds = useMemo(() => reviewRows.filter((row) => row.reviewId != null).map((row) => String(row.reviewId)), [reviewRows]);
   const reviewSourceHistoryIdSet = useMemo(() => new Set(reviewRows.map((row) => text(row.id))), [reviewRows]);
   const availableHistoryRows = useMemo(
-    () => activeEngineerHistoryRows.filter((row) => !reviewSourceHistoryIdSet.has(text(row.id))),
+    () => Array.from(groupParticipationRows(
+      activeEngineerHistoryRows.filter((row) => !reviewSourceHistoryIdSet.has(text(row.id))),
+      participationGroupKey,
+    ).values()).flat(),
     [activeEngineerHistoryRows, reviewSourceHistoryIdSet],
   );
   const selectedHistoryRows = useMemo(
@@ -505,6 +510,17 @@ export function EngineerPerformanceDocumentsPage() {
     valueFormatter: (value: unknown) => formatReferenceLabel(labelByJobClass, value),
   }), [labelByJobClass]);
 
+  const participationRatioColumn = useMemo(() => ({
+    field: "participationRatio",
+    headerName: "참여도",
+    type: "number",
+    width: 90,
+    ...center,
+    rowSpanValueGetter: (_value, row) => participationGroupKey(row),
+    valueGetter: (_value, row) => participationRatios.get(participationGroupKey(row)) ?? null,
+    valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
+  } satisfies GridColDef<EngineerProjectHistoryReviewRecord>), [participationRatios]);
+
   const historyColumns = useMemo<GridColDef<PerformanceHistoryRow>[]>(() => [
       { field: "jobName", headerName: "용역명", minWidth: 220, flex: 1.2 },
       { field: "compName", headerName: "참여당시 회사", width: 150 },
@@ -523,7 +539,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [participationPositionColumn],
+    [participationPositionColumn, participationRatioColumn],
   );
 
   const reviewColumns = useMemo<GridColDef<EngineerProjectHistoryReviewRecord>[]>(() => [
@@ -571,7 +587,7 @@ export function EngineerPerformanceDocumentsPage() {
       { field: "proPart", headerName: "전문분야", width: 120, ...center },
       { field: "returnYn", headerName: "신고여부", width: 90, ...center },
     ],
-    [canUpdate, participationPositionColumn],
+    [canUpdate, participationPositionColumn, participationRatioColumn],
   );
   const orderedHistoryColumns = useMemo(() => {
     const order = [
@@ -595,7 +611,11 @@ export function EngineerPerformanceDocumentsPage() {
     const orderByField = new Map(order.map((field, index) => [field, index]));
     return historyColumns
       .filter((column) => orderByField.has(column.field))
-      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!);
+      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!)
+      .map<GridColDef<PerformanceHistoryRow>>((column) => ({
+        ...column,
+        rowSpanValueGetter: column.rowSpanValueGetter ?? ((_value, row) => historySelectionKey(row)),
+      }));
   }, [historyColumns]);
   const orderedReviewColumns = useMemo(() => {
     const order = [
@@ -620,7 +640,11 @@ export function EngineerPerformanceDocumentsPage() {
     const orderByField = new Map(order.map((field, index) => [field, index]));
     return reviewColumns
       .filter((column) => orderByField.has(column.field))
-      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!);
+      .sort((left, right) => orderByField.get(left.field)! - orderByField.get(right.field)!)
+      .map<GridColDef<EngineerProjectHistoryReviewRecord>>((column) => ({
+        ...column,
+        rowSpanValueGetter: column.rowSpanValueGetter ?? ((_value, row) => row.reviewId ?? row.id),
+      }));
   }, [reviewColumns]);
 
   const handleLoad = () => {
@@ -967,6 +991,7 @@ export function EngineerPerformanceDocumentsPage() {
                       paginationModel={historyPaginationModel}
                       pageSizeOptions={[25, 50, 100]}
                       rows={availableHistoryRows}
+                      rowSpanning
                       rowSelectionModel={{ type: "include", ids: new Set(selectedHistoryIds) }}
                       columnHeaderHeight={36}
                       rowHeight={30}
@@ -1017,8 +1042,15 @@ export function EngineerPerformanceDocumentsPage() {
                       }}
                     >
                       <RelatedProjectHistoryConditionsPanel
-                        disabled={!canCreate && !canUpdate}
-                        onSaved={documentActions.syncReviewResults}
+                        disabled={(!canCreate && !canUpdate) || engineersQuery.isFetching || profiles.length === 0}
+                        onSaved={async (conditions) => {
+                          await documentActions.syncReviewResults(conditions);
+                          setSelectedHistoryIds([]);
+                          setHistorySelectionAnchorId(null);
+                          setSelectedReviewIds([]);
+                          setReviewSelectionAnchorId(null);
+                          setPendingBulkDeleteReviewIds(null);
+                        }}
                         settings={conditionSettings}
                       />
                       <Chip color="success" label={`검토결과 ${reviewRows.length}건`} size="small" />
@@ -1076,13 +1108,13 @@ export function EngineerPerformanceDocumentsPage() {
                       }
                     }}
                     editMode="cell"
-                    initialState={{ sorting: { sortModel: [{ field: "displayOrder", sort: "asc" }] } }}
                     onPaginationModelChange={setReviewPaginationModel}
                     onProcessRowUpdateError={() => undefined}
                     pageSizeOptions={[25, 50, 100]}
                     paginationModel={reviewPaginationModel}
                     processRowUpdate={canUpdate ? documentActions.processReviewRowUpdate : undefined}
                     rows={reviewRows}
+                    rowSpanning
                     rowSelectionModel={{ type: "include", ids: new Set(selectedReviewIds.map(Number)) }}
                     summaryColumns={[
                       { field: "contractAmt", label: "계약금액", format: (value) => formatMoney(value) },

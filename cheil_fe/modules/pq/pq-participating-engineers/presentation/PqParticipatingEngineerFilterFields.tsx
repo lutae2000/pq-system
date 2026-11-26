@@ -9,6 +9,7 @@ import { AutoCompleteField } from "@/components/common/AutoCompleteField";
 import { RelatedProjectHistoryConditionsPanel } from "@/components/common/RelatedProjectHistoryConditionsPanel";
 import type { SelectOption } from "@/modules/common/reference/referenceFormat";
 import type { RelatedProjectHistoryConditionsSettings } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
+import type { PqParticipatingEngineerProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
 
 export type PqParticipatingEngineerFilterValues = {
   certificationCode: string;
@@ -32,7 +33,7 @@ type PqParticipatingEngineerFilterFieldsProps = {
   jobFieldOptions: SelectOption[];
   onChange: (patch: Partial<PqParticipatingEngineerFilterValues>) => void;
   onOpenCompanyPerformance: () => void;
-  onSaveRelatedProjectHistoryConditions: () => void;
+  onSaveRelatedProjectHistoryConditions: (conditions: PqParticipatingEngineerProjectHistoryCondition[]) => Promise<void>;
   specialtyFieldOptions: SelectOption[];
 };
 

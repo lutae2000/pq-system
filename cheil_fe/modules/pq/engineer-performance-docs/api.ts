@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/http/apiClient";
 import { apiRequest } from "@/lib/http/apiRequest";
 import type { CareerDetailRecord } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import type { PqParticipatingEngineerProjectHistoryCondition, RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
 
 const ENGINEER_PERFORMANCE_DOCS_API = "/pq/engineer-performance-docs";
 
@@ -46,12 +46,6 @@ export type EngineerProjectHistoryReviewDeleteRequest = {
   bidSeq: number;
   engineerId: string;
   reviewId: number;
-};
-
-export type EngineerProjectHistoryReviewSyncRequest = {
-  bidSeq: number;
-  engineerId: string;
-  relatedProjectHistoryConditions?: RelatedProjectHistoryCondition[];
 };
 
 export type EngineerDocumentValueSettingRecord = {
@@ -155,18 +149,13 @@ export async function deleteEngineerProjectHistoryReviewResult(params: EngineerP
   );
 }
 
-export async function syncEngineerProjectHistoryReviewResults(
-  params: EngineerProjectHistoryReviewSyncRequest,
-): Promise<EngineerProjectHistoryReviewRecord[]> {
+export async function replaceEngineerProjectHistoryReviewResults(params: {
+  bidSeq: number;
+  engineerIds: string[];
+  relatedProjectHistoryConditions: PqParticipatingEngineerProjectHistoryCondition[];
+}): Promise<void> {
   return apiRequest(
-    apiClient.post<EngineerProjectHistoryReviewRecord[]>(`${ENGINEER_PERFORMANCE_DOCS_API}/review-results/sync`, {
-      bidSeq: params.bidSeq,
-      engineerId: params.engineerId,
-      relatedProjectHistoryConditions:
-        params.relatedProjectHistoryConditions && params.relatedProjectHistoryConditions.length > 0
-          ? JSON.stringify(params.relatedProjectHistoryConditions)
-          : undefined,
-    }),
+    apiClient.put<void>(`${ENGINEER_PERFORMANCE_DOCS_API}/review-results/conditions`, params),
     "관련공사 참여이력 검토결과를 자동 반영하지 못했습니다.",
   );
 }

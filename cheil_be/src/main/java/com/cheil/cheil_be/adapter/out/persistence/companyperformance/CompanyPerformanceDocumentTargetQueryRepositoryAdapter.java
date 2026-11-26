@@ -1,22 +1,28 @@
 package com.cheil.cheil_be.adapter.out.persistence.companyperformance;
 
+import static com.cheil.cheil_be.application.common.exception.ApplicationException.badRequest;
+import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
+
 import com.cheil.cheil_be.application.companyperformance.port.out.CompanyPerformanceDocumentTargetQueryRepository;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryCondition;
+import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionGroups;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
 public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
         implements CompanyPerformanceDocumentTargetQueryRepository {
 
+    private static final Set<String> COMPARISON_OPERATORS = Set.of("=", "!=", ">=", "<=", ">", "<", "LIKE", "BETWEEN");
     private static final Map<String, String> GENERAL_COLUMNS = Map.of(
             "C0101C1", "cp.job_name",
             "C0102C1", "cp.client_kind",
@@ -31,40 +37,30 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
     private final JdbcClient jdbcClient;
 
     @Override
-    public List<Long> findUnselectedPerformanceSeqs(Long bidSeq, List<Condition> conditions) {
+    public List<Long> findMatchingPerformanceSeqs(List<ProjectHistoryCondition> conditions) {
+        if (conditions.isEmpty()) return List.of();
         Map<String, Object> parameters = new HashMap<>();
-        List<String> fragments = new ArrayList<>();
+        var groups = new ProjectHistoryConditionGroups<String>(
+                (left, right) -> "(" + left + " AND " + right + ")",
+                (left, right) -> "(" + left + " OR " + right + ")");
 
         for (int index = 0; index < conditions.size(); index++) {
-            Condition condition = conditions.get(index);
-            String fragment = conditionFragment(condition, parameters, index);
+            ProjectHistoryCondition condition = conditions.get(index);
+            String fragment = condition == null ? "" : conditionFragment(condition, parameters, index);
             if (fragment.isBlank()) {
-                continue;
+                throw badRequest("회사실적에 적용할 수 없는 조건입니다. 조건 #" + (index + 1) + "을 확인해 주세요.");
             }
-            if (!fragments.isEmpty()) {
-                String logicalOperator = "OR".equalsIgnoreCase(condition.logicalOperator()) ? "OR" : "AND";
-                fragments.add(" " + logicalOperator + " ");
-            }
-            fragments.add(fragment);
-        }
-
-        if (fragments.isEmpty()) {
-            return List.of();
+            groups.add(index, condition.logicalOperator(), condition.orGroupStart(), fragment);
         }
 
         String sql = """
                 SELECT cp.seq
                 FROM company_performances cp
                 WHERE cp.job_own_yn = 'Y'
-                  AND cp.seq NOT IN (
-                    SELECT target.company_performance_seq
-                    FROM pq_company_performance_document_targets target
-                    WHERE target.bid_seq = :bidSeq
-                )
                   AND (%s)
-                """.formatted(String.join("", fragments));
+                ORDER BY cp.contract_to_date NULLS LAST, cp.seq
+                """.formatted(groups.result().orElseThrow());
 
-        parameters.put("bidSeq", bidSeq);
         return jdbcClient.sql(sql)
                 .params(parameters)
                 .query(Long.class)
@@ -72,7 +68,7 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
     }
 
     private String conditionFragment(
-            Condition condition,
+            ProjectHistoryCondition condition,
             Map<String, Object> parameters,
             int index
     ) {
@@ -84,12 +80,12 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
             return outlineFragment(condition, parameters, index);
         }
 
-        String column = GENERAL_COLUMNS.get(condition.generalCode());
+        String column = GENERAL_COLUMNS.get(condition.generalCode() == null ? "" : condition.generalCode());
         return column == null ? "" : comparison(column, condition, parameters, index);
     }
 
     private String constructionKindFragment(
-            Condition condition,
+            ProjectHistoryCondition condition,
             Map<String, Object> parameters,
             int index
     ) {
@@ -98,8 +94,8 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
         }
 
         parameters.put("l1" + index, condition.level1Code());
-        parameters.put("l2" + index, condition.level2Code());
-        parameters.put("l3" + index, condition.level3Code());
+        parameters.put("l2" + index, trimToNull(condition.level2Code()));
+        parameters.put("l3" + index, trimToNull(condition.level3Code()));
 
         return """
                 EXISTS (
@@ -107,8 +103,8 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
                     FROM company_performance_construction_kinds kind%s
                     WHERE kind%s.seq = cp.seq
                       AND kind%s.level1_code = :l1%s
-                      AND (:l2%s IS NULL OR kind%s.level2_code = :l2%s)
-                      AND (:l3%s IS NULL OR kind%s.level3_code = :l3%s)
+                      AND (CAST(:l2%s AS TEXT) IS NULL OR kind%s.level2_code = :l2%s)
+                      AND (CAST(:l3%s AS TEXT) IS NULL OR kind%s.level3_code = :l3%s)
                 )
                 """.formatted(
                 index,
@@ -125,7 +121,7 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
     }
 
     private String outlineFragment(
-            Condition condition,
+            ProjectHistoryCondition condition,
             Map<String, Object> parameters,
             int index
     ) {
@@ -133,8 +129,8 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
             return "";
         }
 
-        parameters.put("oc" + index, condition.outlineCategoryCode());
-        parameters.put("os" + index, condition.outlineSubcategoryCode());
+        parameters.put("oc" + index, trimToNull(condition.outlineCategoryCode()));
+        parameters.put("os" + index, trimToNull(condition.outlineSubcategoryCode()));
         String alias = "outline" + index;
         String comparison = comparison(alias + ".otln_cont", condition, parameters, index);
         String comparisonClause = comparison.isBlank() ? "" : " AND " + comparison;
@@ -144,8 +140,8 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
                     SELECT 1
                     FROM company_performance_outlines %s
                     WHERE %s.seq = cp.seq
-                      AND (:oc%s IS NULL OR %s.cate_code = :oc%s)
-                      AND (:os%s IS NULL OR %s.subcate_code = :os%s)%s
+                      AND (CAST(:oc%s AS TEXT) IS NULL OR %s.cate_code = :oc%s)
+                      AND (CAST(:os%s AS TEXT) IS NULL OR %s.subcate_code = :os%s)%s
                 )
                 """.formatted(
                 alias,
@@ -162,7 +158,7 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
 
     private String comparison(
             String column,
-            Condition condition,
+            ProjectHistoryCondition condition,
             Map<String, Object> parameters,
             int index
     ) {
@@ -173,7 +169,10 @@ public class CompanyPerformanceDocumentTargetQueryRepositoryAdapter
 
         String operator = condition.operator() == null
                 ? "="
-                : condition.operator().toUpperCase(Locale.ROOT);
+                : condition.operator().trim().toUpperCase(Locale.ROOT);
+        if (!COMPARISON_OPERATORS.contains(operator)) {
+            throw badRequest("지원하지 않는 회사실적 조건 연산자입니다.");
+        }
         boolean numberValue = "number".equals(condition.valueType());
         String numericText = "NULLIF(REGEXP_REPLACE(CAST(" + column + " AS TEXT), '[^0-9.-]', '', 'g'), '')";
         String leftOperand = numberValue

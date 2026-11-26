@@ -12,16 +12,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentTargetEngineerItem;
 import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentEngineerUpdateRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlap.docs.WorkOverlapDocumentTargetEngineerRequest;
+import com.cheil.cheil_be.application.workoverlap.docs.model.WorkOverlapEngineerSelection;
+import com.cheil.cheil_be.application.workoverlap.docs.port.in.ReplaceWorkOverlapEngineersUseCase;
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.docs.WorkOverlapDocumentTargetEngineerEntity;
 import com.cheil.cheil_be.adapter.out.persistence.workoverlap.docs.WorkOverlapDocumentTargetEngineerJpaRepository;
 import com.cheil.cheil_be.application.workoverlap.docs.port.out.WorkOverlapDocumentTargetEngineerQueryRepository;
 
 @Service
 @RequiredArgsConstructor
-public class WorkOverlapDocumentTargetEngineerService {
+public class WorkOverlapDocumentTargetEngineerService implements ReplaceWorkOverlapEngineersUseCase {
     private final WorkOverlapDocumentTargetEngineerJpaRepository repository;
     private final WorkOverlapDocumentTargetEngineerQueryRepository queryRepository;
 
@@ -39,32 +39,33 @@ public class WorkOverlapDocumentTargetEngineerService {
         );
     }
 
+    @Override
     @Transactional
-    public List<WorkOverlapDocumentTargetEngineerData> replace(WorkOverlapDocumentTargetEngineerRequest request) {
-        validateKey(request == null ? null : request.bidSeq(), request == null ? null : request.workDutyId(), null);
-        String workDutyId = request.workDutyId().trim();
-        Map<String, WorkOverlapDocumentTargetEngineerItem> requested = new LinkedHashMap<>();
-        (request.engineers() == null ? List.<WorkOverlapDocumentTargetEngineerItem>of() : request.engineers())
+    public List<WorkOverlapDocumentTargetEngineerData> replace(Long bidSeq, String workDutyId, List<WorkOverlapEngineerSelection> engineers) {
+        validateKey(bidSeq, workDutyId, null);
+        String ownerId = workDutyId.trim();
+        Map<String, WorkOverlapEngineerSelection> requested = new LinkedHashMap<>();
+        (engineers == null ? List.<WorkOverlapEngineerSelection>of() : engineers)
                 .stream()
                 .filter(item -> item != null && item.engrId() != null && !item.engrId().isBlank())
                 .forEach(item -> requested.put(item.engrId().trim(), item));
 
-        List<WorkOverlapDocumentTargetEngineerEntity> existing = repository.findByWorkDutyIdAndBidSeqOrderByDisplayOrderAscTargetIdAsc(workDutyId, request.bidSeq());
+        List<WorkOverlapDocumentTargetEngineerEntity> existing = repository.findByWorkDutyIdAndBidSeqOrderByDisplayOrderAscTargetIdAsc(ownerId, bidSeq);
         existing.stream()
                 .filter(row -> !requested.containsKey(row.getEngrId()))
-                .forEach(row -> repository.deleteByWorkDutyIdAndBidSeqAndEngrId(workDutyId, request.bidSeq(), row.getEngrId()));
+                .forEach(row -> repository.deleteByWorkDutyIdAndBidSeqAndEngrId(ownerId, bidSeq, row.getEngrId()));
 
         List<WorkOverlapDocumentTargetEngineerEntity> next = requested.entrySet().stream().map(entry -> {
-            WorkOverlapDocumentTargetEngineerItem item = entry.getValue();
-            WorkOverlapDocumentTargetEngineerEntity row = repository.findByWorkDutyIdAndBidSeqAndEngrId(workDutyId, request.bidSeq(), entry.getKey());
+            WorkOverlapEngineerSelection item = entry.getValue();
+            WorkOverlapDocumentTargetEngineerEntity row = repository.findByWorkDutyIdAndBidSeqAndEngrId(ownerId, bidSeq, entry.getKey());
             if (row == null) {
-            return new WorkOverlapDocumentTargetEngineerEntity(request.bidSeq(), workDutyId, entry.getKey(), item.displayOrder(), trimToNull(item.responsibility()));
+                return new WorkOverlapDocumentTargetEngineerEntity(bidSeq, ownerId, entry.getKey(), item.displayOrder(), trimToNull(item.responsibility()));
             }
             row.update(item.displayOrder(), trimToNull(item.responsibility()));
             return row;
         }).toList();
         repository.saveAll(next);
-        return find(request.bidSeq(), workDutyId, null);
+        return find(bidSeq, ownerId, null);
     }
 
     @Transactional

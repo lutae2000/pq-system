@@ -11,13 +11,9 @@ import {
   GridActionsCellItem,
   GridRowEditStopReasons,
   GridRowModes,
-  gridEditRowsStateSelector,
-  useGridApiContext,
-  useGridSelector,
   type DataGridProps,
   type GridColDef,
   type GridRenderEditCellParams,
-  type GridRowId,
   type GridRowModesModel,
 } from "@mui/x-data-grid";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,13 +39,13 @@ import {
 } from "@/modules/pq/company-performance/api";
 import { companyPerformanceQueryKeys } from "@/modules/pq/company-performance/application/queryKeys";
 import { useCompanyPerformanceContractPeriods } from "@/modules/pq/company-performance/application/useCompanyPerformanceQueries";
-import { calculateParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
+import { calculateParticipationRatio, groupParticipationRows } from "@/modules/pq/company-performance/domain/participationRatio";
+import { pqParticipatingEngineerQueryKeys } from "@/modules/pq/pq-participating-engineers/application/queryKeys";
 import {
   displayBlank,
   displayTarget,
   tempId,
   text,
-  toNullableNumber,
   type CodeOption,
 } from "@/modules/pq/company-performance/detail-tabs/detailTabUtils";
 type EngineersTabProps = {
@@ -80,7 +76,6 @@ const toEngineerRequest = (row: CompanyPerformanceEngineerRecord): CompanyPerfor
   actualParticipationYn: text(row.actualParticipationYn).toUpperCase() === "Y" ? "Y" : "N",
   jobTag: text(row.jobTag) || null,
   companyAtParticipation: text(row.companyAtParticipation) || null,
-  contractPeriodId: row.contractPeriodId ?? null,
   departmentAtParticipation: text(row.departmentAtParticipation) || null,
   duty: text(row.duty) || null,
   engineerId: text(row.engineerId) || null,
@@ -192,24 +187,8 @@ function YmdEditCell(params: GridRenderEditCellParams<CompanyPerformanceEngineer
   return <GridDateEditInput params={params} />;
 }
 
-const selectRowEdits = (apiRef: Parameters<typeof gridEditRowsStateSelector>[0], id: GridRowId) =>
-  gridEditRowsStateSelector(apiRef)[id];
-
-function ParticipationRatioCell({ id, row, getRatio }: {
-  id: GridRowId;
-  row: CompanyPerformanceEngineerRecord;
-  getRatio: (row: CompanyPerformanceEngineerRecord) => number | null;
-}) {
-  const apiRef = useGridApiContext();
-  const edits = useGridSelector(apiRef, selectRowEdits, id);
-  const ratio = getRatio({
-    ...row,
-    participationStartDate: edits?.participationStartDate?.value ?? row.participationStartDate,
-    participationEndDate: edits?.participationEndDate?.value ?? row.participationEndDate,
-    contractPeriodId: toNullableNumber(edits?.contractPeriodId?.value ?? row.contractPeriodId),
-  });
-  return ratio?.toFixed(2) ?? "";
-}
+const participationGroupKey = (row: CompanyPerformanceEngineerRecord) =>
+  row.engineerId ? `engineer:${row.engineerId}` : `row:${row.id}`;
 
 export function EngineersTab({ readOnly = false, record, requestConfirmation }: EngineersTabProps) {
   const queryClient = useQueryClient();
@@ -224,33 +203,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     queryFn: () => listCompanyPerformanceEngineers(record.seq),
     enabled: Boolean(record.seq),
   });
-  const contractPeriodsQuery = useCompanyPerformanceContractPeriods(record.seq);
-  const contractPeriods = contractPeriodsQuery.data;
-  const contractPeriodsById = useMemo(
-    () => new Map(contractPeriods?.map((period) => [period.id, period])),
-    [contractPeriods],
-  );
-  const contractPeriodOptions = useMemo(
-    () => [
-      { value: "", label: "미선택" },
-      ...(contractPeriods ?? []).map((period) => {
-        const dateRange = `${formatEngineerDate(period.contractFromDate)} ~ ${formatEngineerDate(period.contractToDate)}`;
-        return {
-          value: String(period.id),
-          label: period.sortSeq == null ? dateRange : `${period.sortSeq}번 · ${dateRange}`,
-        };
-      }),
-    ],
-    [contractPeriods],
-  );
-  const getParticipationRatio = useCallback((row: CompanyPerformanceEngineerRecord) => {
-    const period = row.contractPeriodId == null ? undefined : contractPeriodsById.get(row.contractPeriodId);
-    const contract = contractPeriods?.length === 0 ? record : period;
-    return calculateParticipationRatio(
-      row.participationStartDate, row.participationEndDate, contract?.contractFromDate, contract?.contractToDate,
-    );
-  }, [contractPeriods, contractPeriodsById, record]);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedEngineerKeyword(engineerKeyword.trim()), 250);
     return () => window.clearTimeout(timeoutId);
@@ -311,8 +263,8 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
 
   const yesNoOptions = useMemo<CodeOption[]>(() => [{ label: "Y", value: "Y" }, { label: "N", value: "N" }], []);
 
-  const rows = useMemo(
-    () => [...newRows, ...(engineersQuery.data ?? [])].sort((left, right) => {
+  const participationGroups = useMemo(
+    () => groupParticipationRows([...newRows, ...(engineersQuery.data ?? [])].sort((left, right) => {
       if (left.isNew !== right.isNew) {
         return left.isNew ? -1 : 1;
       }
@@ -323,12 +275,24 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       const leftOrder = participationFieldPositionOrder.get(text(left.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
       const rightOrder = participationFieldPositionOrder.get(text(right.participationFieldPosition)) ?? Number.MAX_SAFE_INTEGER;
       return leftOrder - rightOrder || left.id - right.id;
-    }),
+    }), participationGroupKey),
     [engineersQuery.data, newRows, participationFieldPositionOrder],
   );
+  const rows = useMemo(() => Array.from(participationGroups.values()).flat(), [participationGroups]);
+  const { data: contractPeriods } = useCompanyPerformanceContractPeriods(record.seq);
+  const participationRatios = useMemo(() => new Map(Array.from(participationGroups, ([key, group]) => [
+    key,
+    contractPeriods === undefined ? null : calculateParticipationRatio(group.map((row) => ({
+      startDate: row.participationStartDate,
+      endDate: row.participationEndDate,
+    })), record.contractFromDate, record.contractToDate, contractPeriods),
+  ])), [contractPeriods, participationGroups, record.contractFromDate, record.contractToDate]);
 
   const invalidateEngineers = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.engineers(record.seq) }),
+    () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.engineers(record.seq) }),
+      queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.performanceRoot }),
+    ]),
     [queryClient, record.seq],
   );
 
@@ -414,7 +378,6 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       actualParticipationYn: "Y",
       jobTag: "",
       companyAtParticipation: "(주)제일엔지니어링종합건축사사무소",
-      contractPeriodId: null,
       departmentAtParticipation: "",
       duty: "",
       engineerId: "",
@@ -555,20 +518,9 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         headerName: "참여도",
         type: "number",
         width: 90,
-        valueGetter: (_value, row) => getParticipationRatio(row),
+        rowSpanValueGetter: (_value, row) => participationGroupKey(row),
+        valueGetter: (_value, row) => participationRatios.get(participationGroupKey(row)) ?? null,
         valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
-        renderCell: ({ id, row }) => <ParticipationRatioCell id={id} row={row} getRatio={getParticipationRatio} />,
-      },
-      {
-        field: "contractPeriodId",
-        headerName: "용역 차수계약 행",
-        width: 250,
-        editable: true,
-        type: "singleSelect",
-        valueOptions: contractPeriodOptions,
-        valueGetter: (value) => value == null ? "" : String(value),
-        valueSetter: (value, row) => ({ ...row, contractPeriodId: toNullableNumber(value) }),
-        renderCell: ({ formattedValue, value }) => value ? formattedValue : "",
       },
       {
         field: "jobTag",
@@ -698,6 +650,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       ...column,
       align: column.align ?? "center",
       headerAlign: column.headerAlign ?? "center",
+      rowSpanValueGetter: column.rowSpanValueGetter ?? ((_value, row) => row.id),
     })),
     [
       applyEngineerMasterValues,
@@ -705,12 +658,11 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
       canDelete,
       canUpdate,
       confirmDeleteRow,
-      contractPeriodOptions,
       deleteMutation.isPending,
       engineerNameById,
       engineerOptions,
       engineerProfilesQuery.isFetching,
-      getParticipationRatio,
+      participationRatios,
       jobTagOptions,
       jobTagLabelByCode,
       participationFieldPositionLabelByCode,
@@ -746,9 +698,8 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
     return saved;
   };
   const gridColumns = useMemo(
-    () => columns.filter((column) =>
-      !(readOnly && column.type === "actions") && (column.field !== "contractPeriodId" || contractPeriodsById.size > 0)),
-    [columns, contractPeriodsById.size, readOnly],
+    () => columns.filter((column) => !(readOnly && column.type === "actions")),
+    [columns, readOnly],
   );
 
   return (
@@ -765,7 +716,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         getRowId={(row) => row.id}
         isNewRow={(row) => row.isNew === true}
         hideFooterSelectedRowCount
-        loading={engineersQuery.isLoading || engineersQuery.isFetching || contractPeriodsQuery.isLoading || saveMutation.isPending || deleteMutation.isPending}
+        loading={engineersQuery.isLoading || engineersQuery.isFetching || saveMutation.isPending || deleteMutation.isPending}
         onProcessRowUpdateError={() => undefined}
         onCellKeyDown={(params, event) => {
           if (
@@ -788,6 +739,7 @@ export function EngineersTab({ readOnly = false, record, requestConfirmation }: 
         wrapperMinHeight={475}
         rowModesModel={readOnly ? undefined : rowModesModel}
         rows={rows}
+        rowSpanning
         showPageNumbers
         showToolbar={false}
         sx={{

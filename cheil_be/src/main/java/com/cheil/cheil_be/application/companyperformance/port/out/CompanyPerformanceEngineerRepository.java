@@ -11,5 +11,4 @@ public interface CompanyPerformanceEngineerRepository {
     Long create(Long seq, CompanyPerformanceEngineerCommand command);
     int update(Long seq, Long id, CompanyPerformanceEngineerCommand command);
     int delete(Long seq, Long id);
-    boolean contractPeriodBelongsToPerformance(Long seq, Long contractPeriodId);
 }

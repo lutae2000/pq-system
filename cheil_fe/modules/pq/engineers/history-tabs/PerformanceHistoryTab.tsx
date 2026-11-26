@@ -8,7 +8,7 @@ import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { formatReferenceLabel } from "@/modules/common/reference/referenceFormat";
 import { useCommonCodeLevel3Options } from "@/modules/common/reference/useReferenceOptions";
 import { CompanyPerformanceDetailPopup } from "@/modules/pq/company-performance/CompanyPerformanceDetailDialog";
-import { calculateHistoryParticipationRatio } from "@/modules/pq/company-performance/domain/participationRatio";
+import { calculateHistoryParticipationRatios, groupParticipationRows } from "@/modules/pq/company-performance/domain/participationRatio";
 import type { CareerDetailRecord } from "@/modules/pq/engineers/EngineerPersonalInfoTypes";
 import { historyGridSx } from "@/modules/pq/engineers/history-tabs/historyTabCommon";
 
@@ -17,6 +17,10 @@ type PerformanceHistoryTabProps = {
   engineerId: string;
   performanceRefs: CareerDetailRecord[];
 };
+
+const participationGroupKey = (row: CareerDetailRecord) => row.seq ? `project:${row.seq}` : `row:${row.id}`;
+const projectCellSpanKey = (_value: unknown, row: CareerDetailRecord) =>
+  row.seq ? JSON.stringify([row.seq, row.jobName]) : `row:${row.id}`;
 
 function formatDate(value: unknown) {
   const normalized = String(value ?? "").replace(/\D/g, "").slice(0, 8);
@@ -28,7 +32,9 @@ function formatDate(value: unknown) {
 
 export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: PerformanceHistoryTabProps) {
   const [detailSeq, setDetailSeq] = useState<number | null>(null);
-  const rows = useMemo(() => performanceRefs, [performanceRefs]);
+  const groups = useMemo(() => groupParticipationRows(performanceRefs, participationGroupKey), [performanceRefs]);
+  const rows = useMemo(() => Array.from(groups.values()).flat(), [groups]);
+  const participationRatios = useMemo(() => calculateHistoryParticipationRatios(groups), [groups]);
 
   const jobClassOptionsQuery = useCommonCodeLevel3Options("PQ", "DA", { useYn: "Y" }, { enabled: canRead });
 
@@ -38,8 +44,8 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
     () => {
       const leftAlignedFields = new Set(["jobName", "compName", "method", "remark"]);
       const columns: GridColDef<CareerDetailRecord>[] = [
-      { field: "seq", headerName: "회사실적 ID", minWidth: 90, flex: 1, align: "center", headerAlign: "center" },
-      { field: "jobName", headerName: "용역명", minWidth: 240, flex: 1.2, headerAlign: "center" },
+      { field: "seq", headerName: "회사실적 ID", minWidth: 90, flex: 1, align: "center", headerAlign: "center", rowSpanValueGetter: projectCellSpanKey },
+      { field: "jobName", headerName: "용역명", minWidth: 240, flex: 1.2, headerAlign: "center", rowSpanValueGetter: projectCellSpanKey },
       {
         field: "startDate",
         headerName: "참여시작",
@@ -57,7 +63,8 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         headerName: "참여도",
         type: "number",
         width: 95,
-        valueGetter: (_value, row) => calculateHistoryParticipationRatio(row),
+        rowSpanValueGetter: (_value, row) => participationGroupKey(row),
+        valueGetter: (_value, row) => participationRatios.get(participationGroupKey(row)) ?? null,
         valueFormatter: (value: number | null) => value?.toFixed(2) ?? "",
       },
       {
@@ -78,13 +85,13 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
       { field: "remark", headerName: "비고", minWidth: 160, flex: 0.7 },
       ];
 
-      return columns.map((column) =>
-        leftAlignedFields.has(column.field)
-          ? column
-          : { ...column, align: "center", headerAlign: "center" },
-      );
+      return columns.map((column) => ({
+        ...column,
+        ...(leftAlignedFields.has(column.field) ? {} : { align: "center", headerAlign: "center" }),
+        rowSpanValueGetter: column.rowSpanValueGetter ?? ((_value, row) => row.id),
+      }));
     },
-    [jobClassLabelByCode],
+    [jobClassLabelByCode, participationRatios],
   );
 
   if (!canRead) {
@@ -115,6 +122,7 @@ export function PerformanceHistoryTab({ canRead, engineerId, performanceRefs }: 
         showPageNumbers
         pageSizeOptions={[25, 50, 100]}
         rows={rows}
+        rowSpanning
         wrapperMinHeight={600}
         sx={{
           ...historyGridSx,

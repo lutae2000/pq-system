@@ -34,6 +34,9 @@ import {
 import { companyPerformanceQueryKeys } from "@/modules/pq/company-performance/application/queryKeys";
 import { useCompanyPerformanceContractPeriods } from "@/modules/pq/company-performance/application/useCompanyPerformanceQueries";
 import { tempId, text } from "@/modules/pq/company-performance/detail-tabs/detailTabUtils";
+import { engineerPerformanceDocumentsQueryKeys } from "@/modules/pq/engineer-performance-docs/application/queryKeys";
+import { engineerPersonalInfoQueryKeys } from "@/modules/pq/engineers/application/queryKeys";
+import { pqParticipatingEngineerQueryKeys } from "@/modules/pq/pq-participating-engineers/application/queryKeys";
 
 type CompanyPerformanceContractPeriodsGridProps = {
   readOnly?: boolean;
@@ -117,7 +120,14 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
   );
 
   const invalidateContractPeriods = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.contractPeriods(record.seq) }),
+    () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.contractPeriods(record.seq) }),
+      queryClient.invalidateQueries({ queryKey: engineerPersonalInfoQueryKeys.profileRoot }),
+      queryClient.invalidateQueries({ queryKey: engineerPerformanceDocumentsQueryKeys.activeEngineerProfileRoot }),
+      queryClient.invalidateQueries({ queryKey: engineerPerformanceDocumentsQueryKeys.projectHistoriesRoot }),
+      queryClient.invalidateQueries({ queryKey: engineerPerformanceDocumentsQueryKeys.reviewResultsRoot }),
+      queryClient.invalidateQueries({ queryKey: pqParticipatingEngineerQueryKeys.performanceRoot }),
+    ]),
     [queryClient, record.seq],
   );
 
@@ -156,10 +166,7 @@ export function CompanyPerformanceContractPeriodsGrid({ readOnly = false, record
       }
       return deleteCompanyPerformanceContractPeriod(record.seq, id);
     },
-    onSuccess: () => Promise.all([
-      invalidateContractPeriods(),
-      queryClient.invalidateQueries({ queryKey: companyPerformanceQueryKeys.engineers(record.seq) }),
-    ]),
+    onSuccess: invalidateContractPeriods,
   });
 
   const confirmProcessRowUpdate = useCallback(

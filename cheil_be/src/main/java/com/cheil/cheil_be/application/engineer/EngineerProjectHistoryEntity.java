@@ -1,5 +1,8 @@
 package com.cheil.cheil_be.application.engineer;
 
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
+import java.util.List;
+
 import static com.cheil.cheil_be.common.text.StringValues.emptyIfNull;
 
 import jakarta.persistence.Column;
@@ -9,7 +12,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-import java.util.Objects;
 import org.hibernate.annotations.DynamicUpdate;
 
 import lombok.AccessLevel;
@@ -18,7 +20,6 @@ import lombok.experimental.SuperBuilder;
 
 import com.cheil.cheil_be.adapter.out.persistence.common.AuditEntity;
 import com.cheil.cheil_be.domain.companyperformance.CompanyPerformance;
-import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
 
 @Entity
 @DynamicUpdate
@@ -33,8 +34,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     String engrId;
     @Column(name = "seq")
     Integer seq;
-    @Column(name = "contract_period_id")
-    Long contractPeriodId;
     @Column(name = "startdt")
     String startDt;
     @Column(name = "enddt")
@@ -62,7 +61,7 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     @Column(name = "remark")
     String remark;
 
-    EngineerDtos.CareerDetail toDto(CompanyPerformance project, ParticipationContractPeriod participationContractPeriod) {
+    EngineerDtos.CareerDetail toDto(CompanyPerformance project, List<ContractPeriodDates> contractPeriods) {
         return new EngineerDtos.CareerDetail(
                 id,
                 engrId,
@@ -86,7 +85,7 @@ class EngineerProjectHistoryEntity extends AuditEntity {
                 remark,
                 project == null ? null : project.contractFromDate(),
                 project == null ? null : project.contractToDate(),
-                participationContractPeriod
+                contractPeriods
         );
     }
 
@@ -98,9 +97,6 @@ class EngineerProjectHistoryEntity extends AuditEntity {
     }
 
     void updateFrom(EngineerDtos.CareerDetail dto) {
-        if (!Objects.equals(seq, dto.seq())) {
-            contractPeriodId = null;
-        }
         seq = dto.seq();
         startDt = EngineerEntityUtils.date(dto.startDt());
         endDt = EngineerEntityUtils.date(dto.endDt());

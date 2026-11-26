@@ -28,7 +28,7 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
                                created_id,
                                last_changed_at,
                                last_changed_id
-                        FROM pq_related_project_history_conditions
+                        FROM pq_project_history_search_conditions
                         WHERE bid_seq = :bidSeq
                           AND employee_no = :employeeNo
                         """)
@@ -45,7 +45,7 @@ public class RelatedProjectHistoryConditionRepositoryAdapter
             String conditionsJson
     ) {
         return jdbcClient.sql("""
-                        INSERT INTO pq_related_project_history_conditions (
+                        INSERT INTO pq_project_history_search_conditions (
                             bid_seq,
                             employee_no,
                             conditions_json,

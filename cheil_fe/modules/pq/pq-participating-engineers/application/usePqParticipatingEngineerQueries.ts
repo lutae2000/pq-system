@@ -30,8 +30,24 @@ type UsePqParticipatingEngineerQueriesParams = {
   enabled: boolean;
   projectHistoryConditions: PqParticipatingEngineerProjectHistoryCondition[];
   retireYn?: "Y" | "N";
+  selectedEngineerIds: string[];
   workDutyId: string;
 };
+
+function toCandidateSearchFilters(
+  filters: UsePqParticipatingEngineerQueriesParams["appliedFilters"],
+  retireYn: UsePqParticipatingEngineerQueriesParams["retireYn"],
+) {
+  return {
+    certificationName: filters.certificationCode || undefined,
+    constructionManagementGrade: filters.constructionManagementGrade || undefined,
+    designGrade: filters.designGrade || undefined,
+    jobField: filters.jobField || undefined,
+    keyword: filters.keyword.trim() || undefined,
+    retireYn,
+    specialtyField: filters.specialtyField || undefined,
+  };
+}
 
 export function usePqParticipatingEngineerQueries({
   appliedFilters,
@@ -43,24 +59,31 @@ export function usePqParticipatingEngineerQueries({
   enabled,
   projectHistoryConditions,
   retireYn,
+  selectedEngineerIds,
   workDutyId,
 }: UsePqParticipatingEngineerQueriesParams) {
+  const selectedEngineersQuery = useQuery({
+    queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId),
+    queryFn: () => listPqParticipatingEngineers({ bidSeq: bidSeq ?? 0, workDutyId }),
+    enabled: enabled && Boolean(bidSeq),
+  });
+
+  const draftEngineerIds = useMemo(() => {
+    const savedIds = new Set(selectedEngineersQuery.data?.map((engineer) => engineer.engrId));
+    return selectedEngineerIds.filter((id) => !savedIds.has(id)).sort();
+  }, [selectedEngineerIds, selectedEngineersQuery.data]);
+
   const candidateQueryFilters = useMemo<PqParticipatingEngineerCandidateSearchParams>(
     () => ({
       bidSeq,
-      certificationName: appliedFilters.certificationCode || undefined,
-      constructionManagementGrade: appliedFilters.constructionManagementGrade || undefined,
-      designGrade: appliedFilters.designGrade || undefined,
-      jobField: appliedFilters.jobField || undefined,
-      keyword: appliedFilters.keyword.trim() || undefined,
+      ...toCandidateSearchFilters(appliedFilters, retireYn),
+      draftEngineerIds,
       page: candidatePage,
       projectHistoryConditions,
-      retireYn,
       size: candidatePageSize,
-      specialtyField: appliedFilters.specialtyField || undefined,
       workDutyId: workDutyId || undefined,
     }),
-    [appliedFilters, bidSeq, candidatePage, candidatePageSize, projectHistoryConditions, retireYn, workDutyId],
+    [appliedFilters, bidSeq, candidatePage, candidatePageSize, draftEngineerIds, projectHistoryConditions, retireYn, workDutyId],
   );
 
   const candidatesQuery = useQuery({
@@ -73,12 +96,6 @@ export function usePqParticipatingEngineerQueries({
         && hashKey([{ ...previousFilters, page: candidatePage }]) === hashKey([candidateQueryFilters])
         ? previousData : undefined;
     },
-  });
-
-  const selectedEngineersQuery = useQuery({
-    queryKey: pqParticipatingEngineerQueryKeys.selected(bidSeq, workDutyId),
-    queryFn: () => listPqParticipatingEngineers({ bidSeq: bidSeq ?? 0, workDutyId }),
-    enabled: enabled && Boolean(bidSeq),
   });
 
   const emptyCandidatePage = useMemo<PqParticipatingEngineerCandidatePage>(

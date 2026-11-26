@@ -55,6 +55,7 @@ export type PqParticipatingEngineerCandidateSearchParams = {
   certificationName?: string;
   constructionManagementGrade?: string;
   designGrade?: string;
+  draftEngineerIds?: string[];
   jobField?: string;
   keyword?: string;
   page: number;
@@ -95,6 +96,7 @@ export type PqParticipatingEngineerRequest = {
 export type ReplacePqParticipatingEngineersRequest = {
   bidSeq: number;
   workDutyId: string;
+  syncWorkOverlap?: boolean;
   engineers: Array<{
     engrId: string;
     priority?: number | null;
@@ -130,6 +132,7 @@ const normalizeProjectHistoryConditions = (filters: PqParticipatingEngineerProje
       level2Code: filter.level2Code?.trim() ?? "",
       level3Code: filter.level3Code?.trim() ?? "",
       logicalOperator: filter.logicalOperator ?? "AND",
+      orGroupStart: filter.orGroupStart,
       operator: filter.operator ?? "=",
       outlineCategoryCode: filter.outlineCategoryCode?.trim() ?? "",
       outlineSubcategoryCode: filter.outlineSubcategoryCode?.trim() ?? "",
@@ -202,26 +205,31 @@ export async function listPqParticipatingEngineerCandidates(
   params: PqParticipatingEngineerCandidateSearchParams,
 ): Promise<PqParticipatingEngineerCandidatePage> {
   const projectHistoryConditions = normalizeProjectHistoryConditions(params.projectHistoryConditions);
-
-  return apiRequest(
-    apiClient.get<PqParticipatingEngineerCandidatePage>(`${PQ_PARTICIPATING_ENGINEERS_API}/candidates`, {
-      params: {
-        bidSeq: normalizeQueryValue(params.bidSeq ?? undefined),
-        certificationName: normalizeQueryValue(params.certificationName?.trim()),
-        constructionManagementGrade: normalizeQueryValue(params.constructionManagementGrade?.trim()),
-        designGrade: normalizeQueryValue(params.designGrade?.trim()),
-        jobField: normalizeQueryValue(params.jobField?.trim()),
-        keyword: normalizeQueryValue(params.keyword?.trim()),
-        page: Math.max(0, Math.trunc(params.page)),
-        projectHistoryConditions: projectHistoryConditions.length > 0 ? JSON.stringify(projectHistoryConditions) : undefined,
-        retireYn: params.retireYn,
-        size: Math.max(1, Math.trunc(params.size)),
-        specialtyField: normalizeQueryValue(params.specialtyField?.trim()),
-        workDutyId: normalizeQueryValue(params.workDutyId ?? undefined),
-      },
-    }),
-    "PQ참여 후보 기술인 목록을 불러오지 못했습니다.",
-  );
+  const filters = {
+    bidSeq: normalizeQueryValue(params.bidSeq ?? undefined),
+    certificationName: normalizeQueryValue(params.certificationName?.trim()),
+    constructionManagementGrade: normalizeQueryValue(params.constructionManagementGrade?.trim()),
+    designGrade: normalizeQueryValue(params.designGrade?.trim()),
+    jobField: normalizeQueryValue(params.jobField?.trim()),
+    keyword: normalizeQueryValue(params.keyword?.trim()),
+    projectHistoryConditions: projectHistoryConditions.length > 0 ? JSON.stringify(projectHistoryConditions) : undefined,
+    retireYn: params.retireYn,
+    specialtyField: normalizeQueryValue(params.specialtyField?.trim()),
+    workDutyId: normalizeQueryValue(params.workDutyId ?? undefined),
+  };
+  const pagination = {
+    page: Math.max(0, Math.trunc(params.page)),
+    size: Math.max(1, Math.trunc(params.size)),
+  };
+  const url = `${PQ_PARTICIPATING_ENGINEERS_API}/candidates`;
+  const request = params.draftEngineerIds?.length
+    ? apiClient.post<PqParticipatingEngineerCandidatePage>(
+        `${url}/search`,
+        { ...filters, draftEngineerIds: params.draftEngineerIds },
+        { params: pagination },
+      )
+    : apiClient.get<PqParticipatingEngineerCandidatePage>(url, { params: { ...filters, ...pagination } });
+  return apiRequest(request, "PQ참여 후보 기술인 목록을 불러오지 못했습니다.");
 }
 
 export async function listPqParticipatingEngineers(params: {

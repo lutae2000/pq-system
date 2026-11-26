@@ -106,7 +106,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
             }
         }
         if (order.isEmpty()) {
-            order.add(bidNoticeEntity.bidDate.desc().nullsLast());
+            order.add(bidNoticeEntity.pqSubmitDate.asc().nullsLast());
         }
         if (sort.getOrderFor("bidSeq") == null) {
             order.add(bidNoticeEntity.bidSeq.desc());

@@ -317,7 +317,7 @@ export function BidNoticePage() {
       { field: "noticeDate", headerName: "공고일", width: 110, headerAlign: "center" },
       {
         field: "pqSubmissionDate",
-        headerName: "PQ제출일",
+        headerName: "PQ 제출일자",
         width: 110,
         headerAlign: "center",
         renderCell: ({ row }) => dateOnly(row.pqSubmissionDate),

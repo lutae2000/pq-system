@@ -2,6 +2,7 @@ package com.cheil.cheil_be.adapter.in.web.pqparticipatingengineer;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,7 +52,21 @@ public class PqParticipatingEngineerController {
             @PageableDefault(size = 20) Pageable pageable
     ) {
         CandidateEngineerFilters filters = new CandidateEngineerFilters(bidSeq, workDutyId, keyword, certificationName,
-                constructionManagementGrade, designGrade, jobField, specialtyField, retireYn);
+                constructionManagementGrade, designGrade, jobField, specialtyField, retireYn, List.of());
+        return candidatesPage(filters, projectHistoryConditions, pageable);
+    }
+
+    @PostMapping("/candidates/search")
+    public ResponseEntity<PageResponse<PqParticipatingEngineerCandidateResponse>> searchCandidates(
+            @Valid @RequestBody SearchCandidateEngineersRequest request,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return candidatesPage(request.toFilters(), request.projectHistoryConditions(), pageable);
+    }
+
+    private ResponseEntity<PageResponse<PqParticipatingEngineerCandidateResponse>> candidatesPage(
+            CandidateEngineerFilters filters, String projectHistoryConditions, Pageable pageable
+    ) {
         Page<PqParticipatingEngineerCandidateResponse> result = findCandidateEngineersUseCase
                 .findCandidates(filters, projectHistoryConditions, PageRequests.of(pageable))
                 .map(PqParticipatingEngineerCandidateResponse::from);

@@ -1,4 +1,4 @@
-﻿import type { ParticipationContractPeriod } from "@/modules/pq/company-performance/domain/participationRatio";
+﻿import type { ContractPeriodDates } from "@/modules/pq/company-performance/domain/participationRatio";
 
 export type EngineerStatus = "재직" | "휴직" | "퇴직";
 export type AssessmentMethod = "자체평정" | "서면평정" | "현장평정";
@@ -116,7 +116,7 @@ export type CareerDetailRecord = {
   compName: string;
   contractFromDate?: string | null;
   contractToDate?: string | null;
-  participationContractPeriod?: ParticipationContractPeriod | null;
+  contractPeriods?: ContractPeriodDates[];
   deptName: string;
   duty: string;
   endDate: string;

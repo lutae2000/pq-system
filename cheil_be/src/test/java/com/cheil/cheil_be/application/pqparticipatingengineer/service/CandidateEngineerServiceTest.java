@@ -14,6 +14,7 @@ import com.cheil.cheil_be.application.pqparticipatingengineer.port.out.Candidate
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionJsonCodec;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadata;
 import com.cheil.cheil_be.application.relatedprojecthistory.condition.ProjectHistoryConditionMetadataService;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -22,7 +23,7 @@ import org.springframework.data.domain.PageRequest;
 class CandidateEngineerServiceTest {
 
     private static final CandidateEngineerFilters FILTERS = new CandidateEngineerFilters(
-            7L, "E100", null, null, null, null, null, null, "N");
+            7L, "E100", null, null, null, null, null, null, "N", List.of());
     private static final PageRequest PAGE = PageRequest.of(0, 10);
     private final CandidateEngineerRepository repository = mock(CandidateEngineerRepository.class);
     private final ProjectHistoryConditionMetadataService metadataService = mock(ProjectHistoryConditionMetadataService.class);

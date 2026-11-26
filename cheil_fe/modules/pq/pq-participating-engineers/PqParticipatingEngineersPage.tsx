@@ -173,6 +173,7 @@ export function PqParticipatingEngineersPage() {
   const currentSession = useAuthSession();
   const workDutyId = currentSession?.employeeNo ?? "";
   const candidateClickTimerRef = useRef<number | null>(null);
+  const conditionSearchRevisionRef = useRef<number | null>(null);
   const [filters, setFilters] = useState<CandidateFilters>(() => emptyFilters());
   const [appliedFilters, setAppliedFilters] = useState<CandidateFilters>(() => emptyFilters());
   const [candidatePage, setCandidatePage] = useState(0);
@@ -196,6 +197,7 @@ export function PqParticipatingEngineersPage() {
 
   const certificationsQuery = useCertificationsQuery(tabQueryEnabled && Boolean(selectedCompanyPerformance?.bidSeq));
   const conditionSettings = useRelatedProjectHistoryConditions(selectedCompanyPerformance?.bidSeq, tabQueryEnabled);
+  const selectedEngineerRowIds = useMemo(() => selectedEngineers.map((engineer) => engineer.engineerId), [selectedEngineers]);
 
   const { candidates, candidatesPage, candidatesQuery, selectedEngineersQuery } = usePqParticipatingEngineerQueries({
     appliedFilters,
@@ -207,8 +209,19 @@ export function PqParticipatingEngineersPage() {
     enabled: tabQueryEnabled,
     projectHistoryConditions: conditionSettings.conditions,
     retireYn: toRetireYn(appliedFilters.status),
+    selectedEngineerIds: selectedEngineerRowIds,
     workDutyId,
   });
+
+  useEffect(() => {
+    if (candidateSearchRevision !== conditionSearchRevisionRef.current || candidatesQuery.isFetching || candidatesQuery.isPlaceholderData) return;
+    if (candidatesQuery.isSuccess) {
+      conditionSearchRevisionRef.current = null;
+      showSnackbar({ message: `조건에 맞는 후보기술인 ${candidatesPage.totalElements}건이 조회되었습니다.`, severity: "success" });
+    } else if (candidatesQuery.isError) {
+      conditionSearchRevisionRef.current = null;
+    }
+  }, [candidateSearchRevision, candidatesPage.totalElements, candidatesQuery.isError, candidatesQuery.isFetching, candidatesQuery.isPlaceholderData, candidatesQuery.isSuccess, showSnackbar]);
 
   const gradeOptions = useMemo<CodeOption[]>(() => toSelectOptions(gradeReferences.options), [gradeReferences.options]);
   const jobFieldOptions = useMemo<CodeOption[]>(() => toSelectOptions(jobFieldReferences.options), [jobFieldReferences.options]);
@@ -245,7 +258,6 @@ export function PqParticipatingEngineersPage() {
     return () => window.clearTimeout(timeoutId);
   }, [selectedEngineersQuery.data]);
 
-  const selectedEngineerRowIds = useMemo(() => selectedEngineers.map((engineer) => engineer.engineerId), [selectedEngineers]);
   const candidateRowIds = useMemo(() => candidates.map((candidate) => candidate.engrId), [candidates]);
   const candidateSelection = usePqGridSelection({ rowIds: candidateRowIds });
   const selectedEngineerSelection = usePqGridSelection({ rowIds: selectedEngineerRowIds });
@@ -338,6 +350,7 @@ export function PqParticipatingEngineersPage() {
 
         return [...nextEntries.map((candidate, index) => toSelectedEngineer(candidate, current.length + index + 1)), ...current];
       });
+      setCandidatePage(0);
       setSelectedCandidateIds([]);
       setCandidateSelectionAnchorId(null);
       setHistoryEngineerId((current) => current || uniqueCandidates[0]?.engrId || "");
@@ -384,6 +397,7 @@ export function PqParticipatingEngineersPage() {
       return [...nextEntries.map((candidate, index) => toSelectedEngineer(candidate, current.length + index + 1)), ...current];
     });
 
+    setCandidatePage(0);
     setSelectedCandidateIds([]);
     setCandidateSelectionAnchorId(null);
   }, [canCreate, candidates, selectedCandidateIdSet, selectedCompanyPerformance?.bidSeq, setCandidateSelectionAnchorId, setSelectedCandidateIds, showSnackbar]);
@@ -461,14 +475,17 @@ export function PqParticipatingEngineersPage() {
   }, []);
 
 
-  const handleConditionsSaved = () => {
+  const handleConditionsSaved = async () => {
+    const nextRevision = candidateSearchRevision + 1;
+    conditionSearchRevisionRef.current = nextRevision;
     setCandidatePage(0);
-    setSelectedCandidateIds([]);
-    setCandidateSelectionAnchorId(null);
+    setCandidateSearchRevision(nextRevision);
+    clearCandidateSelection();
     setAppliedFilters(filters);
   };
 
   const handleSearch = (keyword: string) => {
+    conditionSearchRevisionRef.current = null;
     setCandidatePage(0);
     setSelectedCandidateIds([]);
     setCandidateSelectionAnchorId(null);
@@ -477,6 +494,7 @@ export function PqParticipatingEngineersPage() {
   };
 
   const resetEngineerContext = useCallback((clearCompanyPerformance = false) => {
+    conditionSearchRevisionRef.current = null;
     setCandidatePage(0);
     setSelectedEngineers([]);
     setSelectedEngineerSnapshot("");

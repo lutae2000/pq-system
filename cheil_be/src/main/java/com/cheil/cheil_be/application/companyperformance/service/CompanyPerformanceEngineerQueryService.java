@@ -41,14 +41,14 @@ public class CompanyPerformanceEngineerQueryService implements CompanyPerformanc
   @Override
   @Transactional
   public CompanyPerformanceEngineerResult create(Long seq, CompanyPerformanceEngineerCommand command) {
-    Long id = repository.create(seq, normalize(seq, command));
+    Long id = repository.create(seq, normalize(command));
     return findById(seq, id);
   }
 
   @Override
   @Transactional
   public CompanyPerformanceEngineerResult update(Long seq, Long id, CompanyPerformanceEngineerCommand command) {
-    if (repository.update(seq, id, normalize(seq, command)) != 1) {
+    if (repository.update(seq, id, normalize(command)) != 1) {
       throw ApplicationException.notFound("Engineer history was not found.");
     }
     return findById(seq, id);
@@ -66,18 +66,12 @@ public class CompanyPerformanceEngineerQueryService implements CompanyPerformanc
     return row;
   }
 
-  private CompanyPerformanceEngineerCommand normalize(Long seq, CompanyPerformanceEngineerCommand r) {
+  private CompanyPerformanceEngineerCommand normalize(CompanyPerformanceEngineerCommand r) {
     String id = requiredText(r == null ? null : r.engineerId(), "engineerId");
-    Long contractPeriodId = r.contractPeriodId();
-    if (contractPeriodId != null
-        && (contractPeriodId <= 0 || !repository.contractPeriodBelongsToPerformance(seq, contractPeriodId))) {
-      throw ApplicationException.badRequest("해당 회사실적의 용역차수별 계약기간을 선택해 주세요.");
-    }
     return new CompanyPerformanceEngineerCommand(
         id,
         date(r.participationStartDate()),
         date(r.participationEndDate()),
-        contractPeriodId,
         trimToNull(r.jobTag()),
         trimToNull(r.participationFieldPosition()),
         yn(r.actualParticipationYn()),

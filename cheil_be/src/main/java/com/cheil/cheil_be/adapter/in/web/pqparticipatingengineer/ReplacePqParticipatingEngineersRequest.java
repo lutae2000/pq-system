@@ -5,7 +5,8 @@ import java.util.List;
 public record ReplacePqParticipatingEngineersRequest(
         Long bidSeq,
         String workDutyId,
-        List<Item> engineers
+        List<Item> engineers,
+        Boolean syncWorkOverlap
 ) {
 
     public record Item(

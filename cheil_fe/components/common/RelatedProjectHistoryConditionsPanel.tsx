@@ -3,7 +3,7 @@
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import { Box, Button, Chip, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { readAuthSessionSnapshot } from "@/lib/auth/authSession";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
@@ -11,7 +11,7 @@ import {
   useSaveRelatedProjectHistoryConditions,
   type RelatedProjectHistoryConditionsSettings,
 } from "@/modules/pq/pq-participating-engineers/application/useRelatedProjectHistoryConditions";
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
+import type { PqParticipatingEngineerProjectHistoryCondition, RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
 
 const RelatedProjectHistoryConditionDialog = dynamic(
   () => import("@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog").then((module) => module.RelatedProjectHistoryConditionDialog),
@@ -22,7 +22,7 @@ type RelatedProjectHistoryConditionsPanelProps = {
   buttonLabel?: string;
   disabled?: boolean;
   label?: string;
-  onSaved?: (conditions: RelatedProjectHistoryCondition[]) => void | Promise<void>;
+  onSaved: (conditions: PqParticipatingEngineerProjectHistoryCondition[]) => Promise<void>;
   settings: RelatedProjectHistoryConditionsSettings;
 };
 
@@ -38,6 +38,8 @@ function ConditionSettings({
   settings,
 }: RelatedProjectHistoryConditionsPanelProps) {
   const [openedConditions, setOpenedConditions] = useState<RelatedProjectHistoryCondition[] | null>(null);
+  const [applying, setApplying] = useState(false);
+  const applyingRef = useRef(false);
   const { showSnackbar } = useAppSnackbar();
   const { bidSeq, conditions, employeeNo, loaded, loading, loadError, reload } = settings;
   const saveConditionsMutation = useSaveRelatedProjectHistoryConditions(settings);
@@ -60,18 +62,28 @@ function ConditionSettings({
     if (result.data) setOpenedConditions(result.data);
   };
 
-  const handleApply = (nextConditions: RelatedProjectHistoryCondition[]) => {
-    if (conditionDisabled || !loaded || saveConditionsMutation.isPending) return;
-    saveConditionsMutation.mutate(nextConditions, {
-      onSuccess: (saved) => {
-        if (readAuthSessionSnapshot()?.employeeNo !== employeeNo) return;
-        setOpenedConditions(null);
-        void Promise.resolve().then(() => onSaved?.(saved)).catch((error: unknown) => {
-          showError(error, "조건은 저장했지만 결과에 반영하지 못했습니다.");
-        });
-      },
-      onError: (error) => showError(error, "관련공사 참여이력 조건을 저장하지 못했습니다."),
-    });
+  const handleApply = async (nextConditions: RelatedProjectHistoryCondition[]) => {
+    if (conditionDisabled || !loaded || applyingRef.current) return;
+    applyingRef.current = true;
+    setApplying(true);
+    let conditionsSaved = false;
+    try {
+      const saved = await saveConditionsMutation.mutateAsync(nextConditions);
+      conditionsSaved = true;
+      if (readAuthSessionSnapshot()?.employeeNo !== employeeNo) return;
+      await onSaved(saved);
+      setOpenedConditions(null);
+    } catch (error) {
+      if (conditionsSaved) {
+        const detail = error instanceof Error ? ` ${error.message}` : "";
+        showSnackbar({ message: `조건을 저장했습니다. 조회 결과 반영에 실패했습니다.${detail}`, severity: "error" });
+      } else {
+        showError(error, "관련공사 참여이력 조건을 저장하지 못했습니다.");
+      }
+    } finally {
+      applyingRef.current = false;
+      setApplying(false);
+    }
   };
 
   return (
@@ -105,7 +117,7 @@ function ConditionSettings({
         ))}
         {conditions.length > 2 ? <Chip label={`외 ${conditions.length - 2}개`} size="small" variant="outlined" /> : null}
         <Button
-          disabled={conditionDisabled || (!loaded && loading) || saveConditionsMutation.isPending}
+          disabled={conditionDisabled || (!loaded && loading) || applying}
           onClick={() => void handleOpen()}
           size="small"
           startIcon={<SearchOutlinedIcon />}
@@ -118,11 +130,11 @@ function ConditionSettings({
 
       {openedConditions && (
         <RelatedProjectHistoryConditionDialog
-          applyLoading={saveConditionsMutation.isPending}
-          disabled={conditionDisabled || saveConditionsMutation.isPending}
+          applyLoading={applying}
+          disabled={conditionDisabled || applying}
           onApply={handleApply}
           onClose={() => {
-            if (!saveConditionsMutation.isPending) setOpenedConditions(null);
+            if (!applyingRef.current) setOpenedConditions(null);
           }}
           open
           value={openedConditions}

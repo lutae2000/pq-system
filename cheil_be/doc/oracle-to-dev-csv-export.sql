@@ -109,7 +109,7 @@ SELECT bid_seq,
        PQ_DECIDE_DATE,
        SUPER_DECIDE_EMPNO super_decide_empno, PARTICIPATE_YN participate_yn,
        PROJECT_TAG business_type, ip_enter_date bid_closing_date,
-       PROCESS_TAG process_tag, BID_TYPE bid_method,
+       BID_TYPE bid_method,
        tend_enter_date bid_submission_date,
        FILD_CODE_CD field_of_work_code, BUSN_BUWE scope_of_work_code,
        ABSE_CASE_CODE_CD reason_of_absence_code,
@@ -133,3 +133,8 @@ set jobtag = case when jobtag ='1' then 'CAA'
 when jobtag ='2' then 'CAH'
 when jobtag ='3' then 'CAI'
 end;
+
+--공고문 사업범위 코드 통합
+update bid_notices
+set scope_of_work_code ='T2A'
+where scope_of_work_code ='T2I'

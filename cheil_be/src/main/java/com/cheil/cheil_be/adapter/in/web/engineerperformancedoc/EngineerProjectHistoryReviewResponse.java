@@ -1,10 +1,11 @@
 package com.cheil.cheil_be.adapter.in.web.engineerperformancedoc;
 
-import com.cheil.cheil_be.domain.companyperformance.ParticipationContractPeriod;
-import lombok.With;
-
+import com.cheil.cheil_be.application.engineerperformancedoc.model.EngineerProjectHistoryReview;
+import com.cheil.cheil_be.domain.companyperformance.ContractPeriodDates;
 import java.time.Instant;
 import java.math.BigDecimal;
+import java.util.List;
+import lombok.With;
 
 public record EngineerProjectHistoryReviewResponse(
         Long reviewId,
@@ -45,6 +46,20 @@ public record EngineerProjectHistoryReviewResponse(
         String createdId,
         Instant lastChangedAt,
         String lastChangedId,
-        @With ParticipationContractPeriod participationContractPeriod
+        @With List<ContractPeriodDates> contractPeriods
 ) {
+    public static EngineerProjectHistoryReviewResponse from(EngineerProjectHistoryReview row) {
+        return new EngineerProjectHistoryReviewResponse(
+                row.reviewId(), row.bidSeq(), row.engineerId(), row.sourceSeq(),
+                row.displayOrder(), row.id(), row.jobName(), row.summary(),
+                row.contractTerm(), row.workTerm(), row.workDays(), row.seq(),
+                row.orderClient(), row.contractAmt(), row.ownAmt(), row.divisionRate(),
+                row.contractFromDate(), row.contractToDate(), row.startDate(), row.endDate(),
+                row.jobClass(), row.jobTag(), row.jobPart(), row.proPart(),
+                row.compName(), row.deptName(), row.grade(), row.duty(),
+                row.returnYn(), row.joinYn(), row.joinDay(), row.partDay(),
+                row.selectDay(), row.remark(), row.createdAt(), row.createdId(),
+                row.lastChangedAt(), row.lastChangedId(), row.contractPeriods()
+        );
+    }
 }

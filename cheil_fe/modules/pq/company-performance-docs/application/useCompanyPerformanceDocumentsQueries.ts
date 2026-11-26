@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useAuthSession } from "@/lib/auth/useAuthSession";
 
 import {
   getCompanyPerformance,
@@ -21,15 +22,16 @@ export function useCompanyPerformanceDocumentsQueries({
   selectedBidSeq: number | null | undefined;
   selectedPerformanceSeq: number | null;
 }) {
+  const employeeNo = useAuthSession()?.employeeNo ?? "";
   const companyPerformancesQuery = useQuery({
-    queryKey: companyPerformanceDocumentsQueryKeys.performances(searchParams),
+    queryKey: companyPerformanceDocumentsQueryKeys.performances(employeeNo, searchParams),
     queryFn: () => listCompanyPerformances(searchParams),
-    enabled: enabled && canRead && Boolean(selectedBidSeq),
+    enabled: enabled && canRead && Boolean(employeeNo && selectedBidSeq),
   });
   const documentTargetsQuery = useQuery({
-    queryKey: companyPerformanceDocumentsQueryKeys.targets(selectedBidSeq),
+    queryKey: companyPerformanceDocumentsQueryKeys.targets(employeeNo, selectedBidSeq),
     queryFn: () => listCompanyPerformanceDocumentTargets(selectedBidSeq ?? 0),
-    enabled: enabled && canRead && Boolean(selectedBidSeq),
+    enabled: enabled && canRead && Boolean(employeeNo && selectedBidSeq),
   });
   const detailQuery = useQuery({
     queryKey: companyPerformanceDocumentsQueryKeys.detail(selectedPerformanceSeq ?? 0),

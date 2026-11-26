@@ -3,14 +3,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { getEngineerProfile } from "@/modules/pq/engineers/api";
-import type { RelatedProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/RelatedProjectHistoryConditionDialog";
+import type { PqParticipatingEngineerProjectHistoryCondition } from "@/modules/pq/pq-participating-engineers/domain/projectHistoryCondition";
 import { deletePqParticipatingEngineer, listPqParticipatingEngineers } from "@/modules/pq/pq-participating-engineers/api";
 import {
   createEngineerProjectHistoryReviewResults,
   deleteEngineerProjectHistoryReviewResult,
   listEngineerProjectHistoryReviewResults,
   saveEngineerDocumentValueSetting,
-  syncEngineerProjectHistoryReviewResults,
+  replaceEngineerProjectHistoryReviewResults,
   updateEngineerProjectHistoryReviewResult,
   type EngineerProjectHistoryReviewRecord,
 } from "@/modules/pq/engineer-performance-docs/api";
@@ -123,16 +123,15 @@ export function useEngineerPerformanceDocuments({
     onError: (error) => showError(error instanceof Error ? error.message : "기술인 검토결과 엑셀 다운로드에 실패했습니다."),
   });
 
-  const syncReviewResults = async (conditions: RelatedProjectHistoryCondition[]) => {
+  const syncReviewResults = async (conditions: PqParticipatingEngineerProjectHistoryCondition[]) => {
     if ((!canCreate && !canUpdate) || !bidSeq || profiles.length === 0) return;
-    try {
-      await Promise.all(profiles.map((profile) => syncEngineerProjectHistoryReviewResults({ bidSeq, engineerId: profile.summary.id, relatedProjectHistoryConditions: conditions })));
-      await invalidateReviewResults(queryClient);
-      showSuccess("관련 공사 참여 이력을 검토 결과에 반영했습니다.");
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "관련 공사 참여 이력을 검토 결과에 반영하지 못했습니다.");
-      throw error;
-    }
+    await replaceEngineerProjectHistoryReviewResults({
+      bidSeq,
+      engineerIds: profiles.map((profile) => profile.summary.id),
+      relatedProjectHistoryConditions: conditions,
+    });
+    await invalidateReviewResults(queryClient);
+    showSuccess("검토 결과를 조건에 맞는 참여 이력으로 교체했습니다.");
   };
 
   const addReviewMutation = useMutation({

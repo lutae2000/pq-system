@@ -94,9 +94,6 @@ class BidNoticeEntity {
     @Column(name = "bid_submission_date", length = 12)
     private String bidSubmissionDate;
 
-    @Column(name = "process_tag", length = 50)
-    private String processTag;
-
     @Column(name = "bid_closing_date", length = 12)
     private String bidClosingDate;
 
@@ -153,6 +150,7 @@ class BidNoticeEntity {
                 .orderClient(bidNotice.orderClient())
                 .designAmt(bidNotice.designAmt())
                 .bidType(bidNotice.bidType())
+                .bidMethod(bidNotice.bidMethod())
                 .announceDate(formatDate(bidNotice.announceDate()))
                 .pqRegistDate(formatDateTime(bidNotice.pqRegistDate()))
                 .pqSubmitDate(formatDateTime(bidNotice.pqSubmitDate()))
@@ -166,7 +164,6 @@ class BidNoticeEntity {
                 .participateYn(bidNotice.participateYn())
                 .businessType(bidNotice.businessType())
                 .bidSubmissionDate(formatDateTime(bidNotice.bidSubmissionDate()))
-                .processTag(bidNotice.processTag())
                 .bidClosingDate(formatDateTime(bidNotice.bidClosingDate()))
                 .fieldOfWorkCode(bidNotice.fieldOfWorkCode())
                 .scopeOfWorkCode(bidNotice.scopeOfWorkCode())
@@ -192,6 +189,7 @@ class BidNoticeEntity {
         orderClient = bidNotice.orderClient();
         designAmt = bidNotice.designAmt();
         bidType = bidNotice.bidType();
+        bidMethod = bidNotice.bidMethod();
         announceDate = formatDate(bidNotice.announceDate());
         pqRegistDate = formatDateTime(bidNotice.pqRegistDate());
         pqSubmitDate = formatDateTime(bidNotice.pqSubmitDate());
@@ -205,7 +203,6 @@ class BidNoticeEntity {
         participateYn = bidNotice.participateYn();
         businessType = bidNotice.businessType();
         bidSubmissionDate = formatDateTime(bidNotice.bidSubmissionDate());
-        processTag = bidNotice.processTag();
         bidClosingDate = formatDateTime(bidNotice.bidClosingDate());
         fieldOfWorkCode = bidNotice.fieldOfWorkCode();
         scopeOfWorkCode = bidNotice.scopeOfWorkCode();
@@ -246,7 +243,6 @@ class BidNoticeEntity {
                 participateYn,
                 businessType,
                 parseDateTime(bidSubmissionDate),
-                processTag,
                 parseDateTime(bidClosingDate),
                 fieldOfWorkCode,
                 scopeOfWorkCode,

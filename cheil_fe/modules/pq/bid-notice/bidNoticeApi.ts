@@ -41,7 +41,6 @@ export type BidNoticeApiRecord = {
   pqRegistDate: string | null;
   pqSubmitDate: string | null;
   primeContractor: string | null;
-  processTag: string | null;
   projectName: string;
   reasonOfAbsenceCode: string | null;
   refmatYn: string | null;

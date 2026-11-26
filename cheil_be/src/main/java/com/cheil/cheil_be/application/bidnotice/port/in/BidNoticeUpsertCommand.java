@@ -28,7 +28,6 @@ public record BidNoticeUpsertCommand(
         String participateYn,
         String businessType,
         LocalDateTime bidSubmissionDate,
-        String processTag,
         LocalDateTime bidClosingDate,
         String fieldOfWorkCode,
         String scopeOfWorkCode,

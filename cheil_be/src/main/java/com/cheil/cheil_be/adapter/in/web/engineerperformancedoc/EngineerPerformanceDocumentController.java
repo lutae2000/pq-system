@@ -24,6 +24,7 @@ import com.cheil.cheil_be.application.engineerperformancedoc.service.EngineerPer
 import com.cheil.cheil_be.application.engineerperformancedoc.service.HwpxDocumentGenerationService;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.CertificateDownload;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.PerformanceCertificateUseCase;
+import com.cheil.cheil_be.application.engineerperformancedoc.port.in.ReplaceEngineerReviewResultsUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.model.DocumentValueSetting;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.DocumentValueSettingUseCase;
 import com.cheil.cheil_be.application.engineerperformancedoc.port.in.SaveDocumentValueSettingCommand;
@@ -38,6 +39,7 @@ public class EngineerPerformanceDocumentController {
     private final DocumentValueSettingUseCase documentValueSettingUseCase;
     private final HwpxDocumentGenerationService hwpxDocumentGenerationService;
     private final PerformanceCertificateUseCase performanceCertificateGenerationService;
+    private final ReplaceEngineerReviewResultsUseCase replaceEngineerReviewResults;
 
     @PostMapping("/performance-certificates/generate")
     public ResponseEntity<byte[]> generatePerformanceCertificate(
@@ -155,6 +157,13 @@ public class EngineerPerformanceDocumentController {
             @RequestBody EngineerProjectHistoryReviewSyncRequest request
     ) {
         return ResponseEntity.ok(engineerPerformanceDocumentService.syncReviewResults(request));
+    }
+
+    @PutMapping("/review-results/conditions")
+    public ResponseEntity<Void> replaceReviewResults(@RequestBody EngineerReviewResultsReplaceRequest request) {
+        replaceEngineerReviewResults.replaceReviewResults(
+                request.bidSeq(), request.engineerIds(), request.relatedProjectHistoryConditions());
+        return ResponseEntity.noContent().build();
     }
 
     /**

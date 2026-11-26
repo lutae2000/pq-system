@@ -17,7 +17,6 @@ export type BidNoticeRecord = {
   baseAmount: number;
   bidDate: string;
   interviewDate: string;
-  bidStyle: string;
   bidMethod: BidMethod;
   bidNo: string;
   bidClosingDate: string;
@@ -52,6 +51,7 @@ export type BidNoticeRecord = {
   pqRegistrationDate: string;
   pqSubmissionDate: string;
   pqDecideEmpno: string;
+  pqDecideDate?: string | null;
   projectName: string;
   procurementMethod: string;
   reasonOfAbsenceCode: string;
@@ -63,6 +63,8 @@ export type BidNoticeRecord = {
   sortOrder: number;
   startDate: string;
   tpSubmissionDate: string;
+  tpPassYn?: string | null;
+  refmatYn?: string | null;
   bidSuccessYn: string;
   bidSuccessYnLabel: string;
   visible: boolean;

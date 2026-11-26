@@ -168,7 +168,7 @@ class HwpxFieldFormatterTest {
                 null,
                 null,
                 null,
-                null
+                java.util.List.of()
         );
     }
 }

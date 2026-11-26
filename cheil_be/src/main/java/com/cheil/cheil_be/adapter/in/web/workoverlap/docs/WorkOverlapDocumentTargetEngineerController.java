@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.workoverlap.docs;
 
 import java.util.List;
+import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentTargetEngineerService;
+import com.cheil.cheil_be.application.workoverlap.docs.model.WorkOverlapEngineerSelection;
+import com.cheil.cheil_be.application.workoverlap.docs.port.in.ReplaceWorkOverlapEngineersUseCase;
 
 /** 업무중복도 문서 대상 기술자와 표시 정보를 관리하는 API다. */
 @RestController
@@ -21,6 +24,7 @@ import com.cheil.cheil_be.application.workoverlap.docs.WorkOverlapDocumentTarget
 @RequiredArgsConstructor
 public class WorkOverlapDocumentTargetEngineerController {
     private final WorkOverlapDocumentTargetEngineerService service;
+    private final ReplaceWorkOverlapEngineersUseCase replaceEngineers;
 
     @GetMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetEngineerResponse>> list(@RequestParam Long bidSeq, @RequestParam String workDutyId, @RequestParam(required = false) String keyword) {
@@ -31,7 +35,11 @@ public class WorkOverlapDocumentTargetEngineerController {
 
     @PutMapping
     public ResponseEntity<List<WorkOverlapDocumentTargetEngineerResponse>> replace(@RequestBody WorkOverlapDocumentTargetEngineerRequest request) {
-        return ResponseEntity.ok(service.replace(request).stream()
+        var engineers = request.engineers() == null ? List.<WorkOverlapEngineerSelection>of() : request.engineers().stream()
+                .filter(Objects::nonNull)
+                .map(item -> new WorkOverlapEngineerSelection(item.engrId(), item.displayOrder(), item.responsibility()))
+                .toList();
+        return ResponseEntity.ok(replaceEngineers.replace(request.bidSeq(), request.workDutyId(), engineers).stream()
                 .map(WorkOverlapDocumentTargetEngineerResponse::from)
                 .toList());
     }
