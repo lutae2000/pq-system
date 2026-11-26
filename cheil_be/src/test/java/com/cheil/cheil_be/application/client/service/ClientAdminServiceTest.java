@@ -70,23 +70,29 @@ class ClientAdminServiceTest {
     void createsClientWithFormalName() {
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Client saved = service.create(commandWithFormalName(" 정식 발주처 "));
+        Client saved = service.create(commandWithFormalName(" 정식 발주처 ", " 공공기관 "));
 
         assertThat(saved.orderNameLong()).isEqualTo("정식 발주처");
+        assertThat(saved.clientCategory()).isEqualTo("공공기관");
         verify(repository).save(saved);
     }
 
     @Test
     void rejectsBlankFormalName() {
-        assertThatThrownBy(() -> commandWithFormalName("  "))
+        assertThatThrownBy(() -> commandWithFormalName("  ", null))
                 .isInstanceOfSatisfying(ApplicationException.class, exception ->
                         assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
     }
 
-    private static ClientUpsertCommand commandWithFormalName(String name) {
+    @Test
+    void treatsBlankClientCategoryAsUnspecified() {
+        assertThat(commandWithFormalName("발주처", "  ").clientCategory()).isNull();
+    }
+
+    private static ClientUpsertCommand commandWithFormalName(String name, String clientCategory) {
         return new ClientUpsertCommand(
                 "C1", null, null, null, name,
-                null, null, null, null, null, null, null,
+                null, null, null, null, clientCategory, null, null, null,
                 null, null, null, null, null, null);
     }
 }

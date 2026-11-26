@@ -12,6 +12,7 @@ public record Client(
         String businessSectors,
         String businessItems,
         String orderClass,
+        String clientCategory,
         String zipCode,
         String addr1,
         String addr2,

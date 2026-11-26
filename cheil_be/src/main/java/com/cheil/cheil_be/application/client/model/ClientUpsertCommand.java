@@ -16,6 +16,7 @@ public record ClientUpsertCommand(
         String businessSectors,
         String businessItems,
         String orderClass,
+        String clientCategory,
         String zipCode,
         String addr1,
         String addr2,
@@ -37,6 +38,7 @@ public record ClientUpsertCommand(
         businessSectors = optional(businessSectors, 100, "businessSectors");
         businessItems = optional(businessItems, 100, "businessItems");
         orderClass = optional(orderClass, 20, "orderClass");
+        clientCategory = optional(clientCategory, 100, "clientCategory");
         zipCode = optional(zipCode, 20, "zipCode");
         addr1 = optional(addr1, 500, "addr1");
         addr2 = optional(addr2, 500, "addr2");
@@ -53,7 +55,7 @@ public record ClientUpsertCommand(
         String resolvedLastChangedId = actor;
         return new Client(
                 clientCode, orderEngName, businessNo, corpNo, orderNameLong,
-                owner, businessSectors, businessItems, orderClass, zipCode, addr1, addr2,
+                owner, businessSectors, businessItems, orderClass, clientCategory, zipCode, addr1, addr2,
                 remark, companyType, homeUrl, otype,
                 existing == null ? now : existing.createdAt(),
                 resolvedCreatedId,

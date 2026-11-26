@@ -51,6 +51,9 @@ class ClientEntity {
     @Column(name = "order_class", length = 20)
     private String orderClass;
 
+    @Column(name = "client_category", length = 100)
+    private String clientCategory;
+
     @Column(name = "zip_code", length = 20)
     private String zipCode;
 
@@ -95,6 +98,7 @@ class ClientEntity {
                 .businessSectors(client.businessSectors())
                 .businessItems(client.businessItems())
                 .orderClass(client.orderClass())
+                .clientCategory(client.clientCategory())
                 .zipCode(client.zipCode())
                 .addr1(client.addr1())
                 .addr2(client.addr2())
@@ -119,6 +123,7 @@ class ClientEntity {
         businessSectors = client.businessSectors();
         businessItems = client.businessItems();
         orderClass = client.orderClass();
+        clientCategory = client.clientCategory();
         zipCode = client.zipCode();
         addr1 = client.addr1();
         addr2 = client.addr2();
@@ -143,6 +148,7 @@ class ClientEntity {
                 businessSectors,
                 businessItems,
                 orderClass,
+                clientCategory,
                 zipCode,
                 addr1,
                 addr2,

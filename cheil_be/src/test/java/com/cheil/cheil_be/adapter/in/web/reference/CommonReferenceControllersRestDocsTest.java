@@ -1,6 +1,7 @@
 package com.cheil.cheil_be.adapter.in.web.reference;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
@@ -11,16 +12,20 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDocs;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,6 +39,7 @@ import com.cheil.cheil_be.adapter.in.web.commoncode.CommonCodeController;
 import com.cheil.cheil_be.adapter.in.web.department.DepartmentController;
 import com.cheil.cheil_be.adapter.in.web.constructiontype.ConstructionTypeController;
 import com.cheil.cheil_be.application.certification.port.in.CertificationUseCase;
+import com.cheil.cheil_be.application.client.model.ClientUpsertCommand;
 import com.cheil.cheil_be.application.client.port.in.ClientUseCase;
 import com.cheil.cheil_be.application.commoncode.port.in.CommonCodeAdminUseCase;
 import com.cheil.cheil_be.application.department.service.DepartmentAdminService;
@@ -179,5 +185,20 @@ class CommonReferenceControllersRestDocsTest {
                                 fieldWithPath("first").description("Whether this is the first page."),
                                 fieldWithPath("last").description("Whether this is the last page.")
                         )));
+    }
+
+    @Test
+    void updatesClientCategoryIndependentlyOfTheOrderClass() throws Exception {
+        when(clientUseCase.update(eq("C1"), any())).thenAnswer(invocation ->
+                invocation.<ClientUpsertCommand>getArgument(1).toDomain(null, Instant.EPOCH, "TEST"));
+
+        mockMvc.perform(put("/code/client-codes/C1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"clientCode":"C1","orderNameLong":"발주처","orderClass":"A","clientCategory":" 공공기관 "}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderClass").value("A"))
+                .andExpect(jsonPath("$.clientCategory").value("공공기관"));
     }
 }

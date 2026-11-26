@@ -4,6 +4,7 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -15,7 +16,7 @@ import {
 import type { GridColDef, GridPaginationModel } from "@mui/x-data-grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { DEFAULT_GRID_PAGE_SIZE, EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
+import { EnterpriseDataGrid } from "@/components/common/EnterpriseDataGrid";
 import { ConfirmDeleteDialog } from "@/components/common/ConfirmActionDialog";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { KakaoPostcodeFields } from "@/components/common/KakaoPostcodeFields";
@@ -27,6 +28,7 @@ import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCommonCodeLevel2Options } from "@/modules/common/reference/useReferenceOptions";
 import { useClientCodeManagement } from "@/modules/code/clients/application/useClientCodeManagement";
 import {
+  CLIENT_CODE_PAGE_SIZE,
   type ClientCodeRecord,
   type ClientCodeSearchParams,
   type ClientCodeUpsertRequest,
@@ -45,6 +47,7 @@ const emptyDraft = (): ClientCodeRecord => ({
   businessSectors: "",
   businessItems: "",
   orderClass: "",
+  clientCategory: "",
   zipCode: "",
   addr1: "",
   addr2: "",
@@ -81,6 +84,7 @@ const toRequest = (draft: ClientCodeRecord): ClientCodeUpsertRequest => ({
   businessSectors: text(draft.businessSectors).trim(),
   businessItems: text(draft.businessItems).trim(),
   orderClass: text(draft.orderClass).trim(),
+  clientCategory: text(draft.clientCategory).trim() || null,
   zipCode: text(draft.zipCode).trim(),
   addr1: text(draft.addr1).trim(),
   addr2: text(draft.addr2).trim(),
@@ -100,8 +104,8 @@ export function ClientCodesManagementPage() {
   const [appliedBusinessName, setAppliedBusinessName] = useState("");
   const [orderClassFilter, setOrderClassFilter] = useState("All");
   const [companyTypeFilter, setCompanyTypeFilter] = useState("All");
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_GRID_PAGE_SIZE);
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: CLIENT_CODE_PAGE_SIZE });
+  const { page, pageSize } = paginationModel;
   const [searchTick, setSearchTick] = useState(0);
   const [selectedClientCode, setSelectedClientCode] = useState("");
   const [draft, setDraft] = useState<ClientCodeRecord>(() => emptyDraft());
@@ -127,25 +131,25 @@ export function ClientCodesManagementPage() {
 
   const { deleteMutation, query: clientCodesQuery, saveMutation } = useClientCodeManagement({
     canCreate, canDelete, canRead, canUpdate, enabled: tabQueryEnabled, params: searchParams, revision: searchTick,
-    onDeleted: () => { setDeleteTarget(null); setSelectedClientCode(""); setDraft(emptyDraft()); showSuccess("거래처 정보를 삭제했습니다."); },
-    onError: (error) => showError(error instanceof Error ? error.message : "거래처 요청에 실패했습니다."),
-    onSaved: (saved) => { setSelectedClientCode(saved.clientCode); setDraft(saved); showSuccess("거래처 정보를 저장했습니다."); },
+    onDeleted: () => { setDeleteTarget(null); setSelectedClientCode(""); setDraft(emptyDraft()); showSuccess("발주처 정보를 삭제했습니다."); },
+    onError: (error) => showError(error instanceof Error ? error.message : "발주처 요청에 실패했습니다."),
+    onSaved: (saved) => { setSelectedClientCode(saved.clientCode); setDraft(saved); showSuccess("발주처 정보를 저장했습니다."); },
   });
-  const clientCodesPage = clientCodesQuery.data ?? {
-    content: EMPTY_ROWS,
-    page,
-    size: pageSize,
-    totalElements: 0,
-    totalPages: 0,
-  };
-  const rows = clientCodesPage.content;
+  const clientCodesPage = clientCodesQuery.data;
+  const rows = clientCodesQuery.isPlaceholderData ? EMPTY_ROWS : clientCodesPage?.content ?? EMPTY_ROWS;
+  const totalClients = clientCodesPage?.totalElements ?? 0;
+  const pageStart = (clientCodesPage?.page ?? page) * (clientCodesPage?.size ?? pageSize) + 1;
+  const totalLabel = `총 ${totalClients.toLocaleString("ko-KR")}건`;
+  const listRangeLabel = rows.length > 0
+    ? `${pageStart.toLocaleString("ko-KR")}–${(pageStart + rows.length - 1).toLocaleString("ko-KR")} / ${totalLabel}`
+    : totalLabel;
 
   const columns = useMemo<GridColDef<ClientCodeRecord>[]>(
     () => [
       { field: "clientCode", headerName: "코드", width: 90 },
       {
         field: "orderNameLong",
-        headerName: "거래처명",
+        headerName: "발주처명",
         minWidth: 220,
         flex: 1.2,
         valueGetter: (_value, row) => display(row.orderNameLong),
@@ -153,9 +157,15 @@ export function ClientCodesManagementPage() {
       { field: "businessNo", headerName: "사업자번호", width: 130, valueGetter: (_value, row) => display(row.businessNo) },
       {
         field: "orderClass",
-        headerName: "거래처 분류",
+        headerName: "발주처 분류",
         width: 140,
         valueGetter: (_value, row) => optionName(orderClassOptions, row.orderClass),
+      },
+      {
+        field: "clientCategory",
+        headerName: "발주처 구분",
+        width: 140,
+        valueGetter: (_value, row) => display(row.clientCategory),
       },
       {
         field: "companyType",
@@ -172,7 +182,6 @@ export function ClientCodesManagementPage() {
     () => ({ type: "include" as const, ids: new Set(selectedClientCode ? [selectedClientCode] : []) }),
     [selectedClientCode],
   );
-  const paginationModel = useMemo<GridPaginationModel>(() => ({ page, pageSize }), [page, pageSize]);
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -207,7 +216,7 @@ export function ClientCodesManagementPage() {
   const handleSearch = (keyword: string) => {
     setBusinessName(keyword);
     setAppliedBusinessName(keyword);
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setSearchTick((current) => current + 1);
   };
 
@@ -216,14 +225,14 @@ export function ClientCodesManagementPage() {
     setAppliedBusinessName("");
     setOrderClassFilter("All");
     setCompanyTypeFilter("All");
-    setPage(0);
+    setPaginationModel((current) => ({ ...current, page: 0 }));
     setSearchTick((current) => current + 1);
   };
 
   const handleNew = () => {
     setSelectedClientCode("");
     setDraft(emptyDraft());
-    showInfo("신규 거래처 입력 상태로 전환했습니다.");
+    showInfo("신규 발주처 입력 상태로 전환했습니다.");
   };
 
   const handleSave = () => {
@@ -236,7 +245,7 @@ export function ClientCodesManagementPage() {
       return;
     }
     if (!draft.clientCode.trim() || !draft.orderNameLong.trim()) {
-      showError("거래처 코드와 거래처명(정식)은 필수입니다.");
+      showError("발주처 코드와 발주처명(정식)은 필수입니다.");
       return;
     }
     saveMutation.mutate({ clientCode: selectedClientCode, request: toRequest(draft) });
@@ -261,8 +270,8 @@ export function ClientCodesManagementPage() {
 
       <SearchPanel
         keyword={businessName}
-        keywordLabel="거래처명"
-        keywordPlaceholder="거래처명, 코드, 사업자번호 검색"
+        keywordLabel="발주처명"
+        keywordPlaceholder="발주처명, 코드, 사업자번호 검색"
         onKeywordChange={setBusinessName}
         onReset={handleReset}
         onSearch={handleSearch}
@@ -271,8 +280,11 @@ export function ClientCodesManagementPage() {
         searchLabel="조회"
       >
         <TextField
-          label="거래처 분류"
-          onChange={(event) => setOrderClassFilter(event.target.value)}
+          label="발주처 분류"
+          onChange={(event) => {
+            setOrderClassFilter(event.target.value);
+            setPaginationModel((current) => ({ ...current, page: 0 }));
+          }}
           select
           size="small"
           sx={{ ...standardFieldSx, minWidth: 180 }}
@@ -287,7 +299,10 @@ export function ClientCodesManagementPage() {
         </TextField>
         <TextField
           label="상위기관"
-          onChange={(event) => setCompanyTypeFilter(event.target.value)}
+          onChange={(event) => {
+            setCompanyTypeFilter(event.target.value);
+            setPaginationModel((current) => ({ ...current, page: 0 }));
+          }}
           select
           size="small"
           sx={{ ...standardFieldSx, minWidth: 180 }}
@@ -312,20 +327,22 @@ export function ClientCodesManagementPage() {
         <Box sx={{ bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0, p: 2 }}>
           <Box sx={{ alignItems: "center", display: "flex", gap: 2, justifyContent: "space-between" }}>
             <Typography sx={{ fontWeight: 800 }} variant="h6">
-              거래처 목록
+              발주처 목록
             </Typography>
-            <Chip label={`총 ${clientCodesPage.totalElements}건`} size="small" variant="outlined" />
+            <Chip label={listRangeLabel} size="small" variant="outlined" />
           </Box>
           <Divider sx={{ my: 1.5 }} />
+          {clientCodesQuery.isError && (
+            <Alert severity="error" sx={{ mb: 1 }}>
+              {clientCodesQuery.error.message}
+            </Alert>
+          )}
           <EnterpriseDataGrid<ClientCodeRecord>
             columns={columns}
             getRowId={(row) => row.clientCode}
             hideFooterSelectedRowCount
             loading={clientCodesQuery.isLoading || clientCodesQuery.isFetching}
-            onPaginationModelChange={(model) => {
-              setPage((current) => (current === model.page ? current : model.page));
-              setPageSize((current) => (current === model.pageSize ? current : model.pageSize));
-            }}
+            onPaginationModelChange={setPaginationModel}
             onRowClick={(params) => {
               setSelectedClientCode(params.row.clientCode);
               setDraft(params.row);
@@ -333,14 +350,13 @@ export function ClientCodesManagementPage() {
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             paginationMode="server"
             paginationModel={paginationModel}
-            rowCount={clientCodesPage.totalElements}
+            rowCount={totalClients}
             rowSelectionModel={selectedRowModel}
             rows={rows}
             showToolbar={false}
-            wrapperMinHeight={640}
+            wrapperMinHeight="clamp(360px, calc(100dvh - 340px), 640px)"
             sx={{
               border: 0,
-              minHeight: 640,
               "& .MuiDataGrid-row:hover": { cursor: "pointer" },
             }}
           />
@@ -350,10 +366,7 @@ export function ClientCodesManagementPage() {
           <Box sx={{ alignItems: "flex-start", display: "flex", gap: 2, justifyContent: "space-between" }}>
             <Box>
               <Typography sx={{ fontWeight: 800 }} variant="h6">
-                거래처 상세
-              </Typography>
-              <Typography color="text.secondary" variant="body2">
-                {selectedClientCode ? `${selectedClientCode} / ${display(draft.orderNameLong)}` : "신규 거래처를 작성 중입니다."}
+                발주처 상세
               </Typography>
             </Box>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, justifyContent: "flex-end" }}>
@@ -386,7 +399,7 @@ export function ClientCodesManagementPage() {
             <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
               <TextField
                 fullWidth
-                label="거래처 코드"
+                label="발주처 코드"
                 disabled={Boolean(selectedClientCode)}
                 onChange={(event) => updateDraft("clientCode", event.target.value)}
                 required
@@ -396,7 +409,7 @@ export function ClientCodesManagementPage() {
               />
               <TextField
                 fullWidth
-                label="거래처 분류"
+                label="발주처 분류"
                 onChange={(event) => updateDraft("orderClass", event.target.value)}
                 select
                 size="small"
@@ -412,10 +425,10 @@ export function ClientCodesManagementPage() {
               </TextField>
             </Box>
 
-            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" } }}>
+            <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 2fr) minmax(0, 1fr)" } }}>
               <TextField
                 fullWidth
-                label="거래처명"
+                label="발주처명"
                 onChange={(event) => updateDraft("orderNameLong", event.target.value)}
                 required
                 size="small"
@@ -424,7 +437,16 @@ export function ClientCodesManagementPage() {
               />
               <TextField
                 fullWidth
-                label="거래처 영문명"
+                label="발주처 구분"
+                onChange={(event) => updateDraft("clientCategory", event.target.value)}
+                size="small"
+                slotProps={{ htmlInput: { maxLength: 100 } }}
+                sx={standardFieldSx}
+                value={text(draft.clientCategory)}
+              />
+              <TextField
+                fullWidth
+                label="발주처 영문명"
                 onChange={(event) => updateDraft("orderEngName", event.target.value)}
                 size="small"
                 sx={standardFieldSx}
@@ -544,7 +566,7 @@ export function ClientCodesManagementPage() {
       <ConfirmDeleteDialog
         open={Boolean(deleteTarget)}
         loading={deleteMutation.isPending}
-        message="거래처를 삭제하시겠습니까?"
+        message="발주처를 삭제하시겠습니까?"
         targetLabel={deleteTarget ? `${deleteTarget.clientCode} - ${deleteTarget.orderNameLong}` : undefined}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.clientCode); }}

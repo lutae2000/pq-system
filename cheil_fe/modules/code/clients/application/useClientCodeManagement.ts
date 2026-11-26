@@ -12,7 +12,19 @@ export function useClientCodeManagement({ canCreate, canDelete, canRead, canUpda
   params: ClientCodeSearchParams; revision: number;
 }) {
   const client = useQueryClient();
-  const query = useQuery({ queryKey: clientCodeQueryKeys.list(params, revision), queryFn: () => listClientCodes(params), enabled: canRead && enabled });
+  const query = useQuery({
+    queryKey: clientCodeQueryKeys.list(params, revision),
+    queryFn: () => listClientCodes(params),
+    enabled: canRead && enabled,
+    placeholderData: (previousData, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[1];
+      return previousQuery?.queryKey[2] === revision
+        && previousParams?.businessName === params.businessName
+        && previousParams.companyType === params.companyType
+        && previousParams.orderClass === params.orderClass
+        ? previousData : undefined;
+    },
+  });
   const refresh = async () => {
     await client.invalidateQueries({ queryKey: clientCodeQueryKeys.all });
     await client.invalidateQueries({ queryKey: referenceQueryKeys.clientsRoot });

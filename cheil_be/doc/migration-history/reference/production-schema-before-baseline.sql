@@ -462,8 +462,6 @@ CREATE TABLE cheileng.certifications (
     cert_code character varying(20) NOT NULL,
     cert_name character varying(200) NOT NULL,
     cert_kind integer,
-    satis_code character varying(20),
-    satis_name character varying(200),
     use_yn boolean DEFAULT true NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     created_id character varying(100),
@@ -478,10 +476,6 @@ COMMENT ON COLUMN cheileng.certifications.cert_code IS '자격증 코드';
 COMMENT ON COLUMN cheileng.certifications.cert_name IS '자격증 명';
 
 COMMENT ON COLUMN cheileng.certifications.cert_kind IS '자격증 구분 코드 (1: 기능사, 2: 산업기사, 3: 기사, 4: 기술사)';
-
-COMMENT ON COLUMN cheileng.certifications.satis_code IS 'SATIS 코드';
-
-COMMENT ON COLUMN cheileng.certifications.satis_name IS 'SATIS 명';
 
 COMMENT ON COLUMN cheileng.certifications.use_yn IS '사용 여부';
 

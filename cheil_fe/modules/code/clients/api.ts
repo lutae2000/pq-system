@@ -14,6 +14,7 @@ export type ClientCodeRecord = {
   businessSectors: string | null;
   businessItems: string | null;
   orderClass: string | null;
+  clientCategory: string | null;
   zipCode: string | null;
   addr1: string | null;
   addr2: string | null;
@@ -65,7 +66,7 @@ export async function listClientCodes(params: ClientCodeSearchParams): Promise<C
         size: params.size === undefined ? undefined : Math.max(1, Math.trunc(params.size)),
       },
     }),
-    "嫄곕옒泥?紐⑸줉??遺덈윭?ㅼ? 紐삵뻽?듬땲??",
+    "발주처 목록을 불러오지 못했습니다.",
   );
 }
 
