@@ -2,6 +2,9 @@ import { apiDate, apiDateTime, boolToYn, dateOnly, dateTimeText, text, ynToBool 
 import type { BidNoticeApiRecord, BidNoticeSearchParams, BidNoticeUpsertRequest } from "@/modules/pq/bid-notice/bidNoticeApi";
 import type { BidNoticeFilters, BidNoticeRecord } from "@/modules/pq/bid-notice/bidNotice.types";
 
+export const bidNoticeRegistrantNames = (users: readonly { employeeNo: string; userName: string }[]) =>
+  Object.fromEntries(users.map((user) => [user.employeeNo, user.userName || user.employeeNo]));
+
 export const toBidNoticeRecord = (item: BidNoticeApiRecord): BidNoticeRecord => ({
   active: true,
   baseAmount: 0,

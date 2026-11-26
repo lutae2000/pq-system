@@ -1,9 +1,11 @@
 "use client";
 
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack } from "@mui/material";
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 
+import { DateInput } from "@/components/common/DateTimeInput";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useTabQueryEnabled } from "@/components/layout/TabActivityContext";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
@@ -11,29 +13,38 @@ import { useDepartmentOptions } from "@/modules/common/reference/useReferenceOpt
 import { useBidNoticeSubmissionStatus } from "./application/useBidNoticeSubmissionStatus";
 import { buildSubmissionStatus, submissionYears } from "./domain/submissionStatus";
 import { BidNoticeSubmissionStatusGrid } from "./presentation/BidNoticeSubmissionStatusGrid";
-import { BidNoticeSubmissionStatusTable } from "./presentation/BidNoticeSubmissionStatusTable";
-import { buildSubmissionStatusRows } from "./presentation/submissionStatusRows";
+import { buildSubmissionStatusRows, type SubmissionDetailSelection } from "./presentation/submissionStatusRows";
 
-const months = Array.from({ length: 12 }, (_, index) => index + 1);
-type SubmissionStatusView = "grid" | "table";
+const BidNoticeSubmissionDetailDialog = dynamic(
+  () => import("./presentation/BidNoticeSubmissionDetailDialog").then((module) => module.BidNoticeSubmissionDetailDialog),
+  { ssr: false },
+);
 
 export function BidNoticeSubmissionStatusPage() {
   const { canRead } = useCurrentMenuPermission();
   const enabled = useTabQueryEnabled(canRead);
-  const [filters, setFilters] = useState(() => ({
-    year: Number(new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "Asia/Seoul" }).format(new Date())),
-    throughMonth: 12,
-  }));
-  const [yearInput, setYearInput] = useState(String(filters.year));
-  const [monthInput, setMonthInput] = useState(filters.throughMonth);
+  const [filters, setFilters] = useState(() => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "numeric",
+      timeZone: "Asia/Seoul",
+    }).formatToParts(new Date());
+    const { year, month } = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+    return { year: Number(year), throughMonth: Number(month) };
+  });
+  const [baseMonthInput, setBaseMonthInput] = useState(
+    () => `${filters.year}-${String(filters.throughMonth).padStart(2, "0")}`,
+  );
   const [revision, setRevision] = useState(0);
-  const [view, setView] = useState<SubmissionStatusView>("grid");
-  const query = useBidNoticeSubmissionStatus(filters, revision, enabled);
+  const [detailSelection, setDetailSelection] = useState<SubmissionDetailSelection | null>(null);
+  const { data, error, isFetching } = useBidNoticeSubmissionStatus(filters, revision, enabled);
   const { labelByValue } = useDepartmentOptions({}, { enabled });
   const years = useMemo(() => submissionYears(filters.year), [filters.year]);
-  const rows = useMemo(() => buildSubmissionStatusRows(buildSubmissionStatus(query.data ?? [], years), labelByValue), [query.data, years, labelByValue]);
-  const isValidYear = /^(19\d{2}|[2-9]\d{3})$/.test(yearInput.trim());
-  const periodLabel = filters.throughMonth === 12 ? "연간" : `1–${filters.throughMonth}월 누계`;
+  const rows = useMemo(
+    () => buildSubmissionStatusRows(buildSubmissionStatus(data ?? [], years), labelByValue),
+    [data, years, labelByValue],
+  );
+  const searchDisabled = !enabled || !baseMonthInput || isFetching;
 
   return (
     <Box>
@@ -45,58 +56,45 @@ export function BidNoticeSubmissionStatusPage() {
               component="form"
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
+              sx={{ alignItems: { xs: "stretch", sm: "flex-start" } }}
               onSubmit={(event) => {
                 event.preventDefault();
-                if (!isValidYear || !enabled || query.isFetching) return;
-                setFilters({ year: Number(yearInput), throughMonth: monthInput });
+                if (searchDisabled) return;
+                const [year, month] = baseMonthInput.split("-");
+                setFilters({ year: Number(year), throughMonth: Number(month) });
                 setRevision((current) => current + 1);
               }}
             >
-              <TextField
-                label="기준연도"
-                size="small"
-                value={yearInput}
-                onChange={(event) => setYearInput(event.target.value)}
-                error={!isValidYear}
-                helperText={isValidYear ? undefined : "1900~9999년을 입력하세요."}
-                slotProps={{ htmlInput: { inputMode: "numeric", maxLength: 4 } }}
-                sx={{ width: { xs: "100%", sm: 145 } }}
+              <DateInput
+                label="기준연월"
+                mode="month"
+                min="1900-01-01"
+                required
+                value={baseMonthInput}
+                onChange={setBaseMonthInput}
+                sx={{ width: { xs: "100%", sm: 170 } }}
               />
-              <TextField
-                select
-                label="마감월"
-                size="small"
-                value={monthInput}
-                onChange={(event) => setMonthInput(Number(event.target.value))}
-                sx={{ width: { xs: "100%", sm: 145 } }}
-              >
-                {months.map((month) => <MenuItem key={month} value={month}>{month === 12 ? "12월 (연간)" : `${month}월`}</MenuItem>)}
-              </TextField>
-              <Button disabled={!enabled || !isValidYear || query.isFetching} startIcon={<SearchOutlinedIcon />} type="submit" variant="contained">
+              <Button disabled={searchDisabled} startIcon={<SearchOutlinedIcon />} type="submit" variant="contained">
                 조회
               </Button>
             </Stack>
           </Paper>
-          <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-            <ToggleButtonGroup
-              aria-label="제출 현황 보기 방식"
-              exclusive
-              size="small"
-              value={view}
-              onChange={(_event, next: SubmissionStatusView | null) => {
-                if (next !== null) setView(next);
-              }}
-            >
-              <ToggleButton value="grid">그리드</ToggleButton>
-              <ToggleButton value="table">테이블</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
-          {query.isError ? <Alert severity="error">{query.error.message}</Alert> : (
-            view === "table" ? (
-              <BidNoticeSubmissionStatusTable rows={rows} years={years} loading={query.isFetching} />
-            ) : (
-              <BidNoticeSubmissionStatusGrid rows={rows} years={years} throughMonth={filters.throughMonth} loading={query.isFetching} />
-            )
+          {error ? <Alert severity="error">{error.message}</Alert> : (
+            <BidNoticeSubmissionStatusGrid
+              rows={rows}
+              years={years}
+              throughMonth={filters.throughMonth}
+              loading={isFetching}
+              onOpenDetails={setDetailSelection}
+            />
+          )}
+          {detailSelection && (
+            <BidNoticeSubmissionDetailDialog
+              selection={detailSelection}
+              departmentLabels={labelByValue}
+              enabled={enabled}
+              onClose={() => setDetailSelection(null)}
+            />
           )}
         </Stack>
       ) : <Alert severity="warning">조회 권한이 없습니다.</Alert>}

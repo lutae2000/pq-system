@@ -3,33 +3,54 @@ export type SubmissionStatusFilters = {
   throughMonth: number;
 };
 
+export type SubmissionDetailFilters = {
+  firstYear: number;
+  lastYear: number;
+  fromMonth: number;
+  throughMonth: number;
+  departmentCode: string | null;
+  allDepartments: boolean;
+};
+
 export type SubmissionCount = {
   departmentCode: string | null;
   year: number;
   count: number;
+  monthlyCount: number;
   total: boolean;
+};
+
+type CountsByYear = {
+  monthlyCounts: number[];
+  cumulativeCounts: number[];
 };
 
 export const submissionYears = (year: number) =>
   Array.from({ length: 6 }, (_, index) => year - 5 + index);
 
 export function buildSubmissionStatus(counts: readonly SubmissionCount[], years: number[]) {
-  const countsByDepartment = new Map<string | null, number[]>();
-  const totals = years.map(() => 0);
-  for (const { departmentCode, year, count, total } of counts) {
+  const emptyCounts = (): CountsByYear => ({
+    monthlyCounts: years.map(() => 0),
+    cumulativeCounts: years.map(() => 0),
+  });
+  const countsByDepartment = new Map<string | null, CountsByYear>();
+  const totals = emptyCounts();
+  for (const { departmentCode, year, count, monthlyCount, total } of counts) {
     const index = years.indexOf(year);
     if (index < 0) continue;
     if (total) {
-      totals[index] = count;
+      totals.cumulativeCounts[index] = count;
+      totals.monthlyCounts[index] = monthlyCount;
       continue;
     }
-    const departmentCounts = countsByDepartment.get(departmentCode) ?? years.map(() => 0);
-    departmentCounts[index] += count;
+    const departmentCounts = countsByDepartment.get(departmentCode) ?? emptyCounts();
+    departmentCounts.cumulativeCounts[index] += count;
+    departmentCounts.monthlyCounts[index] += monthlyCount;
     countsByDepartment.set(departmentCode, departmentCounts);
   }
 
   return {
-    departments: Array.from(countsByDepartment, ([departmentCode, yearlyCounts]) => ({ departmentCode, yearlyCounts })),
+    departments: Array.from(countsByDepartment, ([departmentCode, periodCounts]) => ({ departmentCode, ...periodCounts })),
     totals,
   };
 }

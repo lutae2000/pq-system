@@ -29,6 +29,8 @@ import org.springframework.boot.restdocs.test.autoconfigure.AutoConfigureRestDoc
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,6 +39,8 @@ import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSubmissionStatusUseCase;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeSubmissionCount;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeSubmissionDetail;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeSubmissionDetailQuery;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
@@ -76,21 +80,49 @@ class BidNoticeControllerRestDocsTest {
     private ServiceCredentialRegistry serviceCredentialRegistry;
 
     @Test
-    void listsAnnualPqSubmissionsByDepartment() throws Exception {
+    void listsMonthlyAndCumulativePqSubmissionsByDepartment() throws Exception {
         when(bidNoticeSubmissionStatusUseCase.findByDepartmentAndYear(2026, 12))
-                .thenReturn(List.of(new BidNoticeSubmissionCount("D01", 2026, 12, false),
-                        new BidNoticeSubmissionCount(null, 2026, 2, false),
-                        new BidNoticeSubmissionCount(null, 2026, 14, true)));
+                .thenReturn(List.of(new BidNoticeSubmissionCount("D01", 2026, 12, 3, false),
+                        new BidNoticeSubmissionCount(null, 2026, 2, 1, false),
+                        new BidNoticeSubmissionCount(null, 2026, 14, 4, true)));
 
         mockMvc.perform(get("/pq/submit-stat").param("year", "2026"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].departmentCode").value("D01"))
                 .andExpect(jsonPath("$[0].year").value(2026))
                 .andExpect(jsonPath("$[0].count").value(12))
+                .andExpect(jsonPath("$[0].monthlyCount").value(3))
                 .andExpect(jsonPath("$[0].total").value(false))
                 .andExpect(jsonPath("$[1].total").value(false))
                 .andExpect(jsonPath("$[2].count").value(14))
+                .andExpect(jsonPath("$[2].monthlyCount").value(4))
                 .andExpect(jsonPath("$[2].total").value(true));
+    }
+
+    @Test
+    void listsDetailRowsForTheRequestedSubmissionCell() throws Exception {
+        var query = new BidNoticeSubmissionDetailQuery(2026, 2026, 6, 6, "D01", false);
+        var pageable = PageRequest.of(1, 25);
+        when(bidNoticeSubmissionStatusUseCase.findDetails(query, pageable)).thenReturn(new PageImpl<>(
+                List.of(new BidNoticeSubmissionDetail(
+                        19L, "도로 설계", "D01", "20260615", "R26-01", "Y", "N", "CAA",
+                        "C01", "한국도로공사", "20260601", "202606121800", null, null, new BigDecimal("2300000"), "E01")),
+                pageable, 26));
+
+        mockMvc.perform(get("/pq/submit-stat/details")
+                        .param("firstYear", "2026").param("lastYear", "2026")
+                        .param("fromMonth", "6").param("throughMonth", "6")
+                        .param("departmentCode", "D01").param("page", "1").param("size", "25"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(26))
+                .andExpect(jsonPath("$.content[0].bidSeq").value(19))
+                .andExpect(jsonPath("$.content[0].projectName").value("도로 설계"))
+                .andExpect(jsonPath("$.content[0].departmentCode").value("D01"))
+                .andExpect(jsonPath("$.content[0].pqSubmitDate").value("20260615"))
+                .andExpect(jsonPath("$.content[0].orderClientName").value("한국도로공사"))
+                .andExpect(jsonPath("$.content[0].businessType").value("CAA"))
+                .andExpect(jsonPath("$.content[0].designAmt").value(2300000))
+                .andExpect(jsonPath("$.content[0].g2bBidNtceNo").value("R26-01"));
     }
 
     @Test
