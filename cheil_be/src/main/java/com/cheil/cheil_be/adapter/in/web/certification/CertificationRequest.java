@@ -15,10 +15,6 @@ public record CertificationRequest(
         @Min(value = 0, message = "certKind는 0 이상이어야 합니다.")
         @Max(value = 4, message = "certKind는 4 이하여야 합니다.")
         Integer certKind,
-        @Size(max = 20, message = "satisCode는 20자 이하로 입력해야 합니다.")
-        String satisCode,
-        @Size(max = 200, message = "satisName은 200자 이하로 입력해야 합니다.")
-        String satisName,
         Boolean useYn
 ) {
 
@@ -27,8 +23,6 @@ public record CertificationRequest(
                 certCode,
                 certName,
                 certKind,
-                satisCode,
-                satisName,
                 useYn
         );
     }

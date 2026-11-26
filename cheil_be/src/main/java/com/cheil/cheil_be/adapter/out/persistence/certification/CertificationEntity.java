@@ -32,12 +32,6 @@ class CertificationEntity extends AuditEntity {
     @Column(name = "cert_kind")
     private Integer certKind;
 
-    @Column(name = "satis_code", length = 20)
-    private String satisCode;
-
-    @Column(name = "satis_name", length = 200)
-    private String satisName;
-
     @Column(name = "use_yn", nullable = false)
     private boolean useYn;
 
@@ -46,8 +40,6 @@ class CertificationEntity extends AuditEntity {
                 .certCode(certification.certCode())
                 .certName(certification.certName())
                 .certKind(certification.certKind())
-                .satisCode(certification.satisCode())
-                .satisName(certification.satisName())
                 .useYn(certification.useYn())
                 .createdAt(certification.createdAt())
                 .createdId(certification.createdId())
@@ -59,8 +51,6 @@ class CertificationEntity extends AuditEntity {
     void updateFrom(Certification certification) {
         certName = certification.certName();
         certKind = certification.certKind();
-        satisCode = certification.satisCode();
-        satisName = certification.satisName();
         useYn = certification.useYn();
     }
 
@@ -69,8 +59,6 @@ class CertificationEntity extends AuditEntity {
                 certCode,
                 certName,
                 certKind == null ? Certification.UNCLASSIFIED_KIND : certKind,
-                satisCode,
-                satisName,
                 useYn,
                 createdAt,
                 createdId,

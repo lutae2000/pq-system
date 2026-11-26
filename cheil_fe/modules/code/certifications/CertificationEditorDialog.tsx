@@ -41,8 +41,6 @@ const fieldSx = {
 
 const MAX_CERT_CODE = 20;
 const MAX_CERT_NAME = 200;
-const MAX_SATIS_CODE = 20;
-const MAX_SATIS_NAME = 200;
 
 const certKindOptions = [
   { value: "1", label: "기능사" },
@@ -54,8 +52,6 @@ const certKindOptions = [
 type FieldErrorState = {
   certCode?: string;
   certName?: string;
-  satisCode?: string;
-  satisName?: string;
 };
 
 const normalizeText = (value: string | null | undefined) => (value ?? "").trim();
@@ -75,8 +71,6 @@ export function CertificationEditorDialog({
     const next: FieldErrorState = {};
     const certCode = normalizeText(draft.certCode);
     const certName = normalizeText(draft.certName);
-    const satisCode = normalizeText(draft.satisCode);
-    const satisName = normalizeText(draft.satisName);
 
     if (!certCode) {
       next.certCode = "자격증 코드를 입력하세요.";
@@ -90,16 +84,8 @@ export function CertificationEditorDialog({
       next.certName = `자격증명은 ${MAX_CERT_NAME}자 이내로 입력하세요.`;
     }
 
-    if (satisCode.length > MAX_SATIS_CODE) {
-      next.satisCode = `SATIS 코드는 ${MAX_SATIS_CODE}자 이내로 입력하세요.`;
-    }
-
-    if (satisName.length > MAX_SATIS_NAME) {
-      next.satisName = `SATIS명은 ${MAX_SATIS_NAME}자 이내로 입력하세요.`;
-    }
-
     return next;
-  }, [draft.certCode, draft.certName, draft.satisCode, draft.satisName]);
+  }, [draft.certCode, draft.certName]);
 
   const isValid = Object.keys(errors).length === 0;
 
@@ -170,28 +156,6 @@ export function CertificationEditorDialog({
               </MenuItem>
             ))}
           </TextField>
-          <TextField
-            fullWidth
-            error={showError("satisCode")}
-            helperText={showError("satisCode") ? errors.satisCode : `${normalizeText(draft.satisCode).length}/${MAX_SATIS_CODE}`}
-            label="SATIS 코드"
-            size="small"
-            value={draft.satisCode ?? ""}
-            onChange={(event) => onDraftChange({ ...draft, satisCode: event.target.value })}
-            sx={fieldSx}
-            slotProps={{ htmlInput: { maxLength: MAX_SATIS_CODE } }}
-          />
-          <TextField
-            fullWidth
-            error={showError("satisName")}
-            helperText={showError("satisName") ? errors.satisName : `${normalizeText(draft.satisName).length}/${MAX_SATIS_NAME}`}
-            label="SATIS명"
-            size="small"
-            value={draft.satisName ?? ""}
-            onChange={(event) => onDraftChange({ ...draft, satisName: event.target.value })}
-            sx={fieldSx}
-            slotProps={{ htmlInput: { maxLength: MAX_SATIS_NAME } }}
-          />
           <FormControlLabel
             control={
               <Switch

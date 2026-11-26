@@ -20,6 +20,8 @@ type Props = {
 const rowId = (row: EngineerProjectHistoryReviewRecord) => `${row.sourceSeq}-${row.id}`;
 const participationGroupKey = (row: EngineerProjectHistoryReviewRecord) =>
   JSON.stringify([row.engineerId, row.seq ? ["project", row.seq] : ["row", rowId(row)]]);
+const historyCellSpanKey = (_value: unknown, row: EngineerProjectHistoryReviewRecord) =>
+  row.seq && row.jobName?.trim() ? JSON.stringify([row.engineerId, row.seq, row.jobName]) : rowId(row);
 
 function createEngineerHistoryPerformanceColumns(
   jobClassLabelByCode: Record<string, string>,
@@ -30,8 +32,8 @@ function createEngineerHistoryPerformanceColumns(
     return normalized.length === 8 ? `${normalized.slice(0, 4)}-${normalized.slice(4, 6)}-${normalized.slice(6, 8)}` : String(value ?? "");
   };
   const columns: GridColDef<EngineerProjectHistoryReviewRecord>[] = [
-    { field: "seq", headerName: "이력 ID", minWidth: 80, flex: 1, align: "center", headerAlign: "center" },
-    { field: "jobName", headerName: "이력명", minWidth: 240, flex: 1, align: "center", headerAlign: "center" },
+    { field: "seq", headerName: "이력 ID", minWidth: 80, flex: 1, align: "center", headerAlign: "center", rowSpanValueGetter: historyCellSpanKey },
+    { field: "jobName", headerName: "이력명", minWidth: 240, flex: 1, align: "center", headerAlign: "center", rowSpanValueGetter: historyCellSpanKey },
     { field: "contractFromDate", headerName: "계약 시작일", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "contractToDate", headerName: "계약 종료일", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },
     { field: "startDate", headerName: "참여시작", width: 110, valueFormatter: (value) => formatDate(value), align: "center", headerAlign: "center" },

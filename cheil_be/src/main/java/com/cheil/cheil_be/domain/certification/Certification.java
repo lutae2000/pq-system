@@ -9,8 +9,6 @@ public record Certification(
         String certCode,
         String certName,
         int certKind,
-        String satisCode,
-        String satisName,
         boolean useYn,
         Instant createdAt,
         String createdId,

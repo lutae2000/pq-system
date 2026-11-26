@@ -35,7 +35,7 @@ class CertificationAdminServiceTest {
     @Test
     void createNormalizesInputBeforeSaving() {
         CertificationUpsertCommand command = new CertificationUpsertCommand(
-                " CERT ", " 자격증 ", 2, " ", " 만족도 ", null);
+                " CERT ", " 자격증 ", 2, null);
         when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         Certification result = service.create(command);
@@ -45,8 +45,7 @@ class CertificationAdminServiceTest {
         assertThat(result).isEqualTo(captor.getValue());
         assertThat(result.certCode()).isEqualTo("CERT");
         assertThat(result.certName()).isEqualTo("자격증");
-        assertThat(result.satisCode()).isNull();
-        assertThat(result.satisName()).isEqualTo("만족도");
+        assertThat(result.certKind()).isEqualTo(2);
         assertThat(result.useYn()).isTrue();
     }
 
@@ -63,14 +62,14 @@ class CertificationAdminServiceTest {
         when(repository.findByCertCode("CERT")).thenReturn(Optional.of(certification("CERT")));
 
         assertThatThrownBy(() -> service.update("CERT", new CertificationUpsertCommand(
-                "OTHER", "자격증", 1, null, null, true)))
+                "OTHER", "자격증", 1, true)))
                 .isInstanceOfSatisfying(ApplicationException.class, exception ->
                         assertThat(exception.errorType()).isEqualTo(ApplicationErrorType.BAD_REQUEST));
         verify(repository, never()).save(any());
     }
 
     private static Certification certification(String code) {
-        return new Certification(code, "자격증", 1, null, null, true,
+        return new Certification(code, "자격증", 1, true,
                 null, null, null, null);
     }
 }

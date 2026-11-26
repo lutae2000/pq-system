@@ -416,7 +416,6 @@ export function RelatedProjectHistoryConditionDialog({
       { field: "level1Name", headerName: "1레벨", flex: 1, minWidth: 120 },
       { field: "level2Name", headerName: "2레벨", flex: 1, minWidth: 140 },
       { field: "level3Name", headerName: "3레벨", flex: 1, minWidth: 140 },
-      { field: "level3Code", headerName: "코드", width: 90, align: "center", headerAlign: "center" },
     ],
     [],
   );

@@ -44,14 +44,10 @@ type CertificationFilters = {
 type FieldErrorState = {
   certCode?: string;
   certName?: string;
-  satisCode?: string;
-  satisName?: string;
 };
 
 const MAX_CERT_CODE = 20;
 const MAX_CERT_NAME = 200;
-const MAX_SATIS_CODE = 20;
-const MAX_SATIS_NAME = 200;
 
 const certKindOptions = [
   { value: "All", label: "전체" },
@@ -80,8 +76,6 @@ const emptyDraft = (): CertificationUpsertRequest => ({
   certCode: "",
   certKind: 1,
   certName: "",
-  satisCode: "",
-  satisName: "",
   useYn: true,
 });
 
@@ -105,8 +99,6 @@ const toDraft = (record: CertificationRecord): CertificationUpsertRequest => ({
   certCode: record.certCode,
   certKind: supportedCertKind(record.certKind),
   certName: record.certName,
-  satisCode: record.satisCode ?? "",
-  satisName: record.satisName ?? "",
   useYn: record.useYn,
 });
 
@@ -119,8 +111,6 @@ const matchesKeyword = (record: CertificationRecord, keyword: string) => {
     record.certCode,
     record.certName,
     certificationKindLabel(record.certKind),
-    record.satisCode ?? "",
-    record.satisName ?? "",
   ]
     .join(" ")
     .toLowerCase();
@@ -201,8 +191,6 @@ export function CertificateManagementPage() {
     const next: FieldErrorState = {};
     const certCode = normalizeText(detailDraft.certCode);
     const certName = normalizeText(detailDraft.certName);
-    const satisCode = normalizeText(detailDraft.satisCode);
-    const satisName = normalizeText(detailDraft.satisName);
 
     if (!certCode) {
       next.certCode = "자격증 코드를 입력하세요.";
@@ -216,16 +204,8 @@ export function CertificateManagementPage() {
       next.certName = `자격증명은 ${MAX_CERT_NAME}자 이내로 입력하세요.`;
     }
 
-    if (satisCode.length > MAX_SATIS_CODE) {
-      next.satisCode = `SATIS 코드는 ${MAX_SATIS_CODE}자 이내로 입력하세요.`;
-    }
-
-    if (satisName.length > MAX_SATIS_NAME) {
-      next.satisName = `SATIS명은 ${MAX_SATIS_NAME}자 이내로 입력하세요.`;
-    }
-
     return next;
-  }, [detailDraft.certCode, detailDraft.certName, detailDraft.satisCode, detailDraft.satisName]);
+  }, [detailDraft.certCode, detailDraft.certName]);
 
   const isValid = Object.keys(errors).length === 0;
   const detailDisabled = !isCreating && !selectedRow;
@@ -257,8 +237,6 @@ export function CertificateManagementPage() {
         certCode: normalizeText(detailDraft.certCode),
         certKind: supportedCertKind(detailDraft.certKind),
         certName: normalizeText(detailDraft.certName),
-        satisCode: normalizeText(detailDraft.satisCode) || null,
-        satisName: normalizeText(detailDraft.satisName) || null,
         useYn: detailDraft.useYn,
       },
     });
@@ -294,14 +272,6 @@ export function CertificateManagementPage() {
       valueFormatter: (value) => (typeof value === "number" ? certificationKindLabel(value) : "-"),
     },
     {
-      field: "satisCode",
-      headerName: "SATIS 코드",
-      width: 130,
-      align: "center",
-      headerAlign: "center",
-      renderCell: (params) => (typeof params.value === "string" && params.value.trim() ? params.value : "-"),
-    },
-    {
       field: "useYn",
       headerName: "사용여부",
       width: 110,
@@ -330,7 +300,7 @@ export function CertificateManagementPage() {
             <TextField
               fullWidth
               label="검색"
-              placeholder="자격증 코드, 자격증명, SATIS 코드 검색"
+              placeholder="자격증 코드, 자격증명 검색"
               size="small"
               value={filters.keyword}
               onChange={(event) => setFilters((current) => ({ ...current, keyword: event.target.value }))}
@@ -504,30 +474,6 @@ export function CertificateManagementPage() {
                 slotProps={{ htmlInput: { maxLength: MAX_CERT_NAME } }}
                 sx={{ ...standardFieldSx, gridColumn: "1 / -1" }}
                 value={detailDraft.certName}
-              />
-              <TextField
-                fullWidth
-                disabled={detailDisabled}
-                error={showFieldError("satisCode")}
-                helperText={showFieldError("satisCode") ? errors.satisCode : `${normalizeText(detailDraft.satisCode).length}/${MAX_SATIS_CODE}`}
-                label="SATIS 코드"
-                onChange={(event) => setDraft((current) => ({ ...current, satisCode: event.target.value }))}
-                size="small"
-                slotProps={{ htmlInput: { maxLength: MAX_SATIS_CODE } }}
-                sx={standardFieldSx}
-                value={detailDraft.satisCode ?? ""}
-              />
-              <TextField
-                fullWidth
-                disabled={detailDisabled}
-                error={showFieldError("satisName")}
-                helperText={showFieldError("satisName") ? errors.satisName : `${normalizeText(detailDraft.satisName).length}/${MAX_SATIS_NAME}`}
-                label="SATIS명"
-                onChange={(event) => setDraft((current) => ({ ...current, satisName: event.target.value }))}
-                size="small"
-                slotProps={{ htmlInput: { maxLength: MAX_SATIS_NAME } }}
-                sx={standardFieldSx}
-                value={detailDraft.satisName ?? ""}
               />
               <FormControlLabel
                 control={
