@@ -14,6 +14,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -60,8 +62,28 @@ class JpaBidNoticeRepositoryTest {
         ArgumentCaptor<String> queryText = ArgumentCaptor.forClass(String.class);
         verify(entityManager).createQuery(queryText.capture());
         assertThat(queryText.getValue())
-                .contains("order by bidNoticeEntity.pqSubmitDate asc nulls last, bidNoticeEntity.bidSeq desc");
+                .contains("order by case when length(trim(bidNoticeEntity.pqSubmitDate)) = 12",
+                        "pg_input_is_valid", "end asc nulls last, bidNoticeEntity.bidSeq desc");
         verify(query).setMaxResults(5);
+    }
+
+    @ParameterizedTest
+    @EnumSource(Sort.Direction.class)
+    void explicitPqDateSortKeepsInvalidDatesLastInBothDirections(Sort.Direction direction) {
+        EntityManager entityManager = mock(EntityManager.class);
+        var query = mock(org.hibernate.query.Query.class);
+        when(entityManager.createQuery(anyString())).thenReturn(query);
+        when(query.unwrap(org.hibernate.query.Query.class)).thenReturn(query);
+        when(query.getResultList()).thenReturn(List.of());
+        var repository = new JpaBidNoticeRepository(mock(BidNoticeJpaRepository.class), entityManager,
+                new JPAQueryFactory(HQLTemplates.DEFAULT, entityManager));
+
+        repository.findAll(null, PageRequest.of(0, 5, Sort.by(direction, "pqSubmitDate")));
+
+        var queryText = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createQuery(queryText.capture());
+        assertThat(queryText.getValue()).contains("pg_input_is_valid",
+                direction.isAscending() ? "end asc nulls last" : "end desc nulls last");
     }
 
     @Test
@@ -91,7 +113,8 @@ class JpaBidNoticeRepositoryTest {
                         "and bidNoticeEntity.orderMethod =", "and bidNoticeEntity.businessType =",
                         "and bidNoticeEntity.participateYn in"));
         assertThat(queries.getAllValues().getFirst())
-                .contains("order by bidNoticeEntity.pqSubmitDate asc nulls last, bidNoticeEntity.bidSeq desc")
+                .contains("order by case when length(trim(bidNoticeEntity.pqSubmitDate)) = 12",
+                        "end asc nulls last, bidNoticeEntity.bidSeq desc")
                 .doesNotContain("unknown");
         assertThat(queries.getAllValues().getLast()).doesNotContain("order by");
         verify(listQuery).setFirstResult(5);

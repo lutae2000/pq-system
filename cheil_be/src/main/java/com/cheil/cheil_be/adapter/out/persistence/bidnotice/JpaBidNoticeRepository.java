@@ -25,6 +25,8 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.ComparableExpressionBase;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.StringExpression;
 import com.querydsl.core.types.dsl.StringPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
@@ -93,7 +95,7 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
                 case "orderClientName" -> client.orderNameLong.coalesce(bidNoticeEntity.orderClient);
                 case "projectName" -> bidNoticeEntity.projectName;
                 case "announceDate" -> bidNoticeEntity.announceDate;
-                case "pqSubmitDate" -> bidNoticeEntity.pqSubmitDate;
+                case "pqSubmitDate" -> pqSubmissionSortKey();
                 case "bidClosingDate" -> bidNoticeEntity.bidClosingDate;
                 case "bidSubmissionDate" -> bidNoticeEntity.bidSubmissionDate;
                 case "bidDate" -> bidNoticeEntity.bidDate;
@@ -106,12 +108,25 @@ public class JpaBidNoticeRepository implements BidNoticeRepository {
             }
         }
         if (order.isEmpty()) {
-            order.add(bidNoticeEntity.pqSubmitDate.asc().nullsLast());
+            order.add(pqSubmissionSortKey().asc().nullsLast());
         }
         if (sort.getOrderFor("bidSeq") == null) {
             order.add(bidNoticeEntity.bidSeq.desc());
         }
         return order.toArray(OrderSpecifier<?>[]::new);
+    }
+
+    private StringExpression pqSubmissionSortKey() {
+        StringExpression compact = bidNoticeEntity.pqSubmitDate.trim();
+        var timestamp = Expressions.stringTemplate("""
+                concat(substring({0}, 1, 4), '-', substring({0}, 5, 2), '-', substring({0}, 7, 2),
+                       ' ', substring({0}, 9, 2), ':', substring({0}, 11, 2))
+                """.strip(), compact);
+        // The displayed date is empty for invalid legacy values, even when the database column is non-null.
+        return Expressions.stringTemplate("""
+                case when length({0}) = 12 and cast(function('pg_input_is_valid', {1}, 'timestamp') as Boolean) = true
+                     then {0} else null end
+                """.strip(), compact, timestamp);
     }
 
     @Override

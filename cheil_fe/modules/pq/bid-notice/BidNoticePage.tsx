@@ -86,6 +86,7 @@ const bidNoticeSortFields: Partial<Record<string, string>> = {
   designAmt: "designAmt",
   writerName: "superDecideEmpno",
 };
+const defaultBidNoticeSortModel: GridSortModel = [{ field: "pqSubmissionDate", sort: "asc" }];
 
 const handleSearchEnter =
   (onSearch: () => void) =>
@@ -115,7 +116,7 @@ export function BidNoticePage() {
   const [open, setOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: DEFAULT_GRID_PAGE_SIZE });
-  const [sortModel, setSortModel] = useState<GridSortModel>([]);
+  const [sortModel, setSortModel] = useState<GridSortModel>(defaultBidNoticeSortModel);
   const { showError, showSuccess } = useAppSnackbar();
   const [searchRevision, setSearchRevision] = useState(0);
   const [bidNoticeGridCardHeight, setBidNoticeGridCardHeight] = useState(BID_NOTICE_GRID_CARD_DEFAULT_HEIGHT);
@@ -294,7 +295,7 @@ export function BidNoticePage() {
       {
         field: "department",
         headerName: "부서",
-        width: 90,
+        width: 120,
         align: "center",
         headerAlign: "center",
         valueFormatter: formatDepartmentForXlsx,
@@ -304,27 +305,28 @@ export function BidNoticePage() {
           </Box>
         ),
       },
-      { field: "businessTypeLabel", headerName: "구분", width: 60, align: "center", headerAlign: "center" },
+      { field: "businessTypeLabel", headerName: "구분", width: 100, align: "center", headerAlign: "center" },
       {
         field: "client",
         headerName: "발주처",
-        width: 120,
+        width: 150,
         headerAlign: "center",
         valueFormatter: formatOrderClientForXlsx,
         renderCell: ({ row, value }) => row.orderClientName || String(value ?? ""),
       },
       { field: "projectName", headerName: "용역명", flex: 1, minWidth: 240, headerAlign: "center" },
-      { field: "noticeDate", headerName: "공고일", width: 110, headerAlign: "center" },
+      { field: "noticeDate", headerName: "공고일", width: 110, headerAlign: "center", align: "center" },
       {
         field: "pqSubmissionDate",
         headerName: "PQ 제출일자",
         width: 110,
         headerAlign: "center",
+        align: "center",
         renderCell: ({ row }) => dateOnly(row.pqSubmissionDate),
       },
-      { field: "bidClosingDate", headerName: "협정서 제출 마감일", width: 145, headerAlign: "center" },
-      { field: "bidSubmissionDate", headerName: "개찰일", width: 145, headerAlign: "center" },
-      { field: "bidDate", headerName: "입찰일", width: 145, headerAlign: "center" },
+      { field: "bidClosingDate", headerName: "협정서 제출 마감일", width: 145, headerAlign: "center", align: "center" },
+      { field: "bidSubmissionDate", headerName: "개찰일", width: 145, headerAlign: "center", align: "center" },
+      { field: "bidDate", headerName: "입찰일", width: 145, headerAlign: "center", align: "center" },
       {
         field: "designAmt",
         headerName: "설계금액",
@@ -581,7 +583,7 @@ export function BidNoticePage() {
             sortingMode="server"
             sortModel={sortModel}
             onSortModelChange={(model) => {
-              setSortModel(model);
+              setSortModel(model.length > 0 ? model : defaultBidNoticeSortModel);
               setPaginationModel((current) => current.page === 0 ? current : { ...current, page: 0 });
             }}
             showXlsxExportButton
