@@ -13,6 +13,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
@@ -33,14 +34,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeAdminUseCase;
+import com.cheil.cheil_be.application.bidnotice.port.in.BidNoticeSubmissionStatusUseCase;
 import com.cheil.cheil_be.application.bidnotice.model.BidNoticeListRow;
+import com.cheil.cheil_be.application.bidnotice.model.BidNoticeSubmissionCount;
 import com.cheil.cheil_be.application.userauth.port.in.ValidateLoginSessionUseCase;
 import com.cheil.cheil_be.application.userauth.service.LoginAccessTokenService;
 import com.cheil.cheil_be.config.security.AppSecurityProperties;
 import com.cheil.cheil_be.config.security.ServiceCredentialRegistry;
 import com.cheil.cheil_be.domain.bidnotice.BidNotice;
 
-@WebMvcTest(BidNoticeController.class)
+@WebMvcTest({BidNoticeController.class, BidNoticeSubmissionStatusController.class})
 @AutoConfigureMockMvc(addFilters = false)
 @AutoConfigureRestDocs(outputDir = "build/generated-snippets")
 class BidNoticeControllerRestDocsTest {
@@ -50,6 +53,9 @@ class BidNoticeControllerRestDocsTest {
 
     @MockitoBean
     private BidNoticeAdminUseCase bidNoticeAdminUseCase;
+
+    @MockitoBean
+    private BidNoticeSubmissionStatusUseCase bidNoticeSubmissionStatusUseCase;
 
     @MockitoBean
     private BidNoticeResponseMapper bidNoticeResponseMapper;
@@ -68,6 +74,24 @@ class BidNoticeControllerRestDocsTest {
 
     @MockitoBean
     private ServiceCredentialRegistry serviceCredentialRegistry;
+
+    @Test
+    void listsAnnualPqSubmissionsByDepartment() throws Exception {
+        when(bidNoticeSubmissionStatusUseCase.findByDepartmentAndYear(2026, 12))
+                .thenReturn(List.of(new BidNoticeSubmissionCount("D01", 2026, 12, false),
+                        new BidNoticeSubmissionCount(null, 2026, 2, false),
+                        new BidNoticeSubmissionCount(null, 2026, 14, true)));
+
+        mockMvc.perform(get("/pq/submit-stat").param("year", "2026"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].departmentCode").value("D01"))
+                .andExpect(jsonPath("$[0].year").value(2026))
+                .andExpect(jsonPath("$[0].count").value(12))
+                .andExpect(jsonPath("$[0].total").value(false))
+                .andExpect(jsonPath("$[1].total").value(false))
+                .andExpect(jsonPath("$[2].count").value(14))
+                .andExpect(jsonPath("$[2].total").value(true));
+    }
 
     @Test
     void listPassesFiltersAndSortToUseCase() throws Exception {

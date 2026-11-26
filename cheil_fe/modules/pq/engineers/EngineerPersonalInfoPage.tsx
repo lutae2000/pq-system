@@ -1957,7 +1957,7 @@ export function EngineerPersonalInfoPage() {
         }}
         onInputChange={(event, nextValue, reason) => {
           if (reason === "input" || reason === "clear") {
-            void params.api.setEditCellValue({ id: params.id, field: params.field, value: resolveLicenseCode(nextValue) }, event);
+            void params.api.setEditCellValue({ id: params.id, field: params.field, value: resolveLicenseCode(nextValue) }, event ?? undefined);
           }
         }}
         renderInput={(inputParams) => (

@@ -1579,6 +1579,22 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
             onCopyCapture: handleCopyCapture,
             onDragStartCapture: handleDragStartCapture,
             onKeyDownCapture: handleKeyDownCapture,
+            onWheelCapture: (event) => {
+              userSlotProps?.root?.onWheelCapture?.(event);
+              event.currentTarget.dataset.sortHover = "paused";
+            },
+            onScrollCapture: (event) => {
+              userSlotProps?.root?.onScrollCapture?.(event);
+              if (event.target instanceof Element && event.target.matches(".MuiDataGrid-virtualScroller")) {
+                event.currentTarget.dataset.sortHover = "paused";
+              }
+            },
+            onPointerMove: (event) => {
+              userSlotProps?.root?.onPointerMove?.(event);
+              if (event.currentTarget.dataset.sortHover === "paused" && event.pointerType === "mouse") {
+                delete event.currentTarget.dataset.sortHover;
+              }
+            },
           },
           toolbar: {
             ...userSlotProps?.toolbar,
@@ -1615,6 +1631,15 @@ export function EnterpriseDataGrid<Row extends GridValidRowModel>(props: Enterpr
           "& .MuiDataGrid-sortButton, & .MuiDataGrid-sortIcon": {
             WebkitUserDrag: "none",
             userSelect: "none",
+          },
+          "&& .MuiDataGrid-columnHeader .MuiDataGrid-sortButton": {
+            backgroundColor: "transparent",
+            contain: "paint",
+            transition: "none",
+            "& .MuiTouchRipple-root": { display: "none" },
+          },
+          "&&[data-sort-hover='paused'] .MuiDataGrid-columnHeader:not(.MuiDataGrid-columnHeader--sorted):not(:focus-visible) .MuiDataGrid-sortButton": {
+            visibility: "hidden",
           },
           "& .MuiDataGrid-sortIcon, & .MuiDataGrid-sortIcon *": {
             pointerEvents: "none",

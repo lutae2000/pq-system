@@ -19,12 +19,14 @@ const PersistentTabPanel = memo(function PersistentTabPanel({ active, href }: { 
   return (
     <Box
       aria-hidden={!active}
+      inert={!active}
       sx={
         active
           ? { height: "100%", minHeight: 0, minWidth: 0, position: "relative" }
           : {
               height: "100%",
               minWidth: 0,
+              opacity: 0,
               overflow: "hidden",
               pointerEvents: "none",
               position: "absolute",
