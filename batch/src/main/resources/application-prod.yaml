@@ -10,6 +10,6 @@ spring:
 batch:
   g2b:
     bid-notice:
-      cron: "${BATCH_G2B_BID_NOTICE_CRON:0 */10 6-21 * *}"
+      cron: "${BATCH_G2B_BID_NOTICE_CRON:0 */10 6-21 * * *}"
   internal:
     api-key: 30aafc86257cbf251b0307cfc2cf5243f66fad37d63e2693176f451e83c301a8
