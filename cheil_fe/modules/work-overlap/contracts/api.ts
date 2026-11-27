@@ -87,6 +87,7 @@ export type WorkOverlapContractEngineerRecord = {
   birthDate: string | null;
   field: string | null;
   participationDate: string | null;
+  participationEndDate: string | null;
   participationType: string | null;
   pqTargetYn: boolean | null;
   remark: string | null;
@@ -101,8 +102,13 @@ export type WorkOverlapContractEngineerChangeRequest = {
   beforeEngineerId: string | null;
   afterEngineerId: string | null;
   changeContent: string;
+  historyField: string | null;
+  historyParticipationType: string | null;
+  historyParticipationStartDate: string | null;
+  historyParticipationEndDate: string | null;
   field: string | null;
   participationDate: string | null;
+  participationEndDate: string | null;
   participationType: string | null;
   pqTargetYn: boolean | null;
   remark: string | null;
@@ -115,6 +121,14 @@ export type WorkOverlapContractEngineerHistoryRecord = {
   beforeEngineerName: string | null;
   afterEngineerId: string | null;
   afterEngineerName: string | null;
+  beforeField: string | null;
+  beforeParticipationType: string | null;
+  beforeParticipationStartDate: string | null;
+  beforeParticipationEndDate: string | null;
+  afterField: string | null;
+  afterParticipationType: string | null;
+  afterParticipationStartDate: string | null;
+  afterParticipationEndDate: string | null;
   changeContent: string | null;
 };
 

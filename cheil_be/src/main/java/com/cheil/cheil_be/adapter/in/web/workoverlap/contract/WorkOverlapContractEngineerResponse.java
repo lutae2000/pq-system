@@ -8,6 +8,7 @@ public record WorkOverlapContractEngineerResponse(
         String birthDate,
         String field,
         String participationDate,
+        String participationEndDate,
         String participationType,
         Boolean pqTargetYn,
         String remark
@@ -19,6 +20,7 @@ public record WorkOverlapContractEngineerResponse(
                 engineer.birthDate(),
                 engineer.field(),
                 engineer.participationDate(),
+                engineer.participationEndDate(),
                 engineer.participationType(),
                 engineer.pqTargetYn(),
                 engineer.remark()

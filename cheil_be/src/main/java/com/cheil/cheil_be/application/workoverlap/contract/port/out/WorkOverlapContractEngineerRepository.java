@@ -3,6 +3,7 @@ package com.cheil.cheil_be.application.workoverlap.contract.port.out;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineer;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerCandidate;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistory;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistorySaveCommand;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerSaveCommand;
 
 import java.util.List;
@@ -23,11 +24,5 @@ public interface WorkOverlapContractEngineerRepository {
 
     boolean deleteHistory(String contractNo, long historyId);
 
-    void createHistory(
-            String contractNo,
-            String beforeEngineerId,
-            String afterEngineerId,
-            String changeContent,
-            String actor
-    );
+    void createHistory(WorkOverlapContractEngineerHistorySaveCommand command);
 }

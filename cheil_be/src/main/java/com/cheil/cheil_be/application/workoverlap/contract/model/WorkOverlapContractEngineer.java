@@ -6,6 +6,7 @@ public record WorkOverlapContractEngineer(
         String birthDate,
         String field,
         String participationDate,
+        String participationEndDate,
         String participationType,
         Boolean pqTargetYn,
         String remark

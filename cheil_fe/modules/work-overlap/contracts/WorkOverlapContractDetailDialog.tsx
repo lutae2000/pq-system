@@ -6,6 +6,10 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import SwapHorizOutlinedIcon from "@mui/icons-material/SwapHorizOutlined";
+import CloseFullscreenOutlinedIcon from "@mui/icons-material/CloseFullscreenOutlined";
+import OpenInFullOutlinedIcon from "@mui/icons-material/OpenInFullOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import {
   Alert,
@@ -26,8 +30,10 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  GridEditInputCell,
   GridRowModes,
   type GridColDef,
+  type GridColumnGroupingModel,
   type GridRenderEditCellParams,
   type GridRowId,
   type GridRowParams,
@@ -38,6 +44,7 @@ import {
   startTransition,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
@@ -49,6 +56,7 @@ import { FileActionCard } from "@/components/common/FileActionCard";
 import { standardFieldSx } from "@/components/common/FormControls";
 import { useAppSnackbar } from "@/lib/providers/AppSnackbarProvider";
 import { useCurrentMenuPermission } from "@/lib/permissions/useCurrentMenuPermission";
+import { todayLocalDate, toCompactDate } from "@/modules/common/formatters";
 import {
   useCommonCodeLevel3Options,
   useDepartmentOptions,
@@ -57,15 +65,16 @@ import {
   type WorkOverlapContractEngineerCandidate,
   type WorkOverlapContractEngineerHistoryRecord,
   type WorkOverlapContractEngineerRecord,
-  type WorkOverlapContractEngineerRequest,
   type WorkOverlapContractPeriodHistoryRecord,
   type WorkOverlapContractRecord,
 } from "@/modules/work-overlap/contracts/api";
+import { normalizeDateValue, toEngineerRequest, toInlineEngineerUpdate } from "@/modules/work-overlap/contracts/application/mapper";
 import { useWorkOverlapContractDetailMutations } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractDetailMutations";
 import { useWorkOverlapContractDetailQueries } from "@/modules/work-overlap/contracts/application/useWorkOverlapContractDetailQueries";
 import {
   WorkOverlapContractEngineerChangeDialog,
   type EngineerChangeDraft,
+  type EngineerChangeFormValues,
 } from "@/modules/work-overlap/contracts/WorkOverlapContractEngineerChangeDialog";
 import {
   defaultWorkOverlapContractRecord,
@@ -120,9 +129,6 @@ const getTodayYmdValue = () => {
 
 const tempId = () => -Date.now();
 
-const normalizeDateValue = (value: string | null | undefined) =>
-  toText(value).replace(/\D/g, "").slice(0, 8) || null;
-
 const formatDisplayDate = (value: string | null | undefined) => {
   const normalized = toText(value).replace(/\D/g, "").slice(0, 8);
   if (normalized.length === 8) {
@@ -135,17 +141,6 @@ const engineerLabel = (
   engineer: Pick<WorkOverlapContractEngineerCandidate, "engineerId" | "name">,
 ) => `${toText(engineer.name) || engineer.engineerId} (${engineer.engineerId})`;
 
-const toEngineerRequest = (
-  row: WorkOverlapContractEngineerRecord,
-): WorkOverlapContractEngineerRequest => ({
-  engineerId: toText(row.engineerId) || null,
-  field: toText(row.field) || null,
-  participationDate: normalizeDateValue(row.participationDate),
-  participationType: toText(row.participationType) || null,
-  pqTargetYn: Boolean(row.pqTargetYn),
-  remark: toText(row.remark) || null,
-});
-
 const historyColumns: GridColDef<WorkOverlapContractEngineerHistoryRecord>[] = [
   {
     field: "changedAt",
@@ -157,21 +152,103 @@ const historyColumns: GridColDef<WorkOverlapContractEngineerHistoryRecord>[] = [
   },
   {
     field: "beforeEngineerName",
-    headerName: "변경전 기술인",
+    headerName: "기술인",
     align: "center",
     headerAlign: "center",
-    width: 124,
+    width: 112,
     valueGetter: (_value, row) => toText(row.beforeEngineerName) || "-",
   },
   {
-    field: "afterEngineerName",
-    headerName: "변경후 기술인",
+    field: "beforeField",
+    headerName: "분야",
+    width: 100,
+  },
+  {
+    field: "beforeParticipationType",
+    headerName: "참여구분",
+    width: 100,
+  },
+  {
+    field: "beforeParticipationStartDate",
+    headerName: "참여시작일",
+    width: 112,
     align: "center",
     headerAlign: "center",
-    width: 124,
+    valueGetter: (_value, row) => formatDisplayDate(row.beforeParticipationStartDate),
+  },
+  {
+    field: "beforeParticipationEndDate",
+    headerName: "참여종료일",
+    width: 112,
+    align: "center",
+    headerAlign: "center",
+    valueGetter: (_value, row) => formatDisplayDate(row.beforeParticipationEndDate),
+  },
+  {
+    field: "afterEngineerName",
+    headerName: "기술인",
+    align: "center",
+    headerAlign: "center",
+    headerClassName: "engineer-history-group-divider",
+    width: 112,
     valueGetter: (_value, row) => toText(row.afterEngineerName) || "-",
   },
-  { field: "changeContent", headerName: "변경내용", flex: 1.1, minWidth: 180 },
+  {
+    field: "afterField",
+    headerName: "분야",
+    width: 100,
+  },
+  {
+    field: "afterParticipationType",
+    headerName: "참여구분",
+    width: 100,
+  },
+  {
+    field: "afterParticipationStartDate",
+    headerName: "참여시작일",
+    width: 112,
+    align: "center",
+    headerAlign: "center",
+    valueGetter: (_value, row) => formatDisplayDate(row.afterParticipationStartDate),
+  },
+  {
+    field: "afterParticipationEndDate",
+    headerName: "참여종료일",
+    width: 112,
+    align: "center",
+    headerAlign: "center",
+    valueGetter: (_value, row) => formatDisplayDate(row.afterParticipationEndDate),
+  },
+  { field: "changeContent", headerName: "변경내용", flex: 1.0, minWidth: 140 },
+];
+
+const historyColumnGroups: GridColumnGroupingModel = [
+  {
+    groupId: "before",
+    headerName: "변경 전",
+    headerAlign: "center",
+    headerClassName: "engineer-history-before-header",
+    children: [
+      { field: "beforeEngineerName" },
+      { field: "beforeField" },
+      { field: "beforeParticipationType" },
+      { field: "beforeParticipationStartDate" },
+      { field: "beforeParticipationEndDate" },
+    ],
+  },
+  {
+    groupId: "after",
+    headerName: "변경 후",
+    headerAlign: "center",
+    headerClassName: "engineer-history-after-header engineer-history-group-divider",
+    children: [
+      { field: "afterEngineerName" },
+      { field: "afterField" },
+      { field: "afterParticipationType" },
+      { field: "afterParticipationStartDate" },
+      { field: "afterParticipationEndDate" },
+    ],
+  },
 ];
 
 const periodHistoryColumns: GridColDef<WorkOverlapContractPeriodHistoryRecord>[] = [
@@ -390,8 +467,10 @@ function FieldAutocompleteEditCell({
 const Section = ({
   title,
   children,
+  action,
   dense = false,
 }: {
+  action?: ReactNode;
   children: ReactNode;
   dense?: boolean;
   title: string;
@@ -417,7 +496,9 @@ const Section = ({
         borderLeft: "4px solid",
         borderColor: "primary.main",
         display: "flex",
+        gap: 1,
         height: dense ? 24 : 28,
+        justifyContent: "space-between",
         minHeight: dense ? 24 : 28,
         pl: 1,
       }}
@@ -428,6 +509,7 @@ const Section = ({
       >
         {title}
       </Typography>
+      {action}
     </Box>
     {children}
   </Box>
@@ -477,11 +559,13 @@ const SubHeader = ({
 const DetailRow = ({
   alignItems = "stretch",
   desktopColumns = "minmax(0, 1fr) minmax(380px, 0.84fr)",
+  expandRight = false,
   left,
   right,
 }: {
   alignItems?: "start" | "stretch";
   desktopColumns?: string;
+  expandRight?: boolean;
   left: ReactNode;
   right?: ReactNode;
 }) => (
@@ -496,8 +580,29 @@ const DetailRow = ({
       },
     }}
   >
-    <Box sx={{ display: "grid", minWidth: 0 }}>{left}</Box>
-    {right ? <Box sx={{ display: "grid", minWidth: 0 }}>{right}</Box> : null}
+    <Box
+      sx={{
+        display: "grid",
+        minWidth: 0,
+        ...(expandRight && {
+          gridArea: { md: "1 / 1 / 2 / 2" },
+          visibility: { md: "hidden" },
+        }),
+      }}
+    >
+      {left}
+    </Box>
+    {right ? (
+      <Box
+        sx={{
+          display: "grid",
+          minWidth: 0,
+          ...(expandRight && { gridArea: { md: "1 / 1 / 2 / -1" } }),
+        }}
+      >
+        {right}
+      </Box>
+    ) : null}
   </Box>
 );
 
@@ -535,6 +640,8 @@ export function WorkOverlapContractDetailDialog({
     useState<WorkOverlapContractEngineerRecord | null>(null);
   const [historySelectionModel, setHistorySelectionModel] =
     useState<GridRowSelectionModel>({ ids: new Set(), type: "include" });
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const historyPanelId = useId();
   const [historyDeleteTarget, setHistoryDeleteTarget] =
     useState<WorkOverlapContractEngineerHistoryRecord | null>(null);
   const [periodHistorySelectionModel, setPeriodHistorySelectionModel] =
@@ -717,6 +824,7 @@ export function WorkOverlapContractDetailDialog({
       name: "",
       participationDate:
         normalizeDateValue(draft.constructionStartDate) ?? getTodayYmdValue(),
+      participationEndDate: null,
       participationType: "",
       pqTargetYn: false,
       remark: "",
@@ -747,14 +855,33 @@ export function WorkOverlapContractDetailDialog({
 
   const processEngineerRowUpdate = async (
     updatedRow: WorkOverlapContractEngineerRecord,
+    originalRow: WorkOverlapContractEngineerRecord,
   ) => {
-    if (!updatedRow.isNew) {
-      return updatedRow;
+    if (updatedRow.isNew) {
+      return createEngineerMutation.mutateAsync({
+        requestBody: toEngineerRequest(updatedRow),
+        row: updatedRow,
+      });
     }
-    return createEngineerMutation.mutateAsync({
-      requestBody: toEngineerRequest(updatedRow),
-      row: updatedRow,
-    });
+    const requestBody = toInlineEngineerUpdate(updatedRow, originalRow, formatFieldLabel(originalRow.field));
+    if (!requestBody) {
+      return originalRow;
+    }
+    return updateEngineerMutation.mutateAsync({ engineerId: toText(originalRow.engineerId), requestBody });
+  };
+
+  const engineerEditing = Object.values(rowModesModel).some(({ mode }) => mode === GridRowModes.Edit);
+  const engineerUpdateDisabled =
+    saveDisabled || !canUpdate || !contractNo || !selectedEngineer ||
+    selectedEngineer.isNew || engineerEditing || updateEngineerMutation.isPending;
+
+  const handleEditEngineer = () => {
+    if (engineerUpdateDisabled || !selectedEngineer?.engineerId) return;
+    const engineerId = selectedEngineer.engineerId;
+    setRowModesModel((current) => ({
+      ...current,
+      [engineerId]: { mode: GridRowModes.Edit, fieldToFocus: "field" },
+    }));
   };
 
   const handleEngineerSelect = useCallback(
@@ -796,19 +923,25 @@ export function WorkOverlapContractDetailDialog({
       field: targetEngineer.field,
       name: targetEngineer.name,
     };
-    setEngineerKeyword(toText(targetEngineer.name));
+    const fieldLabel = formatFieldLabel(targetEngineer.field);
+    setEngineerKeyword("");
     setChangeDraft({
-      afterEngineer: beforeEngineer,
+      afterEngineer: null,
       beforeEngineer,
-      changeContent: "",
-      participationDate: formatDisplayDate(targetEngineer.participationDate),
+      beforeField: fieldLabel,
+      beforeParticipationType: toText(targetEngineer.participationType),
+      field: fieldLabel,
+      historyParticipationStartDate: formatDisplayDate(targetEngineer.participationDate),
+      historyParticipationEndDate: todayLocalDate(),
+      participationDate: todayLocalDate(),
+      participationEndDate: formatDisplayDate(targetEngineer.participationEndDate),
       participationType: toText(targetEngineer.participationType),
       pqTargetYn: Boolean(targetEngineer.pqTargetYn),
-      remark: toText(targetEngineer.remark),
+      initialRemark: toText(targetEngineer.remark),
     });
   };
 
-  const submitChangeDialog = () => {
+  const submitChangeDialog = (values: EngineerChangeFormValues) => {
     if (
       !changeDraft?.beforeEngineer ||
       !changeDraft.afterEngineer
@@ -816,7 +949,7 @@ export function WorkOverlapContractDetailDialog({
       return;
     }
     const engineerChanged = changeDraft.beforeEngineer.engineerId !== changeDraft.afterEngineer.engineerId;
-    const changeContent = changeDraft.changeContent.trim();
+    const changeContent = values.changeContent.trim();
     if (engineerChanged && !changeContent) {
       return;
     }
@@ -826,11 +959,20 @@ export function WorkOverlapContractDetailDialog({
         afterEngineerId: changeDraft.afterEngineer.engineerId,
         beforeEngineerId: changeDraft.beforeEngineer.engineerId,
         changeContent,
-        field: toText(changeDraft.afterEngineer.field) || null,
+        historyField: engineerChanged ? values.beforeField || null : null,
+        historyParticipationType: engineerChanged ? values.beforeParticipationType || null : null,
+        historyParticipationStartDate: engineerChanged
+          ? toCompactDate(changeDraft.historyParticipationStartDate) || null
+          : null,
+        historyParticipationEndDate: engineerChanged
+          ? toCompactDate(changeDraft.historyParticipationEndDate) || null
+          : null,
+        field: values.field || null,
         participationDate: normalizeDateValue(changeDraft.participationDate),
-        participationType: toText(changeDraft.participationType) || null,
+        participationEndDate: normalizeDateValue(changeDraft.participationEndDate),
+        participationType: values.participationType || null,
         pqTargetYn: Boolean(changeDraft.pqTargetYn),
-        remark: toText(changeDraft.remark) || null,
+        remark: values.remark || null,
       },
     });
   };
@@ -862,13 +1004,13 @@ export function WorkOverlapContractDetailDialog({
     ].forEach((option) => {
       if (!optionMap.has(option.value)) {
         optionMap.set(option.value, {
-          label: option.label,
+          label: fieldLabelByCode[option.value] ?? option.label,
           value: option.value,
         });
       }
     });
     return [...optionMap.values()];
-  }, [jobFieldReferences.options, specialtyFieldReferences.options]);
+  }, [fieldLabelByCode, jobFieldReferences.options, specialtyFieldReferences.options]);
   const formatFieldLabel = useCallback(
     (value: string | null | undefined) => {
       const code = toText(value).trim();
@@ -913,13 +1055,23 @@ export function WorkOverlapContractDetailDialog({
       },
       {
         field: "participationDate",
-        headerName: "참여날짜",
+        headerName: "참여시작일",
         align: "center",
         editable: true,
         renderEditCell: (params) => <YmdEditCell {...params} />,
         headerAlign: "center",
         width: 110,
         valueGetter: (_value, row) => formatDisplayDate(row.participationDate),
+      },
+      {
+        field: "participationEndDate",
+        headerName: "참여종료일",
+        align: "center",
+        editable: true,
+        renderEditCell: (params) => <YmdEditCell {...params} />,
+        headerAlign: "center",
+        width: 110,
+        valueGetter: (_value, row) => formatDisplayDate(row.participationEndDate),
       },
       {
         field: "field",
@@ -931,9 +1083,9 @@ export function WorkOverlapContractDetailDialog({
         minWidth: 100,
         valueGetter: (_value, row) => formatFieldLabel(row.field),
         renderCell: (params) => formatFieldLabel(params.row.field),
-        renderEditCell: (params) => (
-          <FieldAutocompleteEditCell options={fieldOptions} params={params} />
-        ),
+        renderEditCell: (params) => params.row.isNew
+          ? <FieldAutocompleteEditCell options={fieldOptions} params={params} />
+          : <GridEditInputCell {...params} />,
       },
       {
         field: "participationType",
@@ -1007,8 +1159,7 @@ export function WorkOverlapContractDetailDialog({
     !canUpdate ||
     updateEngineerMutation.isPending ||
     !changeDraft?.beforeEngineer ||
-    !changeDraft.afterEngineer ||
-    (changeDraft.beforeEngineer.engineerId !== changeDraft.afterEngineer.engineerId && !changeDraft.changeContent.trim());
+    !changeDraft.afterEngineer;
 
   const evidenceContent = (
     <Section title="증빙 정보">
@@ -1635,6 +1786,8 @@ export function WorkOverlapContractDetailDialog({
             />
 
             <DetailRow
+              alignItems="start"
+              expandRight={historyExpanded}
               left={
                 <Section title="참여 기술인">
                   <Stack spacing={1.5} sx={{ minWidth: 0 }}>
@@ -1666,6 +1819,24 @@ export function WorkOverlapContractDetailDialog({
                             신규
                           </Button>
                           <Button
+                            disabled={engineerUpdateDisabled}
+                            onClick={handleEditEngineer}
+                            size="small"
+                            startIcon={<EditOutlinedIcon />}
+                            variant="outlined"
+                          >
+                            수정
+                          </Button>
+                          <Button
+                            disabled={engineerUpdateDisabled}
+                            onClick={() => openChangeDialog()}
+                            size="small"
+                            startIcon={<SwapHorizOutlinedIcon />}
+                            variant="outlined"
+                          >
+                            기술인 변경
+                          </Button>
+                          <Button
                             color="error"
                             disabled={
                               saveDisabled ||
@@ -1688,7 +1859,7 @@ export function WorkOverlapContractDetailDialog({
                           </Button>
                         </Box>
                       }
-                      tooltip="참여 기술인 입력전 계약 기본정보가 먼저 저장이 되어야 합니다. 기술인 데이터 추가 후 Enter 키를 누르면 저장이 됩니다."
+                      tooltip="계약 기본정보를 먼저 저장해 주세요. 행을 선택해 수정하거나 편집할 셀을 더블클릭하세요. Enter로 저장을 확인하고 Esc로 취소합니다."
                     />
 
                     <Box
@@ -1712,9 +1883,23 @@ export function WorkOverlapContractDetailDialog({
                             : toText(row.engineerId)
                         }
                         hideFooterSelectedRowCount
+                        confirmProcessRowUpdate={(updatedRow, originalRow) => {
+                          if (updatedRow.isNew || !toInlineEngineerUpdate(updatedRow, originalRow, formatFieldLabel(originalRow.field))) {
+                            return null;
+                          }
+                          return {
+                            confirmLabel: "저장",
+                            message: "참여 기술인 정보를 수정하시겠습니까?",
+                            targetLabel: toText(originalRow.name) || toText(originalRow.engineerId),
+                            title: "참여 기술인 수정",
+                          };
+                        }}
                         isCellEditable={(params) =>
                           !saveDisabled &&
-                          (params.row.isNew ? canCreate : canUpdate)
+                          Boolean(contractNo) &&
+                          (params.row.isNew
+                            ? canCreate
+                            : canUpdate && !updateEngineerMutation.isPending && params.field !== "engineerId")
                         }
                         loading={
                           engineersQuery.isLoading ||
@@ -1731,11 +1916,6 @@ export function WorkOverlapContractDetailDialog({
                           );
                         }}
                         onNewRowEditCancel={handleNewEngineerRowEditCancel}
-                        onRowEditStart={(params, event) => {
-                          if (params.reason === "cellDoubleClick") {
-                            event.defaultMuiPrevented = true;
-                          }
-                        }}
                         onRowClick={(
                           params: GridRowParams<WorkOverlapContractEngineerRecord>,
                         ) => {
@@ -1746,24 +1926,6 @@ export function WorkOverlapContractDetailDialog({
                             ids: new Set(rowId ? [rowId] : []),
                             type: "include",
                           });
-                        }}
-                        onRowDoubleClick={(
-                          params: GridRowParams<WorkOverlapContractEngineerRecord>,
-                        ) => {
-                          if (
-                            saveDisabled ||
-                            !canUpdate ||
-                            params.row.isNew ||
-                            updateEngineerMutation.isPending
-                          ) {
-                            return;
-                          }
-                          const rowId = toText(params.row.engineerId);
-                          setRowSelectionModel({
-                            ids: new Set(rowId ? [rowId] : []),
-                            type: "include",
-                          });
-                          openChangeDialog(params.row);
                         }}
                         onRowModesModelChange={setRowModesModel}
                         onRowSelectionModelChange={setRowSelectionModel}
@@ -1792,79 +1954,102 @@ export function WorkOverlapContractDetailDialog({
                 </Section>
               }
               right={
-                <Section title="기술인 변경 이력">
-                  <Stack spacing={1} sx={{ minWidth: 0 }}>
-                    <SubHeader
-                      action={
-                        <Button
-                          color="error"
-                          disabled={
-                            !canDelete ||
-                            !contractNo ||
-                            !selectedHistory ||
-                            deleteHistoryMutation.isPending
-                          }
-                          title="기술인 변경 이력 삭제"
-                          onClick={handleDeleteHistoryClick}
-                          size="small"
-                          startIcon={<DeleteOutlineOutlinedIcon />}
-                          sx={{ minWidth: 72 }}
-                          variant="outlined"
-                        >
-                          삭제
-                        </Button>
-                      }
-                    />
-                    <Box
-                      sx={{
-                        border: "1px solid",
-                        borderColor: "divider",
-                        borderRadius: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        minWidth: 0,
-                        minHeight: 0,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <EnterpriseDataGrid<WorkOverlapContractEngineerHistoryRecord>
-                        columns={historyColumns}
-                        getRowId={(row) => row.id}
-                        checkboxSelection
-                        hideFooterSelectedRowCount
-                        loading={
-                          historiesQuery.isLoading || historiesQuery.isFetching
+                <Section
+                  title="기술인 변경 이력"
+                  action={
+                    <Stack direction="row" spacing={0.75}>
+                      <Button
+                        color="error"
+                        disabled={
+                          !canDelete ||
+                          !contractNo ||
+                          !selectedHistory ||
+                          deleteHistoryMutation.isPending
                         }
-                        onRowClick={(
-                          params: GridRowParams<WorkOverlapContractEngineerHistoryRecord>,
-                        ) => {
-                          setHistorySelectionModel({
-                            ids: new Set([params.row.id]),
-                            type: "include",
-                          });
-                        }}
-                        onRowSelectionModelChange={setHistorySelectionModel}
-                        readOnly
-                        rowHeight={30}
-                        rowSelectionModel={historySelectionModel}
-                        rows={historyRows}
-                        showPageNumbers
-                        showToolbar={false}
-                        wrapperMinHeight={360}
-                        sx={{
-                          border: 0,
-                          flex: 1,
-                          height: 360,
-                          maxWidth: "100%",
-                          minHeight: 360,
-                          width: "100%",
-                          "& .MuiDataGrid-columnHeaders": {
-                            bgcolor: "rgba(15, 23, 42, 0.02)",
-                          },
-                        }}
-                      />
-                    </Box>
-                  </Stack>
+                        title="기술인 변경 이력 삭제"
+                        onClick={handleDeleteHistoryClick}
+                        size="small"
+                        startIcon={<DeleteOutlineOutlinedIcon />}
+                        variant="outlined"
+                      >
+                        삭제
+                      </Button>
+                      <Button
+                        aria-controls={historyPanelId}
+                        aria-expanded={historyExpanded}
+                        onClick={() => setHistoryExpanded((expanded) => !expanded)}
+                        size="small"
+                        startIcon={historyExpanded ? <CloseFullscreenOutlinedIcon /> : <OpenInFullOutlinedIcon />}
+                        sx={{ display: { xs: "none", md: "inline-flex" } }}
+                        variant="outlined"
+                      >
+                        {historyExpanded ? "원래 크기" : "넓게 보기"}
+                      </Button>
+                    </Stack>
+                  }
+                >
+                  <Box
+                    id={historyPanelId}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      minWidth: 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <EnterpriseDataGrid<WorkOverlapContractEngineerHistoryRecord>
+                      columnGroupHeaderHeight={30}
+                      columnGroupingModel={historyColumnGroups}
+                      columnHeaderHeight={36}
+                      columns={historyColumns}
+                      getRowId={(row) => row.id}
+                      checkboxSelection
+                      hideFooterSelectedRowCount
+                      loading={
+                        historiesQuery.isLoading || historiesQuery.isFetching
+                      }
+                      onRowClick={(
+                        params: GridRowParams<WorkOverlapContractEngineerHistoryRecord>,
+                      ) => {
+                        setHistorySelectionModel({
+                          ids: new Set([params.row.id]),
+                          type: "include",
+                        });
+                      }}
+                      onRowSelectionModelChange={setHistorySelectionModel}
+                      readOnly
+                      rowHeight={30}
+                      rowSelectionModel={historySelectionModel}
+                      rows={historyRows}
+                      showPageNumbers
+                      showToolbar={false}
+                      wrapperMinHeight={400}
+                      sx={{
+                        border: 0,
+                        flex: 1,
+                        maxWidth: "100%",
+                        minHeight: 0,
+                        width: "100%",
+                        "& .MuiDataGrid-columnHeaders": {
+                          bgcolor: "rgba(15, 23, 42, 0.02)",
+                        },
+                        "& .engineer-history-before-header": {
+                          bgcolor: "#e2e8f0",
+                          "& .MuiDataGrid-columnHeaderTitle": { color: "#334155", fontWeight: 800 },
+                        },
+                        "& .engineer-history-after-header": {
+                          bgcolor: "#dbeafe",
+                          "& .MuiDataGrid-columnHeaderTitle": { color: "#1e40af", fontWeight: 800 },
+                        },
+                        "& .engineer-history-group-divider": {
+                          borderInlineStart: "2px solid #94a3b8",
+                        },
+                      }}
+                    />
+                  </Box>
                 </Section>
               }
             />
@@ -1872,18 +2057,20 @@ export function WorkOverlapContractDetailDialog({
         )}
       </DialogContent>
 
-      <WorkOverlapContractEngineerChangeDialog
-        draft={changeDraft}
-        loading={engineerCandidatesQuery.isFetching}
-        onClose={() => {
-          setChangeDraft(null);
-        }}
-        onDraftChange={setChangeDraft}
-        onSearch={setEngineerKeyword}
-        onSubmit={submitChangeDialog}
-        options={changeEngineerOptions}
-        submitDisabled={changeSubmitDisabled}
-      />
+      {changeDraft ? (
+        <WorkOverlapContractEngineerChangeDialog
+          draft={changeDraft}
+          loading={engineerCandidatesQuery.isFetching}
+          onClose={() => {
+            setChangeDraft(null);
+          }}
+          onDraftChange={setChangeDraft}
+          onSearch={setEngineerKeyword}
+          onSubmit={submitChangeDialog}
+          options={changeEngineerOptions}
+          submitDisabled={changeSubmitDisabled}
+        />
+      ) : null}
 
       <ConfirmDeleteDialog
         message="선택한 참여기술인을 삭제하시겠습니까?"

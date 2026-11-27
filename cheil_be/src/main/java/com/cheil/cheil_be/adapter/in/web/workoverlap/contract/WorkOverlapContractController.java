@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import com.cheil.cheil_be.application.workoverlap.contract.WorkOverlapContractEngineerService;
+import com.cheil.cheil_be.application.workoverlap.contract.port.in.WorkOverlapContractEngineerUseCase;
+import jakarta.validation.Valid;
 import com.cheil.cheil_be.application.workoverlap.contract.WorkOverlapContractService;
 import com.cheil.cheil_be.common.paging.PageRequests;
 import com.cheil.cheil_be.common.web.PageResponse;
@@ -35,7 +36,7 @@ public class WorkOverlapContractController {
     );
 
     private final WorkOverlapContractService workOverlapContractService;
-    private final WorkOverlapContractEngineerService workOverlapContractEngineerService;
+    private final WorkOverlapContractEngineerUseCase workOverlapContractEngineerService;
 
     @GetMapping
     public ResponseEntity<PageResponse<WorkOverlapContractResponse>> list(
@@ -177,11 +178,11 @@ public class WorkOverlapContractController {
     @PostMapping("/{contractNo}/engineers")
     public ResponseEntity<WorkOverlapContractEngineerResponse> createEngineer(
             @PathVariable String contractNo,
-            @RequestBody WorkOverlapContractEngineerRequest request
+            @Valid @RequestBody WorkOverlapContractEngineerRequest request
     ) {
         workOverlapContractService.findByContractNo(contractNo);
         return ResponseEntity.ok(WorkOverlapContractEngineerResponse.from(
-                workOverlapContractEngineerService.create(contractNo, request)
+                workOverlapContractEngineerService.create(contractNo, request.toCommand())
         ));
     }
 
@@ -189,11 +190,11 @@ public class WorkOverlapContractController {
     public ResponseEntity<WorkOverlapContractEngineerResponse> updateEngineer(
             @PathVariable String contractNo,
             @PathVariable String engineerId,
-            @RequestBody WorkOverlapContractEngineerChangeRequest request
+            @Valid @RequestBody WorkOverlapContractEngineerChangeRequest request
     ) {
         workOverlapContractService.findByContractNo(contractNo);
         return ResponseEntity.ok(WorkOverlapContractEngineerResponse.from(
-                workOverlapContractEngineerService.update(contractNo, engineerId, request)
+                workOverlapContractEngineerService.update(contractNo, engineerId, request.toCommand())
         ));
     }
 

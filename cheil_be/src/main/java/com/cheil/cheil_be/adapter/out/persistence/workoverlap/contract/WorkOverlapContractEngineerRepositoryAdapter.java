@@ -3,6 +3,8 @@ package com.cheil.cheil_be.adapter.out.persistence.workoverlap.contract;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineer;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerCandidate;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistory;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistorySaveCommand;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerParticipation;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerSaveCommand;
 import com.cheil.cheil_be.application.workoverlap.contract.port.out.WorkOverlapContractEngineerRepository;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +57,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                                engineer.birthday,
                                COALESCE(selected.field, engineer.dutypart, engineer.propart) AS field,
                                selected.participation_date,
+                               selected.participation_end_date,
                                selected.participation_type,
                                selected.pq_target_yn,
                                selected.remark
@@ -73,6 +76,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                         resultSet.getString("birthday"),
                         resultSet.getString("field"),
                         formatDate(resultSet.getString("participation_date")),
+                        formatDate(resultSet.getString("participation_end_date")),
                         resultSet.getString("participation_type"),
                         resultSet.getBoolean("pq_target_yn"),
                         resultSet.getString("remark")
@@ -89,6 +93,14 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                                before_engineer.namekor AS before_engineer_name,
                                history.after_engr_id,
                                after_engineer.namekor AS after_engineer_name,
+                               history.before_field,
+                               history.before_participation_type,
+                               history.before_participation_start_date,
+                               history.before_participation_end_date,
+                               history.after_field,
+                               history.after_participation_type,
+                               history.after_participation_start_date,
+                               history.after_participation_end_date,
                                history.change_content
                         FROM work_overlap_contract_engineer_histories history
                         LEFT JOIN pq_engineer_master before_engineer
@@ -108,6 +120,18 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                             resultSet.getString("before_engineer_name"),
                             resultSet.getString("after_engr_id"),
                             resultSet.getString("after_engineer_name"),
+                            new WorkOverlapContractEngineerParticipation(
+                                    resultSet.getString("before_field"),
+                                    resultSet.getString("before_participation_type"),
+                                    formatDate(resultSet.getString("before_participation_start_date")),
+                                    formatDate(resultSet.getString("before_participation_end_date"))
+                            ),
+                            new WorkOverlapContractEngineerParticipation(
+                                    resultSet.getString("after_field"),
+                                    resultSet.getString("after_participation_type"),
+                                    formatDate(resultSet.getString("after_participation_start_date")),
+                                    formatDate(resultSet.getString("after_participation_end_date"))
+                            ),
                             resultSet.getString("change_content")
                     );
                 })
@@ -122,6 +146,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                             engr_id,
                             field,
                             participation_date,
+                            participation_end_date,
                             participation_type,
                             pq_target_yn,
                             remark,
@@ -133,6 +158,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                             :engineerId,
                             :field,
                             :participationDate,
+                            :participationEndDate,
                             :participationType,
                             :pqTargetYn,
                             :remark,
@@ -144,6 +170,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                 .param("engineerId", command.engineerId())
                 .param("field", command.field())
                 .param("participationDate", command.participationDate())
+                .param("participationEndDate", command.participationEndDate())
                 .param("participationType", command.participationType())
                 .param("pqTargetYn", command.pqTargetYn())
                 .param("remark", command.remark())
@@ -158,6 +185,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                         SET engr_id = :engineerId,
                             field = :field,
                             participation_date = :participationDate,
+                            participation_end_date = :participationEndDate,
                             participation_type = :participationType,
                             pq_target_yn = :pqTargetYn,
                             remark = :remark,
@@ -171,6 +199,7 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                 .param("engineerId", command.engineerId())
                 .param("field", command.field())
                 .param("participationDate", command.participationDate())
+                .param("participationEndDate", command.participationEndDate())
                 .param("participationType", command.participationType())
                 .param("pqTargetYn", command.pqTargetYn())
                 .param("remark", command.remark())
@@ -206,19 +235,21 @@ public class WorkOverlapContractEngineerRepositoryAdapter
     }
 
     @Override
-    public void createHistory(
-            String contractNo,
-            String beforeEngineerId,
-            String afterEngineerId,
-            String changeContent,
-            String actor
-    ) {
+    public void createHistory(WorkOverlapContractEngineerHistorySaveCommand command) {
         jdbcClient.sql("""
                         INSERT INTO work_overlap_contract_engineer_histories (
                             contract_no,
                             before_engr_id,
                             after_engr_id,
                             change_content,
+                            before_field,
+                            before_participation_type,
+                            before_participation_start_date,
+                            before_participation_end_date,
+                            after_field,
+                            after_participation_type,
+                            after_participation_start_date,
+                            after_participation_end_date,
                             created_id,
                             last_changed_id
                         )
@@ -227,15 +258,31 @@ public class WorkOverlapContractEngineerRepositoryAdapter
                             :beforeEngineerId,
                             :afterEngineerId,
                             :changeContent,
+                            :beforeField,
+                            :beforeParticipationType,
+                            :beforeParticipationStartDate,
+                            :beforeParticipationEndDate,
+                            :afterField,
+                            :afterParticipationType,
+                            :afterParticipationStartDate,
+                            :afterParticipationEndDate,
                             :actor,
                             :actor
                         )
                         """)
-                .param("contractNo", contractNo)
-                .param("beforeEngineerId", beforeEngineerId)
-                .param("afterEngineerId", afterEngineerId)
-                .param("changeContent", changeContent)
-                .param("actor", actor)
+                .param("contractNo", command.contractNo())
+                .param("beforeEngineerId", command.beforeEngineerId())
+                .param("afterEngineerId", command.afterEngineerId())
+                .param("changeContent", command.changeContent())
+                .param("beforeField", command.beforeParticipation().field())
+                .param("beforeParticipationType", command.beforeParticipation().participationType())
+                .param("beforeParticipationStartDate", command.beforeParticipation().participationStartDate())
+                .param("beforeParticipationEndDate", command.beforeParticipation().participationEndDate())
+                .param("afterField", command.afterParticipation().field())
+                .param("afterParticipationType", command.afterParticipation().participationType())
+                .param("afterParticipationStartDate", command.afterParticipation().participationStartDate())
+                .param("afterParticipationEndDate", command.afterParticipation().participationEndDate())
+                .param("actor", command.actor())
                 .update();
     }
 

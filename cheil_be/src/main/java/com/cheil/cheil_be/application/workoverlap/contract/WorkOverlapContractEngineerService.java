@@ -1,17 +1,20 @@
 package com.cheil.cheil_be.application.workoverlap.contract;
 
-import com.cheil.cheil_be.application.common.validation.InputValues;
-
+import static com.cheil.cheil_be.application.common.validation.InputValues.basicDate;
+import static com.cheil.cheil_be.application.common.validation.InputValues.optionalText;
 import static com.cheil.cheil_be.application.common.validation.InputValues.requiredText;
 import static com.cheil.cheil_be.common.text.StringValues.trimToNull;
 
-import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerChangeRequest;
-import com.cheil.cheil_be.adapter.in.web.workoverlap.contract.WorkOverlapContractEngineerRequest;
 import com.cheil.cheil_be.application.common.port.out.CurrentActorPort;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineer;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerCandidate;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerChangeCommand;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerCreateCommand;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistory;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerHistorySaveCommand;
+import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerParticipation;
 import com.cheil.cheil_be.application.workoverlap.contract.model.WorkOverlapContractEngineerSaveCommand;
+import com.cheil.cheil_be.application.workoverlap.contract.port.in.WorkOverlapContractEngineerUseCase;
 import com.cheil.cheil_be.application.workoverlap.contract.port.out.WorkOverlapContractEngineerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,7 +26,7 @@ import com.cheil.cheil_be.application.common.exception.ApplicationException;
 
 @Service
 @RequiredArgsConstructor
-public class WorkOverlapContractEngineerService {
+public class WorkOverlapContractEngineerService implements WorkOverlapContractEngineerUseCase {
 
     private final WorkOverlapContractEngineerRepository repository;
     private final CurrentActorPort currentActorPort;
@@ -58,7 +61,7 @@ public class WorkOverlapContractEngineerService {
     @Transactional
     public WorkOverlapContractEngineer create(
             String contractNo,
-            WorkOverlapContractEngineerRequest request
+            WorkOverlapContractEngineerCreateCommand request
     ) {
         if (request == null) {
             throw ApplicationException.badRequest("Request body is required.");
@@ -72,6 +75,7 @@ public class WorkOverlapContractEngineerService {
                 engineerId,
                 trimToNull(request.field()),
                 normalizeDate(request.participationDate()),
+                basicDate(request.participationEndDate(), "참여종료일", false),
                 trimToNull(request.participationType()),
                 Boolean.TRUE.equals(request.pqTargetYn()),
                 trimToNull(request.remark()),
@@ -84,7 +88,7 @@ public class WorkOverlapContractEngineerService {
     public WorkOverlapContractEngineer update(
             String contractNo,
             String engineerId,
-            WorkOverlapContractEngineerChangeRequest request
+            WorkOverlapContractEngineerChangeCommand request
     ) {
         if (request == null) {
             throw ApplicationException.badRequest("Request body is required.");
@@ -94,32 +98,47 @@ public class WorkOverlapContractEngineerService {
         String normalizedEngineerId = requiredText(engineerId, "engineerId");
         String beforeEngineerId = requiredText(request.beforeEngineerId(), "beforeEngineerId");
         String afterEngineerId = requiredText(request.afterEngineerId(), "afterEngineerId");
-        String changeContent = requiredText(request.changeContent(), "changeContent");
+        if (!normalizedEngineerId.equals(beforeEngineerId)) {
+            throw ApplicationException.badRequest("변경 전 기술인이 수정 대상과 일치하지 않습니다.");
+        }
         String actor = currentActorPort.currentActor();
-
-        boolean updated = repository.update(new WorkOverlapContractEngineerSaveCommand(
+        var assignment = new WorkOverlapContractEngineerSaveCommand(
                 normalizedContractNo,
                 normalizedEngineerId,
                 afterEngineerId,
-                trimToNull(request.field()),
+                optionalText(request.field(), 100, "분야"),
                 normalizeDate(request.participationDate()),
-                trimToNull(request.participationType()),
+                basicDate(request.participationEndDate(), "참여종료일", false),
+                optionalText(request.participationType(), 100, "참여구분"),
                 Boolean.TRUE.equals(request.pqTargetYn()),
                 trimToNull(request.remark()),
                 actor
-        ));
+        );
+        var history = beforeEngineerId.equals(afterEngineerId) ? null : new WorkOverlapContractEngineerHistorySaveCommand(
+                normalizedContractNo,
+                beforeEngineerId,
+                afterEngineerId,
+                requiredText(request.changeContent(), "changeContent"),
+                new WorkOverlapContractEngineerParticipation(
+                        optionalText(request.historyField(), 100, "변경 전 분야"),
+                        optionalText(request.historyParticipationType(), 100, "변경 전 참여구분"),
+                        basicDate(request.historyParticipationStartDate(), "변경 전 참여시작일", false),
+                        basicDate(request.historyParticipationEndDate(), "변경 전 참여종료일", false)
+                ),
+                new WorkOverlapContractEngineerParticipation(
+                        assignment.field(), assignment.participationType(),
+                        assignment.participationDate(), assignment.participationEndDate()
+                ),
+                actor
+        );
+
+        boolean updated = repository.update(assignment);
         if (!updated) {
             throw ApplicationException.notFound("참여 기술자 정보를 찾을 수 없습니다.");
         }
 
-        if (!beforeEngineerId.equals(afterEngineerId)) {
-            repository.createHistory(
-                    normalizedContractNo,
-                    beforeEngineerId,
-                    afterEngineerId,
-                    changeContent,
-                    actor
-            );
+        if (history != null) {
+            repository.createHistory(history);
         }
         return findByEngineerId(normalizedContractNo, afterEngineerId);
     }
@@ -145,4 +164,5 @@ public class WorkOverlapContractEngineerService {
         String normalized = trimToNull(value);
         return normalized == null ? null : normalized.replaceAll("\\D", "");
     }
+
 }

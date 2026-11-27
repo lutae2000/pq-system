@@ -11,6 +11,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,6 +32,9 @@ import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
 class WorkOverlapContractEngineerMigrationTest {
+    private static final Path INPUT_DIRECTORY = Path.of("C:/Users/cheil/마이그레이션");
+    private static final Pattern SOURCE_WORKBOOK =
+            Pattern.compile("복사본 업무중복도_자동화_[0-9]{8}_쓰기\\.xlsx", Pattern.CASE_INSENSITIVE);
     private static final Pattern NAME_BIRTH_YEAR =
             Pattern.compile("[（(]\\s*((?:19|20)\\d{2}|\\d{2})\\s*[）)]\\s*$");
     private static final String RESOLUTION = """
@@ -130,7 +134,7 @@ class WorkOverlapContractEngineerMigrationTest {
                 LEFT JOIN ready r ON r.contract_no = a.contract_no AND r.engr_id = a.engr_id
                     AND r.field = a.field AND r.participation_type = a.participation_type AND r.remark = a.remark
             ), upload_rows AS (
-                SELECT DISTINCT contract_no, engr_id, nullif(field, '') AS field,
+                SELECT contract_no, engr_id, nullif(field, '') AS field,
                        nullif(participation_type, '') AS participation_type, nullif(remark, '') AS remark,
                        'migration' AS created_id, 'migration' AS last_changed_id
                 FROM reviewed
@@ -147,14 +151,12 @@ class WorkOverlapContractEngineerMigrationTest {
 
     @Test
     void exportsAssignmentSqlAndEngineerReviewWorkbook() throws IOException, SQLException {
-        String inputPath = System.getenv("WORK_OVERLAP_ENGINEER_XLSX");
-        Assumptions.assumeTrue(inputPath != null, "Set WORK_OVERLAP_ENGINEER_XLSX to the source workbook");
         boolean apply = "true".equalsIgnoreCase(System.getenv("WORK_OVERLAP_ENGINEER_APPLY"));
         boolean exportSql = "true".equalsIgnoreCase(System.getenv("WORK_OVERLAP_ENGINEER_EXPORT_SQL"));
         if (apply && System.getenv("SPRING_PROFILES_ACTIVE") == null) {
             throw new IllegalArgumentException("Set SPRING_PROFILES_ACTIVE explicitly before applying the migration");
         }
-        Path input = Path.of(inputPath);
+        Path input = findInputWorkbook();
         var formatter = new DataFormatter(Locale.ROOT);
         formatter.setUseCachedValuesForFormulaCells(true);
         String query;
@@ -203,10 +205,28 @@ class WorkOverlapContractEngineerMigrationTest {
         }
     }
 
+    private static Path findInputWorkbook() throws IOException {
+        String configuredPath = System.getenv("WORK_OVERLAP_ENGINEER_XLSX");
+        if (configuredPath != null && !configuredPath.isBlank()) {
+            return Path.of(configuredPath);
+        }
+
+        String missingWorkbook = "Put the source workbook in " + INPUT_DIRECTORY
+                + " or set WORK_OVERLAP_ENGINEER_XLSX";
+        Assumptions.assumeTrue(Files.isDirectory(INPUT_DIRECTORY), missingWorkbook);
+        try (var files = Files.list(INPUT_DIRECTORY)) {
+            var input = files.filter(Files::isRegularFile)
+                    .filter(path -> SOURCE_WORKBOOK.matcher(path.getFileName().toString()).matches())
+                    .max(Comparator.comparing(path -> path.getFileName().toString()));
+            Assumptions.assumeTrue(input.isPresent(), missingWorkbook);
+            return input.orElseThrow();
+        }
+    }
+
     private static StandardEnvironment loadDatasourceEnvironment() {
         var environment = new StandardEnvironment();
         environment.getPropertySources().addLast(new MapPropertySource(
-                "workOverlapReviewDefaults", Map.of("spring.profiles.active", "prod")));
+                "workOverlapReviewDefaults", Map.of("spring.profiles.active", "local")));
         ConfigDataEnvironmentPostProcessor.applyTo(environment);
         return environment;
     }
@@ -334,7 +354,7 @@ class WorkOverlapContractEngineerMigrationTest {
             throws SQLException, IOException {
         try (var workbook = new XSSFWorkbook()) {
             writeSheet(connection, workbook, "요약", query + """
-                    SELECT '업로드 대상 (중복 제거)' AS "항목", count(*) AS "건수" FROM upload_rows
+                    SELECT '업로드 대상' AS "항목", count(*) AS "건수" FROM upload_rows
                     UNION ALL
                     SELECT '원본 참여인력 행', count(*) FROM reviewed
                     UNION ALL

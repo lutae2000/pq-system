@@ -6,6 +6,7 @@ public record WorkOverlapContractEngineerSaveCommand(
         String engineerId,
         String field,
         String participationDate,
+        String participationEndDate,
         String participationType,
         boolean pqTargetYn,
         String remark,

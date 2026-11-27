@@ -65,7 +65,13 @@ class WorkOverlapContractCsvMigrationTest {
         List<Path> inputs;
         try (Stream<Path> files = Files.list(INPUT_DIRECTORY)) {
             inputs = files
-                    .filter(path -> path.getFileName().toString().matches("(?i).*(WORK_OVERLAP|업무중복도).*\\.xlsx"))
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        return !name.startsWith("~$")
+                                && !name.endsWith("_참여인력_업로드검토.xlsx")
+                                && name.matches("(?i).*(WORK_OVERLAP|업무중복도).*\\.xlsx");
+                    })
                     .sorted()
                     .toList();
         }
@@ -81,7 +87,8 @@ class WorkOverlapContractCsvMigrationTest {
     }
 
     private static void convert(Path input, Path output) throws IOException {
-        try (Workbook workbook = WorkbookFactory.create(input.toFile());
+        try (var stream = Files.newInputStream(input);
+             Workbook workbook = WorkbookFactory.create(stream);
              BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.UTF_8)) {
             assertThat(workbook.getNumberOfSheets()).isGreaterThan(CONTRACT_INPUT_SHEET_INDEX);
             DataFormatter formatter = new DataFormatter(Locale.ROOT);

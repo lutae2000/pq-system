@@ -7,6 +7,8 @@ public record WorkOverlapContractEngineerHistory(
         String beforeEngineerName,
         String afterEngineerId,
         String afterEngineerName,
+        WorkOverlapContractEngineerParticipation beforeParticipation,
+        WorkOverlapContractEngineerParticipation afterParticipation,
         String changeContent
 ) {
 }
