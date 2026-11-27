@@ -80,9 +80,9 @@ export function BidNoticeSubmissionStatusGrid({ rows, years, throughMonth, loadi
       { field: "departmentName", headerName: "부서", minWidth: 155, flex: 1, sortComparator: departmentOrder.compare },
       ...years.map<GridColDef<SubmissionStatusRow>>((year, index) => ({
         field: `monthly-${year}`,
-        headerName: `${year}년 ${throughMonth}월`,
+        headerName: `${String(year).slice(-2)}년 ${throughMonth}월`,
         type: "number",
-        width: 110,
+        width: 80,
         valueGetter: (_value, row) => row.monthlyCounts[index],
         valueFormatter: (value: number) => value,
         renderCell: (params: GridRenderCellParams<SubmissionStatusRow, number>) => renderDetailNumber(
@@ -93,9 +93,9 @@ export function BidNoticeSubmissionStatusGrid({ rows, years, throughMonth, loadi
       })),
       ...years.map<GridColDef<SubmissionStatusRow>>((year, index) => ({
         field: `cumulative-${year}`,
-        headerName: `${year}년 ${cumulativePeriod}`,
+        headerName: `${String(year).slice(-2)}년 ${cumulativePeriod}`,
         type: "number",
-        width: 120,
+        width: 95,
         valueGetter: (_value, row) => row.cumulativeCounts[index],
         valueFormatter: (value: number) => value,
         renderCell: (params: GridRenderCellParams<SubmissionStatusRow, number>) => renderDetailNumber(
@@ -105,7 +105,7 @@ export function BidNoticeSubmissionStatusGrid({ rows, years, throughMonth, loadi
         cellClassName: year === currentYear ? "submission-current-year" : undefined,
       })),
       {
-        field: "average", headerName: "5년 평균", type: "number", width: 98,
+        field: "average", headerName: "5년 평균", type: "number", width: 80,
         description: `이전 5년의 ${cumulativePeriod} 누계 평균`,
         valueFormatter: (value: number) => value,
         renderCell: ({ row }) => decimal.format(row.average),
@@ -115,7 +115,7 @@ export function BidNoticeSubmissionStatusGrid({ rows, years, throughMonth, loadi
         headerName: "전년 대비",
         description: `전년과 기준연도의 ${cumulativePeriod} 누계 비교`,
         type: "number",
-        width: 138,
+        width: 120,
         valueGetter: (_value, row) => row.current - row.lastYear,
         valueFormatter: (_value, row) => formatChange(row.current, row.lastYear),
       },
